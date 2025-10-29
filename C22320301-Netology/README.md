@@ -1,5 +1,5 @@
 
-# Netology — Project Skeleton (Base Structure)
+# C22320301-Jamie O'Neill - Final Year Project
 
 This is the starting point for my Netology prototype.  
 It’s a clean project structure that keeps everything separate and easy to work on.  
@@ -55,7 +55,7 @@ netology/
 
 ---
 
-## 🧭 What Each Section Does
+##  What Each Section Does
 
 ### Frontend (`/frontend`)
 This folder contains all the static parts of the site — HTML, CSS, and JavaScript.  
@@ -102,7 +102,7 @@ These files are placeholders for now, but later they’ll:
 
 ---
 
-## 🧩 Development Plan (in order)
+##  Development Plan (in order)
 
 1. **Frontend pages**  
    Build all basic pages and add simple styling and navigation.
@@ -127,7 +127,7 @@ These files are placeholders for now, but later they’ll:
 
 ---
 
-## ⚙️ Environment Setup
+##  Environment Setup
 
 Copy `.env.example` to a new file called `.env`  
 and fill in your real values when ready.
@@ -143,7 +143,7 @@ API_URL=http://localhost:8000
 
 ---
 
-## ✅ Summary
+##  Summary
 
 This is the base structure for my Netology prototype.  
 It’s clean, modular, and follows modern web design principles:
