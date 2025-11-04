@@ -6,7 +6,7 @@ Handles user authentication and account creation routes.
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
-from backend.db import get_connection
+from db import get_connection
 
 router = APIRouter(prefix="/user", tags=["User"])
 
