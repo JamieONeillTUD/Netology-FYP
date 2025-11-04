@@ -1,1 +1,11 @@
-# Nginx/Static frontend Dockerfile (to be defined)
+# Use Nginx to host static files
+FROM nginx:alpine
+
+# Copy your frontend HTML, JS, and CSS into Nginx default directory
+COPY ../frontend /usr/share/nginx/html
+
+# Expose port 8080 for the frontend
+EXPOSE 8080
+
+# Default Nginx start command
+CMD ["nginx", "-g", "daemon off;"]

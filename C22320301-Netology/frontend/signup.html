@@ -1,1 +1,64 @@
-<!-- Signup page (HTML only) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netology | Sign Up</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body class="d-flex align-items-center justify-content-center vh-100 bg-light">
+  <div class="card shadow-lg p-4 fade-in" style="width: 450px;">
+    <h3 class="text-center mb-4 fw-bold">Create Account</h3>
+    <p class="text-center text-muted small">Join Netology and start your networking journey</p>
+
+    <form id="signupForm">
+      <div class="mb-3">
+        <label class="form-label">Full Name</label>
+        <input type="text" class="form-control" id="signupName" placeholder="Jane Doe" required />
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" id="signupEmail" placeholder="example@email.com" required />
+      </div>
+
+      <div class="mb-3 position-relative">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" id="signupPassword" placeholder="••••••••" required />
+        <div id="signupStrengthBar" class="bg-danger mt-1" style="width:0%; height:6px; border-radius:5px;"></div>
+        <span id="signupTogglePassword" class="small text-primary" style="cursor:pointer;">Show Password</span>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Experience Level</label>
+        <select class="form-select" id="signupLevel" required>
+          <option value="">Select level...</option>
+          <option value="Novice">Novice</option>
+          <option value="Intermediate">Intermediate</option>
+          <option value="Advanced">Advanced</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Reason for Joining</label>
+        <textarea id="signupReason" class="form-control" rows="2" placeholder="e.g., to improve my networking skills" required></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-success w-100">Sign Up</button>
+    </form>
+
+    <div class="text-center mt-3 small">
+      Already have an account? <a href="login.html">Login</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { setupPasswordTools } from "./js/password_strength.js";
+    setupPasswordTools("signupPassword", "signupStrengthBar", "signupTogglePassword");
+  </script>
+
+  <script src="js/auth.js"></script>
+</body>
+</html>

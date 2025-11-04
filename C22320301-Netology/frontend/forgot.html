@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netology | Reset Password</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body class="d-flex align-items-center justify-content-center vh-100 bg-light">
+  <div class="card shadow-lg p-4 fade-in" style="width: 420px;">
+    <h4 class="text-center mb-3 fw-bold">Reset Password</h4>
+    <p class="text-center text-muted small">Enter your email to reset your password</p>
+
+    <!-- STEP 1: Email Verification -->
+    <form id="forgotForm">
+      <div class="mb-3">
+        <label class="form-label">Email Address</label>
+        <input type="email" class="form-control" id="forgotEmail" placeholder="example@email.com" required />
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Verify Email</button>
+    </form>
+
+    <!-- STEP 2: Reset Password -->
+    <div id="resetSection" style="display:none;">
+      <hr />
+      <p class="text-center text-muted small mb-3">
+        Verified: <strong id="resetEmailDisplay"></strong>
+      </p>
+
+      <form id="resetForm">
+        <input type="hidden" id="resetEmailHidden" />
+        <div class="mb-3 position-relative">
+          <label class="form-label">New Password</label>
+          <input type="password" class="form-control" id="newPassword" placeholder="Enter new password" required />
+          <div id="strengthBar" class="bg-danger mt-1" style="width:0%; height:6px; border-radius:5px;"></div>
+          <span id="togglePassword" class="small text-primary" style="cursor:pointer;">Show Password</span>
+        </div>
+        <button type="submit" class="btn btn-success w-100">Update Password</button>
+      </form>
+    </div>
+
+    <div class="text-center mt-3 small">
+      <a href="login.html">Back to Login</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { setupPasswordTools } from "./js/password_strength.js";
+    setupPasswordTools("newPassword", "strengthBar", "togglePassword");
+  </script>
+
+  <script src="js/auth.js"></script>
+</body>
+</html>

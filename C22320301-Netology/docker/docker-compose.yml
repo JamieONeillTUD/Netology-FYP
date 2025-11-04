@@ -1,1 +1,30 @@
-# Compose services for frontend/back-end/DB (to be defined)
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile-backend
+    container_name: netology_backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../backend/.env  #loads the AWS credentials into the container
+    networks:
+      - netology_net
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile-frontend
+    container_name: netology_frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - netology_net
+
+networks:
+  netology_net:
+    driver: bridge

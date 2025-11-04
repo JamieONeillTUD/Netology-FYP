@@ -1,1 +1,25 @@
-# Python/FastAPI backend Dockerfile (to be defined)
+# Base image
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy and install dependencies
+COPY ../backend/requirements.txt .
+
+# Install system dependencies for psycopg2 (Postgres driver)
+RUN apt-get update && apt-get install -y libpq-dev gcc && \
+    pip install --no-cache-dir -r requirements.txt && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy backend source code
+COPY ../backend .
+
+# Ensure logs print instantly
+ENV PYTHONUNBUFFERED=1
+
+# Expose the FastAPI port
+EXPOSE 8000
+
+# Run FastAPI server
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
