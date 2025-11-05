@@ -1,176 +1,204 @@
-/* -------------------------------------
-   General Page & Layout
--------------------------------------- */
+/* Global styles (CSS only) */
+/* -------------------------------------------------------
+   NETOLOGY FRONTEND STYLES
+   Modern networking education theme
+   ------------------------------------------------------- */
+
+/* === GENERAL === */
 body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  background: linear-gradient(to bottom right, #e0f2f7, white, #b2dfdb);
+  background-color: #eef2f6;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  color: #222;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  color: var(--foreground);
+  min-height: 100vh;
 }
 
-/* Optional dark mode support */
-@custom-variant dark (&:is(.dark *)) {
-  background: var(--background);
-  color: var(--foreground);
-}
-
-/* -------------------------------------
-   Page Containers
--------------------------------------- */
-.page-container,
-.login-container {
+/* === CARD === */
+.card {
   width: 100%;
-  max-width: 400px;
-  padding: 20px;
-}
-
-/* Card layout (used for both login & signup) */
-.card,
-.login-card {
-  background: var(--card, white);
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 420px;
+  background-color: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
   padding: 2rem;
-  text-align: center;
+  animation: fadeIn 0.6s ease;
 }
 
-/* -------------------------------------
-   Header / Branding
--------------------------------------- */
-.header img,
-.login-logo img {
-  width: 64px;
-  height: 64px;
-  background-color: #00838f;
-  border-radius: 16px;
-  padding: 10px;
-}
-
-h1 {
-  color: #00838f;
-  margin: 10px 0 5px;
-}
-
-p {
-  color: #546e7a;
-  margin-bottom: 20px;
-}
-
-/* -------------------------------------
-   Form Elements
--------------------------------------- */
-.form-group {
-  text-align: left;
-  margin-bottom: 15px;
-}
-
-label {
-  display: block;
-  margin-bottom: 6px;
+h3, h4, h5 {
   font-weight: 600;
-  color: #37474f;
+  color: #0c3c78;  /* deep blue heading like your prototype */
 }
 
-input,
+/* === FORMS === */
+label {
+  font-weight: 500;
+  color: #333;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
 select {
-  width: 100%;
-  padding: 10px;
-  border: 2px solid #b2dfdb;
+  border: 1px solid #d0d7de;
   border-radius: 8px;
-  font-size: 14px;
-  background: var(--input-background, white);
-  transition: 0.3s;
+  padding: 10px 12px;
+  width: 100%;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 input:focus,
+textarea:focus,
 select:focus {
+  border-color: #0066cc;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
   outline: none;
-  border-color: #00838f;
-  box-shadow: 0 0 4px rgba(0, 131, 143, 0.2);
 }
 
-/* -------------------------------------
-   Buttons
--------------------------------------- */
-.btn,
-.btn-primary {
-  width: 100%;
-  padding: 12px;
-  background-color: #00838f;
-  color: white;
-  border: none;
+/* === BUTTONS === */
+.btn {
   border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: 0.3s;
-  margin-top: 10px;
+  font-weight: 500;
+  padding: 10px;
+  transition: all 0.3s ease;
+  width: 100%;
 }
 
-.btn:hover,
+.btn-primary {
+  background-color: #0066cc;
+  border: none;
+  color: #fff;
+}
+
 .btn-primary:hover {
-  background-color: #00695c;
+  background-color: #005bb5;
 }
 
-/* -------------------------------------
-   Links & Text
--------------------------------------- */
-.form-links {
-  text-align: right;
-  margin-bottom: 10px;
+.btn-success {
+  background-color: #00a86b;
+  border: none;
+  color: #fff;
 }
 
-.form-links a,
-.footer-text a {
-  color: #00838f;
+.btn-success:hover {
+  background-color: #00925f;
+}
+
+.btn-warning {
+  background-color: #f9b234;
+  border: none;
+  color: #222;
+}
+
+.btn-warning:hover {
+  background-color: #e0a020;
+}
+
+/* === LINKS AND TEXT === */
+a {
+  color: #0066cc;
   text-decoration: none;
-  font-size: 14px;
+  transition: color 0.2s ease;
 }
 
-.form-links a:hover,
-.footer-text a:hover {
-  text-decoration: underline;
+a:hover {
+  color: #004d99;
 }
 
-/* -------------------------------------
-   Footer / Trust Section
--------------------------------------- */
-.footer-text {
-  margin-top: 16px;
-  font-size: 14px;
-  color: #546e7a;
+.text-center {
+  text-align: center;
 }
 
-.trust-text {
-  font-size: 12px;
-  color: #546e7a;
-  margin-top: 20px;
+.small {
+  font-size: 0.9rem;
 }
 
-/* -------------------------------------
-   Dark Mode Adjustments
--------------------------------------- */
-.dark .card,
-.dark .login-card {
-  background: var(--background, #1a1a1a);
-  color: var(--foreground, #f1f1f1);
+/* === EFFECTS === */
+.fade-in {
+  animation: fadeIn 0.6s ease forwards;
 }
 
-.dark input,
-.dark select {
-  background: #333;
-  border-color: #444;
-  color: white;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.dark .btn,
-.dark .btn-primary {
-  background-color: #00acc1;
+/* === DASHBOARD LAYOUT === */
+.dashboard-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 2rem;
 }
 
-.dark .btn:hover {
-  background-color: #0097a7;
+.dashboard-header {
+  background-color: #0c3c78;
+  color: #fff;
+  padding: 1.2rem 2rem;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dashboard-header h2 {
+  font-weight: 600;
+  margin: 0;
+}
+
+.dashboard-header button {
+  background-color: #f9b234;
+  border: none;
+  color: #222;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.dashboard-header button:hover {
+  background-color: #e0a020;
+}
+
+.dashboard-card {
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  margin-top: 2rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-card h4 {
+  color: #0c3c78;
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+}
+
+.dashboard-card p {
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.dashboard-card .btn {
+  width: auto;
+  display: inline-block;
+}
+
+/* Strength meter polish */
+#strengthBar, #signupStrengthBar {
+  transition: width 0.3s ease, background-color 0.3s ease;
 }

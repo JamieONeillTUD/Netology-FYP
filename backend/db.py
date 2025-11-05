@@ -1,28 +1,27 @@
 """
 db.py
 -----
-Simple connection to AWS RDS PostgreSQL using psycopg2.
+Database connection setup for AWS RDS PostgreSQL.
 """
 
-import os
-import psycopg2
 from dotenv import load_dotenv
+import os, psycopg2
 
-# Load environment variables
+# Load environment variables from .env
 load_dotenv()
 
 def get_connection():
-    """Connect to the database and return the connection."""
+    """Create and return a new PostgreSQL connection."""
     try:
         conn = psycopg2.connect(
             host=os.getenv("DB_HOST"),
             port=os.getenv("DB_PORT"),
-            database=os.getenv("DB_NAME"),
+            dbname=os.getenv("DB_NAME"),
             user=os.getenv("DB_USER"),
             password=os.getenv("DB_PASSWORD")
         )
-        print("Connected to AWS RDS PostgreSQL")
+        print("Connected to AWS RDS successfully!")
         return conn
-    except psycopg2.Error as error:
-        print("Database connection failed:", error)
+    except Exception as e:
+        print("Database connection failed:", e)
         return None
