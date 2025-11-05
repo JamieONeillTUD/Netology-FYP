@@ -2,7 +2,7 @@
 FROM nginx:alpine
 
 # Copy your frontend HTML, JS, and CSS into Nginx default directory
-COPY ../frontend /usr/share/nginx/html
+COPY frontend /usr/share/nginx/html
 
 # Expose port 8080 for the frontend
 EXPOSE 8080
