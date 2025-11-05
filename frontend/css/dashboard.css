@@ -1,37 +1,124 @@
-/* Dashboard-specific styles (CSS only) */
-/* dashboard.css — Netology main dashboard look */
+/* Dashboard specific styling */
 
-#dashboardNavbar {
-  background-color: #0c3c78;
-  padding: 0.75rem 1.5rem;
+body.app--dashboard {
+  width: 100%;
+  align-items: stretch;
 }
 
-.dashboard-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 1.8rem;
-  text-align: left;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-  min-height: 220px;
+.dashboard {
+  width: min(100%, var(--max-content-width));
+  margin: var(--space-2xl) auto;
+  display: grid;
+  gap: var(--space-xl);
 }
 
-.dashboard-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+.dashboard__hero {
+  display: grid;
+  gap: var(--space-lg);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
-.dashboard-card h4 {
-  color: #0c3c78;
-  font-weight: 600;
-  margin-bottom: 0.8rem;
+.hero-card {
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: linear-gradient(120deg, rgba(58, 123, 255, 0.16), rgba(58, 123, 255, 0.08));
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: var(--space-md);
 }
 
-.dashboard-card p {
-  color: #555;
-  margin-bottom: 1rem;
+.hero-card__headline {
+  font-size: clamp(1.5rem, 2.6vw, 2.3rem);
+  display: grid;
+  gap: var(--space-sm);
 }
 
-.btn {
-  border-radius: 8px;
-  font-weight: 500;
+.hero-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.metric-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  padding: var(--space-lg);
+  display: grid;
+  gap: var(--space-sm);
+  background: var(--color-surface);
+}
+
+.metric-card__value {
+  font-size: 2.25rem;
+  font-weight: 700;
+}
+
+.metric-card__footer {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.dashboard__grid {
+  display: grid;
+  gap: var(--space-lg);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.action-card {
+  position: relative;
+  padding-bottom: calc(var(--space-lg) + 8px);
+}
+
+.action-card__cta {
+  margin-top: auto;
+  justify-self: start;
+}
+
+.dashboard__bottom {
+  display: grid;
+  gap: var(--space-lg);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.challenge-list {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.challenge-card {
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(58, 123, 255, 0.35);
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-xs);
+  background: rgba(58, 123, 255, 0.05);
+}
+
+.challenge-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.activity-feed {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.activity-item {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.activity-item__time {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
 }

@@ -35,7 +35,7 @@ Netology-FYP/
 
 ### Prerequisites
 - Python 3.10+
-- Node-compatible static server or any HTTP server for the frontend (optional)
+- Node.js 18+ (for the Vite-powered frontend tooling)
 - Docker and Docker Compose (optional)
 - PostgreSQL instance
 
@@ -52,7 +52,25 @@ Netology-FYP/
    ```
 
 ### Frontend
-Serve the `frontend/` directory with any static file server (for example `python -m http.server`), or open the HTML files directly in a browser while developing.
+The refreshed frontend runs on vanilla HTML, CSS, and JavaScript bundled with Vite. This keeps authoring simple while enabling fast module loading, hot reloading, and production bundling.
+
+```bash
+# install dependencies
+npm install
+
+# start a dev server at http://localhost:5173/login.html
+npm run dev
+
+# produce an optimised build in frontend/dist
+npm run build
+```
+
+Set `VITE_API_BASE` in a `.env` file at the repository root if the FastAPI backend is not running on `http://localhost:8000`.
+
+### Design principles
+- **Nielsen's heuristics** inform system feedback, undo pathways, and consistent language across views.
+- **Hick's and Miller's laws** guided the number of visible actions per page and chunked information blocks.
+- **Accessibility research** (WCAG 2.2, British Dyslexia Association) shaped colour contrast, typography, and theme toggles.
 
 ### Docker
 A compose setup that builds the backend and frontend containers lives in `infra/docker/docker-compose.yml`.
