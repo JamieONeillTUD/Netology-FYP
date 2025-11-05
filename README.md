@@ -65,7 +65,13 @@ docker compose up --build
 Update `backend/.env` (or create one based on it) with the connection information for your PostgreSQL database before running the stack.
 
 ### Database
-Apply the schema located in `infra/database/schema.sql` to initialise the PostgreSQL database. Optional seed data is available in `infra/database/seed.sql`.
+Initialise the PostgreSQL database by applying the SQL schema:
+
+```bash
+python -m backend.migrate
+```
+
+By default the script looks for `database/schema.sql` (falling back to `infra/database/schema.sql` for legacy setups). Optional seed data is available in `infra/database/seed.sql`.
 
 ## 🧭 Notes
 - The legacy `C22320301-Netology/` project layout has been consolidated into the top-level folders described above for easier navigation.
