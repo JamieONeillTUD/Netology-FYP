@@ -3,62 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Netology | Sign Up</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <title>Netology | Create account</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/auth.css" />
 </head>
-
-<body class="d-flex align-items-center justify-content-center vh-100 bg-light">
-  <div class="card shadow-lg p-4 fade-in" style="width: 450px;">
-    <h3 class="text-center mb-4 fw-bold">Create Account</h3>
-    <p class="text-center text-muted small">Join Netology and start your networking journey</p>
-
-    <form id="signupForm">
-      <div class="mb-3">
-        <label class="form-label">Full Name</label>
-        <input type="text" class="form-control" id="signupName" placeholder="Jane Doe" required />
+<body class="app--auth">
+  <main class="auth-hero">
+    <section class="auth-hero__intro">
+      <div class="split split--wrap">
+        <h1>Join the Netology cohort</h1>
+        <button type="button" class="theme-toggle" data-theme-toggle>☀️ Switch theme</button>
       </div>
+      <p>Every screen is organised around the cognitive load research you gathered — fewer than seven primary actions per page, high-contrast typography, and clear next steps.</p>
+      <ul>
+        <li>
+          <strong>✅ Error prevention</strong>
+          <span>Inline validation and step-by-step flows reduce misconfigurations before they happen.</span>
+        </li>
+        <li>
+          <strong>🎯 Fitts's law compliant</strong>
+          <span>Primary actions and toggles are large, close, and comfortably spaced for quick targeting.</span>
+        </li>
+        <li>
+          <strong>🧩 Law of similarity</strong>
+          <span>Consistent button styles help you recognise reusable actions instantly.</span>
+        </li>
+      </ul>
+    </section>
 
-      <div class="mb-3">
-        <label class="form-label">Email</label>
-        <input type="email" class="form-control" id="signupEmail" placeholder="example@email.com" required />
-      </div>
+    <section class="auth-panel" aria-labelledby="signup-heading">
+      <header>
+        <h2 id="signup-heading">Create your account</h2>
+        <p class="helper-text">Tell us how you learn best so we can tailor labs, challenges, and guidance.</p>
+      </header>
+      <form data-form="signup">
+        <label for="signupName">Full name</label>
+        <input class="input-field" id="signupName" name="name" type="text" placeholder="Jamie O’Neill" required autocomplete="name" />
 
-      <div class="mb-3 position-relative">
-        <label class="form-label">Password</label>
-        <input type="password" class="form-control" id="signupPassword" placeholder="••••••••" required />
-        <div id="signupStrengthBar" class="bg-danger mt-1" style="width:0%; height:6px; border-radius:5px;"></div>
-        <span id="signupTogglePassword" class="small text-primary" style="cursor:pointer;">Show Password</span>
-      </div>
+        <label for="signupEmail">Email</label>
+        <input class="input-field" id="signupEmail" name="email" type="email" placeholder="you@example.com" required autocomplete="email" />
 
-      <div class="mb-3">
-        <label class="form-label">Experience Level</label>
-        <select class="form-select" id="signupLevel" required>
-          <option value="">Select level...</option>
+        <div class="stack">
+          <label for="signupPassword">Password</label>
+          <div class="input-with-action">
+            <input class="input-field" id="signupPassword" name="password" type="password" placeholder="Minimum 8 characters" required autocomplete="new-password" />
+            <button type="button" class="btn btn--ghost" id="signupPasswordToggle">Show</button>
+          </div>
+          <div class="password-meter">
+            <div class="password-meter__track">
+              <div class="password-meter__bar" id="signupPasswordMeter"></div>
+            </div>
+            <span class="password-meter__label" id="signupPasswordLabel">Start typing a password</span>
+          </div>
+        </div>
+
+        <label for="signupLevel">Experience level</label>
+        <select class="input-field" id="signupLevel" name="level" required>
+          <option value="">Select level…</option>
           <option value="Novice">Novice</option>
           <option value="Intermediate">Intermediate</option>
           <option value="Advanced">Advanced</option>
         </select>
-      </div>
 
-      <div class="mb-3">
-        <label class="form-label">Reason for Joining</label>
-        <textarea id="signupReason" class="form-control" rows="2" placeholder="e.g., to improve my networking skills" required></textarea>
-      </div>
+        <label for="signupReason">Reason for joining</label>
+        <textarea class="input-field" id="signupReason" name="reason" rows="2" placeholder="e.g. Build confidence configuring secure campus networks" required></textarea>
 
-      <button type="submit" class="btn btn-success w-100">Sign Up</button>
-    </form>
+        <button type="submit" class="btn btn--primary">Create account</button>
+      </form>
 
-    <div class="text-center mt-3 small">
-      Already have an account? <a href="login.html">Login</a>
-    </div>
-  </div>
+      <footer class="auth-footer">
+        <span>Already have an account? <a class="link" href="login.html">Sign in</a></span>
+      </footer>
+    </section>
+  </main>
 
-  <script type="module">
-    import { setupPasswordTools } from "./js/password_strength.js";
-    setupPasswordTools("signupPassword", "signupStrengthBar", "signupTogglePassword");
-  </script>
-
-  <script src="js/auth.js"></script>
+  <div id="toast-root" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+  <script type="module" src="./js/pages/signup.js"></script>
 </body>
 </html>

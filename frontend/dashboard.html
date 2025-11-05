@@ -1,72 +1,101 @@
-<!-- Dashboard page (HTML only) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Netology | Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/dashboard.css" />
 </head>
-
-<body class="bg-light">
-  <!-- NAVBAR -->
-  <nav class="navbar navbar-expand-lg navbar-dark" id="dashboardNavbar">
-    <div class="container">
-      <a class="navbar-brand fw-bold" href="#">Netology</a>
-      <div class="ms-auto">
-        <button class="btn btn-outline-light btn-sm" id="logoutBtn">Logout</button>
+<body class="app--dashboard">
+  <header class="dashboard-nav" role="banner">
+    <div class="dashboard-nav__inner">
+      <span class="dashboard-nav__brand">Netology</span>
+      <div class="dashboard-nav__actions">
+        <button type="button" class="theme-toggle" data-theme-toggle>☀️ Switch theme</button>
+        <button type="button" class="btn btn--ghost" data-action="logout">Logout</button>
       </div>
     </div>
-  </nav>
+  </header>
 
-  <!-- DASHBOARD MAIN CONTENT -->
-  <div class="container mt-5 fade-in">
-    <div class="text-center mb-5">
-      <h2 class="fw-bold">Welcome, <span id="userName">User</span> 👋</h2>
-      <p class="text-muted">Your level: <strong id="userLevel">Novice</strong></p>
-    </div>
-
-    <div class="row g-4 justify-content-center">
-      <!-- Courses -->
-      <div class="col-md-5 col-lg-4">
-        <div class="dashboard-card shadow-sm">
-          <h4>📘 Courses</h4>
-          <p>Continue your learning path tailored to your level.</p>
-          <a href="courses.html" class="btn btn-primary w-100">View Courses</a>
+  <main class="dashboard" aria-labelledby="dashboard-heading">
+    <section class="dashboard__hero">
+      <article class="hero-card">
+        <div class="hero-card__headline">
+          <h1 id="dashboard-heading">Welcome back, <span data-user-name>Jamie</span></h1>
+          <p class="helper-text" data-hero-message>Ready for your next secure topology sprint?</p>
         </div>
-      </div>
-
-      <!-- Sandbox -->
-      <div class="col-md-5 col-lg-4">
-        <div class="dashboard-card shadow-sm">
-          <h4>🧪 Sandbox</h4>
-          <p>Experiment with network setups and get instant feedback.</p>
-          <a href="sandbox.html" class="btn btn-success w-100">Open Sandbox</a>
+        <div class="hero-card__stats">
+          <span class="stat-pill">Level: <span data-user-level>Novice</span></span>
+          <span class="stat-pill" data-tone="success">Streak: 5 days</span>
+          <span class="stat-pill" data-tone="warning">Next goal: 1 lab</span>
         </div>
-      </div>
+        <p class="helper-text">Built for Hick's law: only three priority destinations appear here so you can decide fast.</p>
+      </article>
 
-      <!-- Progress -->
-      <div class="col-md-5 col-lg-4">
-        <div class="dashboard-card shadow-sm">
-          <h4>📊 Progress</h4>
-          <p>Track your achievements and course completions.</p>
-          <a href="progress.html" class="btn btn-warning w-100">View Progress</a>
+      <article class="metric-card">
+        <div class="split">
+          <h2 class="metric-card__value">72%</h2>
+          <span class="badge">Course completion</span>
         </div>
-      </div>
-
-      <!-- Settings -->
-      <div class="col-md-5 col-lg-4">
-        <div class="dashboard-card shadow-sm">
-          <h4>⚙️ Account Settings</h4>
-          <p>Manage your profile, password, and preferences.</p>
-          <a href="settings.html" class="btn btn-secondary w-100">Edit Settings</a>
+        <p class="helper-text">You’re ahead of schedule. Keep pushing to complete your CCNA security journey.</p>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="72">
+          <div class="progress-fill" style="width:72%"></div>
         </div>
-      </div>
-    </div>
-  </div>
+        <div class="metric-card__footer">
+          <span>Next milestone:</span>
+          <strong>Secure routing workshop</strong>
+        </div>
+      </article>
+    </section>
 
-  <script src="js/dashboard.js"></script>
+    <section class="dashboard__grid" aria-label="Primary actions">
+      <article class="card action-card">
+        <h3 class="card__title">Guided challenges</h3>
+        <p>Practice scenario-based labs curated for your level with instant formative feedback.</p>
+        <button type="button" class="btn btn--primary action-card__cta" data-nav="challenge">Start a challenge</button>
+      </article>
+
+      <article class="card action-card">
+        <h3 class="card__title">Sandbox studio</h3>
+        <p>Design, simulate, and share topologies. Undo and reset controls ensure safe experimentation.</p>
+        <button type="button" class="btn btn--primary action-card__cta" data-nav="sandbox">Open sandbox</button>
+      </article>
+
+      <article class="card action-card">
+        <h3 class="card__title">Progress insights</h3>
+        <p>Review achievements, skill gaps, and recommended next steps with constructive messaging.</p>
+        <button type="button" class="btn btn--primary action-card__cta" data-nav="insights">Review insights</button>
+      </article>
+    </section>
+
+    <section class="dashboard__bottom" aria-label="Learning updates">
+      <article class="card">
+        <header class="split split--wrap">
+          <h3 class="card__title">Roadmap</h3>
+          <span class="badge">Aligned with Miller's law — 3 upcoming steps</span>
+        </header>
+        <div class="challenge-list" data-roadmap>
+          <p class="helper-text">Loading roadmap...</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="split split--wrap">
+          <h3 class="card__title">Recent activity</h3>
+          <span class="badge">Visibility of system status</span>
+        </header>
+        <div class="activity-feed" data-activity>
+          <p class="helper-text">Loading activity...</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="toast-root" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+  <script type="module" src="./js/pages/dashboard.js"></script>
 </body>
 </html>

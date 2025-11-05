@@ -1,0 +1,107 @@
+/* Auth layout styling */
+
+body.app--auth {
+  justify-content: center;
+}
+
+.auth-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-xl);
+  align-items: stretch;
+  width: min(100%, 1024px);
+  margin: var(--space-2xl) auto;
+  padding: var(--space-2xl);
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(32px);
+}
+
+body[data-theme="dark"].app--auth .auth-hero {
+  background: rgba(15, 23, 42, 0.85);
+}
+
+.auth-hero__intro {
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(160deg, rgba(58, 123, 255, 0.18), rgba(58, 123, 255, 0.08));
+  border: 1px solid rgba(58, 123, 255, 0.15);
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.auth-hero__intro h1 {
+  font-size: clamp(2rem, 3vw, 2.4rem);
+}
+
+.auth-hero__intro ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.auth-hero__intro li {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  border: 1px dashed rgba(58, 123, 255, 0.3);
+}
+
+.auth-hero__intro li strong {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.auth-panel {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  padding: var(--space-xl);
+  display: grid;
+  gap: var(--space-lg);
+  align-content: start;
+}
+
+.auth-panel header {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.auth-panel form {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.input-with-action {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.auth-footer {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 840px) {
+  .auth-hero {
+    padding: var(--space-xl);
+  }
+}
+
+@media (max-width: 640px) {
+  .auth-hero {
+    padding: var(--space-lg);
+  }
+
+  .auth-panel {
+    padding: var(--space-lg);
+  }
+}
