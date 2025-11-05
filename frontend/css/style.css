@@ -1,0 +1,176 @@
+/* -------------------------------------
+   General Page & Layout
+-------------------------------------- */
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(to bottom right, #e0f2f7, white, #b2dfdb);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  color: var(--foreground);
+}
+
+/* Optional dark mode support */
+@custom-variant dark (&:is(.dark *)) {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* -------------------------------------
+   Page Containers
+-------------------------------------- */
+.page-container,
+.login-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+}
+
+/* Card layout (used for both login & signup) */
+.card,
+.login-card {
+  background: var(--card, white);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  text-align: center;
+}
+
+/* -------------------------------------
+   Header / Branding
+-------------------------------------- */
+.header img,
+.login-logo img {
+  width: 64px;
+  height: 64px;
+  background-color: #00838f;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+h1 {
+  color: #00838f;
+  margin: 10px 0 5px;
+}
+
+p {
+  color: #546e7a;
+  margin-bottom: 20px;
+}
+
+/* -------------------------------------
+   Form Elements
+-------------------------------------- */
+.form-group {
+  text-align: left;
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #37474f;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #b2dfdb;
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--input-background, white);
+  transition: 0.3s;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #00838f;
+  box-shadow: 0 0 4px rgba(0, 131, 143, 0.2);
+}
+
+/* -------------------------------------
+   Buttons
+-------------------------------------- */
+.btn,
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  background-color: #00838f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.3s;
+  margin-top: 10px;
+}
+
+.btn:hover,
+.btn-primary:hover {
+  background-color: #00695c;
+}
+
+/* -------------------------------------
+   Links & Text
+-------------------------------------- */
+.form-links {
+  text-align: right;
+  margin-bottom: 10px;
+}
+
+.form-links a,
+.footer-text a {
+  color: #00838f;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.form-links a:hover,
+.footer-text a:hover {
+  text-decoration: underline;
+}
+
+/* -------------------------------------
+   Footer / Trust Section
+-------------------------------------- */
+.footer-text {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #546e7a;
+}
+
+.trust-text {
+  font-size: 12px;
+  color: #546e7a;
+  margin-top: 20px;
+}
+
+/* -------------------------------------
+   Dark Mode Adjustments
+-------------------------------------- */
+.dark .card,
+.dark .login-card {
+  background: var(--background, #1a1a1a);
+  color: var(--foreground, #f1f1f1);
+}
+
+.dark input,
+.dark select {
+  background: #333;
+  border-color: #444;
+  color: white;
+}
+
+.dark .btn,
+.dark .btn-primary {
+  background-color: #00acc1;
+}
+
+.dark .btn:hover {
+  background-color: #0097a7;
+}

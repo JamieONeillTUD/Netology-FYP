@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netology | Forgot Password</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="module" src="js/forgot.js" defer></script>
+</head>
+<body>
+  <div class="page-container">
+    <div class="card">
+      <div class="header">
+        <img src="https://cdn-icons-png.flaticon.com/512/906/906343.png" alt="Netology logo">
+        <h1>Netology</h1>
+        <p>Reset your password to get back into your account</p>
+      </div>
+
+      <!-- Step 1: Verify email -->
+      <form id="verifyForm">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input id="email" type="email" placeholder="you@example.com" required />
+        </div>
+        <button type="submit" class="btn" id="verifyBtn">Verify Email</button>
+        <p class="footer-text">
+          Remembered your password? <a href="login.html">Back to login</a>
+        </p>
+      </form>
+
+      <!-- Step 2: Reset password (hidden until verified) -->
+      <form id="resetForm" style="display:none;">
+        <div class="form-group">
+          <label for="new_password">New Password</label>
+          <input id="new_password" type="password" placeholder="••••••••" required />
+        </div>
+        <div class="form-group">
+          <label for="confirm_password">Confirm New Password</label>
+          <input id="confirm_password" type="password" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn">Update Password</button>
+        <p class="footer-text">
+          <a href="login.html">Back to login</a>
+        </p>
+      </form>
+
+      <p class="trust-text">Secure and simple password reset</p>
+    </div>
+  </div>
+</body>
+</html>
