@@ -8,7 +8,7 @@ and verifies database connectivity to AWS RDS.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import user_routes  # Correct for Docker folder structure
+from routes.user import router as user_router
 from db import get_connection
 
 # --- FastAPI app configuration ---
@@ -28,7 +28,7 @@ app.add_middleware(
 )
 
 # --- Include user-related routes (login, signup, reset password) ---
-app.include_router(user_routes.router)
+app.include_router(user_router)
 
 
 # --- Basic health check route ---
