@@ -247,3 +247,13 @@ canvas:hover {
     transform: translate(-50%, 0);
   }
 }
+
+.text-teal { color: #00838f !important; }
+.border-teal { border-color: #00838f !important; }
+.btn-teal {
+  background-color: #00838f;
+  color: #fff;
+  border: none;
+}
+.btn-teal:hover { background-color: #00695c; }
+.bg-teal { background-color: #00838f !important; }

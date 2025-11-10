@@ -70,3 +70,18 @@ def login():
 @auth.route('/logout')
 def logout():
     return redirect('/frontend/login.html')
+
+@auth.route('/user-info')
+def user_info():
+    email = request.args.get('email')
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT first_name, level, xp FROM users WHERE email = %s;", (email,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if user:
+        return jsonify({"first_name": user[0], "level": user[1], "xp": user[2]})
+    return jsonify({"error": "User not found"}), 404
+
