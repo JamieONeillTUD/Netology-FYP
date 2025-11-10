@@ -1,9 +1,0 @@
-fastapi
-uvicorn
-psycopg2-binary
-python-dotenv
-pydantic[email]
-email-validator
-passlib[bcrypt]
-pytest
-httpx
