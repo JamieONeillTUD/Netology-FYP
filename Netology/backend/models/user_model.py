@@ -11,10 +11,8 @@ def create_user(first_name, last_name, username, email, password_hash, level, re
     cur.execute(
         """
         INSERT INTO users (first_name, last_name, username, email, password_hash, level, reasons, xp)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, 0)
-        RETURNING id;
-        """,
-        (first_name, last_name, username, email, password_hash, level, reasons_csv)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, 0);
+        """, (first_name, last_name, username, email, password_hash, level, reasons_csv)
     )
     conn.commit()
     cur.close()

@@ -16,7 +16,6 @@ def login_page():
         user = get_user_by_email(email)
         if user and bcrypt.check_password_hash(user['password_hash'], password):
             session['user'] = {
-                'id': user['id'],
                 'first_name': user['first_name'],
                 'level': user['level'],
                 'xp': user['xp']
@@ -42,21 +41,20 @@ def register():
     reasons_list = request.form.getlist('reasons')
     reasons_csv = ",".join(reasons_list)
 
-    # Server-side validation
     if not (first_name and last_name and username and email and raw_pwd):
         flash('Please complete all required fields.', 'warning')
         return redirect(url_for('auth.signup_page'))
     if '@' not in email or '.' not in email.split('@')[-1]:
-        flash('Please enter a valid email address.', 'warning')
+        flash('Please enter a valid email.', 'warning')
         return redirect(url_for('auth.signup_page'))
     if len(raw_pwd) < 8:
-        flash('Password must be at least 8 characters long.', 'warning')
+        flash('Password must be at least 8 characters.', 'warning')
         return redirect(url_for('auth.signup_page'))
-    if level not in ['Novice','Intermediate','Advanced']:
-        flash('Please select your current networking level.', 'warning')
+    if level not in ['Novice', 'Intermediate', 'Advanced']:
+        flash('Select your networking level.', 'warning')
         return redirect(url_for('auth.signup_page'))
     if not reasons_list:
-        flash('Please select at least one reason for learning.', 'warning')
+        flash('Select at least one reason for learning.', 'warning')
         return redirect(url_for('auth.signup_page'))
 
     password_hash = bcrypt.generate_password_hash(raw_pwd).decode('utf-8')
@@ -68,7 +66,7 @@ def register():
         flash(f'Error creating account: {e}', 'danger')
         return redirect(url_for('auth.signup_page'))
 
-@auth_bp.route('/dashboard', methods=['GET'])
+@auth_bp.route('/dashboard')
 def dashboard():
     if 'user' not in session:
         flash('Please log in to continue.', 'warning')
