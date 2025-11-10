@@ -1,6 +1,183 @@
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 10/11/2025
 
-body {background-color:#E0F2F7;color:#111;font-family:Arial,sans-serif;}
-.btn-teal{background:#00838F;color:#fff;border:none;}
-.btn-teal:hover{background:#00695C;}
-.fade-step{opacity:0;visibility:hidden;transition:opacity .25s,transform .25s;transform:translateY(10px);}
-.fade-step.show{opacity:1;visibility:visible;transform:translateY(0);}
+CSS - Netology Learning Platform
+---------------------------------
+This CSS file styles the Netology login, signup, and dashboard pages.
+It follows a clean, accessible, and consistent structure using Bootstrap 5
+and a custom teal color palette.
+
+Sections:
+1. Page Basics
+2. Header Section
+3. Form Cards (Login / Signup)
+4. Inputs and Buttons
+5. Footer Section
+6. Accessibility
+7. Animation Utilities (Fade-step for signup wizard)
+*/
+
+/* ----------------------------------
+   1. Page Basics
+---------------------------------- */
+body {
+  background-color: #E0F2F7;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
+}
+
+/* ----------------------------------
+   2. Header Section
+---------------------------------- */
+header {
+  background-color: #ffffff;
+  border-bottom: 2px solid #00838F;
+  text-align: center;
+  padding: 1em 0;
+}
+
+header h1 {
+  color: #00838F;
+  margin-bottom: 0.3em;
+}
+
+header p {
+  color: #555;
+  margin: 0;
+}
+
+/* ----------------------------------
+   3. Form Cards (Login / Signup)
+---------------------------------- */
+.card {
+  background-color: #ffffff;
+  border: 1px solid #B2DFDB;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+}
+
+.text-teal {
+  color: #00838F;
+}
+
+.border-teal {
+  border-color: #00838F !important;
+}
+
+/* ----------------------------------
+   4. Inputs and Buttons
+---------------------------------- */
+input,
+select {
+  border: 1px solid #aaa;
+  padding: 0.6em;
+  width: 100%;
+  border-radius: 4px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus,
+select:focus {
+  border-color: #00838F;
+  box-shadow: 0 0 0 0.15rem rgba(0, 131, 143, 0.25);
+  outline: none;
+}
+
+.btn-teal {
+  background-color: #00838F;
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+  padding: 0.7em 1em;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.btn-teal:hover,
+.btn-teal:focus {
+  background-color: #00695C;
+  color: #ffffff;
+}
+
+.link-teal {
+  color: #00838F;
+  text-decoration: none;
+}
+
+.link-teal:hover {
+  text-decoration: underline;
+}
+
+/* ----------------------------------
+   5. Footer Section
+---------------------------------- */
+footer {
+  background-color: #ffffff;
+  border-top: 2px solid #00838F;
+  padding: 1em 0;
+  text-align: center;
+  margin-top: 3em;
+}
+
+footer p {
+  margin: 0;
+  color: #555;
+  font-size: 0.9em;
+}
+
+/* ----------------------------------
+   6. Accessibility
+---------------------------------- */
+:focus {
+  outline: 3px solid #00838F;
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* ----------------------------------
+   7. Animation Utilities
+---------------------------------- */
+.fade-step {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  transform: translateY(10px);
+}
+
+.fade-step.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* ----------------------------------
+   Utility Styling (optional visual polish)
+---------------------------------- */
+.bg-teal {
+  background-color: #00838F !important;
+}
+
+.progress {
+  height: 8px;
+  background-color: #B2DFDB;
+}
+
+.progress-bar {
+  background-color: #00838F;
+}
