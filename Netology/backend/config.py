@@ -1,9 +1,6 @@
 
-# PostgreSQL connection details (AWS RDS or Docker)
-DB_CONFIG = {
-    'host': 'netology-db.c58saiqicrvi.eu-west-1.rds.amazonaws.com',          # or your-rds-endpoint.rds.amazonaws.com
-    'port': 5432,
-    'database': 'netology',
-    'user': 'netology',
-    'password': 'netology'
-}
+DB_HOST = "netology-db.c58saiqicrvi.eu-west-1.rds.amazonaws.com"
+DB_PORT = 5432
+DB_NAME = "netology"
+DB_USER = "netology"
+DB_PASSWORD = "netology"

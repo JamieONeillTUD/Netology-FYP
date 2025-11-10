@@ -1,17 +1,6 @@
 
-/* Teal theme + simple CSS fade transitions (no jQuery) */
-:root{
-  --teal:#00838F;
-  --teal-200:#B2DFDB;
-  --teal-50:#E0F2F7;
-}
-body{background:linear-gradient(135deg,var(--teal-50),#fff,var(--teal-200));min-height:100vh;}
-.card{border-color:var(--teal-200); box-shadow:0 8px 24px rgba(0,0,0,.08);}
-.btn-teal{background:var(--teal); color:#fff; border:none;}
-.btn-teal:hover{background:#00695C; color:#fff;}
-a{color:var(--teal);}
-.progress{height:8px;}
-
-/* Fade utility classes */
-.fade-step{opacity:0;visibility:hidden;transition:opacity .25s ease, visibility .25s ease, transform .25s ease;transform:translateY(6px);}
+body {background-color:#E0F2F7;color:#111;font-family:Arial,sans-serif;}
+.btn-teal{background:#00838F;color:#fff;border:none;}
+.btn-teal:hover{background:#00695C;}
+.fade-step{opacity:0;visibility:hidden;transition:opacity .25s,transform .25s;transform:translateY(10px);}
 .fade-step.show{opacity:1;visibility:visible;transform:translateY(0);}

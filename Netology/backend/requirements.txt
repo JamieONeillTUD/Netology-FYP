@@ -1,4 +1,4 @@
-flask
-flask-bcrypt
-flask-cors
-psycopg2-binary
+Flask==3.0.3
+Flask-Bcrypt==1.0.1
+Flask-Cors==4.0.0
+psycopg2-binary==2.9.9
