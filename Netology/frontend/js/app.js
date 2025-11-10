@@ -1,106 +1,138 @@
-/*
-Student Number: C22320301
-Student Name: Jamie O'Neill
-Course Code: TU857/4
-Date: 10/11/2025
+// frontend/js/app.js
+// --- SIGNUP VALIDATION & SUBMIT ---
+document.addEventListener("DOMContentLoaded", () => {
+  const signupForm = document.getElementById("signupForm");
 
-JavaScript - Netology Signup Wizard
------------------------------------
-Controls the 3-step signup process with smooth transitions.
-Validates user input step-by-step before allowing progress.
-No external libraries — pure JavaScript + Bootstrap + CSS fades.
-*/
+  if (signupForm) {
+    signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-(function () {
-  // --- DOM Elements ---
-  const step1 = document.getElementById('step1');
-  const step2 = document.getElementById('step2');
-  const step3 = document.getElementById('step3');
-  const steps = [step1, step2, step3];
-
-  const progressBar = document.getElementById('progressBar');
-  const nextButton = document.getElementById('nextBtn');
-  const submitButton = document.getElementById('submitBtn');
-  const levelInputs = document.querySelectorAll('input[name="level"]');
-
-  // --- Initial State ---
-  let currentStep = 1;
-  steps.forEach(el => el?.classList.add('fade-step'));
-
-  // --- Helper: Update Progress Bar ---
-  function updateProgress(stepNumber) {
-    if (progressBar) {
-      progressBar.style.width = ((stepNumber / 3) * 100) + '%';
-    }
-  }
-
-  // --- Helper: Show Step with Fade ---
-  function showStep(stepNumber) {
-    steps.forEach((el, index) => {
-      if (el) el.classList.toggle('show', index === (stepNumber - 1));
-    });
-    updateProgress(stepNumber);
-
-    // Toggle buttons visibility
-    if (stepNumber < 3) {
-      nextButton?.classList.remove('d-none');
-      submitButton?.classList.add('d-none');
-    } else {
-      nextButton?.classList.add('d-none');
-      submitButton?.classList.remove('d-none');
-    }
-  }
-
-  // --- Helper: Validate Step Inputs ---
-  function validateStep(stepNumber) {
-    // Step 1: Basic info
-    if (stepNumber === 1) {
-      const requiredFields = ['first_name', 'last_name', 'username', 'email', 'password'];
-      for (const id of requiredFields) {
-        const value = document.getElementById(id)?.value.trim();
-        if (!value) {
-          alert(`Please fill out: ${id.replace('_', ' ')}`);
-          return false;
+      const required = ["first_name", "last_name", "username", "email", "password"];
+      for (const id of required) {
+        const el = document.getElementById(id);
+        if (!el.value.trim()) {
+          showPopup(`Please fill out: ${id.replace("_", " ")}`, "error");
+          return;
         }
       }
 
-      const email = document.getElementById('email')?.value || '';
-      if (!email.includes('@')) {
-        alert('Please enter a valid email address.');
-        return false;
+      const email = document.getElementById("email").value;
+      if (!email.includes("@") || !email.includes(".")) {
+        showPopup("Please enter a valid email address.", "error");
+        return;
       }
 
-      const password = document.getElementById('password')?.value || '';
-      if (password.length < 8) {
-        alert('Password must be at least 8 characters long.');
-        return false;
+      const pwd = document.getElementById("password").value;
+      if (pwd.length < 8) {
+        showPopup("Password must be at least 8 characters.", "error");
+        return;
       }
 
-      return true;
-    }
-
-    // Step 2: Select skill level
-    if (stepNumber === 2) {
-      let selected = false;
-      levelInputs.forEach(input => { if (input.checked) selected = true; });
-      if (!selected) {
-        alert('Please select your networking knowledge level.');
-        return false;
+      const levelSelected = document.querySelector('input[name="level"]:checked');
+      if (!levelSelected) {
+        showPopup("Please select your networking level.", "error");
+        return;
       }
-      return true;
-    }
 
-    // Step 3: No validation required — user may select multiple reasons
-    return true;
+      const reasons = document.querySelectorAll('input[name="reasons"]:checked');
+      if (reasons.length === 0) {
+        showPopup("Please select at least one reason for learning.", "error");
+        return;
+      }
+
+      const formData = new FormData(signupForm);
+
+      try {
+        const response = await fetch("/register", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showPopup("✅ Account created successfully! Redirecting to login...", "success");
+          setTimeout(() => {
+            window.location.href = "login.html";
+          }, 1500);
+        } else {
+          showPopup(data.message || "Signup failed. Please try again.", "error");
+        }
+      } catch (err) {
+        console.error("Signup error:", err);
+        showPopup("Error connecting to server. Please try again.", "error");
+      }
+    });
   }
 
-  // --- Event: Next Button Click ---
-  nextButton?.addEventListener('click', function () {
-    if (!validateStep(currentStep)) return;
-    currentStep = Math.min(3, currentStep + 1);
-    showStep(currentStep);
-  });
+  // --- LOGIN HANDLER ---
+  const loginForm = document.getElementById("loginForm");
+  if (loginForm) {
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
 
-  // --- Initialize ---
-  showStep(currentStep);
-})();
+      const formData = new FormData(loginForm);
+
+      try {
+        const response = await fetch("/login", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Save user info for dashboard
+          localStorage.setItem("user", JSON.stringify({
+            email: document.getElementById("email").value,
+            first_name: data.first_name,
+            level: data.level,
+            xp: data.xp
+          }));
+
+          showPopup(`Welcome back, ${data.first_name}! Redirecting...`, "success");
+          setTimeout(() => {
+            window.location.href = "dashboard.html";
+          }, 1500);
+        } else {
+          showPopup(data.message || "Invalid email or password.", "error");
+        }
+      } catch (err) {
+        console.error("Login error:", err);
+        showPopup("Error connecting to server. Please try again.", "error");
+      }
+    });
+  }
+});
+
+// --- POPUP FUNCTION ---
+function showPopup(message, type = "info") {
+  const existing = document.getElementById("alertBox");
+  if (existing) existing.remove();
+
+  const popup = document.createElement("div");
+  popup.id = "alertBox";
+  popup.className =
+    "alert position-fixed top-0 start-50 translate-middle-x mt-4 shadow-lg fw-semibold text-center";
+  popup.style.zIndex = "1055";
+  popup.style.padding = "0.8em 1.4em";
+  popup.style.minWidth = "260px";
+  popup.style.borderRadius = "6px";
+  popup.style.transition = "opacity 0.5s ease";
+
+  if (type === "success") {
+    popup.classList.add("bg-teal", "text-white");
+  } else if (type === "error") {
+    popup.classList.add("alert-danger");
+  } else {
+    popup.classList.add("alert-info");
+  }
+
+  popup.textContent = message;
+  document.body.appendChild(popup);
+
+  setTimeout(() => {
+    popup.style.opacity = "0";
+    setTimeout(() => popup.remove(), 500);
+  }, 2500);
+}

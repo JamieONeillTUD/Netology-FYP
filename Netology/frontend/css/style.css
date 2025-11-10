@@ -4,125 +4,146 @@ Student Name: Jamie O'Neill
 Course Code: TU857/4
 Date: 10/11/2025
 
-CSS - Netology Learning Platform
----------------------------------
-This CSS file styles the Netology login, signup, and dashboard pages.
-It follows a clean, accessible, and consistent structure using Bootstrap 5
-and a custom teal color palette.
-
-Sections:
-1. Page Basics
-2. Header Section
-3. Form Cards (Login / Signup)
-4. Inputs and Buttons
-5. Footer Section
-6. Accessibility
-7. Animation Utilities (Fade-step for signup wizard)
+Enhanced Netology Theme
+------------------------
+- Polished teal & white interface
+- Smoother shadows and transitions
+- Better spacing & typography hierarchy
 */
 
-/* ----------------------------------
-   1. Page Basics
----------------------------------- */
 body {
   background-color: #E0F2F7;
   color: #111;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-/* ----------------------------------
-   2. Header Section
----------------------------------- */
+/* ---------- Header ---------- */
 header {
-  background-color: #ffffff;
+  background-color: #fff;
   border-bottom: 2px solid #00838F;
   text-align: center;
-  padding: 1em 0;
+  padding: 1.5em 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 header h1 {
   color: #00838F;
-  margin-bottom: 0.3em;
+  margin-bottom: 0.25em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 header p {
   color: #555;
+  font-size: 1rem;
   margin: 0;
 }
 
-/* ----------------------------------
-   3. Form Cards (Login / Signup)
----------------------------------- */
+/* ---------- Cards ---------- */
 .card {
-  background-color: #ffffff;
+  background-color: #fff;
   border: 1px solid #B2DFDB;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* ---------- Buttons ---------- */
+.btn-teal {
+  background-color: #00838F;
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  padding: 0.75em 1.2em;
+  border-radius: 6px;
+  transition: background-color 0.25s ease, transform 0.15s ease;
+}
+
+.btn-teal:hover,
+.btn-teal:focus {
+  background-color: #00695C;
+  transform: translateY(-2px);
+  color: #fff;
+}
+
+.btn-outline-secondary,
+.btn-outline-danger,
+.btn-outline-primary {
+  border-width: 2px;
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-danger:hover,
+.btn-outline-primary:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+/* ---------- Form Elements ---------- */
+input,
+select,
+textarea {
+  border: 1px solid #aaa;
+  padding: 0.65em 0.75em;
+  width: 100%;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: #fff;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #00838F;
+  box-shadow: 0 0 0 0.15rem rgba(0, 131, 143, 0.25);
+  outline: none;
+}
+
+label.form-label {
+  font-weight: 600;
+  color: #004D40;
+}
+
+/* ---------- Text & Colors ---------- */
 .text-teal {
-  color: #00838F;
+  color: #00838F !important;
 }
 
 .border-teal {
   border-color: #00838F !important;
 }
 
-/* ----------------------------------
-   4. Inputs and Buttons
----------------------------------- */
-input,
-select {
-  border: 1px solid #aaa;
-  padding: 0.6em;
-  width: 100%;
-  border-radius: 4px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-input:focus,
-select:focus {
-  border-color: #00838F;
-  box-shadow: 0 0 0 0.15rem rgba(0, 131, 143, 0.25);
-  outline: none;
-}
-
-.btn-teal {
-  background-color: #00838F;
-  color: #ffffff;
-  font-weight: 600;
-  border: none;
-  padding: 0.7em 1em;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-}
-
-.btn-teal:hover,
-.btn-teal:focus {
-  background-color: #00695C;
-  color: #ffffff;
-}
-
 .link-teal {
   color: #00838F;
   text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
 }
 
 .link-teal:hover {
   text-decoration: underline;
+  color: #00695C;
 }
 
-/* ----------------------------------
-   5. Footer Section
----------------------------------- */
+/* ---------- Footer ---------- */
 footer {
-  background-color: #ffffff;
+  background-color: #fff;
   border-top: 2px solid #00838F;
-  padding: 1em 0;
+  padding: 1.5em 0;
   text-align: center;
-  margin-top: 3em;
+  margin-top: 4em;
+  box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.05);
 }
 
 footer p {
@@ -131,9 +152,29 @@ footer p {
   font-size: 0.9em;
 }
 
-/* ----------------------------------
-   6. Accessibility
----------------------------------- */
+/* ---------- Progress Bar ---------- */
+.progress {
+  height: 8px;
+  background-color: #B2DFDB;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  background-color: #00838F;
+  transition: width 0.4s ease;
+}
+
+/* ---------- Alerts & Messages ---------- */
+.alert-info {
+  background-color: #E0F7FA;
+  border-color: #4DD0E1;
+  color: #006064;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+/* ---------- Accessibility & Utility ---------- */
 :focus {
   outline: 3px solid #00838F;
   outline-offset: 2px;
@@ -150,9 +191,7 @@ footer p {
   border: 0;
 }
 
-/* ----------------------------------
-   7. Animation Utilities
----------------------------------- */
+/* ---------- Animations ---------- */
 .fade-step {
   opacity: 0;
   visibility: hidden;
@@ -166,18 +205,45 @@ footer p {
   transform: translateY(0);
 }
 
-/* ----------------------------------
-   Utility Styling (optional visual polish)
----------------------------------- */
+/* ---------- Sandbox Canvas ---------- */
+canvas {
+  transition: box-shadow 0.3s ease;
+}
+
+canvas:hover {
+  box-shadow: 0 0 0 4px rgba(0, 131, 143, 0.25);
+}
+
+/* ---------- Utility Classes ---------- */
 .bg-teal {
   background-color: #00838F !important;
+  color: #fff;
 }
 
-.progress {
-  height: 8px;
-  background-color: #B2DFDB;
+.text-muted {
+  color: #555 !important;
 }
 
-.progress-bar {
-  background-color: #00838F;
+.small {
+  font-size: 0.9em;
+}
+
+.rounded {
+  border-radius: 10px !important;
+}
+
+/* --- Popup animation (slide + fade) --- */
+#alertBox {
+  animation: slideFade 0.5s ease forwards;
+}
+
+@keyframes slideFade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }

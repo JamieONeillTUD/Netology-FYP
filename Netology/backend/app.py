@@ -1,18 +1,23 @@
-from flask import Flask
+# backend/app.py
+from flask import Flask, redirect
 from flask_cors import CORS
-from routes.auth_routes import auth_bp
+from flask_bcrypt import Bcrypt
+from auth_routes import auth, bcrypt as auth_bcrypt
 
-app = Flask(__name__)
-app.secret_key = "supersecretkey"
+app = Flask(__name__, static_folder='../frontend', static_url_path='/frontend')
 CORS(app)
 
-# Register blueprints
-app.register_blueprint(auth_bp)
+# Initialize bcrypt in both app and routes
+auth_bcrypt.init_app(app)
 
-# Root redirect
+# Register blueprints
+app.register_blueprint(auth)
+
+# --- Default route ---
 @app.route('/')
 def home():
-    return '<h3>Netology Backend Running</h3><p>Visit <a href="/login">/login</a></p>'
+    return redirect('/frontend/login.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True)

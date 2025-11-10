@@ -1,4 +1,4 @@
-flask
-flask-bcrypt
-flask-cors
-psycopg2-binary
+Flask
+Flask-Bcrypt
+psycopg[binary]
+
