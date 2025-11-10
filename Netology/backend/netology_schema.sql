@@ -1,5 +1,19 @@
+-- ===========================================
+-- NETOLOGY LEARNING PLATFORM – DATABASE SCHEMA
+-- Student: Jamie O’Neill (C22320301)
+-- Course: TU857/4
+-- Date: 10/11/2025
+-- ===========================================
 
-CREATE TABLE IF NOT EXISTS users (
+-- ==========================
+-- USERS TABLE
+-- ==========================
+DROP TABLE IF EXISTS xp_log CASCADE;
+DROP TABLE IF EXISTS user_courses CASCADE;
+DROP TABLE IF EXISTS courses CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
@@ -7,15 +21,16 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     level VARCHAR(50) DEFAULT 'Novice',
-    reasons TEXT,
+    numeric_level INTEGER DEFAULT 0,
+    reasons TEXT,                         -- Stores reasons selected during signup
     xp INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE users
-ADD COLUMN numeric_level INTEGER DEFAULT 0;
-
-CREATE TABLE IF NOT EXISTS courses (
+-- ==========================
+-- COURSES TABLE
+-- ==========================
+CREATE TABLE courses (
     id SERIAL PRIMARY KEY,
     title VARCHAR(150) NOT NULL,
     description TEXT,
@@ -23,27 +38,52 @@ CREATE TABLE IF NOT EXISTS courses (
     xp_reward INTEGER DEFAULT 100,
     difficulty VARCHAR(50) DEFAULT 'Novice',
     category VARCHAR(50) DEFAULT 'General',
-    is_active BOOLEAN DEFAULT TRUE
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS user_courses (
+-- ==========================
+-- USER COURSES TABLE
+-- Tracks which user started/completed which course
+-- ==========================
+CREATE TABLE user_courses (
     id SERIAL PRIMARY KEY,
-    user_email VARCHAR(255) REFERENCES users(email),
-    course_id INTEGER REFERENCES courses(id),
+    user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
+    course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
     progress INTEGER DEFAULT 0,
     completed BOOLEAN DEFAULT FALSE,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS xp_log (
+-- ==========================
+-- XP LOG TABLE
+-- Logs user XP gains (for audit and tracking)
+-- ==========================
+CREATE TABLE xp_log (
     id SERIAL PRIMARY KEY,
-    user_email VARCHAR(255) REFERENCES users(email),
+    user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
     action VARCHAR(255),
     xp_awarded INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==========================
+-- OPTIONAL: LESSONS TABLE
+-- Allows individual lesson tracking inside each course
+-- ==========================
+CREATE TABLE lessons (
+    id SERIAL PRIMARY KEY,
+    course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+    title VARCHAR(150) NOT NULL,
+    description TEXT,
+    order_number INTEGER DEFAULT 1,
+    xp_value INTEGER DEFAULT 10
+);
+
+-- ==========================
+-- SAMPLE COURSE DATA
+-- ==========================
 INSERT INTO courses (title, description, total_lessons, xp_reward, difficulty, category)
 VALUES
 ('Network Fundamentals', 'Learn the building blocks of computer networking.', 10, 200, 'Novice', 'Core'),
@@ -54,3 +94,15 @@ VALUES
 ('Wireless Networking', 'Configure and manage wireless LANs.', 6, 150, 'Intermediate', 'Wireless'),
 ('WAN Technologies', 'Study wide area networking and VPNs.', 7, 170, 'Advanced', 'Core'),
 ('Cloud Networking', 'Learn networking concepts for cloud environments.', 9, 200, 'Advanced', 'Cloud');
+
+-- ==========================
+-- INDEXES FOR PERFORMANCE
+-- ==========================
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_user_courses_email ON user_courses(user_email);
+CREATE INDEX IF NOT EXISTS idx_user_courses_course ON user_courses(course_id);
+CREATE INDEX IF NOT EXISTS idx_xp_log_email ON xp_log(user_email);
+
+-- ==========================
+-- DONE ✅
+-- ==========================

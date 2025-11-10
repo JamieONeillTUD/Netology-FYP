@@ -1,19 +1,30 @@
-// frontend/js/dashboard.js
-// Netology Dashboard – Clean, functional, and gamified
+/*
+Student Number: C22320301
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 10/11/2025
 
-document.addEventListener("DOMContentLoaded", () => {
-  const dashboard = document.querySelector(".dashboard-container");
-  if (!dashboard) return;
+JavaScript - Netology Learning Platform
+---------------------------------------
+dashboard.js – Handles dashboard display.
+Includes:
+  - Loading user info and XP
+  - Loading user courses
+  - Grouping by progress (Continue / All / Completed)
+  - Logout functionality
+*/
 
+document.addEventListener("DOMContentLoaded", async () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  // Redirect if not logged in
   if (!user.email) {
     window.location.href = "login.html";
     return;
   }
 
-  // Initial load
-  loadUserInfo(user.email);
-  loadUserCourses(user.email);
+  await loadUserInfo(user.email);
+  await loadUserCourses(user.email);
 
   // Logout button
   const logoutBtn = document.getElementById("logoutBtn");
@@ -24,60 +35,11 @@ document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => (window.location.href = "login.html"), 800);
     });
   }
-
-  // Global click handler for Start / Lesson buttons
-  document.addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-action]");
-    if (!btn) return;
-
-    const action = btn.dataset.action;
-    const courseId = Number(btn.dataset.id);
-    const email = user.email;
-
-    try {
-      if (action === "start") {
-        const res = await fetch("/start-course", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, course_id: courseId }),
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          showPopup("Course started!", "success");
-          await loadUserCourses(email); // refresh dashboard immediately
-          setTimeout(() => {
-            window.location.href = `course.html?id=${courseId}`;
-          }, 1000);
-        } else {
-          showPopup(data.message || "Could not start course.", "error");
-        }
-      }
-
-      if (action === "lesson") {
-        const res = await fetch("/complete-lesson", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, course_id: courseId }),
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          showPopup(`+${data.xp_added} XP • ${data.progress_pct}% complete`, "success");
-          await loadUserInfo(email);
-          await loadUserCourses(email);
-        } else {
-          showPopup(data.message || "Could not complete lesson.", "error");
-        }
-      }
-    } catch (err) {
-      console.error("Action error:", err);
-      showPopup("Server error. Try again.", "error");
-    }
-  });
 });
 
-/* ----------------- USER INFO ----------------- */
+/* ======================================================
+   LOAD USER INFO
+   ====================================================== */
 async function loadUserInfo(email) {
   try {
     const res = await fetch(`/user-info?email=${encodeURIComponent(email)}`);
@@ -85,42 +47,24 @@ async function loadUserInfo(email) {
 
     if (!data.success) return showPopup("Unable to load user info.", "error");
 
-    const xp = Number(data.xp || 0);
-    const level = Number(data.numeric_level || 0);
+    document.getElementById("userName").textContent = data.first_name;
+    document.getElementById("userLevel").textContent = data.level;
+    document.getElementById("userXP").textContent = data.xp;
 
-    // Progressive XP requirement (250, 500, 750, 1000, ...)
-    const xpForNext = 250 * (level + 1);
-    const xpInLevel = xp - totalXpForLevel(level);
-    const progressPct = Math.min(100, (xpInLevel / xpForNext) * 100);
+    const xp = data.xp;
+    const next = 250 * (data.numeric_level + 1);
+    const progress = Math.min(100, (xp / next) * 100);
 
-    // Update dashboard display
-    setText("userName", data.first_name);
-    setText("userLevel", data.level ?? "Novice");
-    setText("userXP", xp);
-    const bar = document.getElementById("xpProgress");
-    const txt = document.getElementById("xpToNext");
-    if (bar) bar.style.width = `${progressPct}%`;
-    if (txt) txt.textContent = `${xpInLevel} / ${xpForNext} to next level`;
-
-    // Save locally
-    localStorage.setItem(
-      "user",
-      JSON.stringify({ ...data, email, xp, numeric_level: level })
-    );
+    document.getElementById("xpProgress").style.width = `${progress}%`;
+    document.getElementById("xpToNext").textContent = `${xp} / ${next} to next level`;
   } catch (err) {
-    console.error("loadUserInfo:", err);
-    showPopup("Error fetching user data from server.", "error");
+    console.error("User info error:", err);
   }
 }
 
-// Calculates total XP needed to *reach* a specific level
-function totalXpForLevel(level) {
-  let total = 0;
-  for (let i = 0; i < level; i++) total += 250 * (i + 1);
-  return total;
-}
-
-/* ----------------- COURSES ----------------- */
+/* ======================================================
+   LOAD USER COURSES
+   ====================================================== */
 async function loadUserCourses(email) {
   const continueList = document.getElementById("continueList");
   const allCourses = document.getElementById("allCourses");
@@ -129,119 +73,83 @@ async function loadUserCourses(email) {
   try {
     const res = await fetch(`/user-courses?email=${encodeURIComponent(email)}`);
     const data = await res.json();
-
-    if (!data.success)
-      return showPopup(data.message || "Failed to load courses.", "error");
+    if (!data.success) return showPopup("Error loading courses.", "error");
 
     const courses = data.courses || [];
-    const inProgress = courses.filter((c) => c.status === "in-progress");
-    const completed = courses.filter((c) => c.status === "completed");
 
-    // Continue Learning
-    continueList.innerHTML =
-      inProgress.length > 0
-        ? inProgress.map(renderCourseCard).join("")
-        : `<p class="text-muted small">No in-progress courses yet.</p>`;
+    // Separate courses by status
+    const inProgress = courses.filter(c => c.status === "in-progress");
+    const notStarted = courses.filter(c => c.status === "not-started");
+    const completed = courses.filter(c => c.status === "completed");
 
-    // All Courses
-    allCourses.innerHTML =
-      courses.length > 0
-        ? courses.map(renderCourseCard).join("")
-        : `<p class="text-muted small">No courses available.</p>`;
+    // Render each section
+    continueList.innerHTML = inProgress.length
+      ? inProgress.map(renderCourseCard).join("")
+      : `<p class="text-muted small text-center">No courses in progress yet.</p>`;
 
-    // Completed Courses
-    if (completedList) {
-      completedList.innerHTML =
-        completed.length > 0
-          ? completed.map(renderCourseCard).join("")
-          : `<p class="text-muted small">No completed courses yet.</p>`;
-    }
+    allCourses.innerHTML = notStarted.length
+      ? notStarted.map(renderCourseCard).join("")
+      : `<p class="text-muted small text-center">All available courses started or completed.</p>`;
+
+    completedList.innerHTML = completed.length
+      ? completed.map(renderCourseCard).join("")
+      : `<p class="text-muted small text-center">No completed courses yet.</p>`;
   } catch (err) {
-    console.error("loadUserCourses:", err);
-    showPopup("Error loading courses from server.", "error");
+    console.error("Courses error:", err);
   }
 }
 
-/* ----------------- RENDERING ----------------- */
-function renderCourseCard(course) {
-  const progress = Number(course.progress_pct || 0);
-  const color =
-    course.status === "completed"
-      ? "bg-success"
-      : course.status === "in-progress"
-      ? "bg-info"
-      : "bg-secondary";
-
+/* ======================================================
+   COURSE CARD TEMPLATE
+   ====================================================== */
+function renderCourseCard(c) {
   return `
-    <div class="p-3 border rounded mb-3 card border-teal shadow-sm">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <h5 class="text-teal mb-1">${escapeHtml(course.title)}</h5>
-          <p class="text-muted small mb-2">${escapeHtml(course.description || "")}</p>
-          <div class="small text-muted">
-            ${Number(course.total_lessons || 0)} lessons • ${Number(course.xp_reward || 0)} XP reward
-          </div>
-        </div>
-        <span class="badge ${color} text-white">
-          ${escapeHtml(course.status.replace("-", " "))}
-        </span>
-      </div>
-
-      <div class="progress my-2" style="height:8px;">
-        <div class="progress-bar bg-teal" style="width:${progress}%"></div>
-      </div>
-
-      <div class="d-flex gap-2">
-        <button class="btn btn-teal btn-sm" data-action="start" data-id="${course.id}">
-          ${course.status === "not-started" ? "Start" : "Restart"}
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" data-action="lesson" data-id="${course.id}"
-          ${course.status === "not-started" ? "disabled" : ""}>
-          Complete Lesson
-        </button>
+    <div class="card border-teal shadow-sm p-3 mb-3">
+      <h5 class="text-teal mb-1">${c.title}</h5>
+      <p class="text-muted small mb-2">${c.description || "No description available."}</p>
+      <p class="small text-muted">${c.total_lessons} lessons • ${c.xp_reward} XP</p>
+      <div class="d-flex justify-content-between">
+        <span class="badge ${badgeColor(c.status)} text-white">${c.status.replace("-", " ")}</span>
+        <button class="btn btn-teal btn-sm" onclick="viewCourse(${c.id})">View Course</button>
       </div>
     </div>
   `;
 }
 
-/* ----------------- UTILITIES ----------------- */
-function setText(id, text) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = text;
+/* ======================================================
+   BADGE COLOR HELPERS
+   ====================================================== */
+function badgeColor(status) {
+  if (status === "completed") return "bg-success";
+  if (status === "in-progress") return "bg-info";
+  return "bg-secondary";
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+/* ======================================================
+   VIEW COURSE
+   ====================================================== */
+function viewCourse(courseId) {
+  window.location.href = `course.html?id=${courseId}`;
 }
 
+/* ======================================================
+   POPUP MESSAGE
+   ====================================================== */
 function showPopup(message, type = "info") {
-  const existing = document.getElementById("alertBox");
-  if (existing) existing.remove();
-
-  const box = document.createElement("div");
-  box.id = "alertBox";
-  box.className =
-    "alert position-fixed top-0 start-50 translate-middle-x mt-4 shadow-lg fw-semibold text-center";
-  box.style.zIndex = "1055";
-  box.style.padding = "0.8em 1.4em";
-  box.style.minWidth = "260px";
-  box.style.borderRadius = "6px";
-  box.style.transition = "opacity 0.5s ease";
-
-  if (type === "success") box.classList.add("bg-teal", "text-white");
-  else if (type === "error") box.classList.add("alert-danger");
-  else box.classList.add("alert-info");
-
-  box.textContent = message;
-  document.body.appendChild(box);
-
-  setTimeout(() => {
-    box.style.opacity = "0";
-    setTimeout(() => box.remove(), 500);
-  }, 2200);
+  const old = document.getElementById("alertBox");
+  if (old) old.remove();
+  const popup = document.createElement("div");
+  popup.id = "alertBox";
+  popup.className =
+    "alert text-center fw-semibold position-fixed top-0 start-50 translate-middle-x mt-4 shadow";
+  popup.style.zIndex = "9999";
+  popup.style.minWidth = "260px";
+  popup.style.borderRadius = "6px";
+  popup.textContent = message;
+  popup.classList.add(
+    type === "success" ? "alert-success" :
+    type === "error" ? "alert-danger" : "alert-info"
+  );
+  document.body.appendChild(popup);
+  setTimeout(() => popup.remove(), 2500);
 }

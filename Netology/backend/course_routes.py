@@ -1,53 +1,65 @@
-# backend/course_routes.py
+"""
+Student Number: C22320301
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 10/11/2025
+
+Python (Flask) – Netology Learning Platform
+-------------------------------------------
+course_routes.py – Handles all course and progress routes.
+Includes:
+  - List all courses
+  - Get course details
+  - Track and update user course progress
+  - Integrates with xp_system.py for XP and level updates
+"""
+
 from flask import Blueprint, request, jsonify
 from db import get_db_connection
-import math
+from xp_system import add_xp_to_user  # XP updates handled externally
 
 courses = Blueprint("courses", __name__)
 
-# =========================================================
-#  LIST ALL COURSES
-# =========================================================
-@courses.get("/courses")
+# =====================================================
+# 1. LIST ALL COURSES
+# =====================================================
+@courses.route("/courses", methods=["GET"])
 def list_courses():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT
-            id,
-            title,
-            description,
-            total_lessons,
-            xp_reward,
-            difficulty,
-            category,
-            is_active
-        FROM courses
-        WHERE is_active = TRUE
-        ORDER BY id;
-    """)
-    rows = cur.fetchall()
-    cur.close(); conn.close()
+    """Return all active courses from the database."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, title, description, total_lessons, xp_reward, difficulty, category
+            FROM courses
+            WHERE is_active = TRUE
+            ORDER BY id;
+        """)
+        rows = cur.fetchall()
+        cur.close(); conn.close()
 
-    data = [{
-        "id": r[0],
-        "title": r[1],
-        "description": r[2],
-        "total_lessons": r[3],
-        "xp_reward": r[4],
-        "difficulty": r[5],
-        "category": r[6],
-        "is_active": r[7],
-    } for r in rows]
+        data = [{
+            "id": r[0],
+            "title": r[1],
+            "description": r[2],
+            "total_lessons": r[3],
+            "xp_reward": r[4],
+            "difficulty": r[5],
+            "category": r[6],
+        } for r in rows]
 
-    return jsonify({"success": True, "courses": data})
+        return jsonify({"success": True, "courses": data})
+    except Exception as e:
+        print("Error listing courses:", e)
+        return jsonify({"success": False, "message": "Error loading courses."}), 500
 
 
-# =========================================================
-#  GET SINGLE COURSE DETAILS
-# =========================================================
-@courses.get("/course")
+# =====================================================
+# 2. GET SINGLE COURSE DETAILS
+# =====================================================
+@courses.route("/course", methods=["GET"])
 def get_course():
+    """Get full details for one course by ID."""
     course_id = request.args.get("id")
     if not course_id:
         return jsonify({"success": False, "message": "Course ID required."}), 400
@@ -65,7 +77,8 @@ def get_course():
     if not row:
         return jsonify({"success": False, "message": "Course not found."}), 404
 
-    course = {
+    return jsonify({
+        "success": True,
         "id": row[0],
         "title": row[1],
         "description": row[2],
@@ -73,29 +86,25 @@ def get_course():
         "xp_reward": row[4],
         "difficulty": row[5],
         "category": row[6],
-    }
-    return jsonify({"success": True, **course})
+    })
 
 
-# =========================================================
-#  USER COURSES WITH PROGRESS
-# =========================================================
-@courses.get("/user-courses")
+# =====================================================
+# 3. USER COURSES (with progress)
+# =====================================================
+@courses.route("/user-courses", methods=["GET"])
 def user_courses():
+    """Return all courses with the user's progress."""
     email = request.args.get("email")
     if not email:
-        return jsonify({"success": False, "message": "email is required"}), 400
+        return jsonify({"success": False, "message": "Email required."}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
         SELECT
-            c.id,
-            c.title,
-            c.description,
-            c.total_lessons,
-            c.xp_reward,
-            COALESCE(uc.progress, 0)  AS progress_pct,
+            c.id, c.title, c.description, c.total_lessons, c.xp_reward,
+            COALESCE(uc.progress, 0) AS progress,
             COALESCE(uc.completed, FALSE) AS completed
         FROM courses c
         LEFT JOIN user_courses uc
@@ -106,189 +115,162 @@ def user_courses():
     rows = cur.fetchall()
     cur.close(); conn.close()
 
-    items = []
+    courses_list = []
     for r in rows:
-        course_id, title, desc, total_lessons, xp_reward, progress_pct, completed = r
+        cid, title, desc, lessons, xp_reward, progress, completed = r
         if completed:
             status = "completed"
-        elif progress_pct > 0:
+        elif progress > 0:
             status = "in-progress"
         else:
             status = "not-started"
 
-        items.append({
-            "id": course_id,
+        courses_list.append({
+            "id": cid,
             "title": title,
             "description": desc,
-            "total_lessons": total_lessons,
+            "total_lessons": lessons,
             "xp_reward": xp_reward,
-            "progress_pct": int(progress_pct),
+            "progress_pct": int(progress),
             "status": status,
         })
 
-    return jsonify({"success": True, "courses": items})
+    return jsonify({"success": True, "courses": courses_list})
 
 
-# =========================================================
-#  START A COURSE
-# =========================================================
-@courses.post("/start-course")
+# =====================================================
+# 4. START COURSE
+# =====================================================
+@courses.route("/start-course", methods=["POST"])
 def start_course():
+    """Marks a course as started for a user."""
     data = request.get_json(silent=True) or request.form
     email = data.get("email")
     course_id = data.get("course_id")
+
     if not email or not course_id:
-        return jsonify({"success": False, "message": "email and course_id are required"}), 400
+        return jsonify({"success": False, "message": "Email and course_id required."}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
+
+    # Add or reset entry in user_courses
     cur.execute("""
         INSERT INTO user_courses (user_email, course_id, progress, completed)
         VALUES (%s, %s, 1, FALSE)
-        ON CONFLICT (user_email, course_id) DO UPDATE
-        SET progress = 1, completed = FALSE, updated_at = CURRENT_TIMESTAMP;
+        ON CONFLICT (user_email, course_id)
+        DO UPDATE SET progress = 1, completed = FALSE, updated_at = CURRENT_TIMESTAMP;
     """, (email, course_id))
 
     conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"success": True})
+    cur.close(); conn.close()
+
+    return jsonify({"success": True, "message": "Course started."})
 
 
-# =========================================================
-#  COMPLETE ONE LESSON (XP + progress)
-# =========================================================
-@courses.post("/complete-lesson")
+# =====================================================
+# 5. COMPLETE LESSON (adds XP via xp_system.py)
+# =====================================================
+@courses.route("/complete-lesson", methods=["POST"])
 def complete_lesson():
+    """Updates progress when user completes a lesson."""
     data = request.get_json(silent=True) or request.form
     email = data.get("email")
     course_id = data.get("course_id")
+
     if not email or not course_id:
-        return jsonify({"success": False, "message": "email and course_id are required"}), 400
+        return jsonify({"success": False, "message": "Email and course_id required."}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
 
+    # Get course info + user progress
     cur.execute("""
         SELECT c.total_lessons, c.xp_reward,
-               COALESCE(uc.progress, 0) AS progress_pct,
+               COALESCE(uc.progress, 0) AS progress,
                COALESCE(uc.completed, FALSE)
         FROM courses c
         LEFT JOIN user_courses uc
           ON uc.course_id = c.id AND uc.user_email = %s
-        WHERE c.id = %s AND c.is_active = TRUE;
+        WHERE c.id = %s;
     """, (email, course_id))
     row = cur.fetchone()
 
     if not row:
         cur.close(); conn.close()
-        return jsonify({"success": False, "message": "Course not found"}), 404
+        return jsonify({"success": False, "message": "Course not found."}), 404
 
-    total_lessons, xp_reward, curr_pct, already_completed = row
+    total_lessons, xp_reward, current_progress, completed = row
 
-    if total_lessons is None or total_lessons <= 0:
-        new_pct = 100
-        completed = True
-        xp_to_add = xp_reward
-    else:
-        step = math.ceil(100 / total_lessons)
-        new_pct = min(100, curr_pct + step)
-        completed = new_pct >= 100
-        xp_to_add = max(1, xp_reward // total_lessons)
+    # Calculate next progress
+    step = 100 / (total_lessons or 1)
+    new_progress = min(100, current_progress + step)
+    is_completed = new_progress >= 100
 
-    # ensure record exists
+    # Update user_courses
     cur.execute("""
         INSERT INTO user_courses (user_email, course_id, progress, completed)
         VALUES (%s, %s, 0, FALSE)
         ON CONFLICT DO NOTHING;
     """, (email, course_id))
 
-    # update progress
     cur.execute("""
         UPDATE user_courses
-           SET progress = %s,
-               completed = %s,
-               updated_at = CURRENT_TIMESTAMP
+           SET progress = %s, completed = %s, updated_at = CURRENT_TIMESTAMP
          WHERE user_email = %s AND course_id = %s;
-    """, (new_pct, completed, email, course_id))
-
-    # fetch user's current XP
-    cur.execute("SELECT xp FROM users WHERE email = %s;", (email,))
-    user_row = cur.fetchone()
-    current_xp = user_row[0] if user_row else 0
-    new_xp = current_xp + xp_to_add
-
-    # recalc level using progressive scaling (250, 500, 750, …)
-    numeric_level = calculate_level(new_xp)
-
-    cur.execute("""
-        UPDATE users
-           SET xp = %s,
-               numeric_level = %s
-         WHERE email = %s;
-    """, (new_xp, numeric_level, email))
+    """, (new_progress, is_completed, email, course_id))
 
     conn.commit()
     cur.close(); conn.close()
 
+    # Update XP through xp_system
+    xp_added, new_level = add_xp_to_user(email, xp_reward // (total_lessons or 1))
+
     return jsonify({
         "success": True,
-        "progress_pct": int(new_pct),
-        "completed": completed,
-        "xp_added": int(xp_to_add),
-        "new_level": numeric_level
+        "progress_pct": int(new_progress),
+        "completed": is_completed,
+        "xp_added": xp_added,
+        "new_level": new_level
     })
 
 
-# =========================================================
-#  COMPLETE WHOLE COURSE (instant full XP)
-# =========================================================
-@courses.post("/complete-course")
+# =====================================================
+# 6. COMPLETE WHOLE COURSE (instant XP award)
+# =====================================================
+@courses.route("/complete-course", methods=["POST"])
 def complete_course():
+    """Marks entire course as completed and awards full XP."""
     data = request.get_json(silent=True) or request.form
     email = data.get("email")
     course_id = data.get("course_id")
+
     if not email or not course_id:
-        return jsonify({"success": False, "message": "email and course_id are required"}), 400
+        return jsonify({"success": False, "message": "Email and course_id required."}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT xp_reward FROM courses WHERE id = %s AND is_active = TRUE;", (course_id,))
     row = cur.fetchone()
+    cur.close(); conn.close()
+
     if not row:
-        cur.close(); conn.close()
-        return jsonify({"success": False, "message": "Course not found"}), 404
+        return jsonify({"success": False, "message": "Course not found."}), 404
 
     xp_reward = row[0] or 0
 
+    # Award XP via xp_system
+    xp_added, new_level = add_xp_to_user(email, xp_reward)
+
+    # Mark course as complete
+    conn = get_db_connection()
+    cur = conn.cursor()
     cur.execute("""
         INSERT INTO user_courses (user_email, course_id, progress, completed)
         VALUES (%s, %s, 100, TRUE)
-        ON CONFLICT (user_email, course_id) DO NOTHING;
+        ON CONFLICT (user_email, course_id)
+        DO UPDATE SET progress = 100, completed = TRUE, updated_at = CURRENT_TIMESTAMP;
     """, (email, course_id))
-
-    cur.execute("""
-        UPDATE user_courses
-           SET progress = 100,
-               completed = TRUE,
-               updated_at = CURRENT_TIMESTAMP
-         WHERE user_email = %s AND course_id = %s;
-    """, (email, course_id))
-
-    # Update XP and level (progressive scaling)
-    cur.execute("SELECT xp FROM users WHERE email = %s;", (email,))
-    user_row = cur.fetchone()
-    current_xp = user_row[0] if user_row else 0
-    new_xp = current_xp + xp_reward
-    numeric_level = calculate_level(new_xp)
-
-    cur.execute("""
-        UPDATE users
-           SET xp = %s,
-               numeric_level = %s
-         WHERE email = %s;
-    """, (new_xp, numeric_level, email))
-
     conn.commit()
     cur.close(); conn.close()
 
@@ -296,21 +278,6 @@ def complete_course():
         "success": True,
         "progress_pct": 100,
         "completed": True,
-        "xp_added": int(xp_reward),
-        "new_level": numeric_level
+        "xp_added": xp_added,
+        "new_level": new_level
     })
-
-
-# =========================================================
-#  XP LEVEL CALCULATOR (progressive 250, 500, 750 ...)
-# =========================================================
-def calculate_level(total_xp: int) -> int:
-    """Returns numeric level based on total XP using an increasing threshold curve."""
-    level = 0
-    xp_needed = 250
-    xp_remaining = total_xp
-    while xp_remaining >= xp_needed:
-        xp_remaining -= xp_needed
-        level += 1
-        xp_needed += 250
-    return level

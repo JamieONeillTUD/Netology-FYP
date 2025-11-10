@@ -1,138 +1,128 @@
-// frontend/js/app.js
-// --- SIGNUP VALIDATION & SUBMIT ---
-document.addEventListener("DOMContentLoaded", () => {
-  const signupForm = document.getElementById("signupForm");
+/*
+Student Number: C22320301
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 10/11/2025
 
+JavaScript - Netology Learning Platform
+---------------------------------------
+app.js – Handles user authentication for the platform.
+Includes:
+  - Signup form validation and submission
+  - Login form submission and localStorage setup
+  - Popup notifications for user feedback
+*/
+document.addEventListener("DOMContentLoaded", () => {
+  // --- SIGNUP FORM ---
+  const signupForm = document.getElementById("signupForm");
   if (signupForm) {
     signupForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const required = ["first_name", "last_name", "username", "email", "password"];
-      for (const id of required) {
-        const el = document.getElementById(id);
-        if (!el.value.trim()) {
-          showPopup(`Please fill out: ${id.replace("_", " ")}`, "error");
-          return;
-        }
-      }
+      // Get field values
+      const first = document.getElementById("first_name").value.trim();
+      const last = document.getElementById("last_name").value.trim();
+      const username = document.getElementById("username").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const level = document.querySelector('input[name="level"]:checked');
+      const reasons = document.querySelectorAll('input[name="reasons"]:checked');
 
-      const email = document.getElementById("email").value;
-      if (!email.includes("@") || !email.includes(".")) {
-        showPopup("Please enter a valid email address.", "error");
+      // Basic validation
+      if (!first || !last || !username || !email || !password) {
+        showPopup("Please fill in all required fields.", "error");
         return;
       }
-
-      const pwd = document.getElementById("password").value;
-      if (pwd.length < 8) {
+      if (!email.includes("@") || !email.includes(".")) {
+        showPopup("Enter a valid email address.", "error");
+        return;
+      }
+      if (password.length < 8) {
         showPopup("Password must be at least 8 characters.", "error");
         return;
       }
-
-      const levelSelected = document.querySelector('input[name="level"]:checked');
-      if (!levelSelected) {
+      if (!level) {
         showPopup("Please select your networking level.", "error");
         return;
       }
-
-      const reasons = document.querySelectorAll('input[name="reasons"]:checked');
       if (reasons.length === 0) {
-        showPopup("Please select at least one reason for learning.", "error");
+        showPopup("Please select at least one reason.", "error");
         return;
       }
 
-      const formData = new FormData(signupForm);
-
+      // Send to backend
       try {
-        const response = await fetch("/register", {
+        const res = await fetch("/register", {
           method: "POST",
-          body: formData,
+          body: new FormData(signupForm),
         });
-
-        const data = await response.json();
+        const data = await res.json();
 
         if (data.success) {
-          showPopup("✅ Account created successfully! Redirecting to login...", "success");
-          setTimeout(() => {
-            window.location.href = "login.html";
-          }, 1500);
+          showPopup("Account created! Redirecting...", "success");
+          setTimeout(() => (window.location.href = "login.html"), 1500);
         } else {
-          showPopup(data.message || "Signup failed. Please try again.", "error");
+          showPopup(data.message || "Signup failed. Try again.", "error");
         }
-      } catch (err) {
-        console.error("Signup error:", err);
-        showPopup("Error connecting to server. Please try again.", "error");
+      } catch {
+        showPopup("Server error. Please try again.", "error");
       }
     });
   }
 
-  // --- LOGIN HANDLER ---
+  // --- LOGIN FORM ---
   const loginForm = document.getElementById("loginForm");
   if (loginForm) {
-    loginForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const formData = new FormData(loginForm);
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
       try {
-        const response = await fetch("/login", {
+        const res = await fetch("/login", {
           method: "POST",
-          body: formData,
+          body: new FormData(loginForm),
         });
-
-        const data = await response.json();
+        const data = await res.json();
 
         if (data.success) {
-          // Save user info for dashboard
-          localStorage.setItem("user", JSON.stringify({
-            email: document.getElementById("email").value,
-            first_name: data.first_name,
-            level: data.level,
-            xp: data.xp
-          }));
-
-          showPopup(`Welcome back, ${data.first_name}! Redirecting...`, "success");
-          setTimeout(() => {
-            window.location.href = "dashboard.html";
-          }, 1500);
+          localStorage.setItem(
+            "user",
+            JSON.stringify({
+              email: document.getElementById("email").value,
+              first_name: data.first_name,
+              level: data.level,
+              xp: data.xp,
+            })
+          );
+          showPopup(`Welcome back, ${data.first_name}!`, "success");
+          setTimeout(() => (window.location.href = "dashboard.html"), 1500);
         } else {
           showPopup(data.message || "Invalid email or password.", "error");
         }
-      } catch (err) {
-        console.error("Login error:", err);
-        showPopup("Error connecting to server. Please try again.", "error");
+      } catch {
+        showPopup("Server error. Please try again.", "error");
       }
     });
   }
 });
 
-// --- POPUP FUNCTION ---
-function showPopup(message, type = "info") {
-  const existing = document.getElementById("alertBox");
-  if (existing) existing.remove();
+// --- POPUP MESSAGE ---
+function showPopup(message, type) {
+  const old = document.getElementById("alertBox");
+  if (old) old.remove();
 
   const popup = document.createElement("div");
   popup.id = "alertBox";
-  popup.className =
-    "alert position-fixed top-0 start-50 translate-middle-x mt-4 shadow-lg fw-semibold text-center";
-  popup.style.zIndex = "1055";
-  popup.style.padding = "0.8em 1.4em";
+  popup.className = "alert text-center fw-semibold position-fixed top-0 start-50 translate-middle-x mt-4 shadow";
+  popup.style.zIndex = "9999";
   popup.style.minWidth = "260px";
   popup.style.borderRadius = "6px";
-  popup.style.transition = "opacity 0.5s ease";
 
-  if (type === "success") {
-    popup.classList.add("bg-teal", "text-white");
-  } else if (type === "error") {
-    popup.classList.add("alert-danger");
-  } else {
-    popup.classList.add("alert-info");
-  }
+  if (type === "success") popup.classList.add("alert-success");
+  else if (type === "error") popup.classList.add("alert-danger");
+  else popup.classList.add("alert-info");
 
   popup.textContent = message;
   document.body.appendChild(popup);
 
-  setTimeout(() => {
-    popup.style.opacity = "0";
-    setTimeout(() => popup.remove(), 500);
-  }, 2500);
+  setTimeout(() => popup.remove(), 2500);
 }
