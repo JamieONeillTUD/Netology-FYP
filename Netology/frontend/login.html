@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,10 +16,11 @@
       </div>
       <h1 class="h3 mt-2" style="color:#00838F;">Netology</h1>
       <p class="text-muted">Master networking through interactive learning</p>
-    
+    </div>
+
     {% with messages = get_flashed_messages(with_categories=True) %}
     {% if messages %}
-      <div class="mt-2">
+      <div class="mb-3">
         {% for category, message in messages %}
           <div class="alert alert-{{ 'warning' if category=='warning' else category }} alert-dismissible fade show" role="alert">
             {{ message }}
@@ -28,6 +30,7 @@
       </div>
     {% endif %}
     {% endwith %}
+
     <div class="card">
       <div class="card-body p-4">
         <h2 class="h4 mb-3" style="color:#00838F;">Welcome back</h2>

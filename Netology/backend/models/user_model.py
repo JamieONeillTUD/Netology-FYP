@@ -1,3 +1,5 @@
+
+"""All database queries live here. ONLY place psycopg2 is used."""
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from config import DB_CONFIG
@@ -12,7 +14,8 @@ def create_user(first_name, last_name, username, email, password_hash, level, re
         """
         INSERT INTO users (first_name, last_name, username, email, password_hash, level, reasons, xp)
         VALUES (%s, %s, %s, %s, %s, %s, %s, 0);
-        """, (first_name, last_name, username, email, password_hash, level, reasons_csv)
+        """,
+        (first_name, last_name, username, email, password_hash, level, reasons_csv)
     )
     conn.commit()
     cur.close()

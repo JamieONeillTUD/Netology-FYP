@@ -1,3 +1,5 @@
+
+/* Teal theme + simple CSS fade transitions (no jQuery) */
 :root{
   --teal:#00838F;
   --teal-200:#B2DFDB;
@@ -9,4 +11,7 @@ body{background:linear-gradient(135deg,var(--teal-50),#fff,var(--teal-200));min-
 .btn-teal:hover{background:#00695C; color:#fff;}
 a{color:var(--teal);}
 .progress{height:8px;}
-.badge-teal{background:var(--teal);}
+
+/* Fade utility classes */
+.fade-step{opacity:0;visibility:hidden;transition:opacity .25s ease, visibility .25s ease, transform .25s ease;transform:translateY(6px);}
+.fade-step.show{opacity:1;visibility:visible;transform:translateY(0);}

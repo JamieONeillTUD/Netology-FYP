@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,10 +13,11 @@
     <div class="text-center mb-4">
       <h1 class="h3" style="color:#00838F;">Create your account</h1>
       <p class="text-muted">Three quick steps to personalise your learning</p>
-    
+    </div>
+
     {% with messages = get_flashed_messages(with_categories=True) %}
     {% if messages %}
-      <div class="mt-2">
+      <div class="mb-3">
         {% for category, message in messages %}
           <div class="alert alert-{{ 'warning' if category=='warning' else category }} alert-dismissible fade show" role="alert">
             {{ message }}
@@ -25,6 +27,7 @@
       </div>
     {% endif %}
     {% endwith %}
+
     <div class="card">
       <div class="card-body p-4 position-relative">
         <div class="progress mb-3">
@@ -60,7 +63,7 @@
             </div>
           </div>
 
-          <div id="step2" style="display:none;">
+          <div id="step2">
             <label class="form-label mb-2">What's your current networking knowledge?</label>
             <div class="row g-3">
               <div class="col-md-4">
@@ -84,7 +87,7 @@
             </div>
           </div>
 
-          <div id="step3" style="display:none;">
+          <div id="step3">
             <div class="mb-2">
               <label class="form-label">Why are you learning networking?</label>
               <div class="form-text mb-3">Select all that apply - we'll tailor content to your goals</div>
@@ -123,7 +126,7 @@
             </div>
 
             <div class="d-grid mt-4">
-              <button id="submitBtn" class="btn btn-teal d-none" type="submit">Create Account</button>
+              <button id="submitBtn" class="btn btn-teal" type="submit">Create Account</button>
             </div>
           </div>
         </form>

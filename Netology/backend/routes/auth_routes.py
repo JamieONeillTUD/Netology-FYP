@@ -1,3 +1,5 @@
+
+"""Login, Signup (3-step), Dashboard, Logout. Simple + flash messages."""
 from flask import Blueprint, render_template, request, redirect, session, url_for, flash
 from flask_bcrypt import Bcrypt
 from models.user_model import create_user, get_user_by_email

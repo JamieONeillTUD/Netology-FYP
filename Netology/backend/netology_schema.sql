@@ -1,6 +1,5 @@
--- Netology Database Schema
--- Final Year Project - Jamie O'Neill
 
+-- Netology Database Schema (Final Fade Version)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
@@ -13,9 +12,3 @@ CREATE TABLE IF NOT EXISTS users (
     xp INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
--- Example Queries
--- INSERT INTO users (first_name, last_name, username, email, password_hash, level, reasons, xp)
--- VALUES ('Jamie', 'O''Neill', 'jamieo', 'jamie@example.com', 'hashed_pass', 'Novice', 'career,academic', 0);
-
--- SELECT * FROM users WHERE email = 'jamie@example.com';
