@@ -16,9 +16,7 @@ Used by course_routes.py whenever lessons or courses are completed.
 
 from db import get_db_connection
 
-# =====================================================
 # MAIN FUNCTION – ADD XP TO USER
-# =====================================================
 def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
     """
     Adds XP to a user's total and updates their numeric_level.
@@ -30,7 +28,7 @@ def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # --- Get current XP ---
+        # Get current XP 
         cur.execute("SELECT xp FROM users WHERE email = %s;", (email,))
         row = cur.fetchone()
         if not row:
@@ -40,10 +38,10 @@ def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
         current_xp = row[0] or 0
         new_xp = current_xp + int(xp_amount)
 
-        # --- Calculate new level ---
+        # Calculate new level 
         new_level = calculate_level(new_xp)
 
-        # --- Update user XP and numeric level ---
+        # Update user XP and numeric level 
         cur.execute("""
             UPDATE users
             SET xp = %s,
@@ -51,7 +49,7 @@ def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
             WHERE email = %s;
         """, (new_xp, new_level, email))
 
-        # --- Log XP gain in xp_log ---
+        #  Log XP gain in xp_log
         cur.execute("""
             INSERT INTO xp_log (user_email, action, xp_awarded)
             VALUES (%s, %s, %s);
@@ -66,10 +64,7 @@ def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
         print("XP system error:", e)
         return (0, 0)
 
-
-# =====================================================
 # LEVEL CALCULATION FUNCTION
-# =====================================================
 def calculate_level(total_xp):
     """
     Converts total XP into a numeric level.

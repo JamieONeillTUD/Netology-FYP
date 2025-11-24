@@ -20,9 +20,8 @@ from xp_system import add_xp_to_user  # XP updates handled externally
 
 courses = Blueprint("courses", __name__)
 
-# =====================================================
+
 # 1. LIST ALL COURSES
-# =====================================================
 @courses.route("/courses", methods=["GET"])
 def list_courses():
     """Return all active courses from the database."""
@@ -54,9 +53,8 @@ def list_courses():
         return jsonify({"success": False, "message": "Error loading courses."}), 500
 
 
-# =====================================================
+
 # 2. GET SINGLE COURSE DETAILS
-# =====================================================
 @courses.route("/course", methods=["GET"])
 def get_course():
     """Get full details for one course by ID."""
@@ -89,9 +87,7 @@ def get_course():
     })
 
 
-# =====================================================
 # 3. USER COURSES (with progress)
-# =====================================================
 @courses.route("/user-courses", methods=["GET"])
 def user_courses():
     """Return all courses with the user's progress."""
@@ -138,9 +134,8 @@ def user_courses():
     return jsonify({"success": True, "courses": courses_list})
 
 
-# =====================================================
+
 # 4. START COURSE
-# =====================================================
 @courses.route("/start-course", methods=["POST"])
 def start_course():
     """Marks a course as started for a user."""
@@ -168,9 +163,7 @@ def start_course():
     return jsonify({"success": True, "message": "Course started."})
 
 
-# =====================================================
 # 5. COMPLETE LESSON (adds XP via xp_system.py)
-# =====================================================
 @courses.route("/complete-lesson", methods=["POST"])
 def complete_lesson():
     """Updates progress when user completes a lesson."""
@@ -235,9 +228,7 @@ def complete_lesson():
     })
 
 
-# =====================================================
 # 6. COMPLETE WHOLE COURSE (instant XP award)
-# =====================================================
 @courses.route("/complete-course", methods=["POST"])
 def complete_course():
     """Marks entire course as completed and awards full XP."""

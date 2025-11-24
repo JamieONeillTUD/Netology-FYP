@@ -18,13 +18,11 @@ from flask import Blueprint, request, jsonify, redirect
 from flask_bcrypt import Bcrypt
 from db import get_db_connection
 
-# --- Setup Blueprint and Bcrypt ---
+# Setup Blueprint and Bcrypt
 auth = Blueprint("auth", __name__)
 bcrypt = Bcrypt()
 
-# =====================================================
 # REGISTER NEW USER
-# =====================================================
 @auth.route("/register", methods=["POST"])
 def register():
     try:
@@ -66,9 +64,8 @@ def register():
         return jsonify({"success": False, "message": "Signup failed. Please try again."})
 
 
-# =====================================================
+
 # LOGIN USER
-# =====================================================
 @auth.route("/login", methods=["POST"])
 def login():
     email = request.form.get("email")
@@ -105,18 +102,14 @@ def login():
         return jsonify({"success": False, "message": "Login failed. Try again."})
 
 
-# =====================================================
 # LOGOUT (redirect to login page)
-# =====================================================
 @auth.route("/logout")
 def logout():
     return redirect("/frontend/login.html")
 
 
-# =====================================================
 # FETCH BASIC USER INFO
 # Used by dashboard.js to refresh XP, name, and level
-# =====================================================
 @auth.route("/user-info")
 def user_info():
     email = request.args.get("email")
