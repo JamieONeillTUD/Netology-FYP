@@ -1,4 +1,5 @@
 Flask
 Flask-Bcrypt
 psycopg[binary]
+Flask-cors
 
