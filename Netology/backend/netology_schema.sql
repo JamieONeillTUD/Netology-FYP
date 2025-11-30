@@ -5,9 +5,7 @@
 -- Date: 10/11/2025
 -- ===========================================
 
--- ==========================
--- USERS TABLE
--- ==========================
+-- Users Table
 DROP TABLE IF EXISTS xp_log CASCADE;
 DROP TABLE IF EXISTS user_courses CASCADE;
 DROP TABLE IF EXISTS courses CASCADE;
@@ -27,9 +25,7 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ==========================
--- COURSES TABLE
--- ==========================
+-- Courses Table
 CREATE TABLE courses (
     id SERIAL PRIMARY KEY,
     title VARCHAR(150) NOT NULL,
@@ -42,10 +38,9 @@ CREATE TABLE courses (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ==========================
--- USER COURSES TABLE
+
+-- User Courses Table
 -- Tracks which user started/completed which course
--- ==========================
 CREATE TABLE user_courses (
     id SERIAL PRIMARY KEY,
     user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
@@ -56,10 +51,9 @@ CREATE TABLE user_courses (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ==========================
--- XP LOG TABLE
--- Logs user XP gains (for audit and tracking)
--- ==========================
+
+-- XP Log Table
+-- Logs user XP gains
 CREATE TABLE xp_log (
     id SERIAL PRIMARY KEY,
     user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
@@ -68,10 +62,8 @@ CREATE TABLE xp_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ==========================
--- OPTIONAL: LESSONS TABLE
+-- Future addition : Lessons Table
 -- Allows individual lesson tracking inside each course
--- ==========================
 CREATE TABLE lessons (
     id SERIAL PRIMARY KEY,
     course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
@@ -81,9 +73,7 @@ CREATE TABLE lessons (
     xp_value INTEGER DEFAULT 10
 );
 
--- ==========================
--- SAMPLE COURSE DATA
--- ==========================
+-- Sample courses data
 INSERT INTO courses (title, description, total_lessons, xp_reward, difficulty, category)
 VALUES
 ('Network Fundamentals', 'Learn the building blocks of computer networking.', 10, 200, 'Novice', 'Core'),
@@ -95,14 +85,3 @@ VALUES
 ('WAN Technologies', 'Study wide area networking and VPNs.', 7, 170, 'Advanced', 'Core'),
 ('Cloud Networking', 'Learn networking concepts for cloud environments.', 9, 200, 'Advanced', 'Cloud');
 
--- ==========================
--- INDEXES FOR PERFORMANCE
--- ==========================
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_user_courses_email ON user_courses(user_email);
-CREATE INDEX IF NOT EXISTS idx_user_courses_course ON user_courses(course_id);
-CREATE INDEX IF NOT EXISTS idx_xp_log_email ON xp_log(user_email);
-
--- ==========================
--- DONE ✅
--- ==========================

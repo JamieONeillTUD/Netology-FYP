@@ -4,44 +4,52 @@ Student Name: Jamie O’Neill
 Course Code: TU857/4
 Date: 10/11/2025
 
-Python (Flask) – Netology Learning Platform
+Python (Flask)
 -------------------------------------------
-xp_system.py – Handles XP awards and level progression.
-Includes:
-  - add_xp_to_user(email, xp_amount)
-  - Progressive level calculation (250, 500, 750 XP per level)
-  - XP logging to xp_log table
-Used by course_routes.py whenever lessons or courses are completed.
+xp_system.py – XP and Level Progression System
+
+add_xp_to_user(email, xp_amount):
+Adds XP to a user’s total
+Updates numeric level based on progressive XP requirements
+Logs XP changes to xp_log table
+
+calculate_level(total_xp):
+Converts total XP into a number
+Level XP needed grows by +250 XP each level
 """
 
 from db import get_db_connection
 
-# MAIN FUNCTION – ADD XP TO USER
+""""
+AI PROMPTED CODE BELOW
+"Cane you please help me write a function that adds XP to a user and updates their user Level""
+
+Add XP to User
+---
+Adds XP to a user's total and updates their level.
+Logs the XP gain in the xp_log table in database.
+"""
 def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
-    """
-    Adds XP to a user's total and updates their numeric_level.
-    Uses progressive leveling (250, 500, 750, 1000, ...).
-    Also logs XP gains to the xp_log table.
-    Returns the XP added and new level.
-    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get current XP 
+        # Get current XP for this user
         cur.execute("SELECT xp FROM users WHERE email = %s;", (email,))
         row = cur.fetchone()
+
         if not row:
+            # User does not exist
             cur.close(); conn.close()
-            return (0, 0)  # user not found
+            return (0, 0)
 
         current_xp = row[0] or 0
         new_xp = current_xp + int(xp_amount)
 
-        # Calculate new level 
+        # Calculate updated level
         new_level = calculate_level(new_xp)
 
-        # Update user XP and numeric level 
+        # Save updated XP and level to database
         cur.execute("""
             UPDATE users
             SET xp = %s,
@@ -49,7 +57,7 @@ def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
             WHERE email = %s;
         """, (new_xp, new_level, email))
 
-        #  Log XP gain in xp_log
+        # Log the XP gain
         cur.execute("""
             INSERT INTO xp_log (user_email, action, xp_awarded)
             VALUES (%s, %s, %s);
@@ -64,22 +72,30 @@ def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
         print("XP system error:", e)
         return (0, 0)
 
-# LEVEL CALCULATION FUNCTION
+
+""""
+AI PROMPTED CODE BELOW
+"Can you please help me write a function that calculates a user's level based on their total XP"
+
+Calculate XP Level
+---
+Converts total XP into a numeric level.
+Level thresholds:
+Level 1 is 250 XP
+Level 2 is 500 XP total
+Level 3 is 750 XP total 
+XP requirement increases by +250 each level.
+"""
 def calculate_level(total_xp):
-    """
-    Converts total XP into a numeric level.
-    XP required increases each level:
-      Level 1: 250 XP
-      Level 2: +500 XP
-      Level 3: +750 XP, etc.
-    """
+
     level = 0
-    xp_needed = 250
+    xp_needed = 250   # XP needed to reach the next level
     xp_remaining = total_xp
 
+    # Take away XP until the user no longer meets the next level threshold
     while xp_remaining >= xp_needed:
         xp_remaining -= xp_needed
         level += 1
-        xp_needed += 250  # each level requires 250 more XP
+        xp_needed += 250  # Each level requires more XP
 
     return level
