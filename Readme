@@ -1,7 +1,91 @@
 Netology – Final Year Project (FYP)
 Student: Jamie O’Neill – C22320301
 Course: TU857/4
-
+---
 Netology is a web-based interactive elearning platform designed to help students learn computer networking through visual learning, gamification, and hands on practice.
 
 The system includes a full frontend website, backend Flask API, user authentication, course pages, XP progression, and a custom built network sandbox where users can place routers, switches and PCs.
+
+GitHub Repository
+---
+You can view the full project here:
+https://github.com/JamieONeillTUD/Netology-FYP.git
+
+
+How to Run the Project
+---
+1. Install required Python packages
+
+Inside the backend folder, run:
+
+pip install -r requirements.txt
+
+2. Start the backend server
+
+Run:
+
+python app.py
+
+
+You should see:
+
+* Running on http://127.0.0.1:5000
+
+3. Open the frontend
+
+cmd and Rightclick on link in terminal
+
+Project File Overview
+---
+
+- app.py
+Main backend entry point, sets up Flask, configures CORS and registers routes.
+
+- auth_routes.py
+Handles user signup, login, logout, password hashing, and gets user account info from the database.
+
+- course_routes.py
+Provides all course related API routes including listing courses, fetching course details, tracking progress  and awarding XP.
+
+- db.py
+Creates and returns a connection to the PostgreSQL (AWS RDS) database for all backend queries.
+
+- xp_system.py
+Manages XP earnings and level progression, calculates new levels  and logs XP changes to the database.
+
+- requirements.txt
+Contains all Python dependencies needed to run the backend.
+
+Frontend (HTML, CSS, JavaScript)
+- index.html
+Landing page that directs users to login or signup.
+
+- login.html
+User login page with email, password and validation.
+
+- signup.html
+Registration page that collects user details, skill level, and learning reasons.
+
+- dashboard.html
+Displays user info, XP, level, progress, and course lists (Continue, All, Completed).
+
+- course.html
+Displays a single course’s details, lessons, progress bar and XP reward.
+
+- sandbox.html
+Interactive networking sandbox where users can place routers/switches/PCs, drag devices, connect them and edit them.
+
+- css/style.css
+Custom styling for the entire frontend: colours, buttons, cards, layout, animations and theme.
+
+- js/app.js
+Frontend authentication logic for signup and login, form validation, and popup alerts.
+
+- js/dashboard.js
+Fetches user data and courses, displays progress, and handles dashboard UI interactions.
+
+- js/course.js
+Loads individual course info, lessons, progress bar, and handles lesson completion and XP updates.
+
+- js/sandbox.js
+Canvas based interactive network builder for placing, dragging, connecting and editing devices.
