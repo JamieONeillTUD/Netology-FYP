@@ -6,6 +6,11 @@ Date: 10/11/2025
 
 HTML 
 ---------------------------------
+AI PROMPTED CODE BELOW:
+"Can you please help me a page that lets users drag and drop network devices (routers, switches, PCs) onto a canvas,
+connect them with lines. It should have a toolbar for selecting devices and actions like clearing the  canvas
+Please ensure it uses ARIA labels for accessibility and a clean Bootstrap layout."
+
 Sandbox.html -  Interactive networking sandbox environment.
 
 Users can place, connect, and manage network devices, then export the layout.
@@ -14,47 +19,48 @@ Bootstrap 5 used for layout and styling.
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Netology – Sandbox</title>
 
-  <!-- Bootstrap 5 -->
-  <link 
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" 
-    rel="stylesheet"
-  >
+  <!-- Bootstrap -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body class="bg-light">
+
   <!-- Header -->
   <header class="text-center p-3 border-bottom bg-white">
     <h1 class="fw-bold text-teal">Network Sandbox</h1>
-    <p class="text-muted">Place devices, connect them, and export a PNG</p>
+    <p class="text-muted mb-0">Place devices, connect them, and export a PNG</p>
   </header>
 
-  <!-- Main Sandbox Layout -->
+  <!-- Main -->
   <main class="container my-4">
+
     <div class="row">
-      
+
       <!-- Canvas Area -->
       <div class="col-lg-9 mb-3">
-        <canvas 
-          id="canvas" 
-          width="900" 
-          height="520" 
-          style="background:#fff; border:1px solid #B2DFDB; border-radius:8px"
-        ></canvas>
+        <canvas id="canvas"
+                width="900"
+                height="520"
+                aria-label="Network canvas"
+                style="background:#fff; border:1px solid #B2DFDB; border-radius:8px;">
+        </canvas>
       </div>
 
-      <!-- Sidebar Tools and Controls -->
+      <!-- Sidebar -->
       <div class="col-lg-3">
 
-        <!-- Toolbar Section -->
-        <div class="card p-3 border-teal mb-3">
+        <!-- Toolbar -->
+        <section class="card p-3 border-teal mb-3">
           <h5 class="text-teal">Toolbar</h5>
           <div class="d-grid gap-2">
             <button class="btn btn-teal" data-tool="router">Router</button>
@@ -63,47 +69,50 @@ Bootstrap 5 used for layout and styling.
             <button class="btn btn-outline-secondary" data-tool="connect">Connect</button>
             <button class="btn btn-outline-secondary" data-tool="select">Select</button>
           </div>
-        </div>
+        </section>
 
-        <!-- Actions Section -->
-        <div class="card p-3 border-teal mb-3">
+        <!-- Actions -->
+        <section class="card p-3 border-teal mb-3">
           <h5 class="text-teal">Actions</h5>
           <div class="d-grid gap-2">
             <button id="clearBtn" class="btn btn-outline-danger">Clear Canvas</button>
             <button id="exportBtn" class="btn btn-outline-primary">Export PNG</button>
           </div>
-        </div>
+        </section>
 
-        <!-- Properties Section -->
-        <div class="card p-3 border-teal">
+        <!-- Properties -->
+        <section class="card p-3 border-teal">
           <h5 class="text-teal">Properties</h5>
           <div id="props">No selection</div>
-        </div>
+        </section>
 
-        <!-- Navigation Section -->
-        <div class="card p-3 border-teal mt-3">
+        <!-- Navigation -->
+        <section class="card p-3 border-teal mt-3">
           <h5 class="text-teal">Navigation</h5>
           <div class="d-grid gap-2">
             <a href="dashboard.html" class="btn btn-outline-secondary">Back to Dashboard</a>
             <a href="login.html" class="btn btn-outline-danger">Logout</a>
           </div>
-        </div>
+        </section>
+
       </div>
     </div>
 
-    <!-- Tips / User Guidance -->
-    <div class="alert alert-info mt-3" id="tips">
+    <!-- Tips -->
+    <div class="alert alert-info mt-3" id="tips" aria-live="polite">
       Tip: Click a device button, then click on the canvas to place it.
     </div>
+
   </main>
 
   <!-- Footer -->
   <footer class="text-center border-top py-3 mt-4 bg-white">
-    <p class="small text-muted mb-0">2025 - Jamie O’Neill - TU857/4</p>
+    <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
   </footer>
 
   <!-- Scripts -->
   <script src="js/sandbox.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

@@ -1,9 +1,7 @@
--- ===========================================
 -- NETOLOGY LEARNING PLATFORM – DATABASE SCHEMA
 -- Student: Jamie O’Neill (C22320301)
 -- Course: TU857/4
 -- Date: 10/11/2025
--- ===========================================
 
 -- Users Table
 DROP TABLE IF EXISTS xp_log CASCADE;

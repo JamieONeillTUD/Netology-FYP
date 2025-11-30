@@ -37,7 +37,7 @@ auth_bcrypt.init_app(app)
 # Register Blueprint Routes
 # Blueprints organize routes into there own sections.
 app.register_blueprint(auth)        
-app.register_blueprint(courses)    
+app.register_blueprint(courses)     # /courses routes
 
 
 # Default Route

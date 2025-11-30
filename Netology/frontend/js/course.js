@@ -139,9 +139,10 @@ function updateProgress(percent) {
   if (txt) txt.textContent = `${percent}%`;
 }
 
-/* ======================================================
-   POPUP MESSAGE (same style as app.js)
-   ====================================================== */
+//AI Prompted Code Below:
+// "Can you Please write me an pop up alert function in JavaScript that displays a  message to the user
+// The function should accept a message string and a type (success, error, info) and style the popup accordingly. 
+// The popup should automatically disappear after 2.5 seconds."
 function showPopup(message, type = "info") {
   const old = document.getElementById("alertBox");
   if (old) old.remove();

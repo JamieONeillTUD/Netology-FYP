@@ -154,7 +154,7 @@ def user_info():
         cur = conn.cursor()
 
         cur.execute(
-            "SELECT first_name, level, xp FROM users WHERE email = %s",
+            "SELECT first_name, level, xp, numeric_level FROM users WHERE email = %s",
             (email,)
         )
         user = cur.fetchone()
@@ -168,6 +168,7 @@ def user_info():
                 "first_name": user[0],
                 "level": user[1],
                 "xp": user[2],
+                "numeric_level": user[3]
             })
 
         return jsonify({"success": False, "message": "User not found."}), 404
