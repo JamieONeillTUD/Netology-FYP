@@ -6,7 +6,6 @@ Date: 10/11/2025
 
 JavaScript 
 ---------------------------------------
-
 dashboard.js – Handles the dashboard screen.
 
 

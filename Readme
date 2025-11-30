@@ -1,0 +1,7 @@
+Netology – Final Year Project (FYP)
+Student: Jamie O’Neill – C22320301
+Course: TU857/4
+
+Netology is a web-based interactive elearning platform designed to help students learn computer networking through visual learning, gamification, and hands on practice.
+
+The system includes a full frontend website, backend Flask API, user authentication, course pages, XP progression, and a custom built network sandbox where users can place routers, switches and PCs.

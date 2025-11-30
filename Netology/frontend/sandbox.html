@@ -7,22 +7,21 @@ Date: 10/11/2025
 HTML 
 ---------------------------------
 AI PROMPTED CODE BELOW:
-"Can you please help me a page that lets users drag and drop network devices (routers, switches, PCs) onto a canvas,
-connect them with lines. It should have a toolbar for selecting devices and actions like clearing the  canvas
-Please ensure it uses ARIA labels for accessibility and a clean Bootstrap layout."
+"Can you please help me make a sandbox HTML page that displays an interactive area where users can build simple network topologies.
+Users should be able to place devices like routers, switches, and PCs on a canvas, connect them with lines, and manage device properties."
 
-Sandbox.html -  Interactive networking sandbox environment.
+sandbox.html – Interactive networking sandbox.
 
-Users can place, connect, and manage network devices, then export the layout.
-Bootstrap 5 used for layout and styling.
+Users can place devices, connect them, and manage properties.
+Bootstrap 5 used for layout and responsiveness.
 -->
 
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Sandbox</title>
 
   <!-- Bootstrap -->
@@ -38,7 +37,7 @@ Bootstrap 5 used for layout and styling.
   <!-- Header -->
   <header class="text-center p-3 border-bottom bg-white">
     <h1 class="fw-bold text-teal">Network Sandbox</h1>
-    <p class="text-muted mb-0">Place devices, connect them, and export a PNG</p>
+    <p class="text-muted mb-0">Build simple network topologies interactively</p>
   </header>
 
   <!-- Main -->
@@ -51,8 +50,10 @@ Bootstrap 5 used for layout and styling.
         <canvas id="canvas"
                 width="900"
                 height="520"
-                aria-label="Network canvas"
-                style="background:#fff; border:1px solid #B2DFDB; border-radius:8px;">
+                aria-label="Network building canvas"
+                style="background:#ffffff;
+                       border:1px solid #B2DFDB;
+                       border-radius:8px;">
         </canvas>
       </div>
 
@@ -76,14 +77,33 @@ Bootstrap 5 used for layout and styling.
           <h5 class="text-teal">Actions</h5>
           <div class="d-grid gap-2">
             <button id="clearBtn" class="btn btn-outline-danger">Clear Canvas</button>
-            <button id="exportBtn" class="btn btn-outline-primary">Export PNG</button>
           </div>
+        </section>
+
+        <!-- Instructions -->
+        <section class="card p-3 border-teal mb-3">
+          <h5 class="text-teal">How to Use</h5>
+          <ul class="small text-muted mb-0">
+            <li>Select a device type from the toolbar.</li>
+            <li>Click on the canvas to place the device.</li>
+            <li>Use "Connect" to draw lines between devices.</li>
+            <li>Use "Select" to move or edit a device.</li>
+            <li>Clear the canvas anytime with the button above.</li>
+          </ul>
+        </section>
+
+        <!-- Figma Prototype -->
+        <section class="card p-3 border-teal mb-3">
+          <h5 class="text-teal">Figma Prototype</h5>
+          <a href="https://tweet-gloss-98046905.figma.site/"
+             class="btn btn-outline-primary"
+             target="_blank">Open Prototype</a>
         </section>
 
         <!-- Properties -->
         <section class="card p-3 border-teal">
           <h5 class="text-teal">Properties</h5>
-          <div id="props">No selection</div>
+          <div id="props" class="small text-muted">No selection</div>
         </section>
 
         <!-- Navigation -->
@@ -100,7 +120,7 @@ Bootstrap 5 used for layout and styling.
 
     <!-- Tips -->
     <div class="alert alert-info mt-3" id="tips" aria-live="polite">
-      Tip: Click a device button, then click on the canvas to place it.
+      Tip: Choose a device type, then click on the canvas to place it.
     </div>
 
   </main>

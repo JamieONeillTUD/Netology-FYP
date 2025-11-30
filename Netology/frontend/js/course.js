@@ -4,13 +4,13 @@ Student Name: Jamie O’Neill
 Course Code: TU857/4
 Date: 10/11/2025
 
-JavaScript - Netology Learning Platform
+JavaScript 
 ---------------------------------------
 course.js – Handles all course pages.
-Includes:
-  - Loading course details and lessons
-  - Showing user progress
-  - Completing lessons and updating XP
+
+Loading course details and lessons
+Showing user progress
+Completing lessons and updating XP
 Universal and reusable for all course pages.
 */
 
@@ -37,9 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-/* ======================================================
-   LOAD COURSE DETAILS + USER PROGRESS
-   ====================================================== */
+// Load course details and user progress, Shows course title, description, lessons and user progress
 async function loadCourse(courseId, email) {
   try {
     // Get course info
@@ -73,9 +71,9 @@ async function loadCourse(courseId, email) {
   }
 }
 
-/* ======================================================
-   RENDER LESSON LIST
-   ====================================================== */
+//AI Prompted Code Below:
+// "Can you please write me a JavaScript function that shows all of the lessons completed in a course
+// shows the list of lessons with completion status
 function renderLessons(totalLessons, progressPct) {
   const lessonsContainer = document.getElementById("lessonsList");
 
@@ -100,9 +98,7 @@ function renderLessons(totalLessons, progressPct) {
   lessonsContainer.innerHTML = html;
 }
 
-/* ======================================================
-   COMPLETE LESSON
-   ====================================================== */
+//Completing a lesson and updating user progress and XP
 async function completeLesson(courseId, email) {
   try {
     const res = await fetch("/complete-lesson", {
@@ -128,9 +124,7 @@ async function completeLesson(courseId, email) {
   }
 }
 
-/* ======================================================
-   UPDATE PROGRESS BAR
-   ====================================================== */
+//Update progress bar
 function updateProgress(percent) {
   const bar = document.getElementById("progressBar");
   const txt = document.getElementById("progressText");
