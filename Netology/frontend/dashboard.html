@@ -4,119 +4,136 @@ Student Name: Jamie O’Neill
 Course Code: TU857/4
 Date: 10/11/2025
 
-HTML - Netology Learning Platform
+HTML 
 ---------------------------------
-Dashboard Page – Displays user info, progress, and course overview.
+AI PROMPTED CODE BELOW:
+"Can you make a simple HTML dashboard page that displays user information, progress, and course overview. Shows user XP, level,
+and quick access to Sandbox and learning areas. Please make sure it uses ARIA labels for accessibility and uses a clean Bootstrap layout."
+
+Dashboard.html - Displays user info, progress, and course overview.
+
 Shows user XP, level, and quick access to Sandbox and learning areas.
 Bootstrap 5 used for layout and responsive design.
 -->
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Dashboard</title>
 
-  <!-- Bootstrap 5 -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css" />
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body class="bg-light">
+
   <!-- Header -->
-  <header class="text-center p-3 border-bottom bg-white">
+  <header class="text-center p-3 border-bottom bg-white" role="banner">
     <h1 class="fw-bold text-teal">Netology Dashboard</h1>
-    <p class="text-muted">Track your progress and learning journey</p>
+    <p class="text-muted mb-0">Track your progress and learning journey</p>
   </header>
 
-  <!-- Main Dashboard Content -->
-  <main class="container my-5 dashboard-container">
-    <section class="row justify-content-center">
+  <!-- Main Content -->
+  <main class="container my-5 dashboard-container" role="main">
+    
+    <!-- User Overview Section -->
+    <section class="row justify-content-center mb-5" aria-labelledby="userOverview">
       <div class="col-md-8 col-lg-6">
         <div class="card border-teal shadow-sm p-4 text-center">
-          
-          <!-- Welcome Message -->
-          <h2 class="h4 text-teal mb-3">
+
+          <h2 id="userOverview" class="h4 text-teal mb-3">
             Welcome, <span id="userName">User</span>!
           </h2>
 
-          <!-- User Info Section -->
           <div class="row g-3 justify-content-center mb-4">
+
             <!-- Current Level -->
             <div class="col-md-5">
-              <div class="border rounded p-3">
-                <div class="text-muted small">Current Level</div>
-                <div class="h4 mb-0" id="userLevel">Novice</div>
+              <div class="border rounded p-3 h-100">
+                <div class="small text-muted">Current Level</div>
+                <div id="userLevel" class="h4 mb-0">Novice</div>
               </div>
             </div>
 
-            <!-- Experience Points -->
+            <!-- XP -->
             <div class="col-md-5">
-              <div class="border rounded p-3">
-                <div class="text-muted small">Experience Points (XP)</div>
-                <div class="h4 mb-1" id="userXP">0</div>
+              <div class="border rounded p-3 h-100">
+                <div class="small text-muted">Experience Points (XP)</div>
+                <div id="userXP" class="h4 mb-1">0</div>
 
-                <!-- XP Progress Bar -->
                 <div class="progress mt-2" style="height: 8px;">
-                  <div
-                    class="progress-bar bg-teal"
-                    id="xpProgress"
-                    style="width: 0%;"
-                  ></div>
+                  <div id="xpProgress"
+                       class="progress-bar bg-teal"
+                       style="width: 0%;">
+                  </div>
                 </div>
-                <div class="small text-muted mt-1" id="xpToNext">
+
+                <div id="xpToNext"
+                     class="small text-muted mt-1">
                   0 / 250 to next level
                 </div>
               </div>
             </div>
+
           </div>
 
           <!-- Action Buttons -->
           <div class="mt-3 d-flex gap-2 justify-content-center">
-            <button id="logoutBtn" class="btn btn-outline-secondary">Logout</button>
-            <a href="sandbox.html" class="btn btn-teal">Open Sandbox</a>
+            <button id="logoutBtn"
+                    class="btn btn-outline-secondary"
+                    aria-label="Logout from your account">
+              Logout
+            </button>
+
+            <a href="sandbox.html"
+               class="btn btn-teal"
+               aria-label="Open the networking sandbox">
+              Open Sandbox
+            </a>
           </div>
+
         </div>
       </div>
     </section>
 
     <!-- Courses Section -->
-    <section class="mt-5">
-      <!-- Continue Learning -->
-      <h3 class="text-teal mb-3 text-center">Continue Learning</h3>
-      <div id="continueList" class="mb-5">
+    <section aria-labelledby="continueTitle">
+      <h3 id="continueTitle" class="text-teal mb-3 text-center">
+        Continue Learning
+      </h3>
+
+      <div id="continueList">
         <p class="text-muted small text-center">Loading your courses...</p>
       </div>
 
-      <!-- All Courses -->
-      <h3 class="text-teal mb-3 text-center">All Courses</h3>
+      <h3 class="text-teal mt-5 mb-3 text-center">All Courses</h3>
       <div id="allCourses">
         <p class="text-muted small text-center">Loading all available courses...</p>
       </div>
 
-      <!-- Completed Courses -->
-      <h3 class="text-teal mb-3 text-center">Completed Courses</h3>
+      <h3 class="text-teal mt-5 mb-3 text-center">Completed Courses</h3>
       <div id="completedList">
         <p class="text-muted small text-center">No completed courses yet.</p>
       </div>
     </section>
+
   </main>
 
   <!-- Footer -->
-  <footer class="text-center border-top py-3 mt-5 bg-white">
-    <p class="small text-muted mb-0">
-      &copy; 2025 - Jamie O’Neill - TU857/4
-    </p>
+  <footer class="text-center border-top py-3 mt-5 bg-white" role="contentinfo">
+    <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
   </footer>
 
   <!-- Scripts -->
   <script src="js/dashboard.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
