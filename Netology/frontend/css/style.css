@@ -257,3 +257,8 @@ canvas:hover {
 }
 .btn-teal:hover { background-color: #00695c; }
 .bg-teal { background-color: #00838f !important; }
+
+:focus {
+outline: 3px solid #008080 !important; /* teal, matches theme */
+outline-offset: 3px;
+}
