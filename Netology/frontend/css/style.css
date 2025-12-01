@@ -6,7 +6,7 @@ Date: 10/11/2025
 
 Custom CSS styles for the Netology frontend application.
 */
-
+ 
 body {
   background-color: #E0F2F7;
   color: #111;
@@ -16,7 +16,7 @@ body {
   line-height: 1.7;
 }
 
-/* ---------- Header ---------- */
+/*  Header */
 header {
   background-color: #fff;
   border-bottom: 2px solid #00838F;
@@ -38,7 +38,7 @@ header p {
   margin: 0;
 }
 
-/* ---------- Cards ---------- */
+/* Cards */
 .card {
   background-color: #fff;
   border: 1px solid #B2DFDB;
@@ -52,7 +52,7 @@ header p {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
-/* ---------- Buttons ---------- */
+/*Buttons*/
 .btn-teal {
   background-color: #00838F;
   color: #fff;
@@ -85,7 +85,7 @@ header p {
   opacity: 0.9;
 }
 
-/* ---------- Form Elements ---------- */
+/* Form Elements  */
 input,
 select,
 textarea {
@@ -111,7 +111,7 @@ label.form-label {
   color: #004D40;
 }
 
-/* ---------- Text & Colors ---------- */
+/*  Text & Colors */
 .text-teal {
   color: #00838F !important;
 }
@@ -132,7 +132,7 @@ label.form-label {
   color: #00695C;
 }
 
-/* ---------- Footer ---------- */
+/*  Footer  */
 footer {
   background-color: #fff;
   border-top: 2px solid #00838F;
@@ -148,7 +148,7 @@ footer p {
   font-size: 0.9em;
 }
 
-/* ---------- Progress Bar ---------- */
+/* Progress Bar  */
 .progress {
   height: 8px;
   background-color: #B2DFDB;
@@ -161,7 +161,7 @@ footer p {
   transition: width 0.4s ease;
 }
 
-/* ---------- Alerts & Messages ---------- */
+/* Alerts & Messages */
 .alert-info {
   background-color: #E0F7FA;
   border-color: #4DD0E1;
@@ -170,7 +170,7 @@ footer p {
   font-weight: 500;
 }
 
-/* ---------- Accessibility & Utility ---------- */
+/* Accessibility & Utility */
 :focus {
   outline: 3px solid #00838F;
   outline-offset: 2px;
@@ -187,7 +187,7 @@ footer p {
   border: 0;
 }
 
-/* ---------- Animations ---------- */
+/* Animations  */
 .fade-step {
   opacity: 0;
   visibility: hidden;
@@ -201,7 +201,7 @@ footer p {
   transform: translateY(0);
 }
 
-/* ---------- Sandbox Canvas ---------- */
+/*  Sandbox Canvas  */
 canvas {
   transition: box-shadow 0.3s ease;
 }
@@ -210,7 +210,7 @@ canvas:hover {
   box-shadow: 0 0 0 4px rgba(0, 131, 143, 0.25);
 }
 
-/* ---------- Utility Classes ---------- */
+/*  Utility Classes */
 .bg-teal {
   background-color: #00838F !important;
   color: #fff;
@@ -228,7 +228,7 @@ canvas:hover {
   border-radius: 10px !important;
 }
 
-/* --- Popup animation (slide + fade) --- */
+/*  Popup animation (slide + fade)  */
 #alertBox {
   animation: slideFade 0.5s ease forwards;
 }

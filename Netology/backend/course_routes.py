@@ -235,7 +235,7 @@ def complete_lesson():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Fetch course + user progress
+        # Fetch course and user progress
         cur.execute("""
             SELECT c.total_lessons, c.xp_reward,
                    COALESCE(uc.progress, 0),

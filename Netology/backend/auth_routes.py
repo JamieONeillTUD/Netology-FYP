@@ -22,7 +22,7 @@ from flask_bcrypt import Bcrypt
 from db import get_db_connection
 
 
-# Blueprint + bcrypt setup
+# Blueprint and bcrypt setup
 auth = Blueprint("auth", __name__)   # Groups all /auth routes together
 bcrypt = Bcrypt()                    # Used to hash and verify passwords
 
