@@ -48,6 +48,14 @@ sandbox.html – Interactive networking sandbox.
                        border:1px solid #B2DFDB;
                        border-radius:8px;">
         </canvas>
+
+        <!-- Floating Ping Button -->
+        <div id="pingContainer" class="text-center mt-3" style="display:none;">
+          <button id="pingBtn" class="btn btn-primary btn-sm">
+            Ping Device
+          </button>
+        </div>
+
       </div>
 
       <!-- Sidebar -->
@@ -95,11 +103,9 @@ sandbox.html – Interactive networking sandbox.
              target="_blank">Open Prototype</a>
         </section>
 
-        <!-- Properties Panel -->
+        <!-- Updated Properties Panel -->
         <section class="card p-3 border-teal">
           <h5 class="text-teal">Properties</h5>
-
-          <!-- JS inserts the Networking Settings and Device Name fields here -->
           <div id="props" class="small text-muted">No selection</div>
         </section>
 
@@ -128,7 +134,7 @@ sandbox.html – Interactive networking sandbox.
   </footer>
 
 
-  <!-- Topology Manager (loads only when opened) -->
+  <!-- Topology Manager Modal -->
   <div class="modal fade" id="topologyModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
@@ -161,6 +167,33 @@ sandbox.html – Interactive networking sandbox.
     </div>
   </div>
 
+  <!-- Ping Modal -->
+  <div class="modal fade" id="pingModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">Ping Device</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <p><strong>Source Device:</strong> <span id="pingSourceName"></span></p>
+
+          <label class="form-label">Select target device</label>
+          <select id="pingTargetSelect" class="form-select mb-3"></select>
+
+          <div id="pingResult" class="p-2 small"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="runPingBtn" class="btn btn-success">Test Ping</button>
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <!-- Scripts -->
   <script src="js/sandbox.js"></script>

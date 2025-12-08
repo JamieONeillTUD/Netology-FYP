@@ -191,8 +191,13 @@ Clear the entire canvas
       y,
       name: `${capitalize(type)} ${count}`,
       ip: "",
-      subnet: "",
-      gateway: "" 
+      // NEW networking fields for configuration
+      subnetMask: "",
+      gateway: "",
+      // Version counter for configuration changes
+      configVersion: 1,
+      // Track if user manually touched gateway
+      gatewayTouched: false,
     });
   }
 
@@ -260,7 +265,14 @@ Clear the entire canvas
       //Circle body
       ctx.beginPath();
       ctx.arc(d.x, d.y, DEVICE_RADIUS, 0, Math.PI * 2);
-      ctx.fillStyle = "#E0F7FA";
+      // Auto-colour device based on config validity
+      let isValid =
+          isValidIp(d.ip) &&
+          isValidMask(d.subnetMask) &&
+          isValidIp(d.gateway) &&
+          sameSubnet(d.ip, d.gateway, d.subnetMask);
+
+      ctx.fillStyle = isValid ? "#C8E6C9" : "#FFCDD2"; // green if valid, red if not
       ctx.fill();
       ctx.strokeStyle = "#00838F";
       ctx.lineWidth = 2;
@@ -304,56 +316,97 @@ Clear the entire canvas
       return;
     }
 
+    // Make sure newer networking fields exist (for older loaded topologies)
+    if (typeof d.subnetMask === "undefined") d.subnetMask = "";
+    if (typeof d.gateway === "undefined") d.gateway = "";
+    if (typeof d.configVersion !== "number") d.configVersion = 1;
+    if (typeof d.gatewayTouched === "undefined") d.gatewayTouched = false;
+
     // Build small form for editing name and IP
-  propsEl.innerHTML = `
-    <div><strong>Type:</strong> ${capitalize(d.type)}</div>
+    propsEl.innerHTML = `
+      <div><strong>Type:</strong> ${capitalize(d.type)}</div>
 
-    <h6 class="mt-3 text-teal">Networking Settings</h6>
+      <hr class="mt-2 mb-2">
 
-    <label class="form-label small mt-2">Device Name</label>
-    <input id="prop_name" class="form-control form-control-sm"
-          value="${escapeHtml(d.name)}">
+      <div class="small fw-bold">Networking Settings</div>
 
-    <label class="form-label small mt-2">IP Address</label>
-    <input id="prop_ip" class="form-control form-control-sm"
-          placeholder="192.168.1.10"
-          value="${escapeHtml(d.ip)}">
+      <label class="form-label small mt-2">IP Address</label>
+      <input
+        id="prop_ip"
+        class="form-control form-control-sm"
+        placeholder="192.168.1.10"
+        value="${escapeHtml(d.ip)}"
+      >
+      <div id="ip_warning" class="small mt-1"></div>
 
-    <label class="form-label small mt-2">Subnet Mask</label>
-    <input id="prop_subnet" class="form-control form-control-sm"
-          placeholder="255.255.255.0"
-          value="${escapeHtml(d.subnet || "")}">
+      <label class="form-label small mt-2">Subnet Mask</label>
+      <input
+        id="prop_mask"
+        class="form-control form-control-sm"
+        placeholder="255.255.255.0"
+        value="${escapeHtml(d.subnetMask)}"
+      >
+      <div id="mask_warning" class="small mt-1"></div>
 
-    <label class="form-label small mt-2">Default Gateway</label>
-    <input id="prop_gateway" class="form-control form-control-sm"
-          placeholder="192.168.1.1"
-          value="${escapeHtml(d.gateway || "")}">
+      <label class="form-label small mt-2">Default Gateway</label>
+      <input
+        id="prop_gw"
+        class="form-control form-control-sm"
+        placeholder="192.168.1.1"
+        value="${escapeHtml(d.gateway)}"
+      >
+      <div id="gw_warning" class="small mt-1"></div>
 
-    <button class="btn btn-sm btn-outline-danger mt-3" id="deleteBtn">
-      Delete Device
-    </button>
-  `;
+      <label class="form-label small mt-3">Device Name</label>
+      <input
+        id="prop_name"
+        class="form-control form-control-sm"
+        value="${escapeHtml(d.name)}"
+      >
 
+      <button class="btn btn-sm btn-outline-danger mt-3" id="deleteBtn">
+        Delete Device
+      </button>
+    `;
 
-    // When user types into "Name", update device and redraw
-    document.getElementById("prop_name").oninput = (e) => {
+    // Get references to inputs + warning areas
+    const nameInput = document.getElementById("prop_name");
+    const ipInput   = document.getElementById("prop_ip");
+    const maskInput = document.getElementById("prop_mask");
+    const gwInput   = document.getElementById("prop_gw");
+
+    // When user types into "Device Name", update device and redraw
+    nameInput.oninput = (e) => {
       d.name = e.target.value;
+      bumpConfig(d);
       draw();
+      updateWarnings(d);
     };
 
     // When user types into "IP Address", update stored IP value
-    document.getElementById("prop_ip").oninput = (e) => {
+    ipInput.oninput = (e) => {
       d.ip = e.target.value;
+      bumpConfig(d);
+      // Try to suggest a gateway if IP + mask are valid and user hasn't changed gateway
+      suggestGateway(d);
+      updateWarnings(d);
     };
 
-    document.getElementById("prop_subnet").oninput = (e) => {
-      d.subnet = e.target.value;
+    // When user types into "Subnet Mask", update stored mask value
+    maskInput.oninput = (e) => {
+      d.subnetMask = e.target.value;
+      bumpConfig(d);
+      suggestGateway(d);
+      updateWarnings(d);
     };
 
-    document.getElementById("prop_gateway").oninput = (e) => {
+    // When user types into "Default Gateway", update stored gateway value
+    gwInput.oninput = (e) => {
       d.gateway = e.target.value;
+      d.gatewayTouched = true; // user manually edited
+      bumpConfig(d);
+      updateWarnings(d);
     };
-
 
     // When "Delete Device" is clicked, remove device and any connections
     document.getElementById("deleteBtn").onclick = () => {
@@ -367,6 +420,9 @@ Clear the entire canvas
         draw();
       }
     };
+
+    // Initial warnings render
+    updateWarnings(d);
   }
 
   // Helpful Functions
@@ -407,13 +463,162 @@ Clear the entire canvas
     return "PC";
   }
 
+  // escapeHtml() prevents user-typed text from breaking the HTML.
+  // It replaces special characters (< > & " ') with safe versions.
+  // This protects the page when showing device names and IP addresses.
   function escapeHtml(str) {
     return String(str)
+      // Convert & to &amp (must be done first)
       .replaceAll("&", "&amp;")
+      // Convert <  to &lt to stop HTML tags from appearing
       .replaceAll("<", "&lt;")
+      // Convert > to &gt
       .replaceAll(">", "&gt;")
+      // Convert " to &quot to avoid breaking HTML attributes
       .replaceAll('"', "&quot;")
+      // Convert ' to &#39;
       .replaceAll("'", "&#39;");
+  }
+
+  // --------- NEW: IP / Subnet / Gateway helpers + validation ----------
+
+  // Convert dotted-decimal IP to 32-bit integer
+  function ipToInt(ip) {
+    if (!isValidIp(ip)) return null;
+    const parts = ip.trim().split(".").map(Number);
+    return (
+      (parts[0] << 24) |
+      (parts[1] << 16) |
+      (parts[2] << 8) |
+      parts[3]
+    ) >>> 0; // ensure unsigned
+  }
+
+  // Convert 32-bit integer back to dotted-decimal IP
+  function intToIp(num) {
+    return [
+      (num >>> 24) & 255,
+      (num >>> 16) & 255,
+      (num >>> 8) & 255,
+      num & 255,
+    ].join(".");
+  }
+
+  // Basic IP validation
+  function isValidIp(ip) {
+    if (!ip) return false;
+    const parts = ip.trim().split(".");
+    if (parts.length !== 4) return false;
+    for (let p of parts) {
+      if (p === "" || isNaN(p)) return false;
+      const n = Number(p);
+      if (n < 0 || n > 255) return false;
+    }
+    return true;
+  }
+
+  // Check if mask is a valid contiguous subnet mask (e.g. 255.255.255.0)
+  function isValidMask(mask) {
+    const mInt = ipToInt(mask);
+    if (mInt === null) return false;
+    // must not be all 0s or all 1s
+    if (mInt === 0 || mInt === 0xffffffff) return false;
+    // contiguous ones check: pattern like 111...000...
+    return (mInt & (mInt + 1)) === 0;
+  }
+
+  // Same subnet check (ip and gateway under given mask)
+  function sameSubnet(ip, gw, mask) {
+    const ipInt = ipToInt(ip);
+    const gwInt = ipToInt(gw);
+    const mInt = ipToInt(mask);
+    if (ipInt === null || gwInt === null || mInt === null) return false;
+    return (ipInt & mInt) === (gwInt & mInt);
+  }
+
+  // Increment device configuration version when user changes settings
+  function bumpConfig(d) {
+    if (typeof d.configVersion !== "number") {
+      d.configVersion = 1;
+    } else {
+      d.configVersion += 1;
+    }
+  }
+
+  // Suggest a default gateway: first host in the subnet (network + 1)
+  function suggestGateway(d) {
+    if (d.gatewayTouched) return;
+    if (!isValidIp(d.ip) || !isValidMask(d.subnetMask)) return;
+
+    const ipInt = ipToInt(d.ip);
+    const maskInt = ipToInt(d.subnetMask);
+    if (ipInt === null || maskInt === null) return;
+
+    const networkInt = ipInt & maskInt;
+    const gwInt = networkInt + 1;
+    const gwIp = intToIp(gwInt);
+
+    d.gateway = gwIp;
+    const gwInput = document.getElementById("prop_gw");
+    if (gwInput) {
+      gwInput.value = gwIp;
+    }
+  }
+
+  // Update colour-coded warnings for IP / mask / gateway
+  function updateWarnings(d) {
+    const ipWarn   = document.getElementById("ip_warning");
+    const maskWarn = document.getElementById("mask_warning");
+    const gwWarn   = document.getElementById("gw_warning");
+
+    if (!ipWarn || !maskWarn || !gwWarn) return;
+
+    // Reset
+    ipWarn.textContent = "";
+    maskWarn.textContent = "";
+    gwWarn.textContent = "";
+
+    ipWarn.className = "small mt-1";
+    maskWarn.className = "small mt-1";
+    gwWarn.className = "small mt-1";
+
+    // IP warnings
+    if (d.ip && d.ip.trim() !== "") {
+      if (!isValidIp(d.ip)) {
+        ipWarn.textContent = "Invalid IP address.";
+        ipWarn.className += " text-danger";
+      } else {
+        ipWarn.textContent = "IP address looks valid.";
+        ipWarn.className += " text-success";
+      }
+    }
+
+    // Mask warnings
+    if (d.subnetMask && d.subnetMask.trim() !== "") {
+      if (!isValidMask(d.subnetMask)) {
+        maskWarn.textContent = "Invalid subnet mask.";
+        maskWarn.className += " text-danger";
+      } else {
+        maskWarn.textContent = "Subnet mask looks valid.";
+        maskWarn.className += " text-success";
+      }
+    }
+
+    // Gateway warnings
+    if (d.gateway && d.gateway.trim() !== "") {
+      if (!isValidIp(d.gateway)) {
+        gwWarn.textContent = "Invalid gateway IP address.";
+        gwWarn.className += " text-danger";
+      } else if (isValidIp(d.ip) && isValidMask(d.subnetMask)) {
+        if (!sameSubnet(d.ip, d.gateway, d.subnetMask)) {
+          gwWarn.textContent = "Gateway is outside this IP subnet.";
+          gwWarn.className += " text-warning";
+        } else {
+          gwWarn.textContent = "Gateway is in the same subnet.";
+          gwWarn.className += " text-success";
+        }
+      }
+    }
   }
 
   //Startup for the sandbox
@@ -517,6 +722,14 @@ Clear the entire canvas
       devices = data.devices;
       connections = data.connections;
 
+      // Ensure any older saved devices get the new networking fields
+      devices.forEach((d) => {
+        if (typeof d.subnetMask === "undefined") d.subnetMask = "";
+        if (typeof d.gateway === "undefined") d.gateway = "";
+        if (typeof d.configVersion !== "number") d.configVersion = 1;
+        if (typeof d.gatewayTouched === "undefined") d.gatewayTouched = false;
+      });
+
       selectedDeviceId = null;
       connectStartId = null;
 
@@ -527,4 +740,83 @@ Clear the entire canvas
       if (modal) modal.hide();
   }
 
-})(); 
+  // Show Ping button when a device is selected
+  const pingContainer = document.getElementById("pingContainer");
+  if (selectedDeviceId) {
+      pingContainer.style.display = "block";
+  } else {
+      pingContainer.style.display = "none";
+  }
+
+  // ---------------------------------------------------
+  // NEW: Ping System — open modal
+  // ---------------------------------------------------
+  document.getElementById("pingBtn").onclick = () => {
+      if (!selectedDeviceId) return;
+
+      const source = getDevice(selectedDeviceId);
+      document.getElementById("pingSourceName").textContent = source.name;
+
+      // Populate dropdown with connected devices only
+      const connected = connections
+          .filter(c => c.a === source.id || c.b === source.id)
+          .map(c => c.a === source.id ? getDevice(c.b) : getDevice(c.a));
+
+      const select = document.getElementById("pingTargetSelect");
+      select.innerHTML = "";
+
+      connected.forEach(dev => {
+          const opt = document.createElement("option");
+          opt.value = dev.id;
+          opt.textContent = dev.name;
+          select.appendChild(opt);
+      });
+
+      const modal = new bootstrap.Modal(document.getElementById("pingModal"));
+      modal.show();
+  };
+
+  // ---------------------------------------------------
+  // NEW: Run Ping Test
+  // ---------------------------------------------------
+  document.getElementById("runPingBtn").onclick = () => {
+      const resultBox = document.getElementById("pingResult");
+      resultBox.innerHTML = "";
+
+      const source = getDevice(selectedDeviceId);
+      const targetId = document.getElementById("pingTargetSelect").value;
+      const target = getDevice(targetId);
+
+      // Validation
+      if (!isValidIp(source.ip)) {
+          resultBox.innerHTML = "❌ Source IP invalid.";
+          resultBox.className = "text-danger";
+          return;
+      }
+
+      if (!isValidIp(target.ip)) {
+          resultBox.innerHTML = "❌ Target IP invalid.";
+          resultBox.className = "text-danger";
+          return;
+      }
+
+      if (!isValidMask(source.subnetMask)) {
+          resultBox.innerHTML = "❌ Source subnet mask invalid.";
+          resultBox.className = "text-danger";
+          return;
+      }
+
+      if (!sameSubnet(source.ip, target.ip, source.subnetMask)) {
+          resultBox.innerHTML = "❌ Devices are in different subnets.";
+          resultBox.className = "text-danger";
+          return;
+      }
+
+      // Success
+      resultBox.innerHTML =
+          `<span class='text-success fw-bold'>✔ Ping successful!</span><br>
+          ${source.name} can reach ${target.name}.`;
+      resultBox.className = "text-success";
+  };
+
+})();
