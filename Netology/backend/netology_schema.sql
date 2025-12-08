@@ -83,3 +83,12 @@ VALUES
 ('WAN Technologies', 'Study wide area networking and VPNs.', 7, 170, 'Advanced', 'Core'),
 ('Cloud Networking', 'Learn networking concepts for cloud environments.', 9, 200, 'Advanced', 'Cloud');
 
+-- Save user-created topologies for the sandbox
+CREATE TABLE saved_topologies (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    devices JSONB NOT NULL,
+    connections JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

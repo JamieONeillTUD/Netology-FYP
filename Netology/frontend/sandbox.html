@@ -6,14 +6,7 @@ Date: 10/11/2025
 
 HTML 
 ---------------------------------
-AI PROMPTED CODE BELOW:
-"Can you please help me make a sandbox HTML page that displays an interactive area where users can build simple network topologies.
-Users should be able to place devices like routers, switches, and PCs on a canvas, connect them with lines, and manage device properties."
-
 sandbox.html – Interactive networking sandbox.
-
-Users can place devices, connect them, and manage properties.
-Bootstrap 5 used for layout and responsiveness.
 -->
 
 <!DOCTYPE html>
@@ -76,6 +69,8 @@ Bootstrap 5 used for layout and responsiveness.
         <section class="card p-3 border-teal mb-3">
           <h5 class="text-teal">Actions</h5>
           <div class="d-grid gap-2">
+            <button id="saveBtn" class="btn btn-teal">Save</button>
+            <button id="loadBtn" class="btn btn-outline-secondary">Load</button>
             <button id="clearBtn" class="btn btn-outline-danger">Clear Canvas</button>
           </div>
         </section>
@@ -129,6 +124,41 @@ Bootstrap 5 used for layout and responsiveness.
   <footer class="text-center border-top py-3 mt-4 bg-white">
     <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
   </footer>
+
+
+  <!-- Topology Manager (loads only when opened) -->
+  <div class="modal fade" id="topologyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+
+        <div class="modal-header bg-teal text-white">
+          <h5 class="modal-title">Saved Topologies</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Created</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="topologyList">
+              <!-- JS loads content only when Load is clicked -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
 
   <!-- Scripts -->
   <script src="js/sandbox.js"></script>

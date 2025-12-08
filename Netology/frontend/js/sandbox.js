@@ -59,7 +59,6 @@ Clear the entire canvas
 
   const DEVICE_RADIUS = 24; // Radius of each device circle
 
-
   //ToolBAR Buttons
   // When a toolbar button (Router, Switch, PC, Connect, Select) is clicked
   // update the current tool and show a helpful tip.
@@ -292,7 +291,6 @@ Clear the entire canvas
     });
   }
 
-
   //Properties panel to edit device details
   // Show/Update device information (type, name, IP, delete button)
   function renderProps(id) {
@@ -353,8 +351,7 @@ Clear the entire canvas
     };
   }
 
-  //helpful functions for various tasks
-  // Returns true if currentTool is one of the placing tools
+  // Helpful Functions
   function isPlacingTool() {
     return (
       currentTool === TOOL.ROUTER ||
@@ -363,14 +360,12 @@ Clear the entire canvas
     );
   }
 
-  // Update the tip text under the canvas
   function setTip(msg) {
     if (tipsEl) {
       tipsEl.textContent = msg;
     }
   }
 
-  // Get mouse position relative to the canvas, not the whole page
   function getMousePosition(e) {
     const rect = canvas.getBoundingClientRect();
     return {
@@ -379,45 +374,139 @@ Clear the entire canvas
     };
   }
 
-  // Distance between two points (x1, y1) and (x2, y2)
   function distance(x1, y1, x2, y2) {
     return Math.hypot(x1 - x2, y1 - y2);
   }
 
-  // Capitalise first letter of a string
   function capitalize(str) {
     if (!str) return "";
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  //Shows device icon based on type
   function getIcon(type) {
     if (type === TOOL.ROUTER) return "Router";
     if (type === TOOL.SWITCH) return "Switch";
-    return "PC"; // default for PC or anything else
+    return "PC";
   }
 
-  // escapeHtml() prevents user-typed text from breaking the HTML.
-  // It replaces special characters (< > & " ') with safe versions.
-  // This protects the page when showing device names and IP addresses.
   function escapeHtml(str) {
     return String(str)
-      // Convert & to &amp (must be done first)
       .replaceAll("&", "&amp;")
-      // Convert <  to &lt to stop HTML tags from appearing
       .replaceAll("<", "&lt;")
-      // Convert > to &gt
       .replaceAll(">", "&gt;")
-      // Convert " to &quot to avoid breaking HTML attributes
       .replaceAll('"', "&quot;")
-      // Convert ' to &#39;
       .replaceAll("'", "&#39;");
   }
 
-
   //Startup for the sandbox
-  // Initial message + empty props + initial draw
   setTip("Choose a tool, then click on the canvas to build your network.");
   renderProps(null);
   draw();
-})();
+
+  // ---------------------------------------------------
+  // SAVE NETWORK (kept 100% unchanged)
+  // ---------------------------------------------------
+  document.getElementById("saveBtn").onclick = async () => {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user) return alert("You must be logged in.");
+
+      const name = prompt("Name your topology:");
+      if (!name) return;
+
+      const res = await fetch("/save-topology", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+              email: user.email,
+              name,
+              devices,
+              connections
+          })
+      });
+
+      const data = await res.json();
+      alert(data.message);
+  };
+
+  // ---------------------------------------------------
+  // NEW LOAD BUTTON USING MODAL UI
+  // ---------------------------------------------------
+  document.getElementById("loadBtn").onclick = async () => {
+      await refreshTopologyList();
+      const modal = new bootstrap.Modal(document.getElementById("topologyModal"));
+      modal.show();
+  };
+
+  // ---------------------------------------------------
+  // NEW: Refresh list inside modal
+  // ---------------------------------------------------
+  window.refreshTopologyList = async function () {
+      const user = JSON.parse(localStorage.getItem("user"));
+      const res = await fetch(`/load-topologies?email=${user.email}`);
+      const data = await res.json();
+
+      const list = document.getElementById("topologyList");
+      list.innerHTML = "";
+
+      data.topologies.forEach(t => {
+          const row = document.createElement("tr");
+
+          row.innerHTML = `
+              <td>${t.name}</td>
+              <td>${new Date(t.created_at).toLocaleString()}</td>
+              <td class="text-end">
+                  <button class="btn btn-sm btn-primary me-2" onclick="loadTopologyById(${t.id})">
+                      Load
+                  </button>
+                  <button class="btn btn-sm btn-danger" onclick="deleteTopology(${t.id})">
+                      Delete
+                  </button>
+              </td>
+          `;
+
+          list.appendChild(row);
+      });
+  }
+
+  // ---------------------------------------------------
+  // NEW: Delete topology
+  // ---------------------------------------------------
+  window.deleteTopology = async function (id) {
+      if (!confirm("Delete this topology?")) return;
+
+      const res = await fetch(`/delete-topology/${id}`, {
+          method: "DELETE"
+      });
+
+      const data = await res.json();
+      alert(data.message);
+
+      refreshTopologyList();
+  }
+
+  // ---------------------------------------------------
+  // UPDATED loadTopologyById to close modal afterward
+  // ---------------------------------------------------
+  window.loadTopologyById = async function (id) {
+      const res = await fetch(`/load-topology/${id}`);
+      const data = await res.json();
+
+      if (!data.success) {
+          alert("Failed to load topology.");
+          return;
+      }
+
+      devices = data.devices;
+      connections = data.connections;
+
+      selectedDeviceId = null;
+      connectStartId = null;
+
+      draw();
+
+      // Close modal after loading
+      const modal = bootstrap.Modal.getInstance(document.getElementById("topologyModal"));
+      if (modal) modal.hide();
+  }
+
+})(); 

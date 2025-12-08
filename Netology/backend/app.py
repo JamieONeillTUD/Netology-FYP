@@ -18,6 +18,7 @@ from flask import Flask, redirect
 from flask_cors import CORS
 from auth_routes import auth, bcrypt as auth_bcrypt
 from course_routes import courses
+from topology_routes import topology
 
 # Create Flask App
 # static_folder points to where your HTML/CSS/JS is
@@ -38,6 +39,7 @@ auth_bcrypt.init_app(app)
 # Blueprints organize routes into there own sections.
 app.register_blueprint(auth)        
 app.register_blueprint(courses)     # /courses routes
+app.register_blueprint(topology)   # /topology routes
 
 
 # Default Route
