@@ -191,6 +191,8 @@ Clear the entire canvas
       y,
       name: `${capitalize(type)} ${count}`,
       ip: "",
+      subnet: "",
+      gateway: "" 
     });
   }
 
@@ -303,28 +305,35 @@ Clear the entire canvas
     }
 
     // Build small form for editing name and IP
-    propsEl.innerHTML = `
-      <div><strong>Type:</strong> ${capitalize(d.type)}</div>
+  propsEl.innerHTML = `
+    <div><strong>Type:</strong> ${capitalize(d.type)}</div>
 
-      <label class="form-label small mt-2">Name</label>
-      <input
-        id="prop_name"
-        class="form-control form-control-sm"
-        value="${escapeHtml(d.name)}"
-      >
+    <h6 class="mt-3 text-teal">Networking Settings</h6>
 
-      <label class="form-label small mt-2">IP Address</label>
-      <input
-        id="prop_ip"
-        class="form-control form-control-sm"
-        placeholder="192.168.1.10"
-        value="${escapeHtml(d.ip)}"
-      >
+    <label class="form-label small mt-2">Device Name</label>
+    <input id="prop_name" class="form-control form-control-sm"
+          value="${escapeHtml(d.name)}">
 
-      <button class="btn btn-sm btn-outline-danger mt-3" id="deleteBtn">
-        Delete Device
-      </button>
-    `;
+    <label class="form-label small mt-2">IP Address</label>
+    <input id="prop_ip" class="form-control form-control-sm"
+          placeholder="192.168.1.10"
+          value="${escapeHtml(d.ip)}">
+
+    <label class="form-label small mt-2">Subnet Mask</label>
+    <input id="prop_subnet" class="form-control form-control-sm"
+          placeholder="255.255.255.0"
+          value="${escapeHtml(d.subnet || "")}">
+
+    <label class="form-label small mt-2">Default Gateway</label>
+    <input id="prop_gateway" class="form-control form-control-sm"
+          placeholder="192.168.1.1"
+          value="${escapeHtml(d.gateway || "")}">
+
+    <button class="btn btn-sm btn-outline-danger mt-3" id="deleteBtn">
+      Delete Device
+    </button>
+  `;
+
 
     // When user types into "Name", update device and redraw
     document.getElementById("prop_name").oninput = (e) => {
@@ -336,6 +345,15 @@ Clear the entire canvas
     document.getElementById("prop_ip").oninput = (e) => {
       d.ip = e.target.value;
     };
+
+    document.getElementById("prop_subnet").oninput = (e) => {
+      d.subnet = e.target.value;
+    };
+
+    document.getElementById("prop_gateway").oninput = (e) => {
+      d.gateway = e.target.value;
+    };
+
 
     // When "Delete Device" is clicked, remove device and any connections
     document.getElementById("deleteBtn").onclick = () => {
