@@ -328,3 +328,159 @@ header.net-topbar{
   padding: 12px;
   background: rgba(247,251,252,.8);
 }
+
+/* =========================================================
+   DASHBOARD UI POLISH (Part 3 – Visual Upgrade)
+   Safe additive styles only
+   ========================================================= */
+
+/* ---------- Topbar ---------- */
+.net-topbar {
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  color: white;
+  border-bottom: none;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
+
+.net-topbar .net-brand,
+.net-topbar .net-subtitle {
+  color: white;
+}
+
+.net-topbar a.btn {
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.net-topbar a.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+/* ---------- Logo ---------- */
+.net-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff, #eafffb);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+
+.net-logo::after {
+  content: "N";
+  font-weight: 800;
+  font-size: 20px;
+  color: #0fb9b1;
+}
+
+/* ---------- Hamburger Button ---------- */
+.net-hamburger {
+  border-radius: 10px;
+}
+
+/* ---------- Drawer ---------- */
+.net-drawer {
+  position: fixed;
+  top: 0;
+  left: -280px;
+  width: 280px;
+  height: 100%;
+  background: white;
+  z-index: 1050;
+  transition: left .25s ease;
+  box-shadow: 8px 0 24px rgba(0,0,0,0.15);
+}
+
+.net-drawer.open {
+  left: 0;
+}
+
+.net-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 1040;
+}
+
+.net-drawer a.btn,
+.net-drawer button {
+  border-radius: 12px;
+  justify-content: flex-start;
+}
+
+.net-drawer a.btn:hover,
+.net-drawer button:hover {
+  background: #f1fdfb;
+}
+
+/* ---------- Cards ---------- */
+.net-card {
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.net-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.08);
+}
+
+/* ---------- Continue Learning Card ---------- */
+.net-continue-card {
+  background: linear-gradient(135deg, #f0fffd, #ffffff);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid #dff6f3;
+}
+
+/* ---------- Mini Media / Stats ---------- */
+.net-mini-media {
+  background: linear-gradient(135deg, #ffffff, #f6fffd);
+  border-radius: 16px;
+  border: 1px solid #e5f6f3;
+}
+
+/* ---------- Progress Bars ---------- */
+.progress {
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  transition: width .4s ease;
+}
+
+/* ---------- Buttons ---------- */
+.btn-teal {
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  border: none;
+  color: white;
+}
+
+.btn-teal:hover {
+  background: linear-gradient(135deg, #0ea5a0, #1eae62);
+  color: white;
+}
+
+/* ---------- Badges ---------- */
+.badge {
+  border-radius: 999px;
+  padding: .35em .65em;
+}
+
+/* ---------- Page Background ---------- */
+.net-bg {
+  background: linear-gradient(180deg, #f6fffd, #f9fafb);
+}
+
+/* ---------- Smooth Page Load ---------- */
+body {
+  animation: fadeIn .25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}

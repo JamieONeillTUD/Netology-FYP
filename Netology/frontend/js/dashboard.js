@@ -22,7 +22,7 @@ UPDATES ADDED (simple, same style):
 
 let __dashState = {
   email: "",
-  level: 1
+  level: 1   // numeric level (used for locking)
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   __dashState.email = user.email;
 
   wireMenu();
+
   const name = user.first_name || user.username || "Student";
   const welcome = document.getElementById("welcomeName");
   if (welcome) welcome.textContent = name;
@@ -72,30 +73,42 @@ function wireMenu() {
   }
 }
 
+/*
+UPDATED (Part 3 bug fix):
+- Uses numeric_level instead of string level
+- Shows rank label (Novice / Intermediate / Advanced)
+- XP bar uses xp_into_level / next_level_xp
+*/
 async function loadUserStats(email) {
   try {
-    // You likely already have a /user-info route. If yours is different, tell me.
     const res = await fetch(`/user-info?email=${encodeURIComponent(email)}`);
     const data = await res.json();
 
     if (!data.success) return;
 
     const xp = Number(data.xp || 0);
-    const level = Number(data.level || 1);
-    const next = Number(data.next_level_xp || 100);
-    const pct = Math.max(0, Math.min(100, Math.round((xp / Math.max(next, 1)) * 100)));
+    const numericLevel = Number(data.numeric_level || 1);
+    const rank = String(data.rank || data.level || "Novice");
 
-    __dashState.level = level;
+    const xpInto = Number(data.xp_into_level || 0);
+    const xpNext = Number(data.next_level_xp || 100);
+
+    const pct = Math.max(
+      0,
+      Math.min(100, Math.round((xpInto / Math.max(xpNext, 1)) * 100))
+    );
+
+    __dashState.level = numericLevel;
 
     const levelText = document.getElementById("levelText");
     const xpText = document.getElementById("xpText");
     const xpBar = document.getElementById("xpBar");
     const xpNextText = document.getElementById("xpNextText");
 
-    if (levelText) levelText.textContent = level;
+    if (levelText) levelText.textContent = `${numericLevel} (${rank})`;
     if (xpText) xpText.textContent = xp;
     if (xpBar) xpBar.style.width = `${pct}%`;
-    if (xpNextText) xpNextText.textContent = `${xp} / ${next}`;
+    if (xpNextText) xpNextText.textContent = `${xpInto} / ${xpNext}`;
   } catch (e) {
     console.error("loadUserStats error:", e);
   }
@@ -185,7 +198,7 @@ async function loadUserCourses(email) {
       continueBox.textContent = "No courses available yet.";
     }
 
-    // Render cards
+    // Render cards (unchanged logic)
     grid.innerHTML = "";
     courses.forEach(c => {
       const pct = Number(c.progress_pct || 0);
@@ -201,14 +214,12 @@ async function loadUserCourses(email) {
       const lockInfo = isLocked(c.id, level);
 
       const btnText = c.status === "completed" ? "Review" : "Launch course";
-      const disabledAttr = lockInfo.locked ? "disabled aria-disabled='true'" : "";
       const lockLine = lockInfo.locked
         ? `<div class="small text-danger mt-2">Locked — unlocks at Level ${lockInfo.required}</div>`
         : "";
 
-      // IMPORTANT: disable button when locked (prevents sending user into a course they can’t access yet)
       const launchBtn = lockInfo.locked
-        ? `<button class="btn btn-secondary btn-sm" ${disabledAttr}>Locked</button>`
+        ? `<button class="btn btn-secondary btn-sm" disabled>Locked</button>`
         : `<a class="btn btn-teal btn-sm" href="course.html?id=${c.id}">${btnText}</a>`;
 
       grid.insertAdjacentHTML("beforeend", `

@@ -8,17 +8,63 @@ Python (Flask)
 -------------------------------------------
 xp_system.py – XP and Level Progression System
 
-add_xp_to_user(email, xp_amount):
-Adds XP to a user’s total
-Updates numeric level based on progressive XP requirements
-Logs XP changes to xp_log table
-
-calculate_level(total_xp):
-Converts total XP into a number
-Level XP needed grows by +250 XP each level
+UPDATED (Part 3):
+- Level thresholds are now: 100 then 200 then 300 then 400 ...
+- Level starts at 1 (Level 1 at 0 XP)
+- Rank label:
+  Level 1-2 = Novice
+  Level 3-4 = Intermediate
+  Level 5+  = Advanced
+- add_xp_to_user updates numeric_level AND level string
+- Added get_level_progress(total_xp) so dashboard/account can display XP progress
 """
 
 from db import get_db_connection
+
+
+def rank_for_level(level_num: int) -> str:
+    if level_num >= 5:
+        return "Advanced"
+    if level_num >= 3:
+        return "Intermediate"
+    return "Novice"
+
+
+""""
+AI PROMPTED CODE BELOW
+"Can you please update my XP system so level 1 is 0 XP, then level 2 needs 100 XP,
+level 3 needs +200 XP, level 4 needs +300 XP, and so on. Also return progress info for UI."
+"""
+
+def get_level_progress(total_xp: int):
+    """
+    Returns:
+      numeric_level (starts at 1),
+      xp_into_level (xp earned inside current level),
+      next_level_xp (xp needed to reach the next level from current level)
+    """
+
+    total_xp = int(total_xp or 0)
+
+    level = 1
+    xp_needed = 100
+    xp_remaining = total_xp
+
+    while xp_remaining >= xp_needed:
+        xp_remaining -= xp_needed
+        level += 1
+        xp_needed += 100
+
+    # xp_remaining is how much XP is into the current level
+    # xp_needed is how much XP needed to reach the NEXT level (from current level)
+    return level, xp_remaining, xp_needed
+
+
+def calculate_level(total_xp):
+    # Keep for compatibility with existing code
+    level, _, _ = get_level_progress(total_xp)
+    return level
+
 
 """"
 AI PROMPTED CODE BELOW
@@ -26,7 +72,7 @@ AI PROMPTED CODE BELOW
 
 Add XP to User
 ---
-Adds XP to a user's total and updates their level.
+Adds XP to a user's total and updates their numeric_level and level label.
 Logs the XP gain in the xp_log table in database.
 """
 def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
@@ -39,63 +85,36 @@ def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
         row = cur.fetchone()
 
         if not row:
-            # User does not exist
             cur.close(); conn.close()
-            return (0, 0)
+            return (0, 1)
 
-        current_xp = row[0] or 0
+        current_xp = int(row[0] or 0)
         new_xp = current_xp + int(xp_amount)
 
-        # Calculate updated level
-        new_level = calculate_level(new_xp)
+        # Calculate updated level + rank
+        new_level, _, _ = get_level_progress(new_xp)
+        new_rank = rank_for_level(new_level)
 
-        # Save updated XP and level to database
+        # Save updated XP and levels to database
         cur.execute("""
             UPDATE users
             SET xp = %s,
-                numeric_level = %s
+                numeric_level = %s,
+                level = %s
             WHERE email = %s;
-        """, (new_xp, new_level, email))
+        """, (new_xp, new_level, new_rank, email))
 
         # Log the XP gain
         cur.execute("""
             INSERT INTO xp_log (user_email, action, xp_awarded)
             VALUES (%s, %s, %s);
-        """, (email, action, xp_amount))
+        """, (email, action, int(xp_amount)))
 
         conn.commit()
         cur.close(); conn.close()
 
-        return (xp_amount, new_level)
+        return (int(xp_amount), int(new_level))
 
     except Exception as e:
         print("XP system error:", e)
-        return (0, 0)
-
-
-""""
-AI PROMPTED CODE BELOW
-"Can you please help me write a function that calculates a user's level based on their total XP"
-
-Calculate XP Level
----
-Converts total XP into a numeric level.
-Level thresholds:
-Level 1 is 250 XP
-Level 2 is 500 XP total
-Level 3 is 750 XP total 
-XP requirement increases by +250 each level.
-"""
-def calculate_level(total_xp):
-
-    level = 0
-    xp_needed = 250   # XP needed to reach the next level
-    xp_remaining = total_xp
-
-    # Take away XP until the user no longer meets the next level threshold
-    while xp_remaining >= xp_needed:
-        xp_remaining -= xp_needed
-        level += 1
-        xp_needed += 250  # Each level requires more XP
-
-    return level
+        return (0, 1)
