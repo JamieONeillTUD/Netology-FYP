@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Netology – Forgot Password</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="net-bg">
+
+  <!-- Top bar -->
+  <header class="net-topbar">
+    <div class="container d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-3">
+        <div class="net-logo"></div>
+        <div>
+          <div class="net-brand">Netology</div>
+          <div class="net-subtitle small">Reset your password</div>
+        </div>
+      </div>
+      <a href="login.html" class="btn btn-outline-secondary btn-sm">Login</a>
+    </div>
+  </header>
+
+  <main class="container my-5 net-auth-wrap">
+    <div class="row justify-content-center">
+      <div class="col-lg-6">
+
+        <div class="net-auth-card p-4 p-lg-5">
+
+          <h1 class="h4 text-teal mb-2">Forgot your password?</h1>
+          <p class="text-muted mb-4">
+            Enter your email, username, and choose a new password.
+          </p>
+
+          <!-- Message box -->
+          <div id="msgBox" class="alert d-none"></div>
+
+          <form id="forgotForm">
+
+            <div class="mb-3">
+              <label for="email" class="form-label">Email</label>
+              <input type="email" id="email" class="form-control net-input" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="username" class="form-label">Username</label>
+              <input type="text" id="username" class="form-control net-input" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="password1" class="form-label">New password</label>
+              <input type="password" id="password1" class="form-control net-input" minlength="8" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="password2" class="form-label">Confirm new password</label>
+              <input type="password" id="password2" class="form-control net-input" minlength="8" required>
+            </div>
+
+            <div class="d-grid">
+              <button type="submit" class="btn btn-teal">
+                Update password
+              </button>
+            </div>
+
+            <p class="text-center mt-3 mb-0 small">
+              Remembered your password?
+              <a href="login.html" class="link-teal">Back to login</a>
+            </p>
+
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-center border-top py-3 bg-white">
+    <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
+  </footer>
+
+  <script>
+    const form = document.getElementById("forgotForm");
+    const msgBox = document.getElementById("msgBox");
+
+    function showMsg(message, success) {
+      msgBox.className = "alert";
+      msgBox.classList.add(success ? "alert-success" : "alert-danger");
+      msgBox.textContent = message;
+      msgBox.classList.remove("d-none");
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById("email").value.trim();
+      const username = document.getElementById("username").value.trim();
+      const p1 = document.getElementById("password1").value;
+      const p2 = document.getElementById("password2").value;
+
+      if (!email || !username || !p1 || !p2) {
+        showMsg("All fields are required.", false);
+        return;
+      }
+
+      if (p1.length < 8) {
+        showMsg("Password must be at least 8 characters.", false);
+        return;
+      }
+
+      if (p1 !== p2) {
+        showMsg("Passwords do not match.", false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: email,
+            username: username,
+            password: p1
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          showMsg("Password updated successfully. Redirecting to login…", true);
+          setTimeout(() => {
+            window.location.href = "login.html";
+          }, 1500);
+        } else {
+          showMsg(data.message || "Password reset failed.", false);
+        }
+
+      } catch (err) {
+        console.error(err);
+        showMsg("Server error. Please try again.", false);
+      }
+    });
+  </script>
+
+</body>
+</html>

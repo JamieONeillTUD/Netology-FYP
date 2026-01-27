@@ -176,3 +176,66 @@ def user_info():
     except Exception as e:
         print("User info error:", e)
         return jsonify({"success": False, "message": "Error loading user info."}), 500
+
+@auth.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    try:
+        data = request.get_json()
+
+        email = (data.get("email") or "").strip().lower()
+        username = (data.get("username") or "").strip()
+        new_password = data.get("password") or ""
+
+        if not email or not username or not new_password:
+            return jsonify({
+                "success": False,
+                "message": "All fields are required."
+            }), 400
+
+        if len(new_password) < 8:
+            return jsonify({
+                "success": False,
+                "message": "Password must be at least 8 characters."
+            }), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check user exists with email + username
+        cur.execute(
+            "SELECT id FROM users WHERE email = %s AND username = %s",
+            (email, username)
+        )
+        user = cur.fetchone()
+
+        if not user:
+            cur.close()
+            conn.close()
+            return jsonify({
+                "success": False,
+                "message": "No account found with that email and username."
+            }), 404
+
+        # Hash new password
+        hashed_password = bcrypt.generate_password_hash(new_password).decode("utf-8")
+
+        # Update password
+        cur.execute(
+            "UPDATE users SET password_hash = %s WHERE email = %s AND username = %s",
+            (hashed_password, email, username)
+        )
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "success": True
+        })
+
+    except Exception as e:
+        print("Forgot password error:", e)
+        return jsonify({
+            "success": False,
+            "message": "Server error. Please try again."
+        }), 500

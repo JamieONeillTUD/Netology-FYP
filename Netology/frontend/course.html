@@ -1,93 +1,235 @@
-<!--
-Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
-
-HTML 
----------------------------------
-AI PROMPTED CODE BELOW:
-"Can you please help me make a simple course page that displays course details and progress. 
-shows lessons, XP, and progress bar available for the course users have clicked on"
-
-Course.html  – Displays course details and progress.
-
-Shows lessons, XP, and progress bar available for the course users have clicked on
-Bootstrap 5 used for layout and responsive design.
--->
-
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Course</title>
 
-  <!-- Bootstrap CSS -->
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-
-  <!-- Custom CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="bg-light">
+<body class="net-bg">
 
-  <!--Header-->
-  <header class="text-center p-3 border-bottom bg-white" role="banner">
-    <h1 id="courseTitle" class="fw-bold text-teal">Loading...</h1>
-    <p id="courseDesc" class="text-muted mb-0">Please wait while we load course details.</p>
-  </header>
-
-  <!-- Main-->
-  <main class="container my-5" role="main" aria-labelledby="courseTitle">
-
-    <!-- Course Content Card -->
-    <section class="card border-teal shadow-sm p-4">
-
-      <!-- Course Stats (Lessons & XP) -->
-      <div class="text-center mb-4" aria-live="polite">
-        <p class="mb-1"><strong id="courseLessons">0 lessons</strong></p>
-        <p class="text-muted"><strong id="courseXP">0 XP</strong></p>
+  <!-- Topbar -->
+  <header class="net-topbar" role="banner">
+    <div class="container d-flex align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="net-logo" aria-hidden="true"></div>
+        <div>
+          <div class="net-brand">Netology</div>
+          <div class="net-subtitle small">Course learning path</div>
+        </div>
       </div>
 
-      <!-- Progress Bar -->
-      <section aria-labelledby="progressHeading">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <strong id="progressHeading">Progress</strong>
-          <span id="progressText" class="text-muted small">0%</span>
+      <div class="d-flex align-items-center gap-2">
+        <a href="dashboard.html" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+        <a href="sandbox.html" class="btn btn-teal btn-sm">Open Sandbox</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container-fluid my-4">
+    <div class="row g-3">
+
+      <!-- LEFT SIDEBAR -->
+      <aside class="col-lg-3 col-xl-3">
+        <div class="net-sidebar p-3 p-lg-4">
+
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="net-course-badge" aria-hidden="true"></div>
+            <div>
+              <div class="small text-muted">Course</div>
+              <div id="courseTitle" class="h6 mb-0 text-teal">Loading...</div>
+              <div class="small text-muted mt-1">Lessons & progress</div>
+            </div>
+          </div>
+
+          <!-- Progress -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center small mb-1">
+              <span class="text-muted">Progress</span>
+              <span id="progressText" class="fw-semibold">0%</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+              <div id="progressBar" class="progress-bar bg-teal" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Lessons list -->
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="fw-semibold">Units & Lessons</div>
+            <span class="small text-muted">Track</span>
+          </div>
+
+          <div id="lessonsList" class="net-lessons-scroll">
+            <p class="text-muted small mb-0">Loading lessons...</p>
+          </div>
+
+          <hr class="my-3">
+
+          <div class="d-grid gap-2">
+            <a href="sandbox.html" class="btn btn-outline-secondary btn-sm">Practice in Sandbox</a>
+            <a href="dashboard.html" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+          </div>
+
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <section class="col-lg-9 col-xl-9">
+
+        <!-- Course overview -->
+        <div class="net-card p-4 p-lg-5 mb-3">
+          <div class="row g-4 align-items-center">
+            <div class="col-lg-8">
+              <h1 class="h3 mb-2">
+                <span class="text-teal" id="courseHeroTitle">Course</span>
+              </h1>
+
+              <p id="courseDesc" class="text-muted mb-0">Loading description...</p>
+
+              <div class="d-flex flex-wrap gap-2 mt-3">
+                <button class="btn btn-teal btn-sm" id="completeLessonBtn">
+                  Complete Lesson (+XP)
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" id="startChallengeBtn">
+                  Start Challenge
+                </button>
+                <a class="btn btn-outline-secondary btn-sm" href="sandbox.html">
+                  View Sandbox
+                </a>
+              </div>
+            </div>
+
+            <div class="col-lg-4">
+              <div class="net-mini-media p-3">
+                <div class="small text-muted mb-1">Tip</div>
+                <div class="fw-semibold mb-1">Learn → Quiz → Build</div>
+                <div class="small text-muted">
+                  Each lesson has a quick quiz and a sandbox challenge to earn XP.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="progress mb-4" style="height: 10px;">
-          <div id="progressBar"class="progress-bar bg-teal"style="width: 0%;"></div>
+        <!-- ===================================================== -->
+        <!-- NEW: Unit View (Khan-style unit page) - ADDED ONLY     -->
+        <!-- This is hidden by default. course.js will toggle it.  -->
+        <!-- ===================================================== -->
+        <div class="net-card p-4 p-lg-5 mb-3" id="unitView" style="display:none;">
+          <div class="small text-muted">Unit</div>
+          <h2 class="h4 mb-3" id="unitTitle">Unit title...</h2>
+
+          <div class="net-learn-box mb-3">
+            <div class="fw-semibold mb-1">About this unit</div>
+            <div class="text-muted" id="unitAbout">Unit about text...</div>
+          </div>
+
+          <div id="unitSections">
+            <!-- course.js renders Khan-style section cards here -->
+          </div>
         </div>
+        <!-- ===================================================== -->
+        <!-- END NEW UNIT VIEW                                     -->
+        <!-- ===================================================== -->
+
+        <!-- ===================================================== -->
+        <!-- NEW: Lesson View Wrapper - ADDED ONLY                 -->
+        <!-- Keeps all your existing lesson blocks intact          -->
+        <!-- course.js will show/hide this when viewing units       -->
+        <!-- ===================================================== -->
+        <div id="lessonView">
+          <!-- Current Lesson -->
+          <div class="net-card p-4 p-lg-4 mb-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+              <div>
+                <div class="small text-muted">Current lesson</div>
+                <div id="lessonTitle" class="h5 mb-0">Lesson title...</div>
+              </div>
+
+              <div class="d-flex align-items-center gap-2">
+                <span id="lessonIndicator" class="badge text-bg-light border">Lesson 1 of 1</span>
+                <button id="prevLessonBtn" class="btn btn-outline-secondary btn-sm">← Prev</button>
+                <button id="nextLessonBtn" class="btn btn-outline-secondary btn-sm">Next →</button>
+              </div>
+            </div>
+
+            <div class="net-learn-box mt-3">
+              <div class="fw-semibold mb-1">Learn</div>
+              <div id="lessonContent" class="text-muted">Loading lesson content...</div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <!-- Quiz -->
+            <div class="col-lg-6">
+              <div class="net-card p-4 h-100">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <div class="fw-semibold">Quick Quiz</div>
+                  <div class="small text-muted">Score: <span id="quizScore">0/1</span></div>
+                </div>
+
+                <div id="quizBox" class="d-grid gap-2"></div>
+                <div id="quizFeedback" class="small mt-2 text-muted"></div>
+
+                <div class="small text-muted mt-3">
+                  Correct answers give XP automatically.
+                </div>
+              </div>
+            </div>
+
+            <!-- Challenge -->
+            <div class="col-lg-6">
+              <div class="net-card p-4 h-100">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <div class="fw-semibold">Sandbox Challenge</div>
+                  <span class="badge bg-teal">Build</span>
+                </div>
+
+                <div id="challengeBox" class="mb-3">
+                  <div class="text-muted small">Loading challenge...</div>
+                </div>
+
+                <div class="d-grid gap-2">
+                  <button class="btn btn-teal" id="startChallengeBtn">Open Challenge in Sandbox</button>
+                  <button class="btn btn-outline-secondary" id="validateChallengeBtn">Validate in Sandbox</button>
+                </div>
+
+                <div class="small text-muted mt-3">
+                  Challenge validation + return flow is Part 3.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- ===================================================== -->
+        <!-- END NEW LESSON VIEW WRAPPER                            -->
+        <!-- ===================================================== -->
+
       </section>
-
-      <!-- Lessons List -->
-      <h3 class="h5 text-teal mb-3">Lessons</h3>
-      <div id="lessonsList"class="mb-4 text-muted small"aria-live="polite">Loading lessons...</div>
-
-      <!-- Navigation and Action Buttons -->
-      <div class="d-flex justify-content-between mt-4">
-        <a href="dashboard.html"class="btn btn-outline-secondary"aria-label="Return to dashboard">Back to Dashboard</a>
-
-        <button id="joinBtn" class="btn btn-teal" aria-label="Join this course">Join Course</button></div>
-
-      <div class="d-grid mt-3"><button id="completeLessonBtn"class="btn btn-outline-primary"aria-label="Mark a lesson as completed">Complete Lesson</button></div>
-
-    </section>
-
+    </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="text-center border-top py-3 mt-5 bg-white" role="contentinfo">
-    <p class="small text-muted mb-0"> 2025 – Jamie O’Neill – TU857/4</p>
+  <footer class="text-center border-top py-3 bg-white">
+    <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
   </footer>
 
-  <!-- Scripts -->
+  <!-- IMPORTANT: course_content before course.js -->
+  <script src="js/course_content.js"></script>
   <script src="js/course.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+  <!-- Mirror title safely (no observer) -->
+  <script>
+    // Copy sidebar title into hero once after it appears
+    setTimeout(() => {
+      const t = document.getElementById("courseTitle");
+      const hero = document.getElementById("courseHeroTitle");
+      if (t && hero && t.textContent) hero.textContent = t.textContent;
+    }, 300);
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

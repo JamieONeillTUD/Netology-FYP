@@ -1,272 +1,335 @@
-<!--
-Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
-
-HTML 
----------------------------------
-AI PROMPTED CODE BELOW
-"Can you make a simple HTML signup page with fields for first name, last name, username, email, password, networking level (novice, intermediate, advanced),
-and reasons for learning networking (career advancement, certification prep, academic studies, personal interest). Please make sure it uses  ARIA labels  for accissibilty and uses a clean Bootstrap layout."
-
-Signup.html – User account registration page.
-
-Includes user details, networking level selection, and learning reasons.
-Bootstrap 5 used for styling and responsive layout.
-
--->
-
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Netology – Sign Up</title>
+  <title>Netology – Signup</title>
 
-  <!-- Bootstrap CSS -->
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-
-  <!-- Custom Styles -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="bg-light">
+<body class="net-bg">
 
-  <!-- Header -->
-  <header class="text-center p-3 border-bottom bg-white">
-    <h1 class="fw-bold text-teal">Create Your Netology Account</h1>
-    <p class="text-muted mb-0">All fields are required to get started</p>
+  <!-- Topbar -->
+  <header class="net-topbar" role="banner">
+    <div class="container d-flex align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="net-logo" aria-hidden="true"></div>
+        <div>
+          <div class="net-brand">Netology</div>
+          <div class="net-subtitle small">Create your learning account</div>
+        </div>
+      </div>
+      <a href="login.html" class="btn btn-outline-secondary btn-sm" aria-label="Go to login">Login</a>
+    </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="container my-5">
+  <main class="container my-5 net-auth-wrap" role="main">
+    <div class="row justify-content-center g-4">
+      <div class="col-lg-8">
 
-    <section class="row justify-content-center">
-      <div class="col-md-8 col-lg-7">
+        <div class="p-4 p-lg-5 net-auth-card">
 
-        <!-- Signup Card -->
-        <div class="card border-teal shadow-sm p-4" aria-labelledby="signupTitle">
+          <h1 class="h3 mb-2 text-teal">Create account</h1>
+          <p class="text-muted mb-4">Step-by-step signup — like Khan Academy / Codecademy.</p>
 
-          <h2 id="signupTitle" class="h5 mb-3 text-teal">Your Details</h2>
-
-          <!-- Signup Form -->
-          <form id="signupForm"
-                method="POST"
-                action="/register">
-
-            <!-- User Info Section -->
-            <div class="row g-3">
-
-              <!-- First Name -->
-              <div class="col-md-6">
-                <label for="first_name" class="form-label">First Name</label>
-                <input type="text"
-                       id="first_name"
-                       name="first_name"
-                       class="form-control"
-                       autocomplete="given-name"
-                       required>
-              </div>
-
-              <!-- Last Name -->
-              <div class="col-md-6">
-                <label for="last_name" class="form-label">Last Name</label>
-                <input type="text"
-                       id="last_name"
-                       name="last_name"
-                       class="form-control"
-                       autocomplete="family-name"
-                       required>
-              </div>
-
-              <!-- Username -->
-              <div class="col-md-6">
-                <label for="username" class="form-label">Username</label>
-                <input type="text"
-                       id="username"
-                       name="username"
-                       class="form-control"
-                       autocomplete="username"
-                       required>
-              </div>
-
-              <!-- Email -->
-              <div class="col-md-6">
-                <label for="email" class="form-label">Email Address</label>
-                <input type="email"
-                       id="email"
-                       name="email"
-                       class="form-control"
-                       autocomplete="email"
-                       required>
-              </div>
-
-              <!-- Password -->
-              <div class="col-12">
-                <label for="password" class="form-label">Password</label>
-                <input type="password"
-                       id="password"
-                       name="password"
-                       class="form-control"
-                       minlength="8"
-                       autocomplete="new-password"
-                       required>
-                <div class="form-text">Minimum 8 characters</div>
-              </div>
+          <!-- Progress bar -->
+          <div class="mb-4">
+            <div class="d-flex justify-content-between small text-muted mb-2">
+              <span id="stepLabel">Step 1 of 4</span>
+              <span id="stepTitle">Your details</span>
             </div>
-
-            <hr class="my-4">
-
-            <!-- Networking Level -->
-            <h2 class="h5 mb-3 text-teal">Your Networking Level</h2>
-            <div class="row g-3 mb-3">
-
-              <!-- Novice -->
-              <div class="col-md-4">
-                <div class="form-check border rounded p-3 h-100">
-                  <input type="radio"
-                         class="form-check-input"
-                         name="level"
-                         id="lvl_novice"
-                         value="Novice"
-                         required>
-                  <label class="form-check-label" for="lvl_novice">
-                    <strong>Novice</strong><br>
-                    <small>Just starting out</small>
-                  </label>
-                </div>
-              </div>
-
-              <!-- Intermediate -->
-              <div class="col-md-4">
-                <div class="form-check border rounded p-3 h-100">
-                  <input type="radio"
-                         class="form-check-input"
-                         name="level"
-                         id="lvl_intermediate"
-                         value="Intermediate">
-                  <label class="form-check-label" for="lvl_intermediate">
-                    <strong>Intermediate</strong><br>
-                    <small>Some experience</small>
-                  </label>
-                </div>
-              </div>
-
-              <!-- Advanced -->
-              <div class="col-md-4">
-                <div class="form-check border rounded p-3 h-100">
-                  <input type="radio"
-                         class="form-check-input"
-                         name="level"
-                         id="lvl_advanced"
-                         value="Advanced">
-                  <label class="form-check-label" for="lvl_advanced">
-                    <strong>Advanced</strong><br>
-                    <small>Confident & skilled</small>
-                  </label>
-                </div>
-              </div>
+            <div class="progress" style="height: 10px;">
+              <div id="stepProgress" class="progress-bar bg-teal" style="width: 25%"></div>
             </div>
+          </div>
 
-            <!-- Learning Reasons -->
-            <h2 class="h5 mb-3 text-teal">Why Are You Learning Networking?</h2>
-            <p class="text-muted small mb-3">Select all that apply</p>
+          <!-- Signup form (IMPORTANT: keep ids/names for app.js) -->
+          <form id="signupForm" method="POST" action="/signup" aria-label="Signup form">
 
-            <div class="row g-3 mb-4">
+            <!-- STEP 1: DETAILS -->
+            <section class="net-step-page" data-step="1" aria-label="Step 1: Your details">
+              <h2 class="h5 text-teal mb-3">Your Details</h2>
 
-              <!-- Career Advancement -->
-              <div class="col-md-6">
-                <div class="form-check border rounded p-3 h-100">
-                  <input type="checkbox"
-                         class="form-check-input"
-                         id="reason_career"
-                         name="reasons"
-                         value="career">
-                  <label class="form-check-label" for="reason_career">
-                    <strong>Career Advancement</strong><br>
-                    <small>Promotion or new job</small>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="first_name" class="form-label">First name</label>
+                  <input type="text" id="first_name" name="first_name"
+                         class="form-control net-input"
+                         autocomplete="given-name" required>
+                </div>
+
+                <div class="col-md-6">
+                  <label for="last_name" class="form-label">Last name</label>
+                  <input type="text" id="last_name" name="last_name"
+                         class="form-control net-input"
+                         autocomplete="family-name" required>
+                </div>
+
+                <div class="col-md-6">
+                  <label for="username" class="form-label">Username</label>
+                  <input type="text" id="username" name="username"
+                         class="form-control net-input"
+                         autocomplete="username" required>
+                </div>
+
+                <div class="col-md-6">
+                  <label for="email" class="form-label">Email</label>
+                  <input type="email" id="email" name="email"
+                         class="form-control net-input"
+                         autocomplete="email" required>
+                </div>
+
+                <div class="col-12">
+                  <label for="password" class="form-label">Password</label>
+                  <input type="password" id="password" name="password"
+                         class="form-control net-input"
+                         autocomplete="new-password" minlength="8" required>
+                  <div class="form-text">Minimum 8 characters</div>
+                </div>
+              </div>
+            </section>
+
+            <!-- STEP 2: LEVEL -->
+            <section class="net-step-page d-none" data-step="2" aria-label="Step 2: Your level">
+              <h2 class="h5 text-teal mb-3">Your Networking Level</h2>
+              <p class="text-muted small mb-3">Pick what best describes you (you can change later).</p>
+
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-check border rounded-4 p-3 h-100 w-100" style="cursor:pointer;">
+                    <input class="form-check-input" type="radio" name="level" value="novice" checked>
+                    <div class="ms-2">
+                      <strong>Novice</strong><br>
+                      <small class="text-muted">Just starting out</small>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-check border rounded-4 p-3 h-100 w-100" style="cursor:pointer;">
+                    <input class="form-check-input" type="radio" name="level" value="intermediate">
+                    <div class="ms-2">
+                      <strong>Intermediate</strong><br>
+                      <small class="text-muted">Some experience</small>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-check border rounded-4 p-3 h-100 w-100" style="cursor:pointer;">
+                    <input class="form-check-input" type="radio" name="level" value="advanced">
+                    <div class="ms-2">
+                      <strong>Advanced</strong><br>
+                      <small class="text-muted">Confident & skilled</small>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <!-- STEP 3: REASONS -->
+            <section class="net-step-page d-none" data-step="3" aria-label="Step 3: Your reasons">
+              <h2 class="h5 text-teal mb-3">Why Are You Learning Networking?</h2>
+              <p class="text-muted small mb-3">Select all that apply.</p>
+
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-check border rounded-4 p-3 h-100 w-100" style="cursor:pointer;">
+                    <input class="form-check-input" type="checkbox" name="reasons" value="career">
+                    <div class="ms-2">
+                      <strong>Career advancement</strong><br>
+                      <small class="text-muted">Promotion or new job</small>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-check border rounded-4 p-3 h-100 w-100" style="cursor:pointer;">
+                    <input class="form-check-input" type="checkbox" name="reasons" value="certification">
+                    <div class="ms-2">
+                      <strong>Certification prep</strong><br>
+                      <small class="text-muted">CCNA, Network+, etc.</small>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-check border rounded-4 p-3 h-100 w-100" style="cursor:pointer;">
+                    <input class="form-check-input" type="checkbox" name="reasons" value="academic">
+                    <div class="ms-2">
+                      <strong>Academic studies</strong><br>
+                      <small class="text-muted">College or coursework</small>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-check border rounded-4 p-3 h-100 w-100" style="cursor:pointer;">
+                    <input class="form-check-input" type="checkbox" name="reasons" value="personal">
+                    <div class="ms-2">
+                      <strong>Personal interest</strong><br>
+                      <small class="text-muted">Enjoy learning tech</small>
+                    </div>
                   </label>
                 </div>
               </div>
 
-              <!-- Certification Prep -->
-              <div class="col-md-6">
-                <div class="form-check border rounded p-3 h-100">
-                  <input type="checkbox"
-                         class="form-check-input"
-                         id="reason_certification"
-                         name="reasons"
-                         value="certification">
-                  <label class="form-check-label" for="reason_certification">
-                    <strong>Certification Prep</strong><br>
-                    <small>CCNA, Network+, etc.</small>
-                  </label>
+              <div class="small text-muted mt-3">
+                You can leave this empty if you want.
+              </div>
+            </section>
+
+            <!-- STEP 4: REVIEW -->
+            <section class="net-step-page d-none" data-step="4" aria-label="Step 4: Review">
+              <h2 class="h5 text-teal mb-3">Review & Create</h2>
+              <p class="text-muted small mb-3">Check your details, then create your account.</p>
+
+              <div class="net-card p-3 rounded-4 mb-3">
+                <div class="row g-2 small">
+                  <div class="col-md-6"><strong>First name:</strong> <span id="reviewFirst"></span></div>
+                  <div class="col-md-6"><strong>Last name:</strong> <span id="reviewLast"></span></div>
+                  <div class="col-md-6"><strong>Username:</strong> <span id="reviewUser"></span></div>
+                  <div class="col-md-6"><strong>Email:</strong> <span id="reviewEmail"></span></div>
+                  <div class="col-md-6"><strong>Level:</strong> <span id="reviewLevel"></span></div>
+                  <div class="col-md-6"><strong>Reasons:</strong> <span id="reviewReasons"></span></div>
                 </div>
               </div>
 
-              <!-- Academic Studies -->
-              <div class="col-md-6">
-                <div class="form-check border rounded p-3 h-100">
-                  <input type="checkbox"
-                         class="form-check-input"
-                         id="reason_academic"
-                         name="reasons"
-                         value="academic">
-                  <label class="form-check-label" for="reason_academic">
-                    <strong>Academic Studies</strong><br>
-                    <small>College or coursework</small>
-                  </label>
-                </div>
+              <div class="alert alert-info small mb-0" role="alert">
+                By creating an account, you can start courses, earn XP, and save sandbox progress.
               </div>
+            </section>
 
-              <!-- Personal Interest -->
-              <div class="col-md-6">
-                <div class="form-check border rounded p-3 h-100">
-                  <input type="checkbox"
-                         class="form-check-input"
-                         id="reason_personal"
-                         name="reasons"
-                         value="personal">
-                  <label class="form-check-label" for="reason_personal">
-                    <strong>Personal Interest</strong><br>
-                    <small>Enjoy learning tech</small>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <!-- Submit Button -->
-            <div class="d-grid">
-              <button type="submit"
-                      class="btn btn-teal"
-                      aria-label="Create your Netology account">
-                Create Account
+            <!-- Nav buttons -->
+            <div class="d-flex justify-content-between align-items-center mt-4 gap-2">
+              <button type="button" id="backBtn" class="btn btn-outline-secondary" aria-label="Go back">
+                ← Back
               </button>
+
+              <div class="d-flex gap-2">
+                <button type="button" id="nextBtn" class="btn btn-teal" aria-label="Go to next step">
+                  Next →
+                </button>
+
+                <button type="submit" id="submitBtn" class="btn btn-teal d-none" aria-label="Create account">
+                  Create account
+                </button>
+              </div>
             </div>
+
+            <p class="text-center mt-3 mb-0 small">
+              Already have an account?
+              <a href="login.html" class="link-teal" aria-label="Go to login">Login</a>
+            </p>
 
           </form>
+
         </div>
-
-        <!-- Back to Login -->
-        <p class="text-center mt-3">
-          <a href="login.html" class="link-teal">Back to Login</a>
-        </p>
-
       </div>
-    </section>
+    </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="text-center border-top py-3 bg-white">
+  <footer class="text-center border-top py-3 bg-white" role="contentinfo">
     <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
   </footer>
 
-  <!-- Scripts -->
+  <!-- Keep your existing app.js -->
   <script src="js/app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Wizard JS (simple + self contained) -->
+  <script>
+    (function () {
+      let step = 1;
+      const totalSteps = 4;
+
+      const stepLabel = document.getElementById("stepLabel");
+      const stepTitle = document.getElementById("stepTitle");
+      const stepProgress = document.getElementById("stepProgress");
+
+      const backBtn = document.getElementById("backBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const submitBtn = document.getElementById("submitBtn");
+
+      const pages = Array.from(document.querySelectorAll(".net-step-page"));
+
+      const titles = {
+        1: "Your details",
+        2: "Your level",
+        3: "Your reasons",
+        4: "Review"
+      };
+
+      function showStep(n) {
+        step = n;
+
+        pages.forEach(p => p.classList.add("d-none"));
+        const page = document.querySelector(`.net-step-page[data-step="${step}"]`);
+        if (page) page.classList.remove("d-none");
+
+        stepLabel.textContent = `Step ${step} of ${totalSteps}`;
+        stepTitle.textContent = titles[step] || "";
+        stepProgress.style.width = `${(step / totalSteps) * 100}%`;
+
+        backBtn.disabled = step === 1;
+
+        // Only show submit on last step
+        if (step === totalSteps) {
+          nextBtn.classList.add("d-none");
+          submitBtn.classList.remove("d-none");
+          fillReview();
+        } else {
+          nextBtn.classList.remove("d-none");
+          submitBtn.classList.add("d-none");
+        }
+      }
+
+      function validateStep1() {
+        const first = document.getElementById("first_name");
+        const last = document.getElementById("last_name");
+        const user = document.getElementById("username");
+        const email = document.getElementById("email");
+        const pass = document.getElementById("password");
+
+        // Simple required check (browser will also enforce required on submit)
+        if (!first.value.trim() || !last.value.trim() || !user.value.trim() || !email.value.trim() || !pass.value.trim()) {
+          alert("Please fill in all required fields before continuing.");
+          return false;
+        }
+        if (pass.value.length < 8) {
+          alert("Password must be at least 8 characters.");
+          return false;
+        }
+        return true;
+      }
+
+      function fillReview() {
+        document.getElementById("reviewFirst").textContent = document.getElementById("first_name").value || "-";
+        document.getElementById("reviewLast").textContent = document.getElementById("last_name").value || "-";
+        document.getElementById("reviewUser").textContent = document.getElementById("username").value || "-";
+        document.getElementById("reviewEmail").textContent = document.getElementById("email").value || "-";
+
+        const lvl = document.querySelector('input[name="level"]:checked');
+        document.getElementById("reviewLevel").textContent = lvl ? lvl.value : "-";
+
+        const reasons = Array.from(document.querySelectorAll('input[name="reasons"]:checked')).map(x => x.value);
+        document.getElementById("reviewReasons").textContent = reasons.length ? reasons.join(", ") : "None selected";
+      }
+
+      backBtn.addEventListener("click", () => {
+        if (step > 1) showStep(step - 1);
+      });
+
+      nextBtn.addEventListener("click", () => {
+        if (step === 1 && !validateStep1()) return;
+        if (step < totalSteps) showStep(step + 1);
+      });
+
+      showStep(1);
+    })();
+  </script>
 
 </body>
 </html>

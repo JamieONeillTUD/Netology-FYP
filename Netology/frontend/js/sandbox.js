@@ -819,4 +819,53 @@ Clear the entire canvas
       resultBox.className = "text-success";
   };
 
+  // ---------------- Netology Challenge Validator ----------------
+document.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("challenge") !== "1") return;
+
+  const raw = localStorage.getItem("netology_active_challenge");
+  if (!raw) return;
+
+  const data = JSON.parse(raw);
+  const rules = data.challenge.rules;
+
+  const panel = document.createElement("div");
+  panel.className = "card shadow-sm";
+  panel.style.position = "fixed";
+  panel.style.right = "16px";
+  panel.style.bottom = "16px";
+  panel.style.width = "300px";
+  panel.style.zIndex = "9999";
+
+  panel.innerHTML = `
+    <div class="p-3">
+      <strong>Challenge</strong>
+      <button id="validateBtn" class="btn btn-teal btn-sm w-100 mt-2">Validate</button>
+      <div id="resultBox" class="small mt-2"></div>
+    </div>`;
+
+  document.body.appendChild(panel);
+
+  document.getElementById("validateBtn").onclick = () => {
+    const res = validate(rules);
+    const box = document.getElementById("resultBox");
+    box.textContent = res.ok ? "✅ Passed!" : "❌ " + res.reason;
+  };
+
+  function validate(r) {
+    if (r.requiredTypes) {
+      for (const t in r.requiredTypes) {
+        const count = devices.filter(d => d.type === t).length;
+        if (count < r.requiredTypes[t])
+          return { ok: false, reason: `Need ${r.requiredTypes[t]} ${t}(s)` };
+      }
+    }
+    if (r.requireConnections && connections.length === 0)
+      return { ok: false, reason: "No connections" };
+    return { ok: true };
+  }
+});
+
+
 })();

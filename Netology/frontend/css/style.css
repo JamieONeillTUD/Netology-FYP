@@ -6,7 +6,7 @@ Date: 10/11/2025
 
 Custom CSS styles for the Netology frontend application.
 */
- 
+
 body {
   background-color: #E0F2F7;
   color: #111;
@@ -63,57 +63,19 @@ header p {
   transition: background-color 0.25s ease, transform 0.15s ease;
 }
 
-.btn-teal:hover,
-.btn-teal:focus {
+.btn-teal:hover {
   background-color: #00695C;
-  transform: translateY(-2px);
   color: #fff;
+  transform: translateY(-1px);
 }
 
-.btn-outline-secondary,
-.btn-outline-danger,
-.btn-outline-primary {
-  border-width: 2px;
-  font-weight: 500;
-  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
-}
-
-.btn-outline-secondary:hover,
-.btn-outline-danger:hover,
-.btn-outline-primary:hover {
-  transform: translateY(-2px);
-  opacity: 0.9;
-}
-
-/* Form Elements  */
-input,
-select,
-textarea {
-  border: 1px solid #aaa;
-  padding: 0.65em 0.75em;
-  width: 100%;
-  border-radius: 6px;
-  font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  background-color: #fff;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: #00838F;
-  box-shadow: 0 0 0 0.15rem rgba(0, 131, 143, 0.25);
-  outline: none;
-}
-
-label.form-label {
-  font-weight: 600;
-  color: #004D40;
-}
-
-/*  Text & Colors */
+/* Text and links */
 .text-teal {
   color: #00838F !important;
+}
+
+.bg-teal {
+  background-color: #00838F !important;
 }
 
 .border-teal {
@@ -138,123 +100,231 @@ footer {
   border-top: 2px solid #00838F;
   padding: 1.5em 0;
   text-align: center;
-  margin-top: 4em;
-  box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.05);
+  margin-top: 3em;
 }
 
-footer p {
-  margin: 0;
-  color: #555;
-  font-size: 0.9em;
+/* -------------------------------
+   Netology Modern UI (v1)
+-------------------------------- */
+:root{
+  --net-teal:#00838F;
+  --net-teal-dark:#006B74;
+  --net-bg1:#EAF7FA;
+  --net-bg2:#F7FBFC;
+  --net-card:#FFFFFF;
+  --net-border:#D7EEF0;
+  --net-shadow: 0 10px 30px rgba(0,0,0,.08);
 }
 
-/* Progress Bar  */
-.progress {
-  height: 8px;
-  background-color: #B2DFDB;
+/* Use this on pages you want to look more like Khan/Codecademy */
+.net-bg{
+  background: radial-gradient(900px 500px at 10% 0%, rgba(0,131,143,.12), transparent 60%),
+              radial-gradient(900px 500px at 90% 10%, rgba(25,135,84,.10), transparent 55%),
+              linear-gradient(180deg, var(--net-bg2), var(--net-bg1));
+  min-height: 100vh;
+}
+
+/* Top bar */
+header.net-topbar{
+  background: rgba(255,255,255,.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--net-border);
+  box-shadow: 0 6px 20px rgba(0,0,0,.04);
+  padding: .9rem 0;
+  text-align: left;
+}
+.net-brand{
+  display:flex;
+  align-items:center;
+  gap:.65rem;
+  font-weight:800;
+  color: var(--net-teal);
+  letter-spacing:.2px;
+}
+.net-logo{
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
+  background: linear-gradient(135deg, var(--net-teal), #14B8A6);
+  box-shadow: 0 10px 25px rgba(0,131,143,.25);
+}
+.net-subtitle{ color:#60737A; }
+
+/* Cards */
+.net-card{
+  background: var(--net-card);
+  border: 1px solid var(--net-border);
+  border-radius: 16px;
+  box-shadow: var(--net-shadow);
+}
+.net-card .card{ box-shadow: none; } /* if nested */
+
+/* Big welcome card */
+.net-hero{
+  border-radius: 18px;
+  border: 1px solid var(--net-border);
+  background: linear-gradient(135deg, rgba(0,131,143,.10), rgba(255,255,255,.85));
+  box-shadow: 0 10px 30px rgba(0,0,0,.06);
+}
+
+/* Stat tiles */
+.net-stat{
+  border: 1px solid var(--net-border);
+  border-radius: 16px;
+  background: #fff;
+  padding: 1rem;
+}
+.net-stat .label{ color:#60737A; font-size:.85rem; }
+.net-stat .value{ font-size:1.35rem; font-weight:800; }
+
+/* Course cards rendered by dashboard.js */
+.net-course-grid{
+  display:grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+}
+.net-course-grid > .card{
+  grid-column: span 12;
+  border-radius: 16px;
+  border: 1px solid var(--net-border);
+  box-shadow: 0 10px 25px rgba(0,0,0,.06);
+}
+@media (min-width: 768px){
+  .net-course-grid > .card{ grid-column: span 6; }
+}
+@media (min-width: 992px){
+  .net-course-grid > .card{ grid-column: span 4; }
+}
+
+/* Make existing teal button feel more modern */
+.btn-teal{
+  background: linear-gradient(135deg, var(--net-teal), #14B8A6);
+  border: none;
+  box-shadow: 0 10px 25px rgba(0,131,143,.20);
+}
+.btn-teal:hover{
+  background: linear-gradient(135deg, var(--net-teal-dark), #0EA5A3);
+  transform: translateY(-1px);
+}
+.btn-teal:active{ transform: translateY(0); }
+
+/* Inputs */
+.net-input{
+  border-radius: 12px !important;
+  border: 1px solid var(--net-border) !important;
+  padding: .8rem .9rem !important;
+}
+.net-input:focus{
+  border-color: rgba(0,131,143,.5) !important;
+  box-shadow: 0 0 0 4px rgba(0,131,143,.12) !important;
+}
+
+/* Auth layout */
+.net-auth-wrap{
+  max-width: 980px;
+  margin: 0 auto;
+}
+.net-auth-card{
+  border-radius: 18px;
+  border: 1px solid var(--net-border);
+  background: rgba(255,255,255,.92);
+  box-shadow: var(--net-shadow);
+}
+
+/* Subtle helper for course cards */
+.border-teal-subtle { border: 1px solid #B2DFDB !important; }
+
+/* -----------------------------------
+   Course page: Khan-style sidebar layout
+----------------------------------- */
+.net-sidebar{
+  position: sticky;
+  top: 90px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.92);
+  border: 1px solid var(--net-border);
+  box-shadow: var(--net-shadow);
+  max-height: calc(100vh - 120px);
   overflow: hidden;
 }
 
-.progress-bar {
-  background-color: #00838F;
-  transition: width 0.4s ease;
+.net-lessons-scroll{
+  max-height: 52vh;
+  overflow: auto;
+  padding-right: 6px;
 }
 
-/* Alerts & Messages */
-.alert-info {
-  background-color: #E0F7FA;
-  border-color: #4DD0E1;
-  color: #006064;
-  border-radius: 6px;
-  font-weight: 500;
+/* Make the lessons list look closer to Khan */
+.net-lessons-scroll .list-group-item{
+  border-radius: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--net-border);
 }
-
-/* Accessibility & Utility */
-:focus {
-  outline: 3px solid #00838F;
-  outline-offset: 2px;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+.net-lessons-scroll .list-group{
   border: 0;
 }
 
-/* Animations  */
-.fade-step {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  transform: translateY(10px);
+/* little badge icon on sidebar */
+.net-course-badge{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--net-teal), #14B8A6);
+  box-shadow: 0 10px 25px rgba(0,131,143,.22);
 }
 
-.fade-step.show {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
+/* right side promo card (video-ish block) */
+.net-mini-media{
+  border-radius: 16px;
+  border: 1px solid var(--net-border);
+  background: linear-gradient(135deg, rgba(0,131,143,.10), rgba(255,255,255,.85));
 }
 
-/*  Sandbox Canvas  */
-canvas {
-  transition: box-shadow 0.3s ease;
+/* Learn box */
+.net-learn-box{
+  border-radius: 16px;
+  border: 1px solid var(--net-border);
+  padding: 14px;
+  background: rgba(247,251,252,.8);
 }
 
-canvas:hover {
-  box-shadow: 0 0 0 4px rgba(0, 131, 143, 0.25);
+/* -----------------------------------
+   Dashboard + Drawer (Hamburger Menu)
+----------------------------------- */
+
+.net-drawer{
+  position: fixed;
+  top: 0;
+  left: -320px;
+  width: 300px;
+  height: 100vh;
+  background: rgba(255,255,255,.96);
+  border-right: 1px solid var(--net-border);
+  box-shadow: var(--net-shadow);
+  z-index: 9999;
+  transition: left .2s ease;
+}
+.net-drawer.open{
+  left: 0;
 }
 
-/*  Utility Classes */
-.bg-teal {
-  background-color: #00838F !important;
-  color: #fff;
+.net-drawer-backdrop{
+  position: fixed;
+  top:0; left:0;
+  width:100vw; height:100vh;
+  background: rgba(0,0,0,.28);
+  z-index: 9998;
 }
 
-.text-muted {
-  color: #555 !important;
+.net-hamburger{
+  border-radius: 12px;
 }
 
-.small {
-  font-size: 0.9em;
-}
-
-.rounded {
-  border-radius: 10px !important;
-}
-
-/*  Popup animation (slide + fade)  */
-#alertBox {
-  animation: slideFade 0.5s ease forwards;
-}
-
-@keyframes slideFade {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -30px);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-}
-
-.text-teal { color: #00838f !important; }
-.border-teal { border-color: #00838f !important; }
-.btn-teal {
-  background-color: #00838f;
-  color: #fff;
-  border: none;
-}
-.btn-teal:hover { background-color: #00695c; }
-.bg-teal { background-color: #00838f !important; }
-
-:focus {
-outline: 3px solid #008080 !important; /* teal, matches theme */
-outline-offset: 3px;
+/* Small helper card inside continue box */
+.net-continue-card{
+  border: 1px solid var(--net-border);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(247,251,252,.8);
 }

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Netology – Account</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="net-bg">
+
+  <header class="net-topbar">
+    <div class="container d-flex align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="net-logo" aria-hidden="true"></div>
+        <div>
+          <div class="net-brand">Netology</div>
+          <div class="net-subtitle small">Account</div>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="dashboard.html" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+        <button class="btn btn-outline-danger btn-sm" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container my-4">
+    <div class="row g-3">
+      <div class="col-lg-4">
+        <div class="net-card p-4">
+          <div class="fw-semibold mb-2">Profile</div>
+          <div class="text-muted small">Your account details</div>
+          <hr>
+          <div class="small"><span class="text-muted">Name:</span> <span class="fw-semibold" id="nameText">-</span></div>
+          <div class="small"><span class="text-muted">Username:</span> <span class="fw-semibold" id="userText">-</span></div>
+          <div class="small"><span class="text-muted">Email:</span> <span class="fw-semibold" id="emailText">-</span></div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="net-card p-4">
+          <div class="fw-semibold mb-2">Progress</div>
+          <div class="text-muted small mb-3">XP and level</div>
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="net-mini-media p-3">
+                <div class="small text-muted">Level</div>
+                <div class="h4 mb-0" id="levelText">1</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="net-mini-media p-3">
+                <div class="small text-muted">XP</div>
+                <div class="h4 mb-0" id="xpText">0</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="net-mini-media p-3">
+                <div class="small text-muted">Next level</div>
+                <div class="h6 mb-0" id="nextText">0 / 100</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <div class="small text-muted mb-1">XP Progress</div>
+            <div class="progress" style="height:10px;">
+              <div class="progress-bar bg-teal" id="xpBar" style="width:0%"></div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="fw-semibold mb-2">Quick links</div>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="courses.html" class="btn btn-teal btn-sm">Browse Courses</a>
+            <a href="sandbox.html" class="btn btn-outline-secondary btn-sm">Open Sandbox</a>
+            <a href="forgot.html" class="btn btn-outline-secondary btn-sm">Reset Password</a>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-center border-top py-3 bg-white">
+    <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
+  </footer>
+
+  <script src="js/account.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
