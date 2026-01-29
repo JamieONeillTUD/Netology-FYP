@@ -21,118 +21,200 @@ sandbox.html – Interactive networking sandbox.
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="bg-light">
+<body class="bg-light net-bg">
 
-  <!-- Header -->
-  <header class="text-center p-3 border-bottom bg-white">
-    <h1 class="fw-bold text-teal">Network Sandbox</h1>
-    <p class="text-muted mb-0">Build simple network topologies interactively</p>
-  </header>
+  <!-- Topbar (revamped to match Netology pages) -->
+  <header class="net-topbar" role="banner">
+    <div class="container d-flex align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="net-logo" aria-hidden="true"></div>
+        <div>
+          <div class="net-brand">Netology</div>
+          <div class="net-subtitle small">Network Sandbox</div>
+        </div>
+      </div>
 
-  <!-- Main -->
-  <main class="container my-4">
+      <!-- Actions moved into header -->
+      <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <!-- IMPORTANT: IDs must stay for sandbox.js -->
+        <button id="saveBtn" class="btn btn-teal btn-sm">
+          <i class="bi bi-cloud-arrow-up me-1"></i> Save
+        </button>
 
-    <div class="row">
+        <button id="loadBtn" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-folder2-open me-1"></i> Load
+        </button>
 
-      <!-- Canvas Area -->
-      <div class="col-lg-9 mb-3">
-        <canvas id="canvas"
-                width="900"
-                height="520"
-                aria-label="Network building canvas"
-                style="background:#ffffff;
-                       border:1px solid #B2DFDB;
-                       border-radius:8px;">
-        </canvas>
+        <button id="clearBtn" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-trash3 me-1"></i> Clear
+        </button>
 
-        <!-- Floating Ping Button -->
-        <div id="pingContainer" class="text-center mt-3" style="display:none;">
-          <button id="pingBtn" class="btn btn-primary btn-sm">
-            Ping Device
+        <!-- Ping stays controlled by JS, same IDs -->
+        <div id="pingContainer" style="display:none;">
+          <button id="pingBtn" class="btn btn-light btn-sm">
+            <i class="bi bi-wifi me-1"></i> Ping
           </button>
         </div>
 
-      </div>
-
-      <!-- Sidebar -->
-      <div class="col-lg-3">
-
-        <!-- Toolbar -->
-        <section class="card p-3 border-teal mb-3">
-          <h5 class="text-teal">Toolbar</h5>
-          <div class="d-grid gap-2">
-            <button class="btn btn-teal" data-tool="router">Router</button>
-            <button class="btn btn-teal" data-tool="switch">Switch</button>
-            <button class="btn btn-teal" data-tool="pc">PC</button>
-            <button class="btn btn-outline-secondary" data-tool="connect">Connect</button>
-            <button class="btn btn-outline-secondary" data-tool="select">Select</button>
-          </div>
-        </section>
-
-        <!-- Actions -->
-        <section class="card p-3 border-teal mb-3">
-          <h5 class="text-teal">Actions</h5>
-          <div class="d-grid gap-2">
-            <button id="saveBtn" class="btn btn-teal">Save</button>
-            <button id="loadBtn" class="btn btn-outline-secondary">Load</button>
-            <button id="clearBtn" class="btn btn-outline-danger">Clear Canvas</button>
-          </div>
-        </section>
-
-        <!-- Instructions -->
-        <section class="card p-3 border-teal mb-3">
-          <h5 class="text-teal">How to Use</h5>
-          <ul class="small text-muted mb-0">
-            <li>Select a device type from the toolbar.</li>
-            <li>Click on the canvas to place the device.</li>
-            <li>Use "Connect" to draw lines between devices.</li>
-            <li>Use "Select" to move or edit a device.</li>
-            <li>Clear the canvas anytime with the button above.</li>
-          </ul>
-        </section>
-
-        <!-- Figma Prototype -->
-        <section class="card p-3 border-teal mb-3">
-          <h5 class="text-teal">Figma Prototype</h5>
-          <a href="https://tweet-gloss-98046905.figma.site/"
-             class="btn btn-outline-primary"
-             target="_blank">Open Prototype</a>
-        </section>
-
-        <!-- Updated Properties Panel -->
-        <section class="card p-3 border-teal">
-          <h5 class="text-teal">Properties</h5>
-          <div id="props" class="small text-muted">No selection</div>
-        </section>
-
-        <!-- Navigation -->
-        <section class="card p-3 border-teal mt-3">
-          <h5 class="text-teal">Navigation</h5>
-          <div class="d-grid gap-2">
-            <a href="dashboard.html" class="btn btn-outline-secondary">Back to Dashboard</a>
-            <a href="login.html" class="btn btn-outline-danger">Logout</a>
-          </div>
-        </section>
-
+        <a href="dashboard.html" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-arrow-left me-1"></i> Dashboard
+        </a>
       </div>
     </div>
+  </header>
 
-    <!-- Tips -->
-    <div class="alert alert-info mt-3" id="tips" aria-live="polite">
-      Tip: Choose a device type, then click on the canvas to place it.
+  <!-- NEW (Part 3): Challenge banner (shows only when ?challenge=1) -->
+  <div class="container mt-3" id="challengeBanner" style="display:none;">
+    <div class="net-card p-3">
+      <div class="d-flex justify-content-between align-items-start gap-3">
+        <div>
+          <div class="fw-semibold">Lesson Challenge</div>
+          <div class="small text-muted" id="challengeBannerText">Loading challenge…</div>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" href="dashboard.html">Exit</a>
+      </div>
     </div>
+  </div>
 
+  <!-- Main -->
+  <main class="container my-4">
+    <div class="row sb-wrap">
+
+      <!-- LEFT: Canvas -->
+      <div class="col-lg-8 col-xl-9">
+        <div class="sb-surface mb-3">
+
+          <div class="sb-canvas-toolbar">
+            <div>
+              <div class="fw-semibold" style="color:#0b3b40;">Build your topology</div>
+              <div class="sb-hint">Pick a tool → click the canvas → connect devices → edit in Properties.</div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge text-bg-light border">
+                <i class="bi bi-cursor me-1"></i> Select & drag
+              </span>
+              <span class="badge text-bg-light border">
+                <i class="bi bi-link-45deg me-1"></i> Connect
+              </span>
+            </div>
+          </div>
+
+          <div class="sb-canvas-wrap">
+            <canvas id="canvas"
+                    width="900"
+                    height="520"
+                    aria-label="Network building canvas">
+            </canvas>
+          </div>
+
+        </div>
+
+        <!-- Tips (kept for sandbox.js) -->
+        <div class="alert alert-info mt-3" id="tips" aria-live="polite">
+          Tip: Choose a device type, then click on the canvas to place it.
+        </div>
+      </div>
+
+      <!-- RIGHT: Tools + Properties + Navigation -->
+      <aside class="col-lg-4 col-xl-3">
+        <div class="sb-side">
+
+          <!-- Tools -->
+          <section class="net-card p-3 mb-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-semibold text-teal">Tools</div>
+              <span class="small text-muted">Add & edit</span>
+            </div>
+
+            <!-- IMPORTANT: data-tool attributes must stay for sandbox.js -->
+            <div class="sb-tool-grid">
+              <button type="button" class="sb-tool" data-tool="router" aria-label="Router tool">
+                <div class="sb-ico"><i class="bi bi-diagram-3"></i></div>
+                <div>
+                  <div class="sb-label">Router</div>
+                  <div class="sb-sub">Place router</div>
+                </div>
+              </button>
+
+              <button type="button" class="sb-tool" data-tool="switch" aria-label="Switch tool">
+                <div class="sb-ico"><i class="bi bi-hdd-network"></i></div>
+                <div>
+                  <div class="sb-label">Switch</div>
+                  <div class="sb-sub">Place switch</div>
+                </div>
+              </button>
+
+              <button type="button" class="sb-tool" data-tool="pc" aria-label="PC tool">
+                <div class="sb-ico"><i class="bi bi-pc-display"></i></div>
+                <div>
+                  <div class="sb-label">PC</div>
+                  <div class="sb-sub">Place PC</div>
+                </div>
+              </button>
+
+              <button type="button" class="sb-tool" data-tool="connect" aria-label="Connect tool">
+                <div class="sb-ico"><i class="bi bi-link-45deg"></i></div>
+                <div>
+                  <div class="sb-label">Connect</div>
+                  <div class="sb-sub">Draw cable</div>
+                </div>
+              </button>
+
+              <button type="button" class="sb-tool" data-tool="select" aria-label="Select tool" style="grid-column: span 2;">
+                <div class="sb-ico"><i class="bi bi-cursor"></i></div>
+                <div>
+                  <div class="sb-label">Select</div>
+                  <div class="sb-sub">Move + edit properties</div>
+                </div>
+              </button>
+            </div>
+
+            <div class="small text-muted mt-3">
+              Use <strong>Select</strong> to drag devices and edit IP/mask/gateway.
+            </div>
+          </section>
+
+          <!-- Properties -->
+          <section class="net-card p-3 mb-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-semibold text-teal">Properties</div>
+              <span class="small text-muted">Selected device</span>
+            </div>
+            <div id="props" class="small text-muted">No selection</div>
+          </section>
+
+          <!-- Navigation -->
+          <section class="net-card p-3">
+            <div class="fw-semibold text-teal mb-2">Navigation</div>
+            <div class="d-grid gap-2">
+              <a href="dashboard.html" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+              </a>
+              <a href="login.html" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-box-arrow-right me-1"></i> Logout
+              </a>
+            </div>
+          </section>
+
+        </div>
+      </aside>
+
+    </div>
   </main>
 
   <!-- Footer -->
   <footer class="text-center border-top py-3 mt-4 bg-white">
     <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
   </footer>
-
 
   <!-- Topology Manager Modal -->
   <div class="modal fade" id="topologyModal" tabindex="-1">

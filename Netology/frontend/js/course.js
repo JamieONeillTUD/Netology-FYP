@@ -49,8 +49,55 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  // NEW (Part 3): allow returning to a specific lesson (from sandbox "Return to lesson")
+  // If URL has &lesson=, use it. Otherwise use netology_return_lesson if it matches this course.
+  const lessonParam = Number(params.get("lesson") || 0);
+
   // Load course info and user progress
   await loadCourse(courseId, user.email);
+
+  // NEW (Part 3): if the URL requested a specific lesson, jump to it after loadCourse builds flatLessons
+  if (lessonParam && !isNaN(lessonParam)) {
+    __courseState.activeLesson = Math.min(Math.max(lessonParam, 1), __courseState.totalLessons || 1);
+    __courseState.view = "lesson";
+    renderCurrentLesson();
+  } else {
+    // NEW (Part 3): if returning from sandbox, jump back to last stored lesson (only if same course)
+    try {
+      const rawReturn = localStorage.getItem("netology_return_lesson");
+      if (rawReturn) {
+        const ret = JSON.parse(rawReturn);
+        if (String(ret.course_id) === String(courseId) && ret.lesson_number) {
+          __courseState.activeLesson = Math.min(
+            Math.max(Number(ret.lesson_number) || 1, 1),
+            __courseState.totalLessons || 1
+          );
+          __courseState.view = "lesson";
+          renderCurrentLesson();
+        }
+      }
+    } catch (e) {
+      console.error("return_lesson parse error:", e);
+    }
+  }
+
+  // NEW (Part 3): read challenge completion flag written by sandbox.js and update UI instantly
+  // (still safe because backend /user-course-status is the source of truth)
+  try {
+    const raw = localStorage.getItem("netology_challenge_completed");
+    if (raw) {
+      const done = JSON.parse(raw);
+      if (String(done.courseId) === String(courseId) && Number(done.lesson)) {
+        __courseState.completed.challenges.add(Number(done.lesson));
+        renderLessons(__courseState.totalLessons, __courseState.progressPct);
+
+        // Clear after applying so it doesn't keep re-triggering
+        localStorage.removeItem("netology_challenge_completed");
+      }
+    }
+  } catch (e) {
+    console.error("challenge_completed parse error:", e);
+  }
 
   // Complete lesson button (existing)
   const completeBtn = document.getElementById("completeLessonBtn");
@@ -682,6 +729,12 @@ function openChallengeInSandbox(validateOnly) {
     unitTitle: flat.unitTitle,
     lessonTitle: flat.lesson.title,
     challenge: flat.lesson.challenge
+  }));
+
+  // NEW (Part 3): also store a return target so sandbox can "Return to lesson"
+  localStorage.setItem("netology_return_lesson", JSON.stringify({
+    course_id: __courseState.courseId,
+    lesson_number: __courseState.activeLesson
   }));
 
   // Sandbox checks ?challenge=1

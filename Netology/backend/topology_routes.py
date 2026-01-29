@@ -16,6 +16,147 @@ import json
 topology = Blueprint("topology", __name__)
 
 
+# ---------------------------
+# NEW (Part 3.2):
+# Lesson session save/load (per lesson sandbox state)
+# Stores everything in DB (no localStorage dependency)
+# ---------------------------
+"""
+AI PROMPTED CODE BELOW
+"Can you create a table and routes that save/load the sandbox state for a specific course lesson
+so the user can return to the exact same lesson session later?"
+"""
+
+def ensure_lesson_sessions_table():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS lesson_sessions (
+            id SERIAL PRIMARY KEY,
+            user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
+            course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+            lesson_number INTEGER NOT NULL,
+            devices JSONB NOT NULL,
+            connections JSONB NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_email, course_id, lesson_number)
+        );
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+@topology.route("/lesson-session/save", methods=["POST"])
+def save_lesson_session():
+    """
+    Saves a sandbox session for a specific lesson.
+    Expected JSON:
+      email, course_id, lesson_number, devices, connections
+    """
+    data = request.get_json(silent=True) or {}
+    email = data.get("email")
+    course_id = data.get("course_id")
+    lesson_number = data.get("lesson_number")
+    devices = data.get("devices")
+    connections = data.get("connections")
+
+    if not email or not course_id or lesson_number is None:
+        return jsonify({"success": False, "message": "email, course_id and lesson_number are required."}), 400
+
+    # Devices/connections can be empty arrays, but must exist
+    if devices is None or connections is None:
+        return jsonify({"success": False, "message": "devices and connections are required (can be empty arrays)."}), 400
+
+    try:
+        ensure_lesson_sessions_table()
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Upsert per (user, course, lesson)
+        cur.execute("""
+            INSERT INTO lesson_sessions (user_email, course_id, lesson_number, devices, connections)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (user_email, course_id, lesson_number)
+            DO UPDATE SET
+                devices = EXCLUDED.devices,
+                connections = EXCLUDED.connections,
+                updated_at = CURRENT_TIMESTAMP;
+        """, (
+            email,
+            int(course_id),
+            int(lesson_number),
+            json.dumps(devices),
+            json.dumps(connections)
+        ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({"success": True, "message": "Lesson session saved."})
+
+    except Exception as e:
+        print("save_lesson_session error:", e)
+        return jsonify({"success": False, "message": "Could not save lesson session."}), 500
+
+
+@topology.route("/lesson-session/load", methods=["GET"])
+def load_lesson_session():
+    """
+    Loads a sandbox session for a specific lesson.
+    Query params:
+      email, course_id, lesson_number
+    """
+    email = request.args.get("email")
+    course_id = request.args.get("course_id")
+    lesson_number = request.args.get("lesson_number")
+
+    if not email or not course_id or lesson_number is None:
+        return jsonify({"success": False, "message": "email, course_id and lesson_number are required."}), 400
+
+    try:
+        ensure_lesson_sessions_table()
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT devices, connections, updated_at
+            FROM lesson_sessions
+            WHERE user_email = %s AND course_id = %s AND lesson_number = %s
+            LIMIT 1;
+        """, (email, int(course_id), int(lesson_number)))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        # If nothing saved yet, return empty session (still success)
+        if not row:
+            return jsonify({
+                "success": True,
+                "found": False,
+                "devices": [],
+                "connections": [],
+                "updated_at": None
+            })
+
+        return jsonify({
+            "success": True,
+            "found": True,
+            "devices": row[0] or [],
+            "connections": row[1] or [],
+            "updated_at": row[2]
+        })
+
+    except Exception as e:
+        print("load_lesson_session error:", e)
+        return jsonify({"success": False, "message": "Could not load lesson session."}), 500
+
+
 # saving and loading topologies
 @topology.route("/save-topology", methods=["POST"])
 def save_topology():

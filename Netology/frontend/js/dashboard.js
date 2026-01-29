@@ -268,3 +268,96 @@ function escapeHtml(str) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 }
+
+/* =========================================================
+   ADDITIONS ONLY (Part 3 – Level + Rank + XP scaling fix)
+   - Does NOT remove code above
+   - Overrides loadUserStats safely to match your rules:
+     XP caps: 100 then 200 then 300... (total XP thresholds)
+     numeric_level auto-calculated if backend doesn't provide it
+     rank derived from numeric_level:
+       L1-2 = Novice
+       L3-4 = Intermediate
+       L5+  = Advanced
+   ========================================================= */
+
+/*
+AI PROMPTED CODE BELOW:
+"Can you add a safe fallback that calculates numeric level + rank from XP
+if the backend doesn't return numeric_level/xp_into_level/next_level_xp?"
+*/
+function __calcLevelFromXp(totalXp) {
+  const xp = Math.max(0, Number(totalXp || 0));
+
+  // Rule: Level thresholds are 100, 200, 300... total XP
+  // L1: 0-99, L2: 100-199, L3: 200-299, etc.
+  const numericLevel = Math.floor(xp / 100) + 1;
+
+  const xpInto = xp % 100;        // progress inside current 100-xp band
+  const xpNext = 100;             // next band size is always 100
+  return { numericLevel, xpInto, xpNext };
+}
+
+function __rankFromNumericLevel(numericLevel) {
+  const lvl = Number(numericLevel || 1);
+  if (lvl >= 5) return "Advanced";
+  if (lvl >= 3) return "Intermediate";
+  return "Novice";
+}
+
+/*
+UPDATED (Part 3 final):
+- Re-defines loadUserStats WITHOUT deleting your original
+- Uses backend values if present, otherwise fallback to XP-based logic
+*/
+loadUserStats = async function(email) {
+  try {
+    const res = await fetch(`/user-info?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    if (!data.success) return;
+
+    const totalXp = Number(data.xp || 0);
+
+    // Prefer backend numeric_level, otherwise compute from XP
+    let numericLevel = Number(data.numeric_level || 0);
+    let xpInto = Number(data.xp_into_level || 0);
+    let xpNext = Number(data.next_level_xp || 0);
+
+    if (!numericLevel || !xpNext) {
+      const calc = __calcLevelFromXp(totalXp);
+      numericLevel = calc.numericLevel;
+      xpInto = calc.xpInto;
+      xpNext = calc.xpNext;
+    }
+
+    // Rank: prefer backend rank/level string if it matches, else compute
+    let rank = String(data.rank || data.level || "").trim();
+    const computedRank = __rankFromNumericLevel(numericLevel);
+    if (!rank || rank.toLowerCase() === "level" || rank.length < 3) {
+      rank = computedRank;
+    } else {
+      // If backend sends "Novice/Intermediate/Advanced" we're good.
+      // If backend sends something else, still show computed rank.
+      const low = rank.toLowerCase();
+      if (low !== "novice" && low !== "intermediate" && low !== "advanced") {
+        rank = computedRank;
+      }
+    }
+
+    const pct = Math.max(0, Math.min(100, Math.round((xpInto / Math.max(xpNext, 1)) * 100)));
+
+    __dashState.level = numericLevel;
+
+    const levelText = document.getElementById("levelText");
+    const xpText = document.getElementById("xpText");
+    const xpBar = document.getElementById("xpBar");
+    const xpNextText = document.getElementById("xpNextText");
+
+    if (levelText) levelText.textContent = `${numericLevel} (${rank})`;
+    if (xpText) xpText.textContent = totalXp;
+    if (xpBar) xpBar.style.width = `${pct}%`;
+    if (xpNextText) xpNextText.textContent = `${xpInto} / ${xpNext}`;
+  } catch (e) {
+    console.error("loadUserStats error:", e);
+  }
+};

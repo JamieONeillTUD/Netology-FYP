@@ -59,6 +59,151 @@ Clear the entire canvas
 
   const DEVICE_RADIUS = 24; // Radius of each device circle
 
+
+  // ---------------------------
+  // NEW (UI Fix): Ping button visibility helper
+  // ---------------------------
+  // The page layout was revamped and Ping moved into the header.
+  // We keep the same IDs, but now we must update its visibility whenever selection changes.
+  const pingContainer = document.getElementById("pingContainer");
+  function updatePingVisibility() {
+    if (!pingContainer) return;
+    pingContainer.style.display = selectedDeviceId ? "block" : "none";
+  }
+
+
+  // ---------------------------
+  // NEW (Part 3): Lesson session state (DB save/load per lesson)
+  // ---------------------------
+  /*
+  AI PROMPTED CODE BELOW:
+  "Can you add a simple DB save/load system so sandbox state is stored per (user, course, lesson_number)
+  using /lesson-session/save and /lesson-session/load, and make it work with the existing challenge flow?"
+  */
+
+  let __lessonSession = {
+    enabled: false,       // true when challenge=1 and active challenge exists
+    email: "",
+    course_id: null,
+    lesson_number: null,
+    saving: false,
+    lastSaveAt: 0,
+    dirty: false
+  };
+
+  function getLoggedInUser() {
+    return JSON.parse(localStorage.getItem("user") || "{}");
+  }
+
+  function getActiveChallengeMeta() {
+    const raw = localStorage.getItem("netology_active_challenge");
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  function lessonSessionReady() {
+    return (
+      __lessonSession.enabled &&
+      __lessonSession.email &&
+      __lessonSession.course_id !== null &&
+      __lessonSession.lesson_number !== null
+    );
+  }
+
+  // Debounce helper for autosave
+  function debounce(fn, delay) {
+    let t = null;
+    return function (...args) {
+      clearTimeout(t);
+      t = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  async function saveLessonSessionToDb() {
+    if (!lessonSessionReady()) return;
+    if (__lessonSession.saving) return;
+
+    // Avoid spamming DB saves
+    const now = Date.now();
+    if (!__lessonSession.dirty && now - __lessonSession.lastSaveAt < 800) return;
+
+    __lessonSession.saving = true;
+    try {
+      await fetch("/lesson-session/save", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          email: __lessonSession.email,
+          course_id: __lessonSession.course_id,
+          lesson_number: __lessonSession.lesson_number,
+          devices: devices,
+          connections: connections
+        })
+      });
+      __lessonSession.lastSaveAt = Date.now();
+      __lessonSession.dirty = false;
+    } catch (e) {
+      console.error("saveLessonSessionToDb error:", e);
+    } finally {
+      __lessonSession.saving = false;
+    }
+  }
+
+  const scheduleAutoSave = debounce(async () => {
+    await saveLessonSessionToDb();
+  }, 550);
+
+  function markDirtyAndSaveSoon() {
+    if (!lessonSessionReady()) return;
+    __lessonSession.dirty = true;
+    scheduleAutoSave();
+  }
+
+  async function loadLessonSessionFromDb() {
+    if (!lessonSessionReady()) return;
+
+    try {
+      const url =
+        `/lesson-session/load?email=${encodeURIComponent(__lessonSession.email)}&course_id=${encodeURIComponent(__lessonSession.course_id)}&lesson_number=${encodeURIComponent(__lessonSession.lesson_number)}`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!data.success) return;
+
+      // If nothing found, keep current canvas
+      if (!data.found) return;
+
+      devices = data.devices || [];
+      connections = data.connections || [];
+
+      // Ensure any older saved devices get the new networking fields
+      devices.forEach((d) => {
+        if (typeof d.subnetMask === "undefined") d.subnetMask = "";
+        if (typeof d.gateway === "undefined") d.gateway = "";
+        if (typeof d.configVersion !== "number") d.configVersion = 1;
+        if (typeof d.gatewayTouched === "undefined") d.gatewayTouched = false;
+      });
+
+      selectedDeviceId = null;
+      connectStartId = null;
+
+      // NEW (UI Fix): selection changed, update Ping visibility
+      updatePingVisibility();
+
+      draw();
+      renderProps(null);
+      setTip("Loaded your saved lesson session from the database.");
+    } catch (e) {
+      console.error("loadLessonSessionFromDb error:", e);
+    }
+  }
+
+
   //ToolBAR Buttons
   // When a toolbar button (Router, Switch, PC, Connect, Select) is clicked
   // update the current tool and show a helpful tip.
@@ -88,9 +233,15 @@ Clear the entire canvas
     selectedDeviceId = null;
     connectStartId = null;
 
+    // NEW (UI Fix): selection cleared, update Ping visibility
+    updatePingVisibility();
+
     renderProps(null);
     draw();
     setTip("Canvas cleared.");
+
+    // NEW (Part 3): autosave cleared state to DB for this lesson
+    markDirtyAndSaveSoon();
   });
 
   //Mouse click events
@@ -105,6 +256,9 @@ Clear the entire canvas
     if (isPlacingTool()) {
       placeDevice(currentTool, pos.x, pos.y);
       draw();
+
+      // NEW (Part 3): autosave after edit
+      markDirtyAndSaveSoon();
       return;
     }
 
@@ -114,6 +268,10 @@ Clear the entire canvas
     // Select mode highlights device and show its properties
     if (currentTool === TOOL.SELECT) {
       selectedDeviceId = hitDevice ? hitDevice.id : null;
+
+      // NEW (UI Fix): selection changed, update Ping visibility
+      updatePingVisibility();
+
       renderProps(selectedDeviceId);
       draw();
       return;
@@ -131,6 +289,9 @@ Clear the entire canvas
         connectStartId = null;
         draw();
         setTip("Devices connected. Switch to Select to move or edit.");
+
+        // NEW (Part 3): autosave after edit
+        markDirtyAndSaveSoon();
       }
     }
   });
@@ -145,6 +306,10 @@ Clear the entire canvas
 
     // Mark as selected
     selectedDeviceId = hitDevice.id;
+
+    // NEW (UI Fix): selection changed, update Ping visibility
+    updatePingVisibility();
+
     renderProps(selectedDeviceId);
 
     // Start dragging
@@ -172,6 +337,10 @@ Clear the entire canvas
 
   // Mouse up: stop dragging
   window.addEventListener("mouseup", () => {
+    if (isDragging) {
+      // NEW (Part 3): autosave after drag move ends
+      markDirtyAndSaveSoon();
+    }
     isDragging = false;
   });
 
@@ -381,6 +550,9 @@ Clear the entire canvas
       bumpConfig(d);
       draw();
       updateWarnings(d);
+
+      // NEW (Part 3): autosave after edit
+      markDirtyAndSaveSoon();
     };
 
     // When user types into "IP Address", update stored IP value
@@ -390,6 +562,9 @@ Clear the entire canvas
       // Try to suggest a gateway if IP + mask are valid and user hasn't changed gateway
       suggestGateway(d);
       updateWarnings(d);
+
+      // NEW (Part 3): autosave after edit
+      markDirtyAndSaveSoon();
     };
 
     // When user types into "Subnet Mask", update stored mask value
@@ -398,6 +573,9 @@ Clear the entire canvas
       bumpConfig(d);
       suggestGateway(d);
       updateWarnings(d);
+
+      // NEW (Part 3): autosave after edit
+      markDirtyAndSaveSoon();
     };
 
     // When user types into "Default Gateway", update stored gateway value
@@ -406,6 +584,9 @@ Clear the entire canvas
       d.gatewayTouched = true; // user manually edited
       bumpConfig(d);
       updateWarnings(d);
+
+      // NEW (Part 3): autosave after edit
+      markDirtyAndSaveSoon();
     };
 
     // When "Delete Device" is clicked, remove device and any connections
@@ -416,8 +597,15 @@ Clear the entire canvas
           (c) => c.a !== id && c.b !== id
         );
         selectedDeviceId = null;
+
+        // NEW (UI Fix): selection cleared, update Ping visibility
+        updatePingVisibility();
+
         renderProps(null);
         draw();
+
+        // NEW (Part 3): autosave after edit
+        markDirtyAndSaveSoon();
       }
     };
 
@@ -442,9 +630,15 @@ Clear the entire canvas
 
   function getMousePosition(e) {
     const rect = canvas.getBoundingClientRect();
+
+    // NEW (UI Fix): If canvas is responsive (CSS scales it), mouse coords must be scaled too.
+    // This fixes selecting devices and connecting lines when canvas is displayed at a different size.
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
     };
   }
 
@@ -626,6 +820,9 @@ Clear the entire canvas
   renderProps(null);
   draw();
 
+  // NEW (UI Fix): initial ping visibility
+  updatePingVisibility();
+
   // ---------------------------------------------------
   // SAVE NETWORK (kept 100% unchanged)
   // ---------------------------------------------------
@@ -733,19 +930,17 @@ Clear the entire canvas
       selectedDeviceId = null;
       connectStartId = null;
 
+      // NEW (UI Fix): selection cleared, update Ping visibility
+      updatePingVisibility();
+
       draw();
+
+      // NEW (Part 3): if lesson session is active, autosave loaded state to DB
+      markDirtyAndSaveSoon();
 
       // Close modal after loading
       const modal = bootstrap.Modal.getInstance(document.getElementById("topologyModal"));
       if (modal) modal.hide();
-  }
-
-  // Show Ping button when a device is selected
-  const pingContainer = document.getElementById("pingContainer");
-  if (selectedDeviceId) {
-      pingContainer.style.display = "block";
-  } else {
-      pingContainer.style.display = "none";
   }
 
   // ---------------------------------------------------
@@ -820,14 +1015,35 @@ Clear the entire canvas
   };
 
   // ---------------- Netology Challenge Validator ----------------
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   if (params.get("challenge") !== "1") return;
+
+  const user = getLoggedInUser();
+  if (!user || !user.email) return;
 
   const raw = localStorage.getItem("netology_active_challenge");
   if (!raw) return;
 
   const data = JSON.parse(raw);
+
+  // NEW (Part 3): activate DB lesson session state
+  __lessonSession.enabled = true;
+  __lessonSession.email = user.email;
+  __lessonSession.course_id = Number(data.courseId);
+  __lessonSession.lesson_number = Number(data.lesson);
+
+  // NEW (Part 3): show challenge banner if present
+  const banner = document.getElementById("challengeBanner");
+  const bannerText = document.getElementById("challengeBannerText");
+  if (banner && bannerText) {
+    banner.style.display = "block";
+    bannerText.textContent = `${data.courseTitle || "Course"} • ${data.unitTitle || ""} • Lesson ${data.lesson}: ${data.lessonTitle || ""}`;
+  }
+
+  // NEW (Part 3): load saved lesson session from DB before validating
+  await loadLessonSessionFromDb();
+
   const rules = data.challenge.rules;
 
   const panel = document.createElement("div");
@@ -835,22 +1051,107 @@ document.addEventListener("DOMContentLoaded", () => {
   panel.style.position = "fixed";
   panel.style.right = "16px";
   panel.style.bottom = "16px";
-  panel.style.width = "300px";
+  panel.style.width = "320px";
   panel.style.zIndex = "9999";
 
   panel.innerHTML = `
     <div class="p-3">
       <strong>Challenge</strong>
+
+      <div class="small text-muted mt-1">
+        Course: ${escapeHtml(data.courseTitle || "")}<br>
+        Lesson: ${escapeHtml(String(data.lesson || ""))} — ${escapeHtml(data.lessonTitle || "")}
+      </div>
+
       <button id="validateBtn" class="btn btn-teal btn-sm w-100 mt-2">Validate</button>
+      <button id="saveLessonBtn" class="btn btn-outline-secondary btn-sm w-100 mt-2">Save lesson</button>
+
       <div id="resultBox" class="small mt-2"></div>
+      <div id="returnBox" class="mt-2"></div>
     </div>`;
 
   document.body.appendChild(panel);
 
-  document.getElementById("validateBtn").onclick = () => {
+  // NEW (Part 3): manual save button (DB)
+  document.getElementById("saveLessonBtn").onclick = async () => {
+    markDirtyAndSaveSoon();
+    setTimeout(() => {
+      const box = document.getElementById("resultBox");
+      if (box) {
+        box.className = "small mt-2 text-muted";
+        box.textContent = "Saved to database.";
+      }
+    }, 300);
+  };
+
+  document.getElementById("validateBtn").onclick = async () => {
     const res = validate(rules);
     const box = document.getElementById("resultBox");
-    box.textContent = res.ok ? "✅ Passed!" : "❌ " + res.reason;
+    const returnBox = document.getElementById("returnBox");
+
+    if (!box) return;
+
+    if (res.ok) {
+      box.className = "small mt-2 text-success fw-semibold";
+      box.textContent = "✅ Passed! Saving + awarding XP…";
+
+      // NEW (Part 3): Save session (DB) then award XP (DB)
+      try {
+        await saveLessonSessionToDb();
+
+        const xpRes = await fetch("/complete-challenge", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            email: user.email,
+            course_id: __lessonSession.course_id,
+            lesson_number: __lessonSession.lesson_number
+          })
+        });
+
+        const xpData = await xpRes.json();
+
+        if (xpData.success) {
+          if (xpData.already_completed) {
+            box.textContent = "✅ Passed! Challenge already completed (no extra XP).";
+          } else {
+            box.textContent = `✅ Passed! +${xpData.xp_added} XP earned.`;
+          }
+        } else {
+          box.className = "small mt-2 text-warning fw-semibold";
+          box.textContent = "✅ Passed, but XP award failed.";
+        }
+
+        // NEW (Part 3): return-to-lesson button
+        if (returnBox) {
+          const courseId = __lessonSession.course_id;
+          const lessonNum = __lessonSession.lesson_number;
+
+          // Fallback for course page: store last lesson so we can jump later if needed
+          // (course.js can read this later if you want)
+          localStorage.setItem("netology_return_lesson", JSON.stringify({
+            course_id: courseId,
+            lesson_number: lessonNum
+          }));
+
+          returnBox.innerHTML = `
+            <a class="btn btn-outline-secondary btn-sm w-100"
+               href="course.html?id=${courseId}&lesson=${lessonNum}">
+               Return to lesson
+            </a>
+          `;
+        }
+      } catch (e) {
+        console.error("validate pass flow error:", e);
+        box.className = "small mt-2 text-warning fw-semibold";
+        box.textContent = "✅ Passed, but could not save/award XP.";
+      }
+
+      return;
+    }
+
+    box.className = "small mt-2 text-danger fw-semibold";
+    box.textContent = "❌ " + res.reason;
   };
 
   function validate(r) {
@@ -863,8 +1164,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (r.requireConnections && connections.length === 0)
       return { ok: false, reason: "No connections" };
+
+    // NEW (Part 3): optional rule checks (safe additions only)
+    // If you add these rules later in course_content.js, they will work automatically.
+    if (r.minDevices) {
+      if (devices.length < Number(r.minDevices)) {
+        return { ok: false, reason: `Need at least ${r.minDevices} device(s)` };
+      }
+    }
+    if (r.minConnections) {
+      if (connections.length < Number(r.minConnections)) {
+        return { ok: false, reason: `Need at least ${r.minConnections} connection(s)` };
+      }
+    }
+
     return { ok: true };
   }
+
+  // NEW (Part 3): autosave on unload so DB is always updated
+  window.addEventListener("beforeunload", () => {
+    // fire-and-forget
+    saveLessonSessionToDb();
+  });
 });
 
 

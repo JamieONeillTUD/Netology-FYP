@@ -92,3 +92,91 @@ CREATE TABLE saved_topologies (
     connections JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ============================================
+-- Lesson Sandbox Sessions
+-- One private sandbox per user per lesson
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS lesson_sessions (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
+    course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+    lesson_number INTEGER NOT NULL,
+
+    devices JSONB NOT NULL DEFAULT '{}'::jsonb,
+    connections JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (user_email, course_id, lesson_number)
+);
+
+-- ============================================
+-- Lesson Completions
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS lesson_completions (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
+    course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+    lesson_number INTEGER NOT NULL,
+
+    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (user_email, course_id, lesson_number)
+);
+
+-- ============================================
+-- Quiz Completions
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS quiz_completions (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
+    course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+    lesson_number INTEGER NOT NULL,
+
+    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (user_email, course_id, lesson_number)
+);
+
+-- ============================================
+-- Challenge Completions
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS challenge_completions (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
+    course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+    lesson_number INTEGER NOT NULL,
+
+    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (user_email, course_id, lesson_number)
+);
+
+-- ============================================
+-- XP Log Improvements (optional safety)
+-- ============================================
+
+ALTER TABLE xp_log
+ADD COLUMN IF NOT EXISTS course_id INTEGER,
+ADD COLUMN IF NOT EXISTS lesson_number INTEGER;
+
+-- ============================================
+-- Indexes for performance
+-- ============================================
+
+CREATE INDEX IF NOT EXISTS idx_lesson_sessions_user
+ON lesson_sessions(user_email, course_id);
+
+CREATE INDEX IF NOT EXISTS idx_lesson_completions_user
+ON lesson_completions(user_email, course_id);
+
+CREATE INDEX IF NOT EXISTS idx_quiz_completions_user
+ON quiz_completions(user_email, course_id);
+
+CREATE INDEX IF NOT EXISTS idx_challenge_completions_user
+ON challenge_completions(user_email, course_id);
