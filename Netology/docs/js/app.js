@@ -15,6 +15,9 @@ Saving user info
 Popup alerts for feedback
 */
 
+// NEW (C3 safety): ensure API base is never undefined
+const API_BASE = (window.API_BASE || "").replace(/\/$/, "");
+
 document.addEventListener("DOMContentLoaded", () => {
   //Signup form Handling, Checks inputs, validates, then sends data to backend.
   const signupForm = document.getElementById("signupForm");
@@ -60,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       //Sends Data to backend for registration
       try {
-        const res = await fetch(`${window.API_BASE}/register`, {
+        const res = await fetch(`${API_BASE}/register`, {
           method: "POST",
           body: new FormData(signupForm),
         });
@@ -94,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         // Send login form to backend
-        const res = await fetch(`${window.API_BASE}/login`, {
+        const res = await fetch(`${API_BASE}/login`, {
           method: "POST",
           body: new FormData(loginForm),
         });
