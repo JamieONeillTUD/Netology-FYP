@@ -1,22 +1,20 @@
-"""
-Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
-
-Python (Flask) 
--------------------------------------------
-db.py – Database connection module.
-
-Creates and returns a connection to the AWS PostgreSQL database.
-Used by all backend routes (auth_routes, course_routes, xp_system).
-"""
-
+# db.py
+import os
 import psycopg
+
 def get_db_connection():
+    # Render-style single connection string
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # If your DB requires SSL, keep sslmode=require
+        return psycopg.connect(database_url, sslmode=os.getenv("DB_SSLMODE", "require"))
+
+    # Fallback: individual env vars (nice for local dev)
     return psycopg.connect(
-        host="netology-db.c58saiqicrvi.eu-west-1.rds.amazonaws.com",
-        dbname="postgres",
-        user="postgres",
-        password="netology"
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME", "postgres"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD", ""),
+        port=os.getenv("DB_PORT", "5432"),
+        sslmode=os.getenv("DB_SSLMODE", "disable"),  # local usually disable
     )

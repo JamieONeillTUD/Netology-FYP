@@ -3,4 +3,5 @@ Flask-Bcrypt
 psycopg[binary]
 Flask-cors
 gunicorn
+python-dotenv
 

@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       //Sends Data to backend for registration
       try {
-        const res = await fetch("/register", {
+        const res = await fetch(`${window.API_BASE}/register`, {
           method: "POST",
           body: new FormData(signupForm),
         });
@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         // Send login form to backend
-        const res = await fetch("/login", {
+        const res = await fetch(`${window.API_BASE}/login`, {
           method: "POST",
           body: new FormData(loginForm),
         });

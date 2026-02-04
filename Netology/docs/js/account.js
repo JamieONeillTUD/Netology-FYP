@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function loadStats(email) {
   try {
-    const res = await fetch(`/user-info?email=${encodeURIComponent(email)}`);
+    const res = await fetch(`${window.API_BASE}/user-info?email=${encodeURIComponent(email)}`);
     const data = await res.json();
     if (!data.success) return;
 

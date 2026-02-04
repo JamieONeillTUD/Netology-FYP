@@ -133,7 +133,7 @@ Clear the entire canvas
 
     __lessonSession.saving = true;
     try {
-      await fetch("/lesson-session/save", {
+      await fetch(`${window.API_BASE}/lesson-session/save`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
@@ -168,7 +168,7 @@ Clear the entire canvas
 
     try {
       const url =
-        `/lesson-session/load?email=${encodeURIComponent(__lessonSession.email)}&course_id=${encodeURIComponent(__lessonSession.course_id)}&lesson_number=${encodeURIComponent(__lessonSession.lesson_number)}`;
+        `${window.API_BASE}/lesson-session/load?email=${encodeURIComponent(__lessonSession.email)}&course_id=${encodeURIComponent(__lessonSession.course_id)}&lesson_number=${encodeURIComponent(__lessonSession.lesson_number)}`;
 
       const res = await fetch(url);
       const data = await res.json();
@@ -833,7 +833,7 @@ Clear the entire canvas
       const name = prompt("Name your topology:");
       if (!name) return;
 
-      const res = await fetch("/save-topology", {
+      const res = await fetch(`${window.API_BASE}/save-topology`, {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
@@ -862,7 +862,7 @@ Clear the entire canvas
   // ---------------------------------------------------
   window.refreshTopologyList = async function () {
       const user = JSON.parse(localStorage.getItem("user"));
-      const res = await fetch(`/load-topologies?email=${user.email}`);
+      const res = await fetch(`${window.API_BASE}/load-topologies?email=${user.email}`);
       const data = await res.json();
 
       const list = document.getElementById("topologyList");
@@ -894,7 +894,7 @@ Clear the entire canvas
   window.deleteTopology = async function (id) {
       if (!confirm("Delete this topology?")) return;
 
-      const res = await fetch(`/delete-topology/${id}`, {
+      const res = await fetch(`${window.API_BASE}/delete-topology/${id}`, {
           method: "DELETE"
       });
 
@@ -908,7 +908,7 @@ Clear the entire canvas
   // UPDATED loadTopologyById to close modal afterward
   // ---------------------------------------------------
   window.loadTopologyById = async function (id) {
-      const res = await fetch(`/load-topology/${id}`);
+      const res = await fetch(`${window.API_BASE}/load-topology/${id}`);
       const data = await res.json();
 
       if (!data.success) {
@@ -1099,7 +1099,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       try {
         await saveLessonSessionToDb();
 
-        const xpRes = await fetch("/complete-challenge", {
+        const xpRes = await fetch(`${window.API_BASE}/complete-challenge`, {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({

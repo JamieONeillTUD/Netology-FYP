@@ -81,7 +81,7 @@ UPDATED (Part 3 bug fix):
 */
 async function loadUserStats(email) {
   try {
-    const res = await fetch(`/user-info?email=${encodeURIComponent(email)}`);
+    const res = await fetch(`${window.API_BASE}/user-info?email=${encodeURIComponent(email)}`);
     const data = await res.json();
 
     if (!data.success) return;
@@ -145,7 +145,7 @@ async function loadUserCourses(email) {
   if (!grid || !continueBox) return;
 
   try {
-    const res = await fetch(`/user-courses?email=${encodeURIComponent(email)}`);
+    const res = await fetch(`${window.API_BASE}/user-courses?email=${encodeURIComponent(email)}`);
     const data = await res.json();
 
     if (!data.success) {
@@ -312,7 +312,7 @@ UPDATED (Part 3 final):
 */
 loadUserStats = async function(email) {
   try {
-    const res = await fetch(`/user-info?email=${encodeURIComponent(email)}`);
+    const res = await fetch(`${window.API_BASE}/user-info?email=${encodeURIComponent(email)}`);
     const data = await res.json();
     if (!data.success) return;
 

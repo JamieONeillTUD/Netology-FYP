@@ -19,6 +19,8 @@ from flask_cors import CORS
 from auth_routes import auth, bcrypt as auth_bcrypt
 from course_routes import courses
 from topology_routes import topology
+from dotenv import load_dotenv
+load_dotenv()
 
 # Create Flask App
 # static_folder points to where your HTML/CSS/JS is
@@ -30,7 +32,8 @@ app = Flask(
 
 # Enable CORS
 # Allows the frontend to send requests to this backend.
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["https://jamieoneilltud.github.io"]}})
+
 
 # Setup Password Hashing (bcrypt)
 auth_bcrypt.init_app(app)

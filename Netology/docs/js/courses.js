@@ -58,7 +58,7 @@ function wireMenu() {
 
 async function loadUserStats(email) {
   try {
-    const res = await fetch(`/user-info?email=${encodeURIComponent(email)}`);
+    const res = await fetch(`${window.API_BASE}/user-info?email=${encodeURIComponent(email)}`);
     const data = await res.json();
     if (!data.success) return { level: 1, rank: "Novice" };
 
@@ -98,7 +98,7 @@ async function loadAllCourses(email, userLevel) {
   if (!noviceRow || !intermediateRow || !advancedRow) return;
 
   try {
-    const res = await fetch(`/courses`);
+    const res = await fetch(`${window.API_BASE}/courses`);
     const data = await res.json();
     if (!data.success) return;
 

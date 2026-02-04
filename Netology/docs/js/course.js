@@ -311,7 +311,7 @@ from /user-course-status so I can show badges beside each lesson in the sidebar?
 async function loadCompletionStatus() {
   try {
     const res = await fetch(
-      `/user-course-status?email=${encodeURIComponent(__courseState.email)}&course_id=${__courseState.courseId}`
+      `${window.API_BASE}/user-course-status?email=${encodeURIComponent(__courseState.email)}&course_id=${__courseState.courseId}`
     );
     const data = await res.json();
 
@@ -335,7 +335,7 @@ async function loadCourse(courseId, email) {
     __courseState.email = email;
 
     // Get course info from backend (still used for desc + total_lessons)
-    const res = await fetch(`/course?id=${courseId}`);
+    const res = await fetch(`${window.API_BASE}/course?id=${courseId}`);
     const data = await res.json();
 
     if (!data.success) {
@@ -360,7 +360,7 @@ async function loadCourse(courseId, email) {
     document.getElementById("courseDesc").textContent = data.description;
 
     // Get user's progress for this course
-    const progressRes = await fetch(`/user-courses?email=${encodeURIComponent(email)}`);
+    const progressRes = await fetch(`${window.API_BASE}/user-courses?email=${encodeURIComponent(email)}`);
     const progressData = await progressRes.json();
 
     const course = (progressData.courses || []).find(c => c.id == courseId);
@@ -483,7 +483,7 @@ function jumpToLesson(index) {
 // ---------------------------
 async function completeLesson(courseId, email) {
   try {
-    const res = await fetch("/complete-lesson", {
+    const res = await fetch(`${window.API_BASE}/complete-lesson`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
 
@@ -615,7 +615,7 @@ async function awardQuizXpOnce() {
   __quizXpAwardedCache[key] = true;
 
   try {
-    const res = await fetch("/complete-quiz", {
+    const res = await fetch(`${window.API_BASE}/complete-quiz`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
