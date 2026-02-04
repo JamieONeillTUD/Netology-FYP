@@ -1,6 +1,4 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  document.body.classList.add("is-ready");
-
   const statusEl = document.getElementById("apiStatus");
   if (!statusEl) return;
 
