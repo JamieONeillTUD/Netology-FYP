@@ -5,51 +5,169 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Netology</title>
 
-    <!-- REQUIRED (C3): Render API base -->
     <script>
       window.API_BASE = "https://netology-fyp.onrender.com";
     </script>
 
-    <!-- Your config file (must be AFTER API_BASE is set OR it can also set it) -->
     <script src="js/config.js"></script>
 
-    <!-- Your existing stylesheet -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/style.css" />
   </head>
 
-  <body>
-    <div class="container py-5">
-      <div class="net-card p-4 p-md-5">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+  <body class="net-bg net-landing">
+    <header class="net-topbar net-landing-topbar" role="banner">
+      <div class="container d-flex align-items-center justify-content-between gap-3 py-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="net-logo" aria-hidden="true"></div>
           <div>
-            <h1 class="mb-2">Netology</h1>
-            <p class="text-muted mb-0">
-              Learn networking • Earn XP • Practice in the Sandbox
-            </p>
-          </div>
-
-          <div class="d-flex gap-2">
-            <a class="btn btn-teal" href="login.html">Login</a>
-            <a class="btn btn-outline-secondary" href="signup.html">Sign up</a>
+            <div class="net-brand">Netology</div>
+            <div class="net-subtitle small">Courses - Quizzes - Sandbox challenges</div>
           </div>
         </div>
 
-        <hr class="my-4" />
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-light btn-sm" href="signup.html">Sign up</a>
+          <a class="btn btn-light btn-sm" href="login.html">Login</a>
+        </div>
+      </div>
+    </header>
 
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <div class="small text-muted">
-            Backend status:
-            <span id="apiStatus" class="fw-semibold">Checking…</span>
+    <main class="container py-5" role="main">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-6">
+          <div class="net-hero p-4 p-md-5 fade-in-up">
+            <div class="net-pill mb-3">
+              <span class="dot"></span>
+              <span class="text-white">Learn fast • Practice • Build real topologies</span>
+            </div>
+
+            <h1 class="display-6 fw-bold mb-3 text-white">
+              Learn Networking <span class="net-hero-accent">the practical way</span>.
+            </h1>
+
+            <p class="mb-4 text-white" style="opacity:.92;">
+              Netology teaches networking like Khan Academy / Codecademy:
+              short lessons → quick quizzes → sandbox challenges. Earn XP, level up, and unlock harder courses.
+            </p>
+
+            <div class="d-flex gap-2 flex-wrap">
+              <a class="btn btn-light btn-lg" href="signup.html">Get started</a>
+              <a class="btn btn-outline-light btn-lg" href="login.html">I already have an account</a>
+              <a class="btn btn-outline-light btn-lg" href="sandbox.html">Open sandbox</a>
+            </div>
+
+            <div class="d-flex align-items-center gap-3 mt-4 small text-white" style="opacity:.9;">
+              <div class="d-flex align-items-center gap-2">
+                <span class="net-status-dot" id="apiDot" aria-hidden="true"></span>
+                <span>Backend:</span>
+                <span class="fw-semibold" id="apiStatus">Checking…</span>
+              </div>
+              <span class="net-divider" aria-hidden="true"></span>
+              <span>Unlock courses by leveling up</span>
+            </div>
           </div>
+        </div>
 
-          <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary btn-sm" href="courses.html">Browse courses</a>
-            <a class="btn btn-outline-secondary btn-sm" href="sandbox.html">Open sandbox</a>
+        <div class="col-lg-6">
+          <div class="net-hero-visual fade-in-up" id="heroVisual">
+            <div class="net-visual-card">
+              <div class="net-visual-grid" aria-hidden="true"></div>
+
+              <div class="net-visual-content">
+                <div class="net-visual-title">Sandbox Challenge Preview</div>
+                <div class="text-muted small mb-3">
+                  Place devices, connect links, configure IPs, validate challenges.
+                </div>
+
+                <div class="net-mini-topology" aria-hidden="true">
+                  <div class="node node-router floaty" style="left: 12%; top: 18%;">Router</div>
+                  <div class="node node-switch floaty" style="left: 44%; top: 38%;">Switch</div>
+                  <div class="node node-pc floaty" style="left: 72%; top: 18%;">PC</div>
+                  <div class="node node-pc floaty" style="left: 72%; top: 62%;">PC</div>
+
+                  <div class="wire wire-a"></div>
+                  <div class="wire wire-b"></div>
+                  <div class="wire wire-c"></div>
+                </div>
+
+                <div class="net-feature-row">
+                  <div class="net-feature">
+                    <div class="net-feature-icon">XP</div>
+                    <div>
+                      <div class="fw-semibold">Earn XP</div>
+                      <div class="text-muted small">Lessons & quizzes</div>
+                    </div>
+                  </div>
+                  <div class="net-feature">
+                    <div class="net-feature-icon">LV</div>
+                    <div>
+                      <div class="fw-semibold">Level up</div>
+                      <div class="text-muted small">Unlock advanced</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-3 d-flex gap-2">
+                  <a class="btn btn-teal btn-sm" href="courses.html">Browse courses</a>
+                  <a class="btn btn-outline-secondary btn-sm" href="dashboard.html">Go to dashboard</a>
+                </div>
+              </div>
+            </div>
+
+            <div class="blob blob-1" aria-hidden="true"></div>
+            <div class="blob blob-2" aria-hidden="true"></div>
           </div>
         </div>
       </div>
-    </div>
+
+      <section class="mt-5">
+        <div class="row g-4">
+          <div class="col-md-4">
+            <div class="net-card p-4 h-100 net-lift">
+              <div class="net-kicker">Learn</div>
+              <div class="h5 text-teal mb-2">Short, focused lessons</div>
+              <p class="text-muted mb-0">Understand IPs, subnetting, switching and routing in bite-sized steps.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="net-card p-4 h-100 net-lift">
+              <div class="net-kicker">Practice</div>
+              <div class="h5 text-teal mb-2">Quizzes that reward XP</div>
+              <p class="text-muted mb-0">Check your understanding instantly and earn XP as you progress.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="net-card p-4 h-100 net-lift">
+              <div class="net-kicker">Build</div>
+              <div class="h5 text-teal mb-2">Interactive sandbox</div>
+              <p class="text-muted mb-0">Create topologies, connect devices, configure IP settings, and validate challenges.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-5">
+        <div class="net-card p-4 p-md-5 net-cta net-lift">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+              <div class="h4 mb-1 text-teal fw-bold">Ready to start learning?</div>
+              <div class="text-muted">Create an account and begin at Novice — unlock your way to Advanced.</div>
+            </div>
+            <div class="d-flex gap-2">
+              <a class="btn btn-teal btn-lg" href="signup.html">Sign up</a>
+              <a class="btn btn-outline-secondary btn-lg" href="login.html">Login</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="text-center border-top py-3 bg-white" role="contentinfo">
+      <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
+    </footer>
 
     <script src="js/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>

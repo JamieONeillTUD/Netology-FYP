@@ -507,3 +507,220 @@ header.net-topbar .btn-outline-light{
 header.net-topbar .btn-outline-light:hover{
   background: rgba(255,255,255,.15) !important;
 }
+
+.net-landing .net-landing-topbar{
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(10px);
+}
+
+.net-landing .net-pill{
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.18);
+}
+
+.net-landing .net-pill .dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 6px rgba(255,255,255,0.18);
+}
+
+.net-landing .net-status-dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #999;
+  display: inline-block;
+}
+
+.net-landing .net-divider{
+  width: 1px;
+  height: 14px;
+  background: rgba(0,0,0,0.12);
+  display: inline-block;
+}
+
+.net-landing .net-hero-accent{
+  color: #0fb9b1;
+}
+
+.net-landing .net-hero-visual{
+  position: relative;
+  min-height: 420px;
+}
+
+.net-landing .net-visual-card{
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: rgba(255,255,255,0.90);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.10);
+  transform: translateZ(0);
+}
+
+.net-landing .net-visual-grid{
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(15,185,177,0.22) 1px, transparent 1px);
+  background-size: 18px 18px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.net-landing .net-visual-content{
+  position: relative;
+  padding: 22px;
+}
+
+.net-landing .net-visual-title{
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #0b3b40;
+}
+
+.net-landing .net-mini-topology{
+  position: relative;
+  height: 190px;
+  border-radius: 18px;
+  border: 1px dashed rgba(15,185,177,0.45);
+  background: rgba(15,185,177,0.06);
+  margin: 14px 0 16px;
+  overflow: hidden;
+}
+
+.net-landing .node{
+  position: absolute;
+  padding: 10px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid rgba(0,0,0,0.10);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+  background: #fff;
+}
+
+.net-landing .node-router{ border-color: rgba(15,185,177,0.45); }
+.net-landing .node-switch{ border-color: rgba(13,110,253,0.35); }
+.net-landing .node-pc{ border-color: rgba(25,135,84,0.35); }
+
+.net-landing .wire{
+  position: absolute;
+  height: 2px;
+  background: rgba(15,185,177,0.55);
+  border-radius: 2px;
+  transform-origin: left center;
+}
+
+.net-landing .wire-a{ left: 22%; top: 30%; width: 34%; transform: rotate(18deg); }
+.net-landing .wire-b{ left: 52%; top: 46%; width: 24%; transform: rotate(-18deg); }
+.net-landing .wire-c{ left: 52%; top: 52%; width: 24%; transform: rotate(18deg); }
+
+.net-landing .net-feature-row{
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.net-landing .net-feature{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: rgba(255,255,255,0.78);
+}
+
+.net-landing .net-feature-icon{
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  color: #0b3b40;
+  background: rgba(15,185,177,0.10);
+  border: 1px solid rgba(15,185,177,0.22);
+}
+
+.net-landing .net-kicker{
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: rgba(0,0,0,0.55);
+  margin-bottom: 8px;
+}
+
+.net-landing .net-cta{
+  border: 1px solid rgba(15,185,177,0.18);
+  background: linear-gradient(180deg, rgba(15,185,177,0.10), rgba(255,255,255,0.9));
+}
+
+.net-landing .net-lift{
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+.net-landing .net-lift:hover{
+  transform: translateY(-4px);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.10);
+}
+
+/* Simple animations */
+.net-landing .fade-in-up{
+  opacity: 0;
+  transform: translateY(10px);
+  animation: netFadeUp 700ms ease forwards;
+}
+@keyframes netFadeUp{
+  to{ opacity: 1; transform: translateY(0); }
+}
+
+/* Floaty nodes */
+.net-landing .floaty{
+  animation: netFloaty 3.6s ease-in-out infinite;
+}
+@keyframes netFloaty{
+  0%,100%{ transform: translateY(0); }
+  50%{ transform: translateY(-6px); }
+}
+
+/* Background blobs */
+.net-landing .blob{
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  filter: blur(20px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.net-landing .blob-1{
+  right: -40px;
+  top: 20px;
+  background: rgba(15,185,177,0.50);
+  animation: netBlob1 6s ease-in-out infinite;
+}
+.net-landing .blob-2{
+  left: -40px;
+  bottom: 20px;
+  background: rgba(32,191,107,0.35);
+  animation: netBlob2 7s ease-in-out infinite;
+}
+@keyframes netBlob1{
+  0%,100%{ transform: translate(0,0) scale(1); }
+  50%{ transform: translate(-10px,14px) scale(1.05); }
+}
+@keyframes netBlob2{
+  0%,100%{ transform: translate(0,0) scale(1); }
+  50%{ transform: translate(12px,-12px) scale(1.06); }
+}
