@@ -26,8 +26,8 @@ load_dotenv()
 # static_folder points to where your HTML/CSS/JS is
 app = Flask(
     __name__,
-    static_folder="../frontend",     # Where frontend files live
-    static_url_path="/frontend"      # URL path to access them
+    static_folder="../docs",     # your frontend folder
+    static_url_path=""           # serve static at /
 )
 
 # Enable CORS
@@ -48,8 +48,13 @@ app.register_blueprint(topology)   # /topology routes
 # Default Route
 @app.route("/")
 def home():
-    return redirect("/frontend/login.html")
+    return redirect("/index.html")
+
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
 
 # Run Server
 if __name__ == "__main__":
     app.run(debug=True)
+
