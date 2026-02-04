@@ -59,6 +59,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   // NEW (Part 3): if the URL requested a specific lesson, jump to it after loadCourse builds flatLessons
   if (lessonParam && !isNaN(lessonParam)) {
     __courseState.activeLesson = Math.min(Math.max(lessonParam, 1), __courseState.totalLessons || 1);
+
+    // ADDITION ONLY: keep activeUnit in sync for dropdown open state
+    try {
+      const f = getFlatLessonByIndex(__courseState.activeLesson);
+      if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
+    } catch (e) {}
+
     __courseState.view = "lesson";
     renderCurrentLesson();
   } else {
@@ -72,6 +79,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             Math.max(Number(ret.lesson_number) || 1, 1),
             __courseState.totalLessons || 1
           );
+
+          // ADDITION ONLY: keep activeUnit in sync for dropdown open state
+          const f = getFlatLessonByIndex(__courseState.activeLesson);
+          if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
+
           __courseState.view = "lesson";
           renderCurrentLesson();
         }
@@ -118,6 +130,45 @@ document.addEventListener("DOMContentLoaded", async () => {
   const validateChallengeBtn = document.getElementById("validateChallengeBtn");
   if (startChallengeBtn) startChallengeBtn.addEventListener("click", () => openChallengeInSandbox());
   if (validateChallengeBtn) validateChallengeBtn.addEventListener("click", () => openChallengeInSandbox(true));
+
+  // =========================================================
+  // ADDITION ONLY (Course tidy): top "Start Challenge" button support
+  // This was added in your updated course.html as id="startChallengeBtnTop"
+  // =========================================================
+  const startChallengeBtnTop = document.getElementById("startChallengeBtnTop");
+  if (startChallengeBtnTop) {
+    startChallengeBtnTop.addEventListener("click", () => {
+      // Make sure we are in lesson view, then open challenge for current lesson
+      __courseState.view = "lesson";
+      renderCurrentLesson();
+      openChallengeInSandbox();
+    });
+  }
+
+  // =========================================================
+  // ADDITION ONLY (Full Quiz Page):
+  // - Opens quiz.html for the current course + active lesson
+  // - URL: quiz.html?course=${courseId}&lesson=${activeLesson}
+  // =========================================================
+  function openFullQuizPage() {
+    const c = __courseState.courseId || courseId;
+    const l = __courseState.activeLesson || 1;
+
+    // Store return target (nice UX: quiz can send them back)
+    localStorage.setItem("netology_return_lesson", JSON.stringify({
+      course_id: c,
+      lesson_number: l
+    }));
+
+    window.location.href = `quiz.html?course=${encodeURIComponent(c)}&lesson=${encodeURIComponent(l)}`;
+  }
+
+  const openFullQuizBtn = document.getElementById("openFullQuizBtn");
+  if (openFullQuizBtn) openFullQuizBtn.addEventListener("click", openFullQuizPage);
+
+  // Optional button inside the quiz card
+  const openFullQuizBtn2 = document.getElementById("openFullQuizBtn2");
+  if (openFullQuizBtn2) openFullQuizBtn2.addEventListener("click", openFullQuizPage);
 });
 
 // ---------------------------
@@ -291,11 +342,21 @@ function showUnitView(uIndex) {
   });
 
   unitSectionsEl.innerHTML = html;
+
+  // ADDITION ONLY: keep sidebar dropdown open on this unit
+  renderLessons(__courseState.totalLessons, __courseState.progressPct);
 }
 
 // When user clicks an item in the unit list, open the lesson view
 function openUnitItem(lessonIndex) {
   __courseState.activeLesson = Number(lessonIndex) || 1;
+
+  // ADDITION ONLY: keep activeUnit in sync for dropdown open state
+  try {
+    const f = getFlatLessonByIndex(__courseState.activeLesson);
+    if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
+  } catch (e) {}
+
   __courseState.view = "lesson";
   renderCurrentLesson();
 }
@@ -380,6 +441,12 @@ async function loadCourse(courseId, email) {
     // Decide which lesson to show in "Current Lesson" (next lesson after completed)
     const completedLessons = Math.floor((progressPct / 100) * __courseState.totalLessons);
     __courseState.activeLesson = Math.min(completedLessons + 1, __courseState.totalLessons);
+
+    // ADDITION ONLY: keep activeUnit in sync (so dropdown opens correctly)
+    try {
+      const f = getFlatLessonByIndex(__courseState.activeLesson);
+      if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
+    } catch (e) {}
 
     // NEW: Show Unit 1 page by default (Khan style landing)
     showUnitView(0);
@@ -474,6 +541,13 @@ function renderLessons(totalLessons, progressPct) {
 // Called from sidebar buttons
 function jumpToLesson(index) {
   __courseState.activeLesson = Number(index) || 1;
+
+  // ADDITION ONLY: keep activeUnit in sync for dropdown open state
+  try {
+    const f = getFlatLessonByIndex(__courseState.activeLesson);
+    if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
+  } catch (e) {}
+
   __courseState.view = "lesson";
   renderCurrentLesson();
 }
@@ -516,6 +590,13 @@ async function completeLesson(courseId, email) {
       // Move to next lesson after completion
       const completedLessons = Math.floor((result.progress_pct / 100) * __courseState.totalLessons);
       __courseState.activeLesson = Math.min(completedLessons + 1, __courseState.totalLessons);
+
+      // ADDITION ONLY: keep activeUnit in sync for dropdown open state
+      try {
+        const f = getFlatLessonByIndex(__courseState.activeLesson);
+        if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
+      } catch (e) {}
+
       renderCurrentLesson();
     } else {
       showPopup(result.message || "Could not complete lesson.", "error");
@@ -545,6 +626,13 @@ function changeLesson(delta) {
   if (next < 1) next = 1;
   if (next > (__courseState.totalLessons || 1)) next = __courseState.totalLessons;
   __courseState.activeLesson = next;
+
+  // ADDITION ONLY: keep activeUnit in sync for dropdown open state
+  try {
+    const f = getFlatLessonByIndex(__courseState.activeLesson);
+    if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
+  } catch (e) {}
+
   __courseState.view = "lesson";
   renderCurrentLesson();
 }
@@ -573,6 +661,9 @@ function renderCurrentLesson() {
 
   const flat = getFlatLessonByIndex(lessonNum);
   if (!flat) return;
+
+  // ADDITION ONLY: keep activeUnit in sync for dropdown open state
+  __courseState.activeUnit = Number(flat.unitIndex || 0);
 
   // Lesson title + indicator (Unit + Lesson like Khan)
   const unitTitle = flat.unitTitle || `Unit ${flat.unitIndex + 1}`;
@@ -738,6 +829,7 @@ function openChallengeInSandbox(validateOnly) {
   }));
 
   // Sandbox checks ?challenge=1
+  // NOTE: validateOnly is kept for future use (Part 3+), but routing stays the same right now.
   window.location.href = "sandbox.html?challenge=1";
 }
 
@@ -772,3 +864,141 @@ function showPopup(message, type = "info") {
   document.body.appendChild(popup);
   setTimeout(() => popup.remove(), 2500);
 }
+
+/* =========================================================
+   ADDITIONS ONLY (Accessibility + Readability):
+   - Render sidebar as Unit dropdowns (<details>) so it’s less confusing
+   - Keeps ALL existing renderLessons logic above untouched
+   - Overrides renderLessons safely (same style you used elsewhere)
+   ========================================================= */
+
+/*
+AI PROMPTED CODE BELOW:
+"Can you make the sidebar less confusing by grouping lessons under each unit in a dropdown,
+without deleting the existing function? Make it keyboard accessible and keep it simple."
+*/
+function __groupFlatLessonsByUnit() {
+  const groups = [];
+  const byUnit = {};
+  (__courseState.flatLessons || []).forEach((x) => {
+    const u = Number(x.unitIndex || 0);
+    if (!byUnit[u]) {
+      byUnit[u] = {
+        unitIndex: u,
+        unitTitle: x.unitTitle || `Unit ${u + 1}`,
+        lessons: []
+      };
+      groups.push(byUnit[u]);
+    }
+    byUnit[u].lessons.push(x);
+  });
+  return groups;
+}
+
+function renderLessonsDropdown(totalLessons, progressPct) {
+  const lessonsContainer = document.getElementById("lessonsList");
+  if (!lessonsContainer) return;
+
+  if (!totalLessons || totalLessons <= 0) {
+    lessonsContainer.innerHTML = `<p class="text-muted small">No lessons available.</p>`;
+    return;
+  }
+
+  // ADDITION ONLY: open dropdown based on current active lesson/unit
+  let activeUnitFromLesson = 0;
+  try {
+    const f = getFlatLessonByIndex(__courseState.activeLesson);
+    if (f) activeUnitFromLesson = Number(f.unitIndex || 0);
+  } catch (e) {}
+
+  const groups = __groupFlatLessonsByUnit();
+
+  let html = "";
+  groups.forEach((g) => {
+    const isActiveUnit =
+      Number(__courseState.activeUnit || 0) === Number(g.unitIndex || 0) ||
+      Number(activeUnitFromLesson || 0) === Number(g.unitIndex || 0);
+
+    html += `
+      <details class="mb-2" ${isActiveUnit ? "open" : ""} style="border:1px solid var(--net-border); border-radius:14px; background:#fff;">
+        <summary
+          class="px-3 py-2"
+          style="list-style:none; cursor:pointer; user-select:none; border-radius:14px;"
+          aria-label="Toggle ${escapeHtml(g.unitTitle)} lessons"
+        >
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-semibold small text-teal">${escapeHtml(g.unitTitle)}</span>
+            <span class="small text-muted">▼</span>
+          </div>
+          <div class="small text-muted mt-1">
+            ${g.lessons.length} lesson${g.lessons.length === 1 ? "" : "s"}
+          </div>
+        </summary>
+
+        <div class="px-3 pb-3">
+          <div class="d-grid gap-2 mt-2">
+            <button type="button"
+              class="btn btn-outline-secondary btn-sm text-start"
+              onclick="showUnitView(${Number(g.unitIndex)})"
+              aria-label="Open ${escapeHtml(g.unitTitle)} overview">
+              Open unit overview →
+            </button>
+          </div>
+
+          <div class="list-group mt-2" role="list">
+    `;
+
+    g.lessons.forEach((item) => {
+      const doneBadge = __courseState.completed.lessons.has(item.index)
+        ? `<span class="badge bg-teal text-white">Done</span>`
+        : "";
+
+      const quizBadge = __courseState.completed.quizzes.has(item.index)
+        ? `<span class="badge bg-success">Quiz</span>`
+        : "";
+
+      const challengeBadge = __courseState.completed.challenges.has(item.index)
+        ? `<span class="badge bg-info text-dark">Chal</span>`
+        : "";
+
+      const isActive = item.index === __courseState.activeLesson;
+      const activeClass = isActive ? "border border-teal" : "";
+
+      html += `
+        <button
+          type="button"
+          class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${activeClass}"
+          style="border-radius:12px;margin-bottom:8px;"
+          onclick="jumpToLesson(${item.index})"
+          aria-label="Open lesson ${item.index}: ${escapeHtml(item.lesson.title || "Lesson")}"
+        >
+          <span class="small">
+            Lesson ${item.index}: ${escapeHtml(item.lesson.title || "Lesson")}
+          </span>
+          <span class="d-flex gap-1 align-items-center">
+            ${doneBadge}
+            ${quizBadge}
+            ${challengeBadge}
+          </span>
+        </button>
+      `;
+    });
+
+    html += `
+          </div>
+        </div>
+      </details>
+    `;
+  });
+
+  lessonsContainer.innerHTML = html;
+}
+
+/*
+UPDATED (Override safely):
+- Keep original renderLessons above 100% intact
+- Replace its output with the dropdown version for readability
+*/
+renderLessons = function(totalLessons, progressPct) {
+  return renderLessonsDropdown(totalLessons, progressPct);
+};
