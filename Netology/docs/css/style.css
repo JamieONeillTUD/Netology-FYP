@@ -633,22 +633,87 @@ input:focus-visible{
 }
 
 /* =========================================================
-   4) login.html / signup.html / forgot.html (Auth pages)
+   login.html (Auth page – Figma-inspired)
 ========================================================= */
 
-.net-auth-wrap{
+.net-auth-page .net-auth-wrap{
   max-width: 980px;
   margin: 0 auto;
 }
-.net-auth-card{
+
+/* Logo block */
+.net-auth-logo{
+  width: 64px;
+  height: 64px;
   border-radius: 18px;
-  border: 1px solid var(--net-border);
-  background: rgba(255,255,255,.92);
-  box-shadow: var(--net-shadow);
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  color: #fff;
+  box-shadow: 0 14px 35px rgba(15,185,177,.25);
+  font-size: 28px;
 }
 
-/* Subtle helper for course cards (shared utility) */
-.border-teal-subtle { border: 1px solid #B2DFDB !important; }
+/* Input icon padding */
+.net-input-ico{
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(17, 24, 39, .45);
+  pointer-events: none;
+  font-size: 18px;
+}
+
+.net-input-pad{
+  padding-left: 42px !important;
+  padding-right: 46px !important; /* space for toggle button */
+}
+
+/* Password toggle */
+.net-pass-toggle{
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 12px;
+  padding: .35rem .55rem;
+}
+
+/* Banner style */
+.net-banner{
+  border-radius: 14px;
+  border: 1px solid rgba(0,131,143,.12);
+  box-shadow: 0 12px 30px rgba(0,0,0,.06);
+}
+
+/* Helper card */
+.net-helper{
+  background: rgba(255,255,255,.80);
+  border: 1px solid rgba(0,131,143,.12);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.05);
+}
+
+/* Pop-in animation (Figma feel) */
+.net-pop{
+  animation: netPop .55s ease both;
+}
+@keyframes netPop{
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Stagger effect (tiny delay for nicer load) */
+.net-pop:nth-of-type(2){ animation-delay: .05s; }
+.net-pop:nth-of-type(3){ animation-delay: .10s; }
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce){
+  .net-pop{ animation: none !important; }
+}
+
 
 /* =========================================================
    5) dashboard.html (Dashboard + Drawer)
@@ -862,4 +927,129 @@ header.net-topbar .btn-outline-light{
 }
 header.net-topbar .btn-outline-light:hover{
   background: rgba(255,255,255,.15) !important;
+}
+
+/* =========================================================
+   Shared (All Pages): Modern Popup Toast (showPopup)
+   - Sleek, on-brand, mobile friendly
+   - Reduced-motion safe
+========================================================= */
+
+.net-toast{
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  width: min(520px, calc(100% - 24px));
+  border-radius: 16px;
+  border: 1px solid rgba(0,131,143,.14);
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 18px 55px rgba(0,0,0,.14);
+  cursor: pointer;
+}
+
+.net-toast-inner{
+  display: grid;
+  grid-template-columns: 44px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px;
+}
+
+.net-toast-text{
+  font-weight: 700;
+  color: #0b3b40;
+  line-height: 1.25;
+  font-size: .95rem;
+}
+
+.net-toast-close{
+  border: 0;
+  background: transparent;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: rgba(17,24,39,.65);
+}
+.net-toast-close:hover{
+  background: rgba(0,0,0,.05);
+}
+
+/* Icon bubble */
+.net-toast-icon{
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  box-shadow: 0 12px 26px rgba(0,0,0,.10);
+  position: relative;
+}
+
+/* Type colouring (success/error/info) */
+.net-toast[data-type="success"] .net-toast-icon{
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+}
+.net-toast[data-type="success"] .net-toast-icon::before{
+  content: "✓";
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.net-toast[data-type="error"] .net-toast-icon{
+  background: linear-gradient(135deg, #ef4444, #f97316);
+}
+.net-toast[data-type="error"] .net-toast-icon::before{
+  content: "!";
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.net-toast[data-type="info"] .net-toast-icon{
+  background: linear-gradient(135deg, #0ea5a0, #22c55e);
+}
+.net-toast[data-type="info"] .net-toast-icon::before{
+  content: "i";
+  font-weight: 900;
+  font-size: 18px;
+}
+
+/* Entrance / exit animations */
+.net-toast-enter{
+  animation: netToastIn .24s ease both;
+}
+.net-toast-exit{
+  animation: netToastOut .22s ease both;
+}
+@keyframes netToastIn{
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.985); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+@keyframes netToastOut{
+  from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.985); }
+}
+
+/* Mobile: slightly lower + wider text area */
+@media (max-width: 575.98px){
+  .net-toast{
+    top: 12px;
+  }
+  .net-toast-text{
+    font-size: .92rem;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .net-toast-enter,
+  .net-toast-exit{
+    animation: none !important;
+  }
 }
