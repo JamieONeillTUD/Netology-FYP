@@ -6,28 +6,24 @@ Date: 10/11/2025
 
 JavaScript
 ---------------------------------------
-dashboard.js – Netology Dashboard (Modern)
+dashboard.js – Netology Dashboard (Sidebar Layout)
 
-Purpose:
-- Loads user info and renders a modern dashboard UI
-- Shows:
-  - Welcome name
-  - Level + rank + XP progress
-  - Continue learning card
-  - Course grid with locks + progress bars
-  - Filters (search + difficulty chips)
-- Hamburger drawer navigation + logout
+Updates added (per your request):
+- Top nav centered brand click rule:
+  - Signed in (localStorage.user.email exists) -> reload dashboard.html
+  - Not signed in -> go to index.html
+- Top right user dropdown:
+  - Shows user name in #userDropdownName and #userDropdownName_m
+  - Logout buttons in dropdown: #logoutBtnTop and #logoutBtnTop_m
+- Logout now works from:
+  - Sidebar logout (#logoutBtn, #logoutBtn_m)
+  - Top dropdown logout (#logoutBtnTop, #logoutBtnTop_m)
+- Keeps all your existing logic:
+  - stats, tier text, continue learning (fixed), courses render, filters, locking by required_level
 
-Backend routes used:
+Backend routes:
 - GET /user-info?email=
 - GET /user-courses?email=
-
-Notes:
-- Uses COURSE_CONTENT for difficulty + required_level
-- Uses localStorage.user.unlock_tier to unlock courses by tier:
-  novice | intermediate | advanced
-  (If missing, defaults to "novice")
-- Uses Bootstrap Icons only (no emojis)
 */
 
 // Safe: ensure API base is never undefined
@@ -38,21 +34,17 @@ let __dashState = {
   numericLevel: 1,
   rank: "Novice",
   xp: 0,
-
-  // unlock tier chosen at signup (does NOT change numeric level)
-  unlockTier: "novice",
-
-  // courses cached for filtering
   courses: [],
-  filter: {
-    q: "",
-    diff: "all"
-  }
+  filter: { q: "", diff: "all" }
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+  // Top-nav wiring (works even if user not logged in yet)
+  wireTopNav(user);
+
+  // If not signed in -> go login (dashboard is protected)
   if (!user.email) {
     window.location.href = "login.html";
     return;
@@ -60,22 +52,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   __dashState.email = user.email;
 
-  // Unlock tier stored on user object (we keep it flexible)
-  // Supports: user.unlock_tier OR user.unlock_level OR user.unlockTier
-  __dashState.unlockTier = String(user.unlock_tier || user.unlock_level || user.unlockTier || "novice")
-    .trim()
-    .toLowerCase();
-
-  if (!["novice", "intermediate", "advanced"].includes(__dashState.unlockTier)) {
-    __dashState.unlockTier = "novice";
-  }
-
-  wireMenu();
+  // Wire UI
   wireFilters();
+  wireLogout();
 
-  const name = user.first_name || user.username || "Student";
-  setText("welcomeName", name);
+  // Names
+  const displayName = user.first_name || user.username || "Student";
 
+  setText("welcomeName", displayName);
+
+  // Sidebar user box
+  setText("sideName", displayName);
+  setText("sideEmail", user.email);
+  setText("sideName_m", displayName);
+  setText("sideEmail_m", user.email);
+
+  // Top dropdown name
+  setText("userDropdownName", displayName);
+  setText("userDropdownName_m", displayName);
+
+  // Load data
   await loadUserStats(user.email);
   await loadUserCourses(user.email);
 
@@ -83,44 +79,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 /* =========================================================
-   HAMBURGER MENU
+   TOP NAV (brand click + user dropdown)
+   - brand: logged in -> dashboard.html, logged out -> index.html
 ========================================================= */
-function wireMenu() {
-  const menuBtn = document.getElementById("menuBtn");
-  const closeBtn = document.getElementById("closeMenuBtn");
-  const drawer = document.getElementById("drawer");
-  const backdrop = document.getElementById("drawerBackdrop");
+function wireTopNav(user) {
+  const brand = document.getElementById("brandLink");
+  const brandM = document.getElementById("brandLink_m");
+
+  const onBrandClick = (e) => {
+    e.preventDefault();
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    if (u && u.email) {
+      // Signed in -> reload dashboard
+      window.location.href = "dashboard.html";
+    } else {
+      // Not signed in -> go landing
+      window.location.href = "index.html";
+    }
+  };
+
+  brand?.addEventListener("click", onBrandClick);
+  brandM?.addEventListener("click", onBrandClick);
+
+  // If user object passed in (sometimes empty), best-effort set dropdown names early
+  const displayName = (user && (user.first_name || user.username)) ? (user.first_name || user.username) : "Student";
+  setText("userDropdownName", displayName);
+  setText("userDropdownName_m", displayName);
+}
+
+/* =========================================================
+   LOGOUT (desktop + mobile + top dropdown)
+========================================================= */
+function wireLogout() {
   const logoutBtn = document.getElementById("logoutBtn");
+  const logoutBtnM = document.getElementById("logoutBtn_m");
 
-  if (!drawer || !backdrop) return;
+  const logoutBtnTop = document.getElementById("logoutBtnTop");
+  const logoutBtnTopM = document.getElementById("logoutBtnTop_m");
 
-  function openMenu() {
-    drawer.classList.add("open");
-    backdrop.classList.remove("d-none");
-    drawer.setAttribute("aria-hidden", "false");
-    if (menuBtn) menuBtn.setAttribute("aria-expanded", "true");
-  }
-
-  function closeMenu() {
-    drawer.classList.remove("open");
-    backdrop.classList.add("d-none");
-    drawer.setAttribute("aria-hidden", "true");
-    if (menuBtn) menuBtn.setAttribute("aria-expanded", "false");
-  }
-
-  menuBtn?.addEventListener("click", openMenu);
-  closeBtn?.addEventListener("click", closeMenu);
-  backdrop?.addEventListener("click", closeMenu);
-
-  // ESC closes menu (accessibility)
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeMenu();
-  });
-
-  logoutBtn?.addEventListener("click", () => {
+  const doLogout = () => {
     localStorage.removeItem("user");
     window.location.href = "login.html";
-  });
+  };
+
+  logoutBtn?.addEventListener("click", doLogout);
+  logoutBtnM?.addEventListener("click", doLogout);
+  logoutBtnTop?.addEventListener("click", doLogout);
+  logoutBtnTopM?.addEventListener("click", doLogout);
 }
 
 /* =========================================================
@@ -143,22 +148,6 @@ function wireFilters() {
       renderCourses();
     });
   });
-}
-
-function renderLockNote() {
-  const lockNote = document.getElementById("lockNote");
-  if (!lockNote) return;
-
-  const t = __dashState.unlockTier;
-  if (t === "advanced") {
-    lockNote.textContent = "You have unlocked Novice, Intermediate and Advanced content.";
-  } else if (t === "intermediate") {
-    lockNote.textContent = "You have unlocked Novice and Intermediate content. Advanced remains locked.";
-  } else {
-    lockNote.textContent = "You have unlocked Novice content. Intermediate and Advanced remain locked.";
-  }
-
-  setText("unlockText", `Unlock tier: ${cap(t)}`);
 }
 
 /* =========================================================
@@ -184,10 +173,9 @@ async function loadUserStats(email) {
       xpNext = calc.xpNext;
     }
 
-    // Rank: prefer backend rank/level if it’s valid, else compute
+    // Rank: prefer backend if valid, else compute
     let rank = String(data.rank || data.level || "").trim();
     const computedRank = __rankFromNumericLevel(numericLevel);
-
     if (!rank) rank = computedRank;
     else {
       const low = rank.toLowerCase();
@@ -202,6 +190,7 @@ async function loadUserStats(email) {
     __dashState.rank = rank;
     __dashState.xp = totalXp;
 
+    // Sidebar + stats
     setText("levelText", String(numericLevel));
     setText("xpText", String(totalXp));
     setText("xpNextText", `${xpInto} / ${xpNext}`);
@@ -216,14 +205,37 @@ async function loadUserStats(email) {
       rankBadge.className = `badge ${rankBadgeClass(rank)} border`;
     }
 
-    // Stats grid values
+    // Stats tiles
     setText("statLevel", String(numericLevel));
     setText("statXp", String(totalXp));
     setText("statRank", `${rank} rank`);
 
+    // “Next tier unlocks in X levels”
+    const nextTier = nextTierText(numericLevel);
+    setText("unlockText", nextTier);
+    setText("unlockText_m", nextTier);
+
   } catch (e) {
     console.error("loadUserStats error:", e);
   }
+}
+
+function nextTierText(level) {
+  const lvl = Number(level || 1);
+
+  // Your rank mapping:
+  // L1-2 = Novice
+  // L3-4 = Intermediate
+  // L5+  = Advanced
+  if (lvl < 3) {
+    const left = 3 - lvl;
+    return `Next tier unlocks in ${left} level${left === 1 ? "" : "s"} (Intermediate).`;
+  }
+  if (lvl < 5) {
+    const left = 5 - lvl;
+    return `Next tier unlocks in ${left} level${left === 1 ? "" : "s"} (Advanced).`;
+  }
+  return "All tiers unlocked. Keep going for more XP.";
 }
 
 /* =========================================================
@@ -246,8 +258,9 @@ async function loadUserCourses(email) {
     __dashState.courses = Array.isArray(data.courses) ? data.courses : [];
 
     // Update stats: in progress + completed
-    const inProg = __dashState.courses.filter(c => c.status === "in-progress").length;
-    const comp = __dashState.courses.filter(c => c.status === "completed").length;
+    const inProg = __dashState.courses.filter(c => String(c.status).toLowerCase() === "in-progress").length;
+    const comp = __dashState.courses.filter(c => String(c.status).toLowerCase() === "completed").length;
+
     setText("statInProgress", String(inProg));
     setText("statCompleted", String(comp));
 
@@ -260,48 +273,52 @@ async function loadUserCourses(email) {
   }
 }
 
+/* =========================================================
+   CONTINUE LEARNING (FIXED)
+   - Prefers last opened if still unlocked
+   - Else first in-progress unlocked
+   - Else first unlocked
+   - Else shows locked message
+========================================================= */
 function renderContinue() {
   const continueBox = document.getElementById("continueBox");
   if (!continueBox) return;
 
-  const courses = __dashState.courses;
+  const courses = __dashState.courses || [];
   if (!courses.length) {
     continueBox.innerHTML = `
       <div class="net-empty">
         <div class="fw-semibold mb-1">No courses yet</div>
         <div class="small text-muted mb-3">Browse courses to begin your learning path.</div>
-        <a class="btn btn-teal btn-sm" href="courses.html" aria-label="Browse courses">Browse courses</a>
+        <a class="btn btn-teal btn-sm" href="courses.html" aria-label="Browse courses">
+          Browse courses <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+        </a>
       </div>
     `;
     return;
   }
 
-  // Prefer last selected course if still available
+  const lvl = Number(__dashState.numericLevel || 1);
   const lastId = localStorage.getItem("last_course_id");
+
+  const byId = (id) => courses.find(c => String(c.id) === String(id));
+  const unlocked = (c) => !isLockedByLevel(c.id, lvl).locked;
+
   let candidate =
-    (lastId && courses.find(c => String(c.id) === String(lastId))) ||
-    courses.find(c => c.status === "in-progress") ||
+    (lastId && byId(lastId) && unlocked(byId(lastId)) ? byId(lastId) : null) ||
+    courses.find(c => String(c.status).toLowerCase() === "in-progress" && unlocked(c)) ||
+    courses.find(c => unlocked(c)) ||
     courses[0];
 
-  // If candidate is locked by tier, find the first unlocked
-  if (candidate && isLockedByTier(candidate.id).locked) {
-    const unlocked = courses.find(c => !isLockedByTier(c.id).locked);
-    if (unlocked) candidate = unlocked;
-  }
-
-  if (!candidate) {
-    continueBox.textContent = "No courses available yet.";
-    return;
-  }
-
+  const lockInfo = isLockedByLevel(candidate.id, lvl);
   const meta = getCourseMeta(candidate.id);
-  const diff = (meta?.difficulty || "").toLowerCase();
-  const lockInfo = isLockedByTier(candidate.id);
-
+  const diff = String(meta?.difficulty || "").toLowerCase();
   const pct = Number(candidate.progress_pct || 0);
+
   const statusPill = statusBadge(candidate.status);
   const diffPill = difficultyBadge(diff);
 
+  // If locked, show why + required level
   if (lockInfo.locked) {
     continueBox.innerHTML = `
       <div class="net-continue-card">
@@ -318,48 +335,60 @@ function renderContinue() {
 
         <div class="net-lockline mt-3">
           <i class="bi bi-lock-fill me-2" aria-hidden="true"></i>
-          Locked — unlock by selecting <strong>${cap(lockInfo.requiredTier)}</strong> in signup.
+          Locked — unlocks at <strong>Level ${lockInfo.required}</strong>.
         </div>
 
         <div class="d-flex gap-2 flex-wrap mt-3">
-          <a class="btn btn-outline-secondary btn-sm" href="courses.html" aria-label="Browse courses">Browse courses</a>
-        </div>
-      </div>
-    `;
-  } else {
-    continueBox.innerHTML = `
-      <div class="net-continue-card">
-        <div class="d-flex align-items-start justify-content-between gap-2">
-          <div>
-            <div class="fw-semibold">${escapeHtml(candidate.title)}</div>
-            <div class="small text-muted mt-1">${escapeHtml(candidate.description || "")}</div>
-          </div>
-          <div class="d-flex gap-2 flex-wrap justify-content-end">
-            ${diffPill}
-            ${statusPill}
-          </div>
-        </div>
-
-        <div class="small text-muted mt-3 d-flex justify-content-between">
-          <span>Progress</span>
-          <span class="fw-semibold">${pct}%</span>
-        </div>
-
-        <div class="progress mt-1" style="height:10px;">
-          <div class="progress-bar net-progress" style="width:${clamp(pct, 0, 100)}%"></div>
-        </div>
-
-        <div class="d-flex gap-2 flex-wrap mt-3">
-          <a class="btn btn-teal btn-sm"
-             href="course.html?id=${encodeURIComponent(candidate.id)}"
-             aria-label="Continue course">
-            Continue
-            <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+          <a class="btn btn-outline-secondary btn-sm" href="courses.html" aria-label="Browse courses">
+            Browse courses
           </a>
         </div>
       </div>
     `;
+    return;
   }
+
+  // Unlocked
+  continueBox.innerHTML = `
+    <div class="net-continue-card">
+      <div class="d-flex align-items-start justify-content-between gap-2">
+        <div>
+          <div class="fw-semibold">${escapeHtml(candidate.title)}</div>
+          <div class="small text-muted mt-1">${escapeHtml(candidate.description || "")}</div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+          ${diffPill}
+          ${statusPill}
+        </div>
+      </div>
+
+      <div class="small text-muted mt-3 d-flex justify-content-between">
+        <span>Progress</span>
+        <span class="fw-semibold">${clamp(pct, 0, 100)}%</span>
+      </div>
+
+      <div class="progress mt-1" style="height:10px;">
+        <div class="progress-bar net-progress" style="width:${clamp(pct, 0, 100)}%"></div>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        <a class="btn btn-teal btn-sm"
+           href="course.html?id=${encodeURIComponent(candidate.id)}"
+           aria-label="Continue course"
+           data-course-open="1"
+           data-course-id="${escapeAttr(String(candidate.id))}">
+          Continue <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+        </a>
+      </div>
+    </div>
+  `;
+
+  // Save last opened
+  const link = continueBox.querySelector('[data-course-open="1"]');
+  link?.addEventListener("click", () => {
+    const id = link.getAttribute("data-course-id");
+    if (id) localStorage.setItem("last_course_id", id);
+  });
 }
 
 function renderCourses() {
@@ -368,14 +397,14 @@ function renderCourses() {
 
   const q = __dashState.filter.q;
   const diffFilter = __dashState.filter.diff;
+  const lvl = Number(__dashState.numericLevel || 1);
 
   const items = (__dashState.courses || []).filter((c) => {
     const meta = getCourseMeta(c.id);
     const diff = String(meta?.difficulty || "").toLowerCase();
-
     const text = `${c.title || ""} ${c.description || ""}`.toLowerCase();
-    const matchQ = !q || text.includes(q);
 
+    const matchQ = !q || text.includes(q);
     const matchDiff = (diffFilter === "all") || (diff === diffFilter);
     return matchQ && matchDiff;
   });
@@ -399,7 +428,7 @@ function renderCourses() {
     const diff = String(meta?.difficulty || "").toLowerCase();
     const pct = Number(c.progress_pct || 0);
 
-    const lockInfo = isLockedByTier(c.id);
+    const lockInfo = isLockedByLevel(c.id, lvl);
     const locked = lockInfo.locked;
 
     const statusPill = statusBadge(c.status);
@@ -415,7 +444,7 @@ function renderCourses() {
             data-course-open="1"
             data-course-id="${escapeAttr(String(c.id))}"
             aria-label="Open course">
-           ${c.status === "completed" ? "Review" : (pct > 0 ? "Continue" : "Start")}
+           ${String(c.status).toLowerCase() === "completed" ? "Review" : (pct > 0 ? "Continue" : "Start")}
            <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
          </a>`;
 
@@ -423,7 +452,7 @@ function renderCourses() {
       <div class="net-course-lock" aria-hidden="true">
         <div class="net-course-lock-inner">
           <i class="bi bi-lock-fill me-2"></i>
-          Unlock tier: <strong>${cap(lockInfo.requiredTier)}</strong>
+          Unlocks at <strong>Level ${lockInfo.required}</strong>
         </div>
       </div>
     ` : "";
@@ -479,44 +508,30 @@ function renderCourses() {
   });
 }
 
-/* =========================================================
-   COURSE META + LOCKING (by unlock tier, NOT numeric level)
-========================================================= */
+function renderLockNote() {
+  const lockNote = document.getElementById("lockNote");
+  if (!lockNote) return;
+  lockNote.textContent = "Locked courses appear grey until you reach the required level.";
+}
 
-/*
-AI PROMPTED CODE BELOW:
-"Can you read COURSE_CONTENT and use difficulty to lock courses,
-but lock based on the user's chosen unlock tier instead of XP level?"
-*/
+/* =========================================================
+   COURSE META + LOCKING (by required_level)
+========================================================= */
 function getCourseMeta(courseId) {
   if (typeof COURSE_CONTENT === "undefined") return null;
   return COURSE_CONTENT[String(courseId)] || null;
 }
 
-function tierRank(tier) {
-  const t = String(tier || "").toLowerCase();
-  if (t === "advanced") return 3;
-  if (t === "intermediate") return 2;
-  return 1; // novice/default
-}
-
-function isLockedByTier(courseId) {
+function isLockedByLevel(courseId, userLevel) {
   const meta = getCourseMeta(courseId);
+  if (!meta) return { locked: false, required: 1 };
 
-  // If no metadata exists, treat as unlocked
-  if (!meta) return { locked: false, requiredTier: "novice" };
-
-  const diff = String(meta.difficulty || "novice").toLowerCase();
-  const requiredTier = (diff === "advanced" ? "advanced" : (diff === "intermediate" ? "intermediate" : "novice"));
-
-  const userTier = __dashState.unlockTier;
-  const locked = tierRank(userTier) < tierRank(requiredTier);
-
-  return { locked, requiredTier };
+  const required = Number(meta.required_level || 1);
+  return { locked: Number(userLevel) < required, required };
 }
 
 /* =========================================================
-   BADGES / UI HELPERS (Bootstrap Icons, no emojis)
+   BADGES (Bootstrap Icons only)
 ========================================================= */
 function difficultyBadge(difficulty) {
   const d = String(difficulty || "").toLowerCase();
@@ -573,12 +588,9 @@ function rankBadgeClass(rank) {
 ========================================================= */
 function __calcLevelFromXp(totalXp) {
   const xp = Math.max(0, Number(totalXp || 0));
-
-  // Rule: Level thresholds are 100, 200, 300... total XP
   const numericLevel = Math.floor(xp / 100) + 1;
   const xpInto = xp % 100;
   const xpNext = 100;
-
   return { numericLevel, xpInto, xpNext };
 }
 
@@ -595,11 +607,6 @@ function __rankFromNumericLevel(numericLevel) {
 function setText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = String(text ?? "");
-}
-
-function cap(str) {
-  const s = String(str || "");
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
 function clamp(n, min, max) {
