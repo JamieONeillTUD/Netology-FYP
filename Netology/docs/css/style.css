@@ -716,6 +716,185 @@ input:focus-visible{
 
 
 /* =========================================================
+   signup.html (Auth Wizard – Figma-inspired)
+========================================================= */
+
+.net-step-pill{
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: .85rem;
+  border: 1px solid rgba(0,131,143,.16);
+  background: rgba(255,255,255,.8);
+  color: rgba(11,59,64,.7);
+  margin-left: 6px;
+}
+.net-step-pill.is-active{
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 12px 26px rgba(15,185,177,.22);
+}
+.net-step-pill.is-done{
+  background: rgba(15,185,177,.10);
+  color: #0b3b40;
+  border-color: rgba(0,131,143,.20);
+}
+
+/* Wizard pages: subtle motion */
+.net-step-page{
+  animation: netWizardIn .32s ease both;
+}
+@keyframes netWizardIn{
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce){
+  .net-step-page{ animation: none !important; }
+}
+
+/* Choice cards (radio) */
+.net-choice-card{
+  cursor: pointer;
+  display: block;
+  border-radius: 18px;
+  border: 1px solid rgba(0,131,143,.14);
+  background: rgba(255,255,255,.88);
+  box-shadow: 0 12px 30px rgba(0,0,0,.05);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+.net-choice-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(0,0,0,.07);
+  border-color: rgba(0,131,143,.22);
+}
+.net-choice-input{
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+.net-choice-body{
+  padding: 16px;
+}
+.net-choice-top{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.net-choice-ico{
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: #0ea5a0;
+  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(32,191,107,.10));
+  border: 1px solid rgba(0,131,143,.12);
+  font-size: 18px;
+}
+.net-choice-tag{
+  font-weight: 800;
+  font-size: .85rem;
+  color: #0b3b40;
+  background: rgba(255,255,255,.85);
+  border: 1px solid rgba(0,131,143,.14);
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+/* Selected radio visual */
+.net-choice-card:has(.net-choice-input:checked){
+  border-color: rgba(15,185,177,.55);
+  box-shadow: 0 18px 55px rgba(15,185,177,.14);
+}
+
+/* Checkbox cards */
+.net-check-card{
+  cursor: pointer;
+  display: block;
+  border-radius: 18px;
+  border: 1px solid rgba(0,131,143,.14);
+  background: rgba(255,255,255,.88);
+  box-shadow: 0 12px 30px rgba(0,0,0,.05);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+.net-check-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(0,0,0,.07);
+  border-color: rgba(0,131,143,.22);
+}
+.net-check-input{
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+.net-check-body{
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.net-check-ico{
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: #0ea5a0;
+  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(32,191,107,.10));
+  border: 1px solid rgba(0,131,143,.12);
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+/* Selected checkbox visual */
+.net-check-card:has(.net-check-input:checked){
+  border-color: rgba(15,185,177,.55);
+  box-shadow: 0 18px 55px rgba(15,185,177,.14);
+}
+
+/* Ensure toggle buttons sit nicely on inputs */
+.net-pass-toggle{
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 12px;
+  padding: .35rem .55rem;
+}
+
+/* ---------------------------------------
+   forgot.html – Reset password styles
+---------------------------------------- */
+.net-success-badge{
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #20bf6b, #0fb9b1);
+  display:grid;
+  place-items:center;
+  color:#fff;
+  font-size: 34px;
+  box-shadow: 0 18px 45px rgba(32,191,107,.22);
+}
+
+.net-info-box{
+  background: rgba(13, 148, 136, .08);
+  border: 1px solid rgba(13, 148, 136, .18);
+  color: #0b3b40;
+}
+
+/* =========================================================
    5) dashboard.html (Dashboard + Drawer)
 ========================================================= */
 
