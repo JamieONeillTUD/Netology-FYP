@@ -1,172 +1,468 @@
 <!doctype html>
+<!--
+Student Number: C22320301
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 10/11/2025
+
+HTML
+---------------------------------------
+index.html – Netology Landing Page (Modern UI)
+
+Purpose:
+- First page users see (marketing + entry point)
+- Routes users to Sign Up / Login / Sandbox / Courses / Dashboard
+- Shows backend status (Render API) so users know if the platform is online
+
+Key Features:
+- Sticky glass navigation bar (brand links back to index.html)
+- Modern hero section inspired by Figma AI demo (Bootstrap + custom CSS)
+- “Progress preview” card to demonstrate XP / leveling system
+- Stats strip + learning cycle timeline + features section + CTA
+- Accessibility improvements (ARIA labels, focus-visible, reduced-motion safe)
+- Uses js/index.js for backend health check + optional tilt effect
+-->
+
 <html lang="en">
   <head>
+    <!-- Meta -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Netology</title>
 
+    <!-- Title -->
+    <title>Netology – Learn Networking The Fun Way</title>
+
+    <!--
+      Backend API Base
+      - This points frontend requests to our deployed Flask backend on Render.
+      - Used by js/index.js to perform a lightweight health check.
+    -->
     <script>
       window.API_BASE = "https://netology-fyp.onrender.com";
     </script>
 
+    <!-- Config (shared) -->
     <script src="js/config.js"></script>
 
+    <!-- Bootstrap (UI framework) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+
+    <!-- Bootstrap Icons (replaces lucide icons / emoji) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Netology stylesheet -->
     <link rel="stylesheet" href="css/style.css" />
   </head>
 
   <body class="net-bg net-landing">
-    <header class="net-topbar net-landing-topbar" role="banner">
+    <!-- =========================================================
+         TOP BAR / NAVIGATION
+         - Sticky glass effect
+         - Brand links back to index.html (home)
+    ========================================================== -->
+    <header class="net-topbar net-landing-topbar net-navglass sticky-top" role="banner">
       <div class="container d-flex align-items-center justify-content-between gap-3 py-3">
-        <div class="d-flex align-items-center gap-3">
+        <!-- Brand -->
+        <a
+          href="index.html"
+          class="d-flex align-items-center gap-3 text-decoration-none"
+          aria-label="Netology home"
+        >
           <div class="net-logo" aria-hidden="true"></div>
           <div>
             <div class="net-brand">Netology</div>
-            <div class="net-subtitle small">Courses - Quizzes - Sandbox challenges</div>
+            <div class="net-subtitle small">Courses • Quizzes • Sandbox challenges</div>
           </div>
-        </div>
+        </a>
 
-        <div class="d-flex gap-2">
-          <a class="btn btn-outline-light btn-sm" href="signup.html">Sign up</a>
-          <a class="btn btn-light btn-sm" href="login.html">Login</a>
-        </div>
+        <!-- Primary actions -->
+        <nav class="d-flex gap-2" aria-label="Primary actions">
+          <a
+            class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
+            href="login.html"
+            aria-label="Sign in to Netology"
+          >
+            <i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i> Sign In
+          </a>
+
+          <a
+            class="btn btn-light btn-sm fw-semibold d-inline-flex align-items-center"
+            href="signup.html"
+            aria-label="Create a free Netology account"
+          >
+            <i class="bi bi-rocket-takeoff me-1" aria-hidden="true"></i> Get Started Free
+          </a>
+        </nav>
       </div>
     </header>
 
-    <main class="container py-5" role="main">
-      <div class="row align-items-center g-4">
-        <div class="col-lg-6">
-          <div class="net-hero p-4 p-md-5 fade-in-up">
-            <div class="net-pill mb-3">
-              <span class="dot"></span>
-              <span class="text-white">Learn fast • Practice • Build real topologies</span>
-            </div>
-
-            <h1 class="display-6 fw-bold mb-3 text-white">
-              Learn Networking <span class="net-hero-accent">the practical way</span>.
-            </h1>
-
-            <p class="mb-4 text-white" style="opacity:.92;">
-              Netology teaches networking like Khan Academy / Codecademy:
-              short lessons → quick quizzes → sandbox challenges. Earn XP, level up, and unlock harder courses.
-            </p>
-
-            <div class="d-flex gap-2 flex-wrap">
-              <a class="btn btn-light btn-lg" href="signup.html">Get started</a>
-              <a class="btn btn-outline-light btn-lg" href="login.html">I already have an account</a>
-              <a class="btn btn-outline-light btn-lg" href="sandbox.html">Open sandbox</a>
-            </div>
-
-            <div class="d-flex align-items-center gap-3 mt-4 small text-white" style="opacity:.9;">
-              <div class="d-flex align-items-center gap-2">
-                <span class="net-status-dot" id="apiDot" aria-hidden="true"></span>
-                <span>Backend:</span>
-                <span class="fw-semibold" id="apiStatus">Checking…</span>
+    <main role="main">
+      <!-- =========================================================
+           HERO SECTION
+           - Figma-style copy, layout, gradients, and preview card
+           - Buttons route to signup/login/sandbox
+           - Backend status indicator kept for index.js
+      ========================================================== -->
+      <section class="container py-5 py-lg-6">
+        <div class="row align-items-center g-4 g-lg-5">
+          <!-- Left: copy + CTAs -->
+          <div class="col-lg-6">
+            <div class="net-hero-plain fade-in-up">
+              <!-- Highlight pill -->
+              <div class="net-pill mb-3" role="note" aria-label="Platform highlight">
+                <i class="bi bi-stars me-2" aria-hidden="true"></i>
+                <span class="fw-semibold">Master Computer Networking Through Play</span>
               </div>
-              <span class="net-divider" aria-hidden="true"></span>
-              <span>Unlock courses by leveling up</span>
-            </div>
-          </div>
-        </div>
 
-        <div class="col-lg-6">
-          <div class="net-hero-visual fade-in-up" id="heroVisual">
-            <div class="net-visual-card">
-              <div class="net-visual-grid" aria-hidden="true"></div>
+              <!-- Headline -->
+              <h1 class="display-5 fw-bold mb-3 text-dark">
+                Learn Networking
+                <span class="d-block net-gradient-text">The Fun Way</span>
+              </h1>
 
-              <div class="net-visual-content">
-                <div class="net-visual-title">Sandbox Challenge Preview</div>
-                <div class="text-muted small mb-3">
-                  Place devices, connect links, configure IPs, validate challenges.
+              <!-- Description -->
+              <p class="lead text-muted mb-4" style="max-width: 42rem;">
+                Netology teaches networking like Khan Academy / Codecademy:
+                short lessons → quick quizzes → sandbox challenges. Earn XP, level up,
+                and unlock harder courses.
+              </p>
+
+              <!-- Buttons -->
+              <div class="d-flex gap-2 gap-sm-3 flex-wrap">
+                <a
+                  class="btn btn-teal btn-lg net-btn-shadow d-inline-flex align-items-center"
+                  href="signup.html"
+                  aria-label="Start learning by creating an account"
+                >
+                  Start Learning Now
+                  <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
+                </a>
+
+                <a
+                  class="btn btn-outline-secondary btn-lg d-inline-flex align-items-center"
+                  href="login.html"
+                  aria-label="Go to sign in"
+                >
+                  I already have an account
+                </a>
+
+                <a
+                  class="btn btn-outline-secondary btn-lg d-inline-flex align-items-center"
+                  href="sandbox.html"
+                  aria-label="Open the network sandbox"
+                >
+                  <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>
+                  Open Sandbox
+                </a>
+              </div>
+
+              <!-- Backend status (IDs used by js/index.js) -->
+              <div class="d-flex align-items-center gap-3 mt-4 small text-muted">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="net-status-dot" id="apiDot" aria-hidden="true"></span>
+                  <span>Backend:</span>
+                  <span class="fw-semibold" id="apiStatus">Checking…</span>
                 </div>
+                <span class="net-divider" aria-hidden="true"></span>
+                <span>Unlock courses by leveling up</span>
+              </div>
 
-                <div class="net-mini-topology" aria-hidden="true">
-                  <div class="node node-router floaty" style="left: 12%; top: 18%;">Router</div>
-                  <div class="node node-switch floaty" style="left: 44%; top: 38%;">Switch</div>
-                  <div class="node node-pc floaty" style="left: 72%; top: 18%;">PC</div>
-                  <div class="node node-pc floaty" style="left: 72%; top: 62%;">PC</div>
-
-                  <div class="wire wire-a"></div>
-                  <div class="wire wire-b"></div>
-                  <div class="wire wire-c"></div>
+              <!-- Social proof (simple placeholder avatars) -->
+              <div class="d-flex align-items-center gap-3 mt-4">
+                <div class="net-avatars" aria-hidden="true">
+                  <span class="net-avatar">A</span>
+                  <span class="net-avatar">B</span>
+                  <span class="net-avatar">C</span>
+                  <span class="net-avatar">D</span>
                 </div>
-
-                <div class="net-feature-row">
-                  <div class="net-feature">
-                    <div class="net-feature-icon">XP</div>
-                    <div>
-                      <div class="fw-semibold">Earn XP</div>
-                      <div class="text-muted small">Lessons & quizzes</div>
-                    </div>
-                  </div>
-                  <div class="net-feature">
-                    <div class="net-feature-icon">LV</div>
-                    <div>
-                      <div class="fw-semibold">Level up</div>
-                      <div class="text-muted small">Unlock advanced</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="mt-3 d-flex gap-2">
-                  <a class="btn btn-teal btn-sm" href="courses.html">Browse courses</a>
-                  <a class="btn btn-outline-secondary btn-sm" href="dashboard.html">Go to dashboard</a>
+                <div class="small text-muted">
+                  Join <span class="fw-semibold text-teal">1,000+</span> students building confidence in networking.
                 </div>
               </div>
             </div>
+          </div>
 
-            <div class="blob blob-1" aria-hidden="true"></div>
-            <div class="blob blob-2" aria-hidden="true"></div>
-          </div>
-        </div>
-      </div>
+          <!-- Right: “Preview” progress card -->
+          <div class="col-lg-6">
+            <div class="net-hero-visual-modern fade-in-up" aria-label="Netology preview card">
+              <div class="net-hero-card position-relative">
+                <div class="net-float-badge" aria-hidden="true">
+                  <i class="bi bi-trophy-fill"></i>
+                </div>
 
-      <section class="mt-5">
-        <div class="row g-4">
-          <div class="col-md-4">
-            <div class="net-card p-4 h-100 net-lift">
-              <div class="net-kicker">Learn</div>
-              <div class="h5 text-teal mb-2">Short, focused lessons</div>
-              <p class="text-muted mb-0">Understand IPs, subnetting, switching and routing in bite-sized steps.</p>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="net-card p-4 h-100 net-lift">
-              <div class="net-kicker">Practice</div>
-              <div class="h5 text-teal mb-2">Quizzes that reward XP</div>
-              <p class="text-muted mb-0">Check your understanding instantly and earn XP as you progress.</p>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="net-card p-4 h-100 net-lift">
-              <div class="net-kicker">Build</div>
-              <div class="h5 text-teal mb-2">Interactive sandbox</div>
-              <p class="text-muted mb-0">Create topologies, connect devices, configure IP settings, and validate challenges.</p>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div class="small text-muted">Your progress</div>
+                  <div class="small fw-bold text-teal">Level 5</div>
+                </div>
+
+                <div class="progress" style="height: 12px;" aria-label="Progress bar">
+                  <div class="progress-bar net-progress" style="width:65%"></div>
+                </div>
+
+                <div class="d-flex justify-content-between small text-muted mt-2">
+                  <span>XP</span><span class="fw-semibold">65 / 100</span>
+                </div>
+
+                <div class="vstack gap-3 mt-4">
+                  <div class="net-mini-row">
+                    <div class="net-mini-ico" aria-hidden="true"><i class="bi bi-journal-check"></i></div>
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold">Courses completed</div>
+                      <div class="small text-muted">3 / 12</div>
+                    </div>
+                    <div class="fw-bold text-teal">3</div>
+                  </div>
+
+                  <div class="net-mini-row">
+                    <div class="net-mini-ico" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></div>
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold">XP earned</div>
+                      <div class="small text-muted">Total XP</div>
+                    </div>
+                    <div class="fw-bold text-teal">1,250</div>
+                  </div>
+
+                  <div class="net-mini-row">
+                    <div class="net-mini-ico" aria-hidden="true"><i class="bi bi-award-fill"></i></div>
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold">Badges unlocked</div>
+                      <div class="small text-muted">Achievements</div>
+                    </div>
+                    <div class="fw-bold text-teal">8 / 30</div>
+                  </div>
+                </div>
+
+                <div class="mt-4 d-flex gap-2 flex-wrap">
+                  <a class="btn btn-teal btn-sm" href="courses.html" aria-label="Browse all courses">
+                    Browse courses
+                  </a>
+                  <a class="btn btn-outline-secondary btn-sm" href="dashboard.html" aria-label="Go to your dashboard">
+                    Go to dashboard
+                  </a>
+                </div>
+              </div>
+
+              <!-- Decorative blobs -->
+              <div class="blob blob-1" aria-hidden="true"></div>
+              <div class="blob blob-2" aria-hidden="true"></div>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="mt-5">
-        <div class="net-card p-4 p-md-5 net-cta net-lift">
-          <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-              <div class="h4 mb-1 text-teal fw-bold">Ready to start learning?</div>
-              <div class="text-muted">Create an account and begin at Novice — unlock your way to Advanced.</div>
+      <!-- =========================================================
+           STATS STRIP
+           - Quick credibility + overview of content volume
+      ========================================================== -->
+      <section class="net-strip py-4 py-lg-5 border-top border-bottom" aria-label="Platform statistics">
+        <div class="container">
+          <div class="row g-3 text-center">
+            <div class="col-6 col-md-3">
+              <div class="net-statbox">
+                <div class="net-statico" aria-hidden="true"><i class="bi bi-book"></i></div>
+                <div class="h3 fw-bold mb-0">15+</div>
+                <div class="small text-muted">Courses</div>
+              </div>
             </div>
-            <div class="d-flex gap-2">
-              <a class="btn btn-teal btn-lg" href="signup.html">Sign up</a>
-              <a class="btn btn-outline-secondary btn-lg" href="login.html">Login</a>
+
+            <div class="col-6 col-md-3">
+              <div class="net-statbox">
+                <div class="net-statico" aria-hidden="true"><i class="bi bi-bullseye"></i></div>
+                <div class="h3 fw-bold mb-0">100+</div>
+                <div class="small text-muted">Lessons</div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="net-statbox">
+                <div class="net-statico" aria-hidden="true"><i class="bi bi-puzzle"></i></div>
+                <div class="h3 fw-bold mb-0">50+</div>
+                <div class="small text-muted">Challenges</div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="net-statbox">
+                <div class="net-statico" aria-hidden="true"><i class="bi bi-trophy"></i></div>
+                <div class="h3 fw-bold mb-0">30+</div>
+                <div class="small text-muted">Achievements</div>
+              </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           LEARNING CYCLE (Timeline)
+           - Mirrors the “learning loop” section from the Figma AI demo
+      ========================================================== -->
+      <section class="container py-5 py-lg-6" aria-label="Netology learning cycle">
+        <div class="text-center mb-4 mb-lg-5">
+          <h2 class="display-6 fw-bold mb-2">The Netology Learning Cycle</h2>
+          <p class="lead text-muted mx-auto" style="max-width: 860px;">
+            A simple system that takes you from confusion to mastery:
+            learn → quiz → build → track → repeat.
+          </p>
+        </div>
+
+        <div class="net-timeline">
+          <div class="net-timeline-item">
+            <div class="net-timeline-dot" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="net-timeline-card">
+              <div class="small text-muted">Step 1</div>
+              <div class="h5 fw-bold mb-1">Feeling stuck?</div>
+              <div class="text-muted">Subnetting, routing, and protocols can be hard at first.</div>
+            </div>
+          </div>
+
+          <div class="net-timeline-item">
+            <div class="net-timeline-dot" aria-hidden="true"><i class="bi bi-lightbulb-fill"></i></div>
+            <div class="net-timeline-card">
+              <div class="small text-muted">Step 2</div>
+              <div class="h5 fw-bold mb-1">Interactive learning</div>
+              <div class="text-muted">Short lessons and quick checks keep learning smooth.</div>
+            </div>
+          </div>
+
+          <div class="net-timeline-item">
+            <div class="net-timeline-dot" aria-hidden="true"><i class="bi bi-diagram-3-fill"></i></div>
+            <div class="net-timeline-card">
+              <div class="small text-muted">Step 3</div>
+              <div class="h5 fw-bold mb-1">Practice & build</div>
+              <div class="text-muted">Build topologies in the sandbox and solve challenges.</div>
+            </div>
+          </div>
+
+          <div class="net-timeline-item">
+            <div class="net-timeline-dot" aria-hidden="true"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="net-timeline-card">
+              <div class="small text-muted">Step 4</div>
+              <div class="h5 fw-bold mb-1">Track progress</div>
+              <div class="text-muted">Earn XP for lessons/quizzes/challenges and level up.</div>
+            </div>
+          </div>
+
+          <div class="net-timeline-item">
+            <div class="net-timeline-dot" aria-hidden="true"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="net-timeline-card">
+              <div class="small text-muted">Step 5</div>
+              <div class="h5 fw-bold mb-1">Become confident</div>
+              <div class="text-muted">Build practical skills you can apply in real networks.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           FEATURES (Gradient section)
+           - High contrast cards with Bootstrap icons
+      ========================================================== -->
+      <section class="net-features py-5 py-lg-6" aria-label="Platform features">
+        <div class="container">
+          <div class="text-center mb-4 mb-lg-5">
+            <h2 class="display-6 fw-bold text-white mb-2">Everything You Need to Master Networking</h2>
+            <p class="lead text-white-50 mx-auto" style="max-width: 860px;">
+              A modern learning experience focused on outcomes, confidence, and real practice.
+            </p>
+          </div>
+
+          <div class="row g-3 g-lg-4">
+            <div class="col-md-6 col-lg-4">
+              <div class="net-feature-card">
+                <div class="net-feature-ico" aria-hidden="true"><i class="bi bi-book-half"></i></div>
+                <div class="h5 fw-bold text-white mb-1">Interactive Courses</div>
+                <div class="text-white-50">Step-by-step lessons from fundamentals to advanced protocols.</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+              <div class="net-feature-card">
+                <div class="net-feature-ico" aria-hidden="true"><i class="bi bi-puzzle-fill"></i></div>
+                <div class="h5 fw-bold text-white mb-1">Hands-on Challenges</div>
+                <div class="text-white-50">Apply your learning with realistic networking tasks.</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+              <div class="net-feature-card">
+                <div class="net-feature-ico" aria-hidden="true"><i class="bi bi-diagram-3"></i></div>
+                <div class="h5 fw-bold text-white mb-1">Network Sandbox</div>
+                <div class="text-white-50">Build and simulate networks in a Packet Tracer-inspired environment.</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+              <div class="net-feature-card">
+                <div class="net-feature-ico" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></div>
+                <div class="h5 fw-bold text-white mb-1">XP & Progression</div>
+                <div class="text-white-50">Earn XP for activities and unlock harder courses.</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+              <div class="net-feature-card">
+                <div class="net-feature-ico" aria-hidden="true"><i class="bi bi-award-fill"></i></div>
+                <div class="h5 fw-bold text-white mb-1">Badges & Achievements</div>
+                <div class="text-white-50">Rewarding milestones that keep learners motivated.</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+              <div class="net-feature-card">
+                <div class="net-feature-ico" aria-hidden="true"><i class="bi bi-braces-asterisk"></i></div>
+                <div class="h5 fw-bold text-white mb-1">Adaptive Learning</div>
+                <div class="text-white-50">Start at your level and progress at your own pace.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           CTA (Call to action)
+      ========================================================== -->
+      <section class="container py-5 py-lg-6" aria-label="Call to action">
+        <div class="net-cta p-4 p-lg-5 text-center">
+          <h2 class="display-6 fw-bold text-white mb-2">Ready to start learning?</h2>
+          <p class="lead text-white-50 mx-auto mb-4" style="max-width: 860px;">
+            Create an account and begin at Novice — unlock your way to Advanced.
+          </p>
+
+          <div class="d-flex justify-content-center gap-2 flex-wrap">
+            <a
+              class="btn btn-light btn-lg fw-bold d-inline-flex align-items-center gap-2"
+              href="signup.html"
+              aria-label="Create an account"
+            >
+              Get Started Free <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </a>
+
+            <a
+              class="btn btn-outline-light btn-lg fw-semibold"
+              href="login.html"
+              aria-label="Sign in to your account"
+            >
+              Sign In
+            </a>
+          </div>
+
+          <div class="small text-white-50 mt-3">No credit card required</div>
         </div>
       </section>
     </main>
 
-    <footer class="text-center border-top py-3 bg-white" role="contentinfo">
+    <!-- =========================================================
+         FOOTER
+    ========================================================== -->
+    <footer class="text-center border-top py-4 bg-white" role="contentinfo">
       <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
     </footer>
 
+    <!-- =========================================================
+         SCRIPTS
+         - index.js: backend status + tilt (landing polish)
+         - bootstrap bundle: components + utilities
+    ========================================================== -->
     <script src="js/index.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   </body>

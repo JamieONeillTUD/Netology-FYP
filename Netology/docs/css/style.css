@@ -5,7 +5,24 @@ Course Code: TU857/4
 Date: 10/11/2025
 
 Custom CSS styles for the Netology frontend application.
+
+=========================================================
+HOW THIS FILE IS ORGANISED (by HTML page)
+=========================================================
+1) GLOBAL BASE (all pages)
+2) SHARED NETOLOGY THEME (used across most pages)
+3) index.html (Landing page)
+4) login.html / signup.html / forgot.html (Auth pages)
+5) dashboard.html (Dashboard + drawer)
+6) courses.html (Courses list)
+7) course.html (Single course + Khan-style sidebar/unit view)
+8) sandbox.html (Sandbox revamp)
+=========================================================
 */
+
+/* =========================================================
+   1) GLOBAL BASE (all pages)
+========================================================= */
 
 body {
   background-color: #E0F2F7;
@@ -16,7 +33,7 @@ body {
   line-height: 1.7;
 }
 
-/*  Header (generic pages that use <header> without .net-topbar) */
+/* Header (generic pages that use <header> without .net-topbar) */
 header {
   background-color: #fff;
   border-bottom: 2px solid #00838F;
@@ -52,7 +69,7 @@ header p {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
-/*Buttons (base, will be upgraded below in .btn-teal final definition)*/
+/* Buttons (base, upgraded later by .btn-teal final definition) */
 .btn-teal {
   background-color: #00838F;
   color: #fff;
@@ -70,17 +87,9 @@ header p {
 }
 
 /* Text and links */
-.text-teal {
-  color: #00838F !important;
-}
-
-.bg-teal {
-  background-color: #00838F !important;
-}
-
-.border-teal {
-  border-color: #00838F !important;
-}
+.text-teal { color: #00838F !important; }
+.bg-teal { background-color: #00838F !important; }
+.border-teal { border-color: #00838F !important; }
 
 .link-teal {
   color: #00838F;
@@ -88,13 +97,12 @@ header p {
   font-weight: 500;
   transition: color 0.2s ease, text-decoration 0.2s ease;
 }
-
 .link-teal:hover {
   text-decoration: underline;
   color: #00695C;
 }
 
-/*  Footer  */
+/* Footer (generic pages) */
 footer {
   background-color: #fff;
   border-top: 2px solid #00838F;
@@ -103,9 +111,19 @@ footer {
   margin-top: 3em;
 }
 
-/* -------------------------------
-   Netology Modern UI (v1)
--------------------------------- */
+/* Smooth Page Load (all pages) */
+body{
+  animation: fadeIn .25s ease;
+}
+@keyframes fadeIn{
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* =========================================================
+   2) SHARED NETOLOGY THEME (most pages)
+========================================================= */
+
 :root{
   --net-teal:#00838F;
   --net-teal-dark:#006B74;
@@ -117,14 +135,12 @@ footer {
 }
 
 /* Use this on pages you want to look more like Khan/Codecademy */
-/* UPDATED: uses the new cleaner gradient background */
 .net-bg{
   background: linear-gradient(180deg, #f6fffd, #f9fafb);
   min-height: 100vh;
 }
 
 /* Top bar (Netology pages) */
-/* UPDATED: uses new gradient topbar */
 header.net-topbar{
   background: linear-gradient(135deg, #0fb9b1, #20bf6b);
   color: white;
@@ -148,7 +164,7 @@ header.net-topbar .net-subtitle{
   letter-spacing:.2px;
 }
 
-/* UPDATED: Netology logo badge (clean “N”) */
+/* Netology logo badge (clean “N”) */
 .net-logo{
   width: 42px;
   height: 42px;
@@ -166,11 +182,10 @@ header.net-topbar .net-subtitle{
 }
 
 .net-subtitle{
-  color:#ffffffcc; /* slightly softer white */
+  color:#ffffffcc;
 }
 
-/* Cards (Netology layout cards) */
-/* UPDATED: uses modern hover feel */
+/* Netology layout cards */
 .net-card{
   background: var(--net-card);
   border: 1px solid var(--net-border);
@@ -182,9 +197,9 @@ header.net-topbar .net-subtitle{
   transform: translateY(-2px);
   box-shadow: 0 14px 40px rgba(0,0,0,0.08);
 }
-.net-card .card{ box-shadow: none; } /* if nested */
+.net-card .card{ box-shadow: none; }
 
-/* Big welcome card */
+/* Big welcome/hero card (used on older landing blocks too) */
 .net-hero{
   border-radius: 18px;
   border: 1px solid var(--net-border);
@@ -192,7 +207,7 @@ header.net-topbar .net-subtitle{
   box-shadow: 0 10px 30px rgba(0,0,0,.06);
 }
 
-/* Stat tiles */
+/* Stat tiles (shared) */
 .net-stat{
   border: 1px solid var(--net-border);
   border-radius: 16px;
@@ -202,7 +217,7 @@ header.net-topbar .net-subtitle{
 .net-stat .label{ color:#60737A; font-size:.85rem; }
 .net-stat .value{ font-size:1.35rem; font-weight:800; }
 
-/* Course cards rendered by dashboard.js */
+/* Course cards grid (dashboard) */
 .net-course-grid{
   display:grid;
   grid-template-columns: repeat(12, 1fr);
@@ -221,7 +236,7 @@ header.net-topbar .net-subtitle{
   .net-course-grid > .card{ grid-column: span 4; }
 }
 
-/* UPDATED: modern teal button (final single definition) */
+/* FINAL modern teal button (single definition used everywhere) */
 .btn-teal{
   background: linear-gradient(135deg, #0fb9b1, #20bf6b);
   border: none;
@@ -240,7 +255,7 @@ header.net-topbar .net-subtitle{
 }
 .btn-teal:active{ transform: translateY(0); }
 
-/* Inputs */
+/* Inputs (shared) */
 .net-input{
   border-radius: 12px !important;
   border: 1px solid var(--net-border) !important;
@@ -251,7 +266,376 @@ header.net-topbar .net-subtitle{
   box-shadow: 0 0 0 4px rgba(0,131,143,.12) !important;
 }
 
-/* Auth layout */
+/* Progress Bars (shared) */
+.progress{
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-bar{
+  transition: width .4s ease;
+}
+
+/* Badges (shared) */
+.badge{
+  border-radius: 999px;
+  padding: .35em .65em;
+}
+
+/* =========================================================
+   3) index.html (Landing page)
+========================================================= */
+
+/* Subtle background gradient overlay (LANDING ONLY)
+   - Creates a Figma-style soft wash behind content
+   - Does not block clicks (pointer-events:none)
+   - Respects reduced motion (no animation needed) */
+.net-landing{
+  position: relative;
+  isolation: isolate; /* keep overlay behind content */
+}
+.net-landing::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+
+  /* very subtle multi-layer overlay */
+  background:
+    radial-gradient(1200px 700px at 12% 10%, rgba(15,185,177,.18), transparent 60%),
+    radial-gradient(900px 600px at 88% 20%, rgba(32,191,107,.14), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0));
+}
+
+/* Glassy sticky header */
+.net-navglass{
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.net-landing-topbar{
+  text-shadow: 0 1px 10px rgba(0,0,0,.15);
+}
+
+/* More neutral hero spacing */
+.net-landing .net-hero-plain{
+  padding: 6px 0;
+}
+
+/* Accent gradient text */
+.net-gradient-text{
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Pill */
+.net-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.55rem .95rem;
+  border-radius:999px;
+  background: rgba(255,255,255,.80);
+  border: 1px solid rgba(0,131,143,.18);
+  color:#0b3b40;
+  box-shadow: 0 10px 25px rgba(0,0,0,.05);
+}
+
+/* subtle button shadow */
+.net-btn-shadow{
+  box-shadow: 0 14px 30px rgba(15,185,177,.22);
+}
+
+/* Avatars */
+.net-avatars{
+  display:flex;
+  align-items:center;
+}
+.net-avatar{
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  color: #fff;
+  display:grid;
+  place-items:center;
+  font-weight:800;
+  border: 2px solid #fff;
+  margin-left: -10px;
+  box-shadow: 0 10px 25px rgba(15,185,177,.18);
+}
+.net-avatar:first-child{ margin-left: 0; }
+
+/* Right-side visual wrap */
+.net-hero-visual-modern{
+  position: relative;
+  min-height: 420px;
+}
+@media (max-width: 991.98px){
+  .net-hero-visual-modern{ min-height: 380px; }
+}
+
+/* Progress card */
+.net-hero-card{
+  background: rgba(255,255,255,.93);
+  border: 1px solid rgba(0,131,143,.14);
+  border-radius: 22px;
+  box-shadow: 0 18px 55px rgba(0,0,0,.10);
+  padding: 26px;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+  transition: transform .18s ease, box-shadow .22s ease;
+}
+.net-hero-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 22px 65px rgba(0,0,0,.12);
+}
+
+.net-float-badge{
+  position:absolute;
+  top: -14px;
+  right: -14px;
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  display:grid;
+  place-items:center;
+  color:#fff;
+  box-shadow: 0 12px 32px rgba(15,185,177,.25);
+  font-size: 34px;
+}
+
+.net-progress{
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+}
+
+/* Mini rows */
+.net-mini-row{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(0,131,143,.07), rgba(32,191,107,.06));
+  border: 1px solid rgba(0,131,143,.12);
+  transition: transform .15s ease, background .15s ease, border-color .15s ease;
+}
+.net-mini-row:hover{
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(0,131,143,.09), rgba(32,191,107,.08));
+  border-color: rgba(0,131,143,.16);
+}
+
+.net-mini-ico{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.92);
+  display:grid;
+  place-items:center;
+  color: #00838F;
+  font-size: 20px;
+  border: 1px solid rgba(0,131,143,.14);
+}
+
+/* Backend status dot (index.js sets background) */
+.net-status-dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+  background: #adb5bd;
+  box-shadow: 0 0 0 4px rgba(173,181,189,.15);
+}
+
+/* Dot pulse animation */
+@media (prefers-reduced-motion: no-preference){
+  .net-status-dot{
+    animation: netPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes netPulse{
+    0%, 100% { transform: scale(1); opacity: .95; }
+    50% { transform: scale(1.25); opacity: .65; }
+  }
+}
+
+/* Stats strip */
+.net-strip{
+  background: rgba(255,255,255,.60);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.net-statbox{
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(0,131,143,.12);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.05);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.net-statbox:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 38px rgba(0,0,0,.07);
+}
+.net-statico{
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 10px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size: 22px;
+  box-shadow: 0 14px 28px rgba(15,185,177,.22);
+}
+
+/* Timeline */
+.net-timeline{
+  display:grid;
+  gap: 14px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+.net-timeline-item{
+  display:grid;
+  grid-template-columns: 56px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.net-timeline-dot{
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  box-shadow: 0 12px 26px rgba(15,185,177,.22);
+  font-size: 20px;
+}
+.net-timeline-card{
+  background: rgba(255,255,255,.93);
+  border: 1px solid rgba(0,131,143,.12);
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.06);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.net-timeline-card:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px rgba(0,0,0,.07);
+}
+
+/* Features section (landing) */
+.net-features{
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+}
+.net-feature-card{
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.20);
+  border-radius: 22px;
+  padding: 18px;
+  box-shadow: 0 14px 35px rgba(0,0,0,.10);
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+.net-feature-card:hover{
+  transform: translateY(-3px);
+  background: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.26);
+}
+.net-feature-ico{
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.20);
+  display:grid;
+  place-items:center;
+  color:#fff;
+  font-size: 24px;
+  margin-bottom: 12px;
+  box-shadow: 0 14px 26px rgba(0,0,0,.12);
+}
+
+/* CTA (landing) */
+.net-cta{
+  border-radius: 26px;
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  box-shadow: 0 18px 50px rgba(15,185,177,.25);
+}
+
+/* Background blobs */
+.blob{
+  position:absolute;
+  border-radius: 999px;
+  filter: blur(34px);
+  opacity: .35;
+  z-index: 1;
+  pointer-events: none;
+}
+.blob-1{
+  width: 260px;
+  height: 260px;
+  left: -40px;
+  top: 40px;
+  background: radial-gradient(circle at 30% 30%, #0fb9b1, transparent 62%);
+}
+.blob-2{
+  width: 320px;
+  height: 320px;
+  right: -60px;
+  bottom: -40px;
+  background: radial-gradient(circle at 30% 30%, #20bf6b, transparent 62%);
+}
+
+/* Entrance animations */
+.fade-in-up{
+  animation: netFadeUp .75s ease both;
+}
+@keyframes netFadeUp{
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Accessibility: stronger focus rings */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible{
+  outline: 3px solid rgba(0,131,143,.40);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+/* Landing outline-secondary tweak */
+.net-landing .btn-outline-secondary{
+  border-color: rgba(0,0,0,.18);
+}
+.net-landing .btn-outline-secondary:hover{
+  border-color: rgba(0,0,0,.28);
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .fade-in-up{ animation: none !important; }
+  .net-feature-card,
+  .net-statbox,
+  .net-mini-row,
+  .net-timeline-card,
+  .net-hero-card{
+    transition: none !important;
+  }
+  .net-status-dot{
+    animation: none !important;
+  }
+}
+
+/* =========================================================
+   4) login.html / signup.html / forgot.html (Auth pages)
+========================================================= */
+
 .net-auth-wrap{
   max-width: 980px;
   margin: 0 auto;
@@ -263,12 +647,66 @@ header.net-topbar .net-subtitle{
   box-shadow: var(--net-shadow);
 }
 
-/* Subtle helper for course cards */
+/* Subtle helper for course cards (shared utility) */
 .border-teal-subtle { border: 1px solid #B2DFDB !important; }
 
-/* -----------------------------------
-   Course page: Khan-style sidebar layout
------------------------------------ */
+/* =========================================================
+   5) dashboard.html (Dashboard + Drawer)
+========================================================= */
+
+.net-drawer{
+  position: fixed;
+  top: 0;
+  left: -280px;
+  width: 280px;
+  height: 100vh;
+  background: #fff;
+  border-right: 1px solid var(--net-border);
+  box-shadow: 8px 0 24px rgba(0,0,0,0.15);
+  z-index: 1050;
+  transition: left .25s ease;
+}
+.net-drawer.open{
+  left: 0;
+}
+
+.net-drawer-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 1040;
+}
+
+.net-drawer a.btn,
+.net-drawer button{
+  border-radius: 12px;
+  justify-content: flex-start;
+}
+.net-drawer a.btn:hover,
+.net-drawer button:hover{
+  background: #f1fdfb;
+}
+
+.net-hamburger{
+  border-radius: 10px;
+}
+
+.net-continue-card{
+  background: linear-gradient(135deg, #f0fffd, #ffffff);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid #dff6f3;
+}
+
+/* =========================================================
+   6) courses.html (Courses list)
+========================================================= */
+/* (No extra section in your current file — courses page uses shared .net-card/.btn-teal etc.) */
+
+/* =========================================================
+   7) course.html (Single course + Khan-style sidebar)
+========================================================= */
+
 .net-sidebar{
   position: sticky;
   top: 90px;
@@ -306,7 +744,6 @@ header.net-topbar .net-subtitle{
 }
 
 /* right side promo card (video-ish block) */
-/* UPDATED: use cleaner white-tinted gradient */
 .net-mini-media{
   background: linear-gradient(135deg, #ffffff, #f6fffd);
   border-radius: 16px;
@@ -321,92 +758,14 @@ header.net-topbar .net-subtitle{
   background: rgba(247,251,252,.8);
 }
 
-/* -----------------------------------
-   Dashboard + Drawer (Hamburger Menu)
------------------------------------ */
-/* UPDATED: single drawer definition */
-.net-drawer{
-  position: fixed;
-  top: 0;
-  left: -280px;
-  width: 280px;
-  height: 100vh;
-  background: #fff;
-  border-right: 1px solid var(--net-border);
-  box-shadow: 8px 0 24px rgba(0,0,0,0.15);
-  z-index: 1050;
-  transition: left .25s ease;
-}
-.net-drawer.open{
-  left: 0;
-}
+/* =========================================================
+   8) sandbox.html (Sandbox revamp)
+========================================================= */
 
-.net-drawer-backdrop{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.4);
-  z-index: 1040;
-}
-
-.net-drawer a.btn,
-.net-drawer button{
-  border-radius: 12px;
-  justify-content: flex-start;
-}
-
-.net-drawer a.btn:hover,
-.net-drawer button:hover{
-  background: #f1fdfb;
-}
-
-.net-hamburger{
-  border-radius: 10px;
-}
-
-/* Small helper card inside continue box */
-/* UPDATED: cleaner gradient */
-.net-continue-card{
-  background: linear-gradient(135deg, #f0fffd, #ffffff);
-  border-radius: 16px;
-  padding: 16px;
-  border: 1px solid #dff6f3;
-}
-
-/* ---------- Progress Bars ---------- */
-.progress{
-  border-radius: 999px;
-  overflow: hidden;
-}
-.progress-bar{
-  transition: width .4s ease;
-}
-
-/* ---------- Badges ---------- */
-.badge{
-  border-radius: 999px;
-  padding: .35em .65em;
-}
-
-/* ---------- Smooth Page Load ---------- */
-body{
-  animation: fadeIn .25s ease;
-}
-@keyframes fadeIn{
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: none; }
-}
-
-/* -------------------------------
-   Sandbox Revamp (v2)
-   NOTE: Added only — no existing code removed.
--------------------------------- */
-
-/* Sandbox layout spacing */
 .sb-wrap{
   gap: 14px;
 }
 
-/* Canvas surface card */
 .sb-surface{
   background: #ffffff;
   border: 1px solid var(--net-border);
@@ -415,7 +774,6 @@ body{
   overflow: hidden;
 }
 
-/* Canvas header strip */
 .sb-canvas-toolbar{
   display: flex;
   align-items: center;
@@ -430,12 +788,10 @@ body{
   font-size: .9rem;
 }
 
-/* Canvas wrap */
 .sb-canvas-wrap{
   padding: 12px;
 }
 
-/* Make canvas responsive while keeping its internal drawing size */
 #canvas{
   width: 100%;
   height: auto;
@@ -506,415 +862,4 @@ header.net-topbar .btn-outline-light{
 }
 header.net-topbar .btn-outline-light:hover{
   background: rgba(255,255,255,.15) !important;
-}
-
-.net-landing .net-landing-topbar{
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  backdrop-filter: blur(10px);
-}
-
-.net-landing .net-pill{
-  display: inline-flex;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.35);
-  background: rgba(255,255,255,0.18);
-}
-
-.net-landing .net-pill .dot{
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #fff;
-  box-shadow: 0 0 0 6px rgba(255,255,255,0.18);
-}
-
-.net-landing .net-status-dot{
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #999;
-  display: inline-block;
-}
-
-.net-landing .net-divider{
-  width: 1px;
-  height: 14px;
-  background: rgba(0,0,0,0.12);
-  display: inline-block;
-}
-
-.net-landing .net-hero-accent{
-  color: #0fb9b1;
-}
-
-.net-landing .net-hero-visual{
-  position: relative;
-  min-height: 420px;
-}
-
-.net-landing .net-visual-card{
-  position: relative;
-  border-radius: 22px;
-  overflow: hidden;
-  border: 1px solid rgba(0,0,0,0.08);
-  background: rgba(255,255,255,0.90);
-  box-shadow: 0 18px 50px rgba(0,0,0,0.10);
-  transform: translateZ(0);
-}
-
-.net-landing .net-visual-grid{
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(15,185,177,0.22) 1px, transparent 1px);
-  background-size: 18px 18px;
-  opacity: 0.35;
-  pointer-events: none;
-}
-
-.net-landing .net-visual-content{
-  position: relative;
-  padding: 22px;
-}
-
-.net-landing .net-visual-title{
-  font-weight: 800;
-  font-size: 1.05rem;
-  color: #0b3b40;
-}
-
-.net-landing .net-mini-topology{
-  position: relative;
-  height: 190px;
-  border-radius: 18px;
-  border: 1px dashed rgba(15,185,177,0.45);
-  background: rgba(15,185,177,0.06);
-  margin: 14px 0 16px;
-  overflow: hidden;
-}
-
-.net-landing .node{
-  position: absolute;
-  padding: 10px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  border: 1px solid rgba(0,0,0,0.10);
-  box-shadow: 0 10px 24px rgba(0,0,0,0.08);
-  background: #fff;
-}
-
-.net-landing .node-router{ border-color: rgba(15,185,177,0.45); }
-.net-landing .node-switch{ border-color: rgba(13,110,253,0.35); }
-.net-landing .node-pc{ border-color: rgba(25,135,84,0.35); }
-
-.net-landing .wire{
-  position: absolute;
-  height: 2px;
-  background: rgba(15,185,177,0.55);
-  border-radius: 2px;
-  transform-origin: left center;
-}
-
-.net-landing .wire-a{ left: 22%; top: 30%; width: 34%; transform: rotate(18deg); }
-.net-landing .wire-b{ left: 52%; top: 46%; width: 24%; transform: rotate(-18deg); }
-.net-landing .wire-c{ left: 52%; top: 52%; width: 24%; transform: rotate(18deg); }
-
-.net-landing .net-feature-row{
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr 1fr;
-}
-
-.net-landing .net-feature{
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(0,0,0,0.08);
-  background: rgba(255,255,255,0.78);
-}
-
-.net-landing .net-feature-icon{
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  color: #0b3b40;
-  background: rgba(15,185,177,0.10);
-  border: 1px solid rgba(15,185,177,0.22);
-}
-
-.net-landing .net-kicker{
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: rgba(0,0,0,0.55);
-  margin-bottom: 8px;
-}
-
-.net-landing .net-cta{
-  border: 1px solid rgba(15,185,177,0.18);
-  background: linear-gradient(180deg, rgba(15,185,177,0.10), rgba(255,255,255,0.9));
-}
-
-.net-landing .net-lift{
-  transition: transform 220ms ease, box-shadow 220ms ease;
-}
-.net-landing .net-lift:hover{
-  transform: translateY(-4px);
-  box-shadow: 0 18px 50px rgba(0,0,0,0.10);
-}
-
-/* Simple animations */
-.net-landing .fade-in-up{
-  opacity: 0;
-  transform: translateY(10px);
-  animation: netFadeUp 700ms ease forwards;
-}
-@keyframes netFadeUp{
-  to{ opacity: 1; transform: translateY(0); }
-}
-
-/* Floaty nodes */
-.net-landing .floaty{
-  animation: netFloaty 3.6s ease-in-out infinite;
-}
-@keyframes netFloaty{
-  0%,100%{ transform: translateY(0); }
-  50%{ transform: translateY(-6px); }
-}
-
-/* Background blobs */
-.net-landing .blob{
-  position: absolute;
-  width: 220px;
-  height: 220px;
-  border-radius: 999px;
-  filter: blur(20px);
-  opacity: 0.35;
-  pointer-events: none;
-}
-.net-landing .blob-1{
-  right: -40px;
-  top: 20px;
-  background: rgba(15,185,177,0.50);
-  animation: netBlob1 6s ease-in-out infinite;
-}
-.net-landing .blob-2{
-  left: -40px;
-  bottom: 20px;
-  background: rgba(32,191,107,0.35);
-  animation: netBlob2 7s ease-in-out infinite;
-}
-@keyframes netBlob1{
-  0%,100%{ transform: translate(0,0) scale(1); }
-  50%{ transform: translate(-10px,14px) scale(1.05); }
-}
-@keyframes netBlob2{
-  0%,100%{ transform: translate(0,0) scale(1); }
-  50%{ transform: translate(12px,-12px) scale(1.06); }
-}
-
-/* ================================
-   Course Page Tidy Up (v1)
-   Additions only — no removals
-================================ */
-
-/* Improve readability */
-.net-course-shell{
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.net-course-layout{
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 16px;
-}
-
-@media (max-width: 991px){
-  .net-course-layout{
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Lesson panel */
-.net-lesson-panel{
-  background: rgba(255,255,255,.92);
-  border: 1px solid var(--net-border);
-  border-radius: 20px;
-  box-shadow: var(--net-shadow);
-  padding: 18px;
-}
-
-/* Make learn text easier to read */
-.net-learn-text{
-  font-size: 1.02rem;
-  color: #1f2a2e;
-  line-height: 1.75;
-  white-space: pre-wrap;
-}
-
-/* Clear section blocks */
-.net-section{
-  border: 1px solid var(--net-border);
-  border-radius: 16px;
-  background: #fff;
-  padding: 14px;
-}
-
-/* Accessibility: focus rings */
-:focus-visible{
-  outline: 3px solid rgba(0,131,143,.35);
-  outline-offset: 2px;
-}
-
-/* -----------------------------------
-   Quiz Page (ADD ONLY)
------------------------------------ */
-
-.net-quiz-shell{
-  overflow: hidden;
-}
-
-.net-quiz-xp-pill{
-  display: inline-flex;
-  align-items: center;
-  gap: .6rem;
-  padding: .55rem .9rem;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(32,191,107,.10), rgba(15,185,177,.14));
-  border: 1px solid rgba(0,131,143,.20);
-}
-.net-quiz-xp-ico{
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-  color: #fff;
-  box-shadow: 0 10px 25px rgba(15,185,177,.18);
-}
-
-.net-quiz-chip{
-  padding: .35rem .65rem;
-  border-radius: 999px;
-  border: 1px solid var(--net-border);
-  background: rgba(255,255,255,.75);
-  font-weight: 700;
-  color: #0b3b40;
-}
-
-.net-quiz-option{
-  width: 100%;
-  border-radius: 16px;
-  padding: 1rem 1rem;
-  text-align: left;
-  border: 2px solid rgba(0,0,0,.10);
-  background: #fff;
-  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
-  box-shadow: 0 10px 20px rgba(0,0,0,.04);
-}
-.net-quiz-option:hover{
-  transform: translateY(-1px);
-  border-color: rgba(0,131,143,.30);
-  background: rgba(0,131,143,.04);
-}
-.net-quiz-option.is-selected{
-  border-color: rgba(0,131,143,.60);
-  background: linear-gradient(135deg, rgba(0,131,143,.08), rgba(32,191,107,.06));
-}
-.net-quiz-option.is-correct{
-  border-color: rgba(25,135,84,.60);
-  background: linear-gradient(135deg, rgba(25,135,84,.10), rgba(15,185,177,.06));
-}
-.net-quiz-option.is-wrong{
-  border-color: rgba(220,53,69,.60);
-  background: rgba(220,53,69,.06);
-}
-
-.net-quiz-feedback{
-  border-radius: 18px;
-  border: 2px solid rgba(0,0,0,.08);
-  background: rgba(255,255,255,.85);
-  box-shadow: 0 10px 25px rgba(0,0,0,.06);
-  padding: 1.1rem 1.1rem;
-}
-.net-quiz-feedback.is-correct{
-  border-color: rgba(25,135,84,.35);
-  background: linear-gradient(135deg, rgba(25,135,84,.08), rgba(15,185,177,.06));
-}
-.net-quiz-feedback.is-wrong{
-  border-color: rgba(220,53,69,.35);
-  background: linear-gradient(135deg, rgba(220,53,69,.06), rgba(0,131,143,.04));
-}
-.net-quiz-feedback-ico{
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  color: #fff;
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-  box-shadow: 0 12px 24px rgba(15,185,177,.18);
-}
-.net-quiz-feedback.is-wrong .net-quiz-feedback-ico{
-  background: linear-gradient(135deg, #dc3545, #b02a37);
-  box-shadow: 0 12px 24px rgba(220,53,69,.18);
-}
-
-.net-quiz-xp-earned{
-  color: #0f5132;
-}
-
-.net-quiz-result-badge{
-  width: 92px;
-  height: 92px;
-  border-radius: 28px;
-  margin: 0 auto;
-  display: grid;
-  place-items: center;
-  font-size: 42px;
-  background: linear-gradient(135deg, rgba(0,131,143,.10), rgba(32,191,107,.08));
-  border: 1px solid rgba(0,131,143,.20);
-  box-shadow: 0 14px 35px rgba(0,0,0,.08);
-}
-
-.net-quiz-stat{
-  border-radius: 18px;
-  border: 1px solid rgba(0,131,143,.18);
-  background: linear-gradient(135deg, rgba(255,255,255,.95), rgba(0,131,143,.03));
-  padding: 1.2rem 1rem;
-  box-shadow: 0 12px 28px rgba(0,0,0,.06);
-}
-.net-quiz-stat-value{
-  font-size: 2rem;
-  font-weight: 900;
-  color: #0b3b40;
-}
-.net-quiz-stat-label{
-  font-size: .9rem;
-  color: #60737A;
-  margin-top: .2rem;
-}
-
-/* Micro-animations (simple) */
-.net-quiz-enter{
-  animation: netQuizIn .22s ease;
-}
-@keyframes netQuizIn{
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: none; }
 }
