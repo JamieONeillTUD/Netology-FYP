@@ -14,6 +14,10 @@ Includes:
 - Login validation + POST /login + inline banner (login.html)
 - Modern toast popup feedback (showPopup) consistent with Netology theme
 
+UPDATED (Dashboard unlock tier support):
+- Stores the user’s selected unlock tier (novice/intermediate/advanced) in localStorage
+  so dashboard can lock/unlock courses by tier WITHOUT changing numeric level/XP.
+
 Notes:
 - Uses window.API_BASE injected into each page (Render deployment)
 - Respects prefers-reduced-motion for animations
@@ -84,6 +88,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // NEW (Dashboard unlock tier support):
+      // Save the chosen tier NOW so dashboard can lock/unlock by tier later.
+      // This does NOT affect numeric level or XP.
+      const selectedTier = String(level?.value || "novice").trim().toLowerCase();
+
       // Send data to backend
       try {
         const res = await fetch(`${API_BASE}/register`, {
@@ -94,6 +103,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await res.json();
 
         if (data.success) {
+          // Persist tier selection for later (dashboard uses this)
+          // Keeping it in its own key means nothing breaks if user isn't logged in yet.
+          localStorage.setItem("unlock_tier_pending", selectedTier);
+
           showPopup("Account created! Redirecting to login…", "success");
           setTimeout(() => {
             window.location.href = "login.html";
@@ -182,12 +195,29 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await res.json();
 
         if (data.success) {
+          // NEW (Dashboard unlock tier support):
+          // Prefer an existing tier if we already stored it, else use pending signup tier, else default.
+          const pendingTier = String(localStorage.getItem("unlock_tier_pending") || "").trim().toLowerCase();
+          const existingUser = JSON.parse(localStorage.getItem("user") || "{}");
+          const existingTier = String(existingUser.unlock_tier || existingUser.unlock_level || existingUser.unlockTier || "")
+            .trim()
+            .toLowerCase();
+
+          let unlockTier = existingTier || pendingTier || "novice";
+          if (!["novice", "intermediate", "advanced"].includes(unlockTier)) unlockTier = "novice";
+
           localStorage.setItem("user", JSON.stringify({
             email: email,
             first_name: data.first_name,
-            level: data.level,
+            level: data.level,     // keep existing field (backwards compatible)
             xp: data.xp,
+
+            // NEW: dashboard uses this to unlock content tiers
+            unlock_tier: unlockTier
           }));
+
+          // Once used, clear the pending value
+          if (pendingTier) localStorage.removeItem("unlock_tier_pending");
 
           showLoginBanner(`Welcome back, ${data.first_name}! Redirecting…`, "success");
           setTimeout(() => {
@@ -451,9 +481,9 @@ if (forgotForm) {
     setInvalid(passEl, false);
     setInvalid(confEl, false);
 
-    const email = emailEl.value.trim();
-    const password = passEl.value.trim();
-    const confirm = confEl.value.trim();
+    const email = (emailEl?.value || "").trim();
+    const password = (passEl?.value || "").trim();
+    const confirm = (confEl?.value || "").trim();
 
     if (!isValidEmail(email)) {
       setInvalid(emailEl, true);
@@ -484,8 +514,8 @@ if (forgotForm) {
 
       if (data.success) {
         showPopup("Password updated successfully.", "success");
-        formView.classList.add("d-none");
-        successView.classList.remove("d-none");
+        formView?.classList.add("d-none");
+        successView?.classList.remove("d-none");
       } else {
         showForgotBanner(data.message || "Reset failed.", "error");
       }
@@ -576,7 +606,7 @@ function showPopup(message, type) {
 }
 
 function escapeHtml(str) {
-  return str
+  return String(str || "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")

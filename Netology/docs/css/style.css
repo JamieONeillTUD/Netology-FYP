@@ -894,53 +894,195 @@ input:focus-visible{
   color: #0b3b40;
 }
 
-/* =========================================================
-   5) dashboard.html (Dashboard + Drawer)
-========================================================= */
 
-.net-drawer{
-  position: fixed;
-  top: 0;
-  left: -280px;
-  width: 280px;
-  height: 100vh;
-  background: #fff;
-  border-right: 1px solid var(--net-border);
-  box-shadow: 8px 0 24px rgba(0,0,0,0.15);
-  z-index: 1050;
-  transition: left .25s ease;
-}
-.net-drawer.open{
-  left: 0;
+/* ---------------------------------------
+   Dashboard (dashboard.html)
+---------------------------------------- */
+
+.net-dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  box-shadow: 0 10px 20px rgba(15,185,177,.25);
 }
 
-.net-drawer-backdrop{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.4);
-  z-index: 1040;
+.net-mini-media{
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(0,131,143,.12);
+  border-radius: 22px;
+  box-shadow: 0 18px 55px rgba(0,0,0,.08);
 }
 
-.net-drawer a.btn,
-.net-drawer button{
-  border-radius: 12px;
-  justify-content: flex-start;
-}
-.net-drawer a.btn:hover,
-.net-drawer button:hover{
-  background: #f1fdfb;
+.net-mini-stat{
+  background: rgba(255,255,255,.75);
+  border: 1px solid rgba(0,131,143,.10);
+  border-radius: 16px;
+  padding: 12px 14px;
 }
 
-.net-hamburger{
-  border-radius: 10px;
+.net-stat-card{
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(0,131,143,.10);
+  border-radius: 22px;
+  padding: 18px;
+  box-shadow: 0 14px 35px rgba(0,0,0,.06);
+  transition: transform .15s ease;
+}
+.net-stat-card:hover{ transform: translateY(-2px); }
+
+.net-search{
+  position: relative;
+  min-width: 220px;
+}
+.net-search i{
+  position:absolute;
+  left:10px;
+  top:50%;
+  transform: translateY(-50%);
+  color: rgba(0,0,0,.45);
+}
+.net-search input{
+  padding-left: 30px;
+  border-radius: 999px;
+}
+
+/* Focus styles (keyboard accessibility) */
+.net-search input:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .2rem rgba(15,185,177,.18);
+  border-color: rgba(0,131,143,.35);
+}
+
+.net-chip.is-active{
+  border-color: rgba(0,131,143,.35) !important;
+  box-shadow: 0 10px 20px rgba(15,185,177,.12);
+}
+.net-chip:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .2rem rgba(15,185,177,.18);
+  border-color: rgba(0,131,143,.35) !important;
+}
+
+.net-course-card{
+  position: relative;
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(0,131,143,.10);
+  border-radius: 22px;
+  box-shadow: 0 14px 35px rgba(0,0,0,.06);
+  overflow: hidden;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.net-course-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 55px rgba(0,0,0,.10);
+}
+
+.net-course-lock{
+  position:absolute;
+  inset:0;
+  background: rgba(255,255,255,.72);
+  backdrop-filter: blur(7px);
+  display:flex;
+  align-items:flex-start;
+  justify-content:flex-end;
+  padding: 14px;
+  z-index: 2;
+}
+.net-course-lock-inner{
+  background: rgba(255,255,255,.9);
+  border: 1px solid rgba(0,131,143,.12);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: .85rem;
+  box-shadow: 0 14px 30px rgba(0,0,0,.08);
 }
 
 .net-continue-card{
-  background: linear-gradient(135deg, #f0fffd, #ffffff);
-  border-radius: 16px;
-  padding: 16px;
-  border: 1px solid #dff6f3;
+  background: linear-gradient(135deg, rgba(0,131,143,.06), rgba(32,191,107,.05));
+  border: 1px solid rgba(0,131,143,.10);
+  border-radius: 18px;
+  padding: 14px;
 }
+
+.net-lockline{
+  display:flex;
+  align-items:center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(220,53,69,.08);
+  border: 1px solid rgba(220,53,69,.15);
+  color: #7a1e28;
+  font-size: .9rem;
+}
+
+.net-empty{
+  background: rgba(255,255,255,.75);
+  border: 1px dashed rgba(0,131,143,.20);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.net-pill-badge{
+  border-radius: 999px;
+}
+
+.net-continue-skel{
+  background: rgba(255,255,255,.75);
+  border: 1px dashed rgba(0,131,143,.18);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+/* Animated skeleton lines */
+.net-skel{
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(0,0,0,.06);
+  height: 10px;
+}
+.net-skel::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,.65) 50%,
+    rgba(255,255,255,0) 100%
+  );
+  animation: net-skel 1.15s ease-in-out infinite;
+}
+@keyframes net-skel{
+  0%{ transform: translateX(-100%); }
+  100%{ transform: translateX(100%); }
+}
+
+/* Width helpers for skeleton lines */
+.net-w-40{ width: 40%; }
+.net-w-60{ width: 60%; }
+.net-w-80{ width: 80%; }
+.net-w-90{ width: 90%; }
+
+@media (max-width: 576px){
+  .net-search{ min-width: 100%; }
+}
+
+/* Reduced motion safe */
+@media (prefers-reduced-motion: reduce){
+  .net-skel::after{
+    animation: none;
+    transform: none;
+  }
+  .net-stat-card,
+  .net-course-card{
+    transition: none;
+  }
+}
+
+
 
 /* =========================================================
    6) courses.html (Courses list)
