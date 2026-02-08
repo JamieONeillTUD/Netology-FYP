@@ -8,24 +8,14 @@ HTML
 ---------------------------------
 dashboard.html – Netology Dashboard (Sidebar Layout)
 
-Update requested:
-- Top nav bar (desktop + mobile):
-  - Center: Netology logo + word
-    - If signed in → reload dashboard.html
-    - If NOT signed in → go to index.html
-  - Right: user name + small dropdown caret (Khan-style)
-    - Dropdown items: My account, Help, Logout
-- Removed the old "Account" button in top bar
-- Kept sidebar layout + mobile offcanvas menu
-- JS hooks added:
-  - #brandLink (center brand)
-  - #userDropdownName (name)
-  - #logoutBtnTop (logout in dropdown)
-  - mobile equivalents
-
-Backend:
-- GET /user-info?email=
-- GET /user-courses?email=
+Updates:
+- Modern top navbar (Figma-inspired)
+- Center brand (Netology logo + word) clickable:
+  - if signed in => reload dashboard
+  - if not signed in => go to index.html
+- Right corner user name + dropdown menu:
+  - Account, Help, Logout
+- Small dropdown chevron beside name (Khan-style vibe)
 -->
 
 <!doctype html>
@@ -51,125 +41,92 @@ Backend:
 <body class="net-bg net-landing">
 
   <!-- =========================================================
-       TOP NAV (Desktop) — centered brand + user dropdown
+       TOP NAV (ALL SIZES)
+       - Center brand clickable
+       - Right user dropdown
+       - Mobile: menu button opens offcanvas
   ========================================================== -->
-  <header class="net-topbar net-landing-topbar net-navglass sticky-top d-none d-lg-block" role="banner">
-    <div class="container position-relative py-3">
+  <header class="net-topnav sticky-top" role="banner">
+    <div class="container-fluid">
+      <div class="net-topnav-inner">
 
-      <!-- Center brand -->
-      <div class="d-flex justify-content-center">
-        <a href="dashboard.html"
-           id="brandLink"
-           class="d-inline-flex align-items-center gap-3 text-decoration-none"
-           aria-label="Netology home">
-          <div class="net-logo" aria-hidden="true"></div>
-          <div class="net-brand">Netology</div>
-        </a>
-      </div>
-
-      <!-- Right user dropdown -->
-      <div class="position-absolute top-50 end-0 translate-middle-y">
-        <div class="dropdown">
-          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
-                  id="userDropdownBtn"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                  aria-label="Open user menu">
-            <span class="me-2 fw-semibold" id="userDropdownName">Student</span>
-            <i class="bi bi-caret-down-fill" aria-hidden="true"></i>
+        <!-- LEFT: Mobile menu button -->
+        <div class="net-topnav-left">
+          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center d-lg-none"
+                  type="button"
+                  data-bs-toggle="offcanvas"
+                  data-bs-target="#sidebarMobile"
+                  aria-controls="sidebarMobile"
+                  aria-label="Open menu">
+            <i class="bi bi-list me-2" aria-hidden="true"></i>
+            Menu
           </button>
 
-          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-            <li>
-              <a class="dropdown-item d-flex align-items-center" href="account.html" aria-label="Open account page">
-                <i class="bi bi-person-circle me-2" aria-hidden="true"></i>
-                My account
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item d-flex align-items-center" href="help.html" aria-label="Open help page">
-                <i class="bi bi-question-circle me-2" aria-hidden="true"></i>
-                Help
-              </a>
-            </li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-              <button class="dropdown-item d-flex align-items-center text-danger" id="logoutBtnTop" aria-label="Logout">
-                <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>
-                Logout
-              </button>
-            </li>
-          </ul>
+          <!-- Desktop: small label (optional) -->
+          <div class="d-none d-lg-flex align-items-center gap-2 text-white-75 small">
+            <i class="bi bi-grid-1x2" aria-hidden="true"></i>
+            Dashboard
+          </div>
         </div>
-      </div>
 
-    </div>
-  </header>
-
-  <!-- =========================================================
-       TOP NAV (Mobile) — centered brand + Menu + user dropdown
-       (Menu opens offcanvas; brand uses same signed-in logic)
-  ========================================================== -->
-  <header class="net-topbar net-landing-topbar net-navglass sticky-top d-lg-none" role="banner">
-    <div class="container position-relative py-3">
-
-      <!-- Center brand -->
-      <div class="d-flex justify-content-center">
-        <a href="dashboard.html"
-           id="brandLink_m"
-           class="d-inline-flex align-items-center gap-3 text-decoration-none"
-           aria-label="Netology home">
-          <div class="net-logo" aria-hidden="true"></div>
-          <div class="net-brand">Netology</div>
-        </a>
-      </div>
-
-      <!-- Left: Menu button -->
-      <div class="position-absolute top-50 start-0 translate-middle-y">
-        <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
-                type="button"
-                data-bs-toggle="offcanvas"
-                data-bs-target="#sidebarMobile"
-                aria-controls="sidebarMobile"
-                aria-label="Open menu">
-          <i class="bi bi-layout-sidebar-inset me-2" aria-hidden="true"></i>
-          Menu
-        </button>
-      </div>
-
-      <!-- Right: user dropdown -->
-      <div class="position-absolute top-50 end-0 translate-middle-y">
-        <div class="dropdown">
-          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
-                  id="userDropdownBtn_m"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                  aria-label="Open user menu">
-            <span class="me-2 fw-semibold" id="userDropdownName_m">Student</span>
-            <i class="bi bi-caret-down-fill" aria-hidden="true"></i>
-          </button>
-
-          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-            <li>
-              <a class="dropdown-item d-flex align-items-center" href="account.html">
-                <i class="bi bi-person-circle me-2"></i>My account
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item d-flex align-items-center" href="help.html">
-                <i class="bi bi-question-circle me-2"></i>Help
-              </a>
-            </li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-              <button class="dropdown-item d-flex align-items-center text-danger" id="logoutBtnTop_m">
-                <i class="bi bi-box-arrow-right me-2"></i>Logout
-              </button>
-            </li>
-          </ul>
+        <!-- CENTER: Brand (logo + Netology) -->
+        <div class="net-topnav-center">
+          <a href="dashboard.html"
+             id="netTopHome"
+             class="net-topnav-brand"
+             aria-label="Netology home">
+            <span class="net-logo net-logo-sm" aria-hidden="true"></span>
+            <span class="net-brand-text">Netology</span>
+          </a>
         </div>
-      </div>
 
+        <!-- RIGHT: User dropdown -->
+        <div class="net-topnav-right">
+          <div class="dropdown">
+            <button class="net-userbtn"
+                    id="userMenuBtn"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    aria-label="Open user menu">
+              <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
+              <span class="net-user-name" id="topUserName">Student</span>
+              <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end net-user-menu" aria-labelledby="userMenuBtn">
+              <li class="px-3 py-2 border-bottom">
+                <div class="fw-semibold text-truncate" id="topUserNameMenu">Student</div>
+                <div class="small text-muted text-truncate" id="topUserEmail">email@example.com</div>
+              </li>
+
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2" href="account.html">
+                  <i class="bi bi-person-circle" aria-hidden="true"></i>
+                  Account
+                </a>
+              </li>
+
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2" href="help.html">
+                  <i class="bi bi-question-circle" aria-hidden="true"></i>
+                  Help
+                </a>
+              </li>
+
+              <li><hr class="dropdown-divider"></li>
+
+              <li>
+                <button class="dropdown-item d-flex align-items-center gap-2 text-danger" id="logoutBtnTop" type="button">
+                  <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                  Logout
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
     </div>
   </header>
 
@@ -182,11 +139,14 @@ Backend:
       <aside class="col-lg-3 col-xl-2 d-none d-lg-block border-end" aria-label="Sidebar navigation">
         <div class="p-3 p-xl-4 net-sidewrap">
 
-          <!-- (Optional) keep small label here, but top brand is now the main one -->
-          <div class="mb-3">
-            <div class="fw-bold fs-6 net-gradient-text">Dashboard</div>
-            <div class="small text-muted">Your learning hub</div>
-          </div>
+          <!-- Brand (clickable logic handled by JS) -->
+          <a href="dashboard.html" id="netSideHome" class="d-flex align-items-center gap-3 text-decoration-none mb-3" aria-label="Netology home">
+            <div class="net-logo" aria-hidden="true"></div>
+            <div>
+              <div class="fw-bold fs-5 net-gradient-text">Netology</div>
+              <div class="small text-muted">Dashboard</div>
+            </div>
+          </a>
 
           <!-- User box -->
           <div class="net-userbox mb-3">

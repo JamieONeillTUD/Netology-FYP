@@ -8,22 +8,13 @@ JavaScript
 ---------------------------------------
 dashboard.js – Netology Dashboard (Sidebar Layout)
 
-Updates added (per your request):
-- Top nav centered brand click rule:
-  - Signed in (localStorage.user.email exists) -> reload dashboard.html
-  - Not signed in -> go to index.html
+Updates:
+- Top nav brand click logic:
+  - signed in => dashboard.html
+  - signed out => index.html
 - Top right user dropdown:
-  - Shows user name in #userDropdownName and #userDropdownName_m
-  - Logout buttons in dropdown: #logoutBtnTop and #logoutBtnTop_m
-- Logout now works from:
-  - Sidebar logout (#logoutBtn, #logoutBtn_m)
-  - Top dropdown logout (#logoutBtnTop, #logoutBtnTop_m)
-- Keeps all your existing logic:
-  - stats, tier text, continue learning (fixed), courses render, filters, locking by required_level
-
-Backend routes:
-- GET /user-info?email=
-- GET /user-courses?email=
+  - shows name/email
+  - logout button works
 */
 
 // Safe: ensure API base is never undefined
@@ -41,10 +32,7 @@ let __dashState = {
 document.addEventListener("DOMContentLoaded", async () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-  // Top-nav wiring (works even if user not logged in yet)
-  wireTopNav(user);
-
-  // If not signed in -> go login (dashboard is protected)
+  // Dashboard should still protect itself
   if (!user.email) {
     window.location.href = "login.html";
     return;
@@ -53,23 +41,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   __dashState.email = user.email;
 
   // Wire UI
+  wireTopNav(user);
   wireFilters();
   wireLogout();
 
   // Names
   const displayName = user.first_name || user.username || "Student";
-
   setText("welcomeName", displayName);
-
-  // Sidebar user box
   setText("sideName", displayName);
   setText("sideEmail", user.email);
   setText("sideName_m", displayName);
   setText("sideEmail_m", user.email);
-
-  // Top dropdown name
-  setText("userDropdownName", displayName);
-  setText("userDropdownName_m", displayName);
 
   // Load data
   await loadUserStats(user.email);
@@ -80,42 +62,54 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 /* =========================================================
    TOP NAV (brand click + user dropdown)
-   - brand: logged in -> dashboard.html, logged out -> index.html
 ========================================================= */
 function wireTopNav(user) {
-  const brand = document.getElementById("brandLink");
-  const brandM = document.getElementById("brandLink_m");
+  const homeTop = document.getElementById("netTopHome");
+  const homeSide = document.getElementById("netSideHome");
 
-  const onBrandClick = (e) => {
-    e.preventDefault();
+  const goHomeSmart = (e) => {
+    e?.preventDefault?.();
+
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     if (u && u.email) {
-      // Signed in -> reload dashboard
+      // signed in => reload dashboard
       window.location.href = "dashboard.html";
     } else {
-      // Not signed in -> go landing
+      // signed out => back to landing
       window.location.href = "index.html";
     }
   };
 
-  brand?.addEventListener("click", onBrandClick);
-  brandM?.addEventListener("click", onBrandClick);
+  homeTop?.addEventListener("click", goHomeSmart);
+  homeSide?.addEventListener("click", goHomeSmart);
 
-  // If user object passed in (sometimes empty), best-effort set dropdown names early
-  const displayName = (user && (user.first_name || user.username)) ? (user.first_name || user.username) : "Student";
-  setText("userDropdownName", displayName);
-  setText("userDropdownName_m", displayName);
+  // Populate dropdown user info
+  const displayName = user.first_name || user.username || "Student";
+  setText("topUserName", displayName);
+  setText("topUserNameMenu", displayName);
+  setText("topUserEmail", user.email);
+
+  // Avatar letter
+  const avatar = document.getElementById("topAvatar");
+  if (avatar) {
+    const ch = String(displayName || "S").trim().charAt(0).toUpperCase() || "S";
+    avatar.textContent = ch;
+  }
+
+  // Top logout button
+  const logoutTop = document.getElementById("logoutBtnTop");
+  logoutTop?.addEventListener("click", () => {
+    localStorage.removeItem("user");
+    window.location.href = "login.html";
+  });
 }
 
 /* =========================================================
-   LOGOUT (desktop + mobile + top dropdown)
+   LOGOUT (desktop sidebar + mobile sidebar)
 ========================================================= */
 function wireLogout() {
   const logoutBtn = document.getElementById("logoutBtn");
   const logoutBtnM = document.getElementById("logoutBtn_m");
-
-  const logoutBtnTop = document.getElementById("logoutBtnTop");
-  const logoutBtnTopM = document.getElementById("logoutBtnTop_m");
 
   const doLogout = () => {
     localStorage.removeItem("user");
@@ -124,8 +118,6 @@ function wireLogout() {
 
   logoutBtn?.addEventListener("click", doLogout);
   logoutBtnM?.addEventListener("click", doLogout);
-  logoutBtnTop?.addEventListener("click", doLogout);
-  logoutBtnTopM?.addEventListener("click", doLogout);
 }
 
 /* =========================================================
@@ -223,7 +215,6 @@ async function loadUserStats(email) {
 function nextTierText(level) {
   const lvl = Number(level || 1);
 
-  // Your rank mapping:
   // L1-2 = Novice
   // L3-4 = Intermediate
   // L5+  = Advanced
@@ -275,10 +266,6 @@ async function loadUserCourses(email) {
 
 /* =========================================================
    CONTINUE LEARNING (FIXED)
-   - Prefers last opened if still unlocked
-   - Else first in-progress unlocked
-   - Else first unlocked
-   - Else shows locked message
 ========================================================= */
 function renderContinue() {
   const continueBox = document.getElementById("continueBox");
@@ -318,7 +305,6 @@ function renderContinue() {
   const statusPill = statusBadge(candidate.status);
   const diffPill = difficultyBadge(diff);
 
-  // If locked, show why + required level
   if (lockInfo.locked) {
     continueBox.innerHTML = `
       <div class="net-continue-card">
@@ -348,7 +334,6 @@ function renderContinue() {
     return;
   }
 
-  // Unlocked
   continueBox.innerHTML = `
     <div class="net-continue-card">
       <div class="d-flex align-items-start justify-content-between gap-2">
@@ -383,7 +368,6 @@ function renderContinue() {
     </div>
   `;
 
-  // Save last opened
   const link = continueBox.querySelector('[data-course-open="1"]');
   link?.addEventListener("click", () => {
     const id = link.getAttribute("data-course-id");
@@ -498,7 +482,6 @@ function renderCourses() {
     `);
   });
 
-  // Save "last course opened"
   const links = Array.from(grid.querySelectorAll('[data-course-open="1"]'));
   links.forEach((a) => {
     a.addEventListener("click", () => {
@@ -515,7 +498,7 @@ function renderLockNote() {
 }
 
 /* =========================================================
-   COURSE META + LOCKING (by required_level)
+   COURSE META + LOCKING
 ========================================================= */
 function getCourseMeta(courseId) {
   if (typeof COURSE_CONTENT === "undefined") return null;

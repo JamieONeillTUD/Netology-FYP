@@ -25,6 +25,12 @@ Updates (Dashboard sidebar revamp):
 - Softer buttons + consistent radii
 - Improved offcanvas styling to match Netology theme
 - Kept existing dashboard cards/search/chips/course cards
+
+NEW Updates (Top Nav + User Dropdown):
+- Added .net-topnav (Figma-inspired top navbar)
+- Center brand (Netology logo + text) styles
+- Right user dropdown button styles + dropdown menu look
+- Small logo variant: .net-logo-sm
 */
 
 /* =========================================================
@@ -191,6 +197,16 @@ header.net-topbar .net-subtitle{
   font-weight: 800;
   font-size: 20px;
   color: #0fb9b1;
+}
+
+/* NEW: smaller logo variant for top nav */
+.net-logo-sm{
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+.net-logo-sm::after{
+  font-size: 18px;
 }
 
 .net-subtitle{
@@ -902,6 +918,144 @@ input:focus-visible{
    5) dashboard.html (Dashboard + SIDEBAR layout)
 ========================================================= */
 
+/* =========================================================
+   NEW: Figma-inspired Top Nav (Dashboard header)
+========================================================= */
+
+.net-topnav{
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,.22);
+  box-shadow: 0 10px 28px rgba(0,0,0,.10);
+}
+
+.net-topnav .container-fluid{
+  padding-top: .55rem;
+  padding-bottom: .55rem;
+}
+
+.net-topnav-inner{
+  position: relative;
+  min-height: 44px;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Left/Right areas keep space so the centered brand is actually centered */
+.net-topnav-left,
+.net-topnav-right{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  min-width: 140px;
+}
+
+/* Center brand (logo + word) */
+.net-topnav-center{
+  position:absolute;
+  left:50%;
+  transform: translateX(-50%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events: auto;
+}
+
+.net-topnav-brand{
+  display:inline-flex;
+  align-items:center;
+  gap: 10px;
+  text-decoration:none;
+  color:#fff;
+  font-weight: 900;
+  letter-spacing: .2px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  transition: background .15s ease, transform .12s ease;
+  text-shadow: 0 1px 12px rgba(0,0,0,.18);
+}
+.net-topnav-brand:hover{
+  background: rgba(255,255,255,.12);
+  transform: translateY(-1px);
+  color:#fff;
+}
+
+.net-brand-text{
+  font-size: 1.1rem;
+}
+
+/* User button (avatar + name + chevron) */
+.net-userbtn{
+  display:inline-flex;
+  align-items:center;
+  gap: 10px;
+  border: 0;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  border-radius: 14px;
+  padding: 7px 10px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.08);
+  transition: background .15s ease, transform .12s ease;
+}
+.net-userbtn:hover{
+  background: rgba(255,255,255,.18);
+  transform: translateY(-1px);
+}
+.net-userbtn:active{ transform: translateY(0); }
+
+.net-avatar-sm{
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display:grid;
+  place-items:center;
+  font-weight: 900;
+  color:#fff;
+  background: linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.10));
+  border: 1px solid rgba(255,255,255,.28);
+}
+
+.net-user-name{
+  font-weight: 800;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.net-user-chevron{
+  opacity: .9;
+}
+
+/* Dropdown menu styling */
+.net-user-menu{
+  border-radius: 16px;
+  border: 1px solid rgba(0,131,143,.14);
+  box-shadow: 0 22px 60px rgba(0,0,0,.18);
+  overflow: hidden;
+  min-width: 260px;
+}
+
+.net-user-menu .dropdown-item{
+  padding: .6rem .9rem;
+}
+.net-user-menu .dropdown-item:hover{
+  background: rgba(15,185,177,.08);
+}
+.net-user-menu .dropdown-item.text-danger:hover{
+  background: rgba(220,53,69,.08);
+}
+
+/* Tiny screens: keep layout clean */
+@media (max-width: 520px){
+  .net-topnav-left{ min-width: auto; }
+  .net-topnav-right{ min-width: auto; }
+  .net-brand-text{ font-size: 1.0rem; }
+  .net-user-name{ display:none; }
+}
+
 /* Sidebar column */
 .net-sidewrap{
   position: sticky;
@@ -1145,7 +1299,9 @@ input:focus-visible{
   }
   .net-stat-card,
   .net-course-card,
-  .net-navbtn{
+  .net-navbtn,
+  .net-topnav-brand,
+  .net-userbtn{
     transition: none;
   }
 }
