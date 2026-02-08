@@ -15,6 +15,7 @@ Updates:
 - Top right user dropdown:
   - shows name/email
   - logout button works
+- Course search + difficulty filters
 */
 
 // Safe: ensure API base is never undefined
@@ -32,7 +33,7 @@ let __dashState = {
 document.addEventListener("DOMContentLoaded", async () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-  // Dashboard should still protect itself
+  // Dashboard should protect itself
   if (!user.email) {
     window.location.href = "login.html";
     return;
@@ -61,7 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 /* =========================================================
-   TOP NAV (brand click + user dropdown)
+   TOP NAV (brand click + dropdown content + logout)
 ========================================================= */
 function wireTopNav(user) {
   const homeTop = document.getElementById("netTopHome");
@@ -69,15 +70,9 @@ function wireTopNav(user) {
 
   const goHomeSmart = (e) => {
     e?.preventDefault?.();
-
     const u = JSON.parse(localStorage.getItem("user") || "{}");
-    if (u && u.email) {
-      // signed in => reload dashboard
-      window.location.href = "dashboard.html";
-    } else {
-      // signed out => back to landing
-      window.location.href = "index.html";
-    }
+    if (u && u.email) window.location.href = "dashboard.html";
+    else window.location.href = "index.html";
   };
 
   homeTop?.addEventListener("click", goHomeSmart);
@@ -98,26 +93,20 @@ function wireTopNav(user) {
 
   // Top logout button
   const logoutTop = document.getElementById("logoutBtnTop");
-  logoutTop?.addEventListener("click", () => {
-    localStorage.removeItem("user");
-    window.location.href = "login.html";
-  });
+  logoutTop?.addEventListener("click", doLogout);
 }
 
 /* =========================================================
    LOGOUT (desktop sidebar + mobile sidebar)
 ========================================================= */
 function wireLogout() {
-  const logoutBtn = document.getElementById("logoutBtn");
-  const logoutBtnM = document.getElementById("logoutBtn_m");
+  document.getElementById("logoutBtn")?.addEventListener("click", doLogout);
+  document.getElementById("logoutBtn_m")?.addEventListener("click", doLogout);
+}
 
-  const doLogout = () => {
-    localStorage.removeItem("user");
-    window.location.href = "login.html";
-  };
-
-  logoutBtn?.addEventListener("click", doLogout);
-  logoutBtnM?.addEventListener("click", doLogout);
+function doLogout() {
+  localStorage.removeItem("user");
+  window.location.href = "login.html";
 }
 
 /* =========================================================
@@ -153,7 +142,7 @@ async function loadUserStats(email) {
 
     const totalXp = Number(data.xp || 0);
 
-    // Prefer backend numeric_level if present, else fallback to XP bands
+    // Prefer backend numeric_level if present, else fallback
     let numericLevel = Number(data.numeric_level || 0);
     let xpInto = Number(data.xp_into_level || 0);
     let xpNext = Number(data.next_level_xp || 0);
@@ -165,7 +154,7 @@ async function loadUserStats(email) {
       xpNext = calc.xpNext;
     }
 
-    // Rank: prefer backend if valid, else compute
+    // Rank: prefer backend, else compute
     let rank = String(data.rank || data.level || "").trim();
     const computedRank = __rankFromNumericLevel(numericLevel);
     if (!rank) rank = computedRank;
@@ -202,7 +191,7 @@ async function loadUserStats(email) {
     setText("statXp", String(totalXp));
     setText("statRank", `${rank} rank`);
 
-    // “Next tier unlocks in X levels”
+    // Next tier line
     const nextTier = nextTierText(numericLevel);
     setText("unlockText", nextTier);
     setText("unlockText_m", nextTier);
@@ -214,10 +203,7 @@ async function loadUserStats(email) {
 
 function nextTierText(level) {
   const lvl = Number(level || 1);
-
-  // L1-2 = Novice
-  // L3-4 = Intermediate
-  // L5+  = Advanced
+  // L1-2 = Novice, L3-4 = Intermediate, L5+ = Advanced
   if (lvl < 3) {
     const left = 3 - lvl;
     return `Next tier unlocks in ${left} level${left === 1 ? "" : "s"} (Intermediate).`;
@@ -248,7 +234,7 @@ async function loadUserCourses(email) {
 
     __dashState.courses = Array.isArray(data.courses) ? data.courses : [];
 
-    // Update stats: in progress + completed
+    // Stats: in progress + completed
     const inProg = __dashState.courses.filter(c => String(c.status).toLowerCase() === "in-progress").length;
     const comp = __dashState.courses.filter(c => String(c.status).toLowerCase() === "completed").length;
 
@@ -265,7 +251,7 @@ async function loadUserCourses(email) {
 }
 
 /* =========================================================
-   CONTINUE LEARNING (FIXED)
+   CONTINUE LEARNING
 ========================================================= */
 function renderContinue() {
   const continueBox = document.getElementById("continueBox");
@@ -325,9 +311,7 @@ function renderContinue() {
         </div>
 
         <div class="d-flex gap-2 flex-wrap mt-3">
-          <a class="btn btn-outline-secondary btn-sm" href="courses.html" aria-label="Browse courses">
-            Browse courses
-          </a>
+          <a class="btn btn-outline-secondary btn-sm" href="courses.html" aria-label="Browse courses">Browse courses</a>
         </div>
       </div>
     `;
@@ -368,13 +352,15 @@ function renderContinue() {
     </div>
   `;
 
-  const link = continueBox.querySelector('[data-course-open="1"]');
-  link?.addEventListener("click", () => {
-    const id = link.getAttribute("data-course-id");
+  continueBox.querySelector('[data-course-open="1"]')?.addEventListener("click", (ev) => {
+    const id = ev.currentTarget.getAttribute("data-course-id");
     if (id) localStorage.setItem("last_course_id", id);
   });
 }
 
+/* =========================================================
+   COURSES GRID
+========================================================= */
 function renderCourses() {
   const grid = document.getElementById("coursesGrid");
   if (!grid) return;
@@ -387,7 +373,6 @@ function renderCourses() {
     const meta = getCourseMeta(c.id);
     const diff = String(meta?.difficulty || "").toLowerCase();
     const text = `${c.title || ""} ${c.description || ""}`.toLowerCase();
-
     const matchQ = !q || text.includes(q);
     const matchDiff = (diffFilter === "all") || (diff === diffFilter);
     return matchQ && matchDiff;
@@ -469,9 +454,7 @@ function renderCourses() {
 
             <div class="d-flex gap-2 flex-wrap mt-3">
               ${btn}
-              <a class="btn btn-sm btn-outline-secondary"
-                 href="sandbox.html"
-                 aria-label="Open sandbox">
+              <a class="btn btn-sm btn-outline-secondary" href="sandbox.html" aria-label="Open sandbox">
                 <i class="bi bi-diagram-3 me-1" aria-hidden="true"></i>
                 Sandbox
               </a>
@@ -482,8 +465,7 @@ function renderCourses() {
     `);
   });
 
-  const links = Array.from(grid.querySelectorAll('[data-course-open="1"]'));
-  links.forEach((a) => {
+  Array.from(grid.querySelectorAll('[data-course-open="1"]')).forEach((a) => {
     a.addEventListener("click", () => {
       const id = a.getAttribute("data-course-id");
       if (id) localStorage.setItem("last_course_id", id);
@@ -508,7 +490,6 @@ function getCourseMeta(courseId) {
 function isLockedByLevel(courseId, userLevel) {
   const meta = getCourseMeta(courseId);
   if (!meta) return { locked: false, required: 1 };
-
   const required = Number(meta.required_level || 1);
   return { locked: Number(userLevel) < required, required };
 }

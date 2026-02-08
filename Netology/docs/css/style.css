@@ -31,6 +31,13 @@ NEW Updates (Top Nav + User Dropdown):
 - Center brand (Netology logo + text) styles
 - Right user dropdown button styles + dropdown menu look
 - Small logo variant: .net-logo-sm
+
+NEW polish upgrades:
+- Subtle glass blur behind top nav
+- Animated sidebar hover “slide”
+- Smoother course card gradient bars (hover shimmer)
+- Smoother progress bars (rounded + subtle animated fill)
+- Tiny badge shine on hover (Bootstrap-safe)
 */
 
 /* =========================================================
@@ -103,6 +110,9 @@ header p {
 .text-teal { color: #00838F !important; }
 .bg-teal { background-color: #00838F !important; }
 .border-teal { border-color: #00838F !important; }
+
+/* Bootstrap doesn’t ship text-white-75 by default (your HTML uses it) */
+.text-white-75 { color: rgba(255,255,255,.75) !important; }
 
 .link-teal {
   color: #00838F;
@@ -199,7 +209,7 @@ header.net-topbar .net-subtitle{
   color: #0fb9b1;
 }
 
-/* NEW: smaller logo variant for top nav */
+/* smaller logo variant for top nav */
 .net-logo-sm{
   width: 38px;
   height: 38px;
@@ -271,7 +281,7 @@ header.net-topbar .net-subtitle{
   color: #fff;
   font-weight: 700;
   padding: 0.75em 1.2em;
-  border-radius: 14px; /* softer */
+  border-radius: 14px;
   box-shadow: 0 10px 25px rgba(15,185,177,.18);
   transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
 }
@@ -302,19 +312,92 @@ header.net-topbar .net-subtitle{
   box-shadow: 0 0 0 4px rgba(0,131,143,.12) !important;
 }
 
-/* Progress Bars (shared) */
+/* =========================================================
+   ✅ NEW: Smoother progress bars (Bootstrap-safe)
+========================================================= */
+
+/* Base bar style */
 .progress{
   border-radius: 999px;
   overflow: hidden;
+  background: rgba(17, 24, 39, .06);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
 }
+
+/* Filled portion */
 .progress-bar{
-  transition: width .4s ease;
+  transition: width .55s cubic-bezier(.2,.9,.2,1);
+  position: relative;
+  border-radius: 999px;
+}
+
+/* Gradient fill helper used by your dashboard */
+.progress-bar.net-progress{
+  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+}
+
+/* Subtle animated sheen */
+.progress-bar::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  transform: translateX(-120%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.45),
+    transparent
+  );
+  animation: netProgressSheen 2.4s ease-in-out infinite;
+  pointer-events: none;
+  opacity: .55;
+}
+
+/* Make sheen chill out on reduced motion */
+@keyframes netProgressSheen{
+  0%   { transform: translateX(-120%); }
+  55%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .progress-bar::after{ animation: none !important; opacity: 0 !important; }
 }
 
 /* Badges (shared) */
 .badge{
   border-radius: 999px;
   padding: .35em .65em;
+  position: relative;
+  overflow: hidden;
+}
+
+/* =========================================================
+   ✅ NEW: Tiny badge shine on hover (Bootstrap-safe)
+========================================================= */
+
+.badge::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  transform: translateX(-130%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.55),
+    transparent
+  );
+  transition: transform .55s ease;
+  pointer-events: none;
+  opacity: .0;
+}
+.badge:hover::after{
+  transform: translateX(130%);
+  opacity: .6;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .badge::after{ transition:none !important; transform:none !important; opacity: 0 !important; }
 }
 
 /* =========================================================
@@ -919,7 +1002,7 @@ input:focus-visible{
 ========================================================= */
 
 /* =========================================================
-   NEW: Figma-inspired Top Nav (Dashboard header)
+   Figma-inspired Top Nav (Dashboard header)
 ========================================================= */
 
 .net-topnav{
@@ -927,6 +1010,11 @@ input:focus-visible{
   color: #fff;
   border-bottom: 1px solid rgba(255,255,255,.22);
   box-shadow: 0 10px 28px rgba(0,0,0,.10);
+
+  /* glass blur */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(15,185,177,.88);
 }
 
 .net-topnav .container-fluid{
@@ -1029,6 +1117,13 @@ input:focus-visible{
   opacity: .9;
 }
 
+/* keyboard focus */
+.net-topnav-brand:focus-visible,
+.net-userbtn:focus-visible{
+  outline: 3px solid rgba(255,255,255,.55);
+  outline-offset: 3px;
+}
+
 /* Dropdown menu styling */
 .net-user-menu{
   border-radius: 16px;
@@ -1046,6 +1141,9 @@ input:focus-visible{
 }
 .net-user-menu .dropdown-item.text-danger:hover{
   background: rgba(220,53,69,.08);
+}
+.net-user-menu .dropdown-item:active{
+  background: rgba(15,185,177,.12);
 }
 
 /* Tiny screens: keep layout clean */
@@ -1069,7 +1167,7 @@ input:focus-visible{
   }
 }
 
-/* Sidebar user info box (ChatGPT-ish tidy grey) */
+/* Sidebar user info box */
 .net-userbox{
   background: linear-gradient(135deg, rgba(0,0,0,.03), rgba(0,131,143,.03));
   border: 1px solid rgba(0,131,143,.12);
@@ -1092,9 +1190,13 @@ input:focus-visible{
   border-color: rgba(0,0,0,.14) !important;
   background: rgba(255,255,255,.75);
   transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease, background .14s ease;
+  position: relative;
+  overflow: hidden;
 }
+
+/* animated slide hover */
 .net-navbtn:hover{
-  transform: translateY(-1px);
+  transform: translateY(-1px) translateX(4px);
   border-color: rgba(0,131,143,.26) !important;
   box-shadow: 0 12px 26px rgba(0,0,0,.06);
   background: rgba(255,255,255,.92);
@@ -1103,6 +1205,20 @@ input:focus-visible{
   border-color: rgba(15,185,177,.45) !important;
   box-shadow: 0 14px 30px rgba(15,185,177,.12);
   background: rgba(255,255,255,.92);
+}
+
+/* glow sweep */
+.net-navbtn::after{
+  content:"";
+  position:absolute;
+  inset: 0;
+  transform: translateX(-110%);
+  background: linear-gradient(90deg, transparent, rgba(15,185,177,.10), transparent);
+  transition: transform .35s ease;
+  pointer-events: none;
+}
+.net-navbtn:hover::after{
+  transform: translateX(110%);
 }
 
 /* Offcanvas (mobile sidebar) */
@@ -1118,8 +1234,7 @@ input:focus-visible{
   border-radius: 14px !important;
 }
 
-/* Existing dashboard pieces (kept + improved focus) */
-
+/* Existing dashboard pieces */
 .net-dot{
   width:10px;
   height:10px;
@@ -1168,7 +1283,7 @@ input:focus-visible{
   border-radius: 999px;
 }
 
-/* Focus styles (keyboard accessibility) */
+/* Focus styles */
 .net-search input:focus-visible{
   outline: none;
   box-shadow: 0 0 0 .2rem rgba(15,185,177,.18);
@@ -1185,6 +1300,7 @@ input:focus-visible{
   border-color: rgba(0,131,143,.35) !important;
 }
 
+/* Smoother course card gradient bars */
 .net-course-card{
   position: relative;
   background: rgba(255,255,255,.92);
@@ -1194,9 +1310,33 @@ input:focus-visible{
   overflow: hidden;
   transition: transform .15s ease, box-shadow .15s ease;
 }
+
+.net-course-card::before{
+  content:"";
+  position:absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, rgba(15,185,177,.95), rgba(32,191,107,.85));
+  opacity: .9;
+}
+
+.net-course-card::after{
+  content:"";
+  position:absolute;
+  inset: 0;
+  transform: translateX(-120%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.40), transparent);
+  transition: transform .55s ease;
+  pointer-events: none;
+}
 .net-course-card:hover{
   transform: translateY(-2px);
   box-shadow: 0 18px 55px rgba(0,0,0,.10);
+}
+.net-course-card:hover::after{
+  transform: translateX(120%);
 }
 
 .net-course-lock{
@@ -1208,7 +1348,7 @@ input:focus-visible{
   align-items:flex-start;
   justify-content:flex-end;
   padding: 14px;
-  z-index: 2;
+  z-index: 3;
 }
 .net-course-lock-inner{
   background: rgba(255,255,255,.9);
@@ -1281,7 +1421,6 @@ input:focus-visible{
   100%{ transform: translateX(100%); }
 }
 
-/* Width helpers for skeleton lines */
 .net-w-40{ width: 40%; }
 .net-w-60{ width: 60%; }
 .net-w-80{ width: 80%; }
@@ -1291,7 +1430,6 @@ input:focus-visible{
   .net-search{ min-width: 100%; }
 }
 
-/* Reduced motion safe */
 @media (prefers-reduced-motion: reduce){
   .net-skel::after{
     animation: none;
@@ -1303,6 +1441,12 @@ input:focus-visible{
   .net-topnav-brand,
   .net-userbtn{
     transition: none;
+  }
+  .net-course-card::after,
+  .net-navbtn::after{
+    transition: none !important;
+    transform: none !important;
+    opacity: 0 !important;
   }
 }
 
@@ -1455,7 +1599,6 @@ input:focus-visible{
   margin-top: 2px;
 }
 
-/* Sticky right sidebar on large screens */
 @media (min-width: 992px){
   .sb-side{
     position: sticky;
@@ -1463,7 +1606,6 @@ input:focus-visible{
   }
 }
 
-/* Header action buttons on the gradient topbar */
 header.net-topbar .btn-outline-light{
   border-color: rgba(255,255,255,.55) !important;
   color: #fff !important;
@@ -1521,7 +1663,6 @@ header.net-topbar .btn-outline-light:hover{
   background: rgba(0,0,0,.05);
 }
 
-/* Icon bubble */
 .net-toast-icon{
   width: 40px;
   height: 40px;
@@ -1533,7 +1674,6 @@ header.net-topbar .btn-outline-light:hover{
   position: relative;
 }
 
-/* Type colouring (success/error/info) */
 .net-toast[data-type="success"] .net-toast-icon{
   background: linear-gradient(135deg, #0fb9b1, #20bf6b);
 }
@@ -1561,7 +1701,6 @@ header.net-topbar .btn-outline-light:hover{
   font-size: 18px;
 }
 
-/* Entrance / exit animations */
 .net-toast-enter{
   animation: netToastIn .24s ease both;
 }
@@ -1577,7 +1716,6 @@ header.net-topbar .btn-outline-light:hover{
   to   { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.985); }
 }
 
-/* Mobile: slightly lower + wider text area */
 @media (max-width: 575.98px){
   .net-toast{
     top: 12px;
@@ -1587,7 +1725,6 @@ header.net-topbar .btn-outline-light:hover{
   }
 }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce){
   .net-toast-enter,
   .net-toast-exit{
