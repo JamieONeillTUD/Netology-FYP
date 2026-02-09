@@ -734,6 +734,7 @@ Works with:
   function renderCourses() {
     const grid = $("coursesGrid");
     if (!grid) return;
+    const banner = $("courseErrorBanner");
 
     const user = getCurrentUser();
     const uLevel = userNumericLevel(user);
@@ -749,9 +750,11 @@ Works with:
       `;
       const lockNote = $("lockNote");
       if (lockNote) lockNote.style.display = "none";
+      if (banner) banner.classList.remove("d-none");
       return;
     }
 
+    if (banner) banner.classList.add("d-none");
     grid.innerHTML = "";
     let anyLocked = false;
 
@@ -779,8 +782,7 @@ Works with:
   // -----------------------------
   function renderProgressWidgets() {
     const user = getCurrentUser();
-    const email = user?.email;
-    if (!email) return;
+    const email = user?.email || "";
 
     const content = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
     const courseIds = Object.keys(content);
@@ -791,25 +793,27 @@ Works with:
     let inProgress = 0;
     let completed = 0;
 
-    courseIds.forEach((id) => {
-      const completions = getCourseCompletions(email, id);
-      lessonsDone += completions.lesson.size;
-      quizzesDone += completions.quiz.size;
-      challengesDone += completions.challenge.size;
+    if (email) {
+      courseIds.forEach((id) => {
+        const completions = getCourseCompletions(email, id);
+        lessonsDone += completions.lesson.size;
+        quizzesDone += completions.quiz.size;
+        challengesDone += completions.challenge.size;
 
-      const required = countRequiredItems(content[id]);
-      const done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
-      if (required > 0) {
-        if (done >= required) completed += 1;
-        else if (done > 0) inProgress += 1;
-      }
-    });
+        const required = countRequiredItems(content[id]);
+        const done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
+        if (required > 0) {
+          if (done >= required) completed += 1;
+          else if (done > 0) inProgress += 1;
+        }
+      });
+    }
 
     if ($("statInProgress")) $("statInProgress").textContent = String(inProgress);
     if ($("statCompleted")) $("statCompleted").textContent = String(completed);
 
     // Login streak + streak badge progress
-    const loginLog = getLoginLog(email);
+    const loginLog = email ? getLoginLog(email) : [];
     const loginStreak = computeLoginStreak(loginLog);
     const topStreak = $("topStreakDays");
     if (topStreak) topStreak.textContent = `${loginStreak} day${loginStreak === 1 ? "" : "s"}`;

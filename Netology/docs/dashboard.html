@@ -362,50 +362,6 @@ Updates requested:
           </div>
         </section>
 
-        <!-- Courses -->
-        <section class="dash-card net-card net-pop p-4">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-            <div>
-              <div class="fw-semibold" id="coursesTitle">All Courses</div>
-              <div class="small text-muted">Search or filter to find your next course.</div>
-            </div>
-
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-              <!-- Mobile search -->
-              <div class="net-search d-md-none" style="min-width: 240px;">
-                <i class="bi bi-search" aria-hidden="true"></i>
-                <input id="mobileSearch"
-                       class="form-control form-control-sm"
-                       type="search"
-                       placeholder="Search courses…"
-                       aria-label="Search courses">
-              </div>
-
-              <!-- Desktop search (required by dashboard.js) -->
-              <div class="net-search net-course-search d-none d-md-block">
-                <i class="bi bi-search" aria-hidden="true"></i>
-                <input id="courseSearch"
-                       class="form-control form-control-sm"
-                       type="search"
-                       placeholder="Search courses…"
-                       aria-label="Search courses">
-              </div>
-
-              <div class="btn-group" role="group" aria-label="Filter courses by difficulty">
-                <button type="button" class="btn btn-sm btn-outline-secondary net-chip is-active" data-diff="all">All</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="novice">Novice</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="intermediate">Intermediate</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="advanced">Advanced</button>
-              </div>
-            </div>
-          </div>
-
-          <div id="coursesGrid" class="net-coursegrid">
-            <!-- cards injected by dashboard.js (locked courses will show “Unlock at Level X”) -->
-          </div>
-
-          <div class="small text-muted mt-3" id="lockNote" style="display:none"></div>
-        </section>
       </div>
 
       <!-- Right rail -->
@@ -441,6 +397,55 @@ Updates requested:
           </div>
         </section>
       </aside>
+    </section>
+
+    <!-- Courses (full-width like CTA) -->
+    <section class="dash-card net-card net-pop p-4 mb-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+          <div class="fw-semibold" id="coursesTitle">All Courses</div>
+          <div class="small text-muted">Search or filter to find your next course.</div>
+          <div class="net-inline-banner mt-2 d-none" id="courseErrorBanner" role="status" aria-live="polite">
+            <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+            <span>Courses are unavailable right now. Try refreshing.</span>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <!-- Mobile search -->
+          <div class="net-search d-md-none" style="min-width: 240px;">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input id="mobileSearch"
+                   class="form-control form-control-sm"
+                   type="search"
+                   placeholder="Search courses…"
+                   aria-label="Search courses">
+          </div>
+
+          <!-- Desktop search (required by dashboard.js) -->
+          <div class="net-search net-course-search d-none d-md-block">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input id="courseSearch"
+                   class="form-control form-control-sm"
+                   type="search"
+                   placeholder="Search courses…"
+                   aria-label="Search courses">
+          </div>
+
+          <div class="btn-group" role="group" aria-label="Filter courses by difficulty">
+            <button type="button" class="btn btn-sm btn-outline-secondary net-chip is-active" data-diff="all">All</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="novice">Novice</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="intermediate">Intermediate</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="advanced">Advanced</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="coursesGrid" class="net-coursegrid">
+        <!-- cards injected by dashboard.js (locked courses will show “Unlock at Level X”) -->
+      </div>
+
+      <div class="small text-muted mt-3" id="lockNote" style="display:none"></div>
     </section>
 
     <!-- CTA -->

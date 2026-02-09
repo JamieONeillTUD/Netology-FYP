@@ -2522,6 +2522,20 @@ body.net-auth-v2.net-landing::before{
   width: 100%;
 }
 
+/* Inline course error banner */
+.net-inline-banner{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(248, 113, 113, .12);
+  color: #b91c1c;
+  border: 1px solid rgba(248, 113, 113, .25);
+  font-size: .85rem;
+  font-weight: 600;
+}
+
 /* Account: activity + badges */
 .net-activity-grid{
   display:grid;
