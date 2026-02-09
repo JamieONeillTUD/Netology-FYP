@@ -47,20 +47,16 @@ Key Improvements:
 <body class="net-bg net-landing net-auth-page net-auth-v2">
 
   <!-- Top Bar -->
-  <header class="net-topbar net-landing-topbar net-navglass sticky-top net-auth-nav" role="banner">
-    <div class="container d-flex align-items-center justify-content-between gap-3 py-3">
-      <a href="index.html" class="d-flex align-items-center gap-3 text-decoration-none">
-        <div class="net-logo"></div>
-        <div>
-          <div class="net-brand">Netology</div>
-          <div class="net-subtitle small">Reset your password</div>
-        </div>
+  <header class="net-figma-nav sticky-top" role="banner">
+    <div class="net-figma-container nav-inner">
+      <a href="index.html" class="net-figma-brand" aria-label="Netology home">
+        <span class="net-figma-logo"><i class="bi bi-mortarboard-fill"></i></span>
+        <span class="net-figma-title">Netology</span>
       </a>
 
-      <a href="login.html" class="btn btn-outline-light btn-sm net-auth-cta">
-        <i class="bi bi-arrow-left me-1"></i>
-        Back
-      </a>
+      <nav class="net-figma-actions" aria-label="Primary actions">
+        <a href="login.html" class="net-figma-btn" aria-label="Back to sign in">Back to Sign In</a>
+      </nav>
     </div>
   </header>
 

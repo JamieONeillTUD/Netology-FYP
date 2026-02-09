@@ -280,12 +280,33 @@ footer{
 }
 .btn-teal:active{ transform: translateY(0); }
 
+.btn{
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+}
+.btn:active{ transform: translateY(0); }
+
 .btn-outline-secondary,
 .btn-outline-light,
 .btn-secondary,
 .btn-outline-danger{
   border-radius: var(--net-radius-sm) !important;
 }
+.btn-outline-secondary:hover,
+.btn-secondary:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(2, 6, 23, .08);
+}
+.btn-outline-light:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.18);
+  box-shadow: 0 14px 30px rgba(2, 6, 23, .12);
+}
+.btn-outline-danger:hover{
+  transform: translateY(-1px);
+  background: rgba(220,53,69,.08);
+  box-shadow: 0 14px 30px rgba(220,53,69,.12);
+}
+
 
 /* Pill UI */
 .net-pill{
@@ -462,7 +483,7 @@ body.net-figma-landing{
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 0;
+  padding: .6rem 0;
 }
 
 .net-figma-brand{
@@ -472,19 +493,19 @@ body.net-figma-landing{
   text-decoration: none;
 }
 .net-figma-logo{
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border-radius: 14px;
   display: grid;
   place-items: center;
   color: #fff;
   background: linear-gradient(135deg, #14b8a6, #06b6d4);
   box-shadow: 0 16px 30px rgba(20,184,166,.35);
-  font-size: 1.2rem;
+  font-size: 1.05rem;
 }
 .net-figma-title{
   font-weight: 800;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   background: linear-gradient(135deg, #0f766e, #06b6d4);
   -webkit-background-clip: text;
   background-clip: text;
@@ -494,15 +515,16 @@ body.net-figma-landing{
 .net-figma-actions{
   display: inline-flex;
   align-items: center;
-  gap: .75rem;
+  gap: .9rem;
 }
 .net-figma-link{
   color: #0f766e;
   font-weight: 600;
   text-decoration: none;
+  font-size: .95rem;
 }
 .net-figma-btn{
-  padding: .6rem 1.2rem;
+  padding: .5rem 1rem;
   border-radius: 14px;
   background: linear-gradient(135deg, #14b8a6, #06b6d4);
   color: #fff;
@@ -512,6 +534,7 @@ body.net-figma-landing{
   transition: transform .2s ease, box-shadow .2s ease;
 }
 .net-figma-btn:hover{ transform: translateY(-2px); box-shadow: 0 20px 38px rgba(20,184,166,.35); }
+.net-figma-btn:active{ transform: translateY(0); }
 
 .net-figma-hero{
   padding: 5rem 0 4rem;
@@ -568,6 +591,7 @@ body.net-figma-landing{
   transition: transform .2s ease, box-shadow .2s ease;
 }
 .net-figma-btn-lg:hover{ transform: translateY(-2px); box-shadow: 0 28px 60px rgba(20,184,166,.45); }
+.net-figma-btn-lg:active{ transform: translateY(0); }
 
 .net-figma-hero-stats{
   display: flex;
@@ -720,6 +744,11 @@ body.net-figma-landing{
   text-decoration: none;
   box-shadow: 0 18px 40px rgba(15,118,110,.3);
 }
+.net-figma-btn-light:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 24px 50px rgba(15,118,110,.36);
+}
+.net-figma-btn-light:active{ transform: translateY(0); }
 
 .net-figma-footer{
   border-top: 1px solid rgba(148,163,184,.2);
@@ -944,13 +973,13 @@ body.net-figma-landing{
 .net-landing-v2 .net-hero-actions{
   display: flex;
   flex-wrap: wrap;
-  gap: .9rem;
+  gap: 1.1rem;
   margin: 1.6rem 0 1.5rem;
 }
 .net-landing-v2 .net-hero-secondary{
   display: flex;
   flex-wrap: wrap;
-  gap: .75rem;
+  gap: .95rem;
   margin-bottom: 1.2rem;
 }
 .net-landing-v2 .net-hero-secondary .net-btn-ghost,
@@ -1084,7 +1113,7 @@ body.net-figma-landing{
   margin-top: 1.4rem;
   display: flex;
   flex-wrap: wrap;
-  gap: .6rem;
+  gap: .85rem;
 }
 
 .net-landing-v2 .net-steps{
@@ -1419,6 +1448,20 @@ body.net-auth-v2.net-landing::before{
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+.net-topbar .container,
+.net-topbar .container-fluid{
+  padding-top: .55rem;
+  padding-bottom: .55rem;
+}
+.net-topbar .net-logo{
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+}
+.net-topbar .net-brand{
+  font-weight: 800;
+  font-size: 1.05rem;
+}
 .net-auth-v2 .net-logo{
   width: 40px;
   height: 40px;
@@ -1486,6 +1529,8 @@ body.net-auth-v2.net-landing::before{
   border-color: transparent;
   box-shadow: 0 10px 24px rgba(20,184,166,.3);
 }
+
+.net-auth-v2 .d-flex.gap-2{ gap: .9rem !important; }
 
 .net-auth-v2 .net-choice-card,
 .net-auth-v2 .net-check-card{

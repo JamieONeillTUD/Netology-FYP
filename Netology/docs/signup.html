@@ -63,24 +63,16 @@ Notes:
        TOP BAR
        - Brand links back to index.html
   ========================================================== -->
-  <header class="net-topbar net-landing-topbar net-navglass sticky-top net-auth-nav" role="banner">
-    <div class="container d-flex align-items-center justify-content-between gap-3 py-3">
-      <a href="index.html"
-         class="d-flex align-items-center gap-3 text-decoration-none"
-         aria-label="Netology home">
-        <div class="net-logo" aria-hidden="true"></div>
-        <div>
-          <div class="net-brand">Netology</div>
-          <div class="net-subtitle small">Create your learning account</div>
-        </div>
+  <header class="net-figma-nav sticky-top" role="banner">
+    <div class="net-figma-container nav-inner">
+      <a href="index.html" class="net-figma-brand" aria-label="Netology home">
+        <span class="net-figma-logo"><i class="bi bi-mortarboard-fill"></i></span>
+        <span class="net-figma-title">Netology</span>
       </a>
 
-      <a href="login.html"
-         class="btn btn-outline-light btn-sm d-inline-flex align-items-center net-auth-cta"
-         aria-label="Go to login">
-        <i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>
-        Sign In
-      </a>
+      <nav class="net-figma-actions" aria-label="Primary actions">
+        <a href="login.html" class="net-figma-btn" aria-label="Go to login">Sign In</a>
+      </nav>
     </div>
   </header>
 

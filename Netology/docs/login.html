@@ -59,26 +59,16 @@ Key Improvements (Figma AI inspired):
        - Brand links back to index.html
        - Quick action to create account
   ========================================================== -->
-  <header class="net-topbar net-landing-topbar net-navglass sticky-top net-auth-nav" role="banner">
-    <div class="container d-flex align-items-center justify-content-between gap-3 py-3">
-
-      <!-- Brand -->
-      <a href="index.html"
-         class="d-flex align-items-center gap-3 text-decoration-none"
-         aria-label="Netology home">
-        <div class="net-logo" aria-hidden="true"></div>
-        <div>
-          <div class="net-brand">Netology</div>
-          <div class="net-subtitle small">Welcome back — sign in to continue</div>
-        </div>
+  <header class="net-figma-nav sticky-top" role="banner">
+    <div class="net-figma-container nav-inner">
+      <a href="index.html" class="net-figma-brand" aria-label="Netology home">
+        <span class="net-figma-logo"><i class="bi bi-mortarboard-fill"></i></span>
+        <span class="net-figma-title">Netology</span>
       </a>
 
-      <a href="signup.html"
-         class="btn btn-outline-light btn-sm d-inline-flex align-items-center net-auth-cta"
-         aria-label="Create a new Netology account">
-        <i class="bi bi-person-plus me-1" aria-hidden="true"></i>
-        Create account
-      </a>
+      <nav class="net-figma-actions" aria-label="Primary actions">
+        <a href="signup.html" class="net-figma-btn" aria-label="Create a new Netology account">Create account</a>
+      </nav>
     </div>
   </header>
 
