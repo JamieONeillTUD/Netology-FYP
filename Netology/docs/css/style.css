@@ -67,6 +67,12 @@ This version:
   --net-grad-main: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
   --net-grad-accent: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
   --net-grad-soft: linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.25));
+
+  /* Netology logo mark (network + education) */
+  --net-logo-mark: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%20fill%3D%27none%27%3E%3Cpath%20d%3D%27M16%2022L32%2014L48%2022L32%2030Z%27%20fill%3D%27%23e2e8f0%27/%3E%3Cpath%20d%3D%27M22%2026L32%2031L42%2026%27%20stroke%3D%27%2394a3b8%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27/%3E%3Ccircle%20cx%3D%2732%27%20cy%3D%2734%27%20r%3D%274%27%20fill%3D%27%2314b8a6%27/%3E%3Ccircle%20cx%3D%2718%27%20cy%3D%2746%27%20r%3D%274%27%20fill%3D%27%2322d3ee%27/%3E%3Ccircle%20cx%3D%2746%27%20cy%3D%2746%27%20r%3D%274%27%20fill%3D%27%2338bdf8%27/%3E%3Cpath%20d%3D%27M28%2036L21%2042M36%2036L43%2042%27%20stroke%3D%27%2338bdf8%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E");
+  --net-icon-net: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%20fill%3D%27none%27%3E%3Ccircle%20cx%3D%2732%27%20cy%3D%2718%27%20r%3D%275%27%20fill%3D%27%2314b8a6%27/%3E%3Ccircle%20cx%3D%2718%27%20cy%3D%2742%27%20r%3D%275%27%20fill%3D%27%2338bdf8%27/%3E%3Ccircle%20cx%3D%2746%27%20cy%3D%2742%27%20r%3D%275%27%20fill%3D%27%2322d3ee%27/%3E%3Cpath%20d%3D%27M28%2022L21%2036M36%2022L43%2036%27%20stroke%3D%27%2394a3b8%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E");
+  --net-icon-book: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%20fill%3D%27none%27%3E%3Cpath%20d%3D%27M12%2018C20%2014%2028%2014%2032%2018C36%2014%2044%2014%2052%2018V48C44%2044%2036%2044%2032%2048C28%2044%2020%2044%2012%2048V18Z%27%20stroke%3D%27%2394a3b8%27%20stroke-width%3D%273%27%20fill%3D%27none%27/%3E%3Cpath%20d%3D%27M32%2018V48%27%20stroke%3D%27%2394a3b8%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E");
+  --net-icon-cap: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%20fill%3D%27none%27%3E%3Cpath%20d%3D%27M16%2024L32%2016L48%2024L32%2032Z%27%20fill%3D%27%23cbd5f5%27/%3E%3Cpath%20d%3D%27M22%2028L32%2033L42%2028%27%20stroke%3D%27%2394a3b8%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27/%3E%3Cpath%20d%3D%27M44%2026V34%27%20stroke%3D%27%2338bdf8%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E");
 }
 
 *{ box-sizing: border-box; }
@@ -165,11 +171,33 @@ footer{
 
 .net-bg{
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
   background:
     radial-gradient(1300px 720px at 12% 8%, rgba(15,185,177,.12), transparent 60%),
     radial-gradient(900px 680px at 86% 18%, rgba(56,189,248,.12), transparent 62%),
     linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0)),
     linear-gradient(180deg, var(--net-bg1), var(--net-bg2));
+}
+.net-bg::after{
+  content:"";
+  position: fixed;
+  inset: -10%;
+  pointer-events: none;
+  z-index: -1;
+  opacity: .22;
+  background-image:
+    var(--net-icon-net),
+    var(--net-icon-book),
+    var(--net-icon-cap),
+    var(--net-icon-net),
+    var(--net-icon-book),
+    var(--net-icon-cap);
+  background-repeat: no-repeat;
+  background-size: 44px 44px, 40px 40px, 36px 36px, 30px 30px, 42px 42px, 34px 34px;
+  background-position: 12% 18%, 80% 12%, 66% 72%, 22% 70%, 90% 60%, 38% 38%;
+  animation: netIconDrift 26s ease-in-out infinite;
+  filter: drop-shadow(0 18px 32px rgba(15,23,42,.06));
 }
 
 /* Animated background layers (subtle, premium) */
@@ -218,9 +246,34 @@ footer{
   to   { transform: translate3d(-12px, 12px, 0) scale(1.05); }
 }
 
+@keyframes netIconDrift{
+  0%{
+    background-position: 12% 18%, 80% 12%, 66% 72%, 22% 70%, 90% 60%, 38% 38%;
+  }
+  50%{
+    background-position: 18% 24%, 74% 16%, 62% 64%, 26% 76%, 84% 54%, 44% 46%;
+  }
+  100%{
+    background-position: 12% 18%, 80% 12%, 66% 72%, 22% 70%, 90% 60%, 38% 38%;
+  }
+}
+@keyframes netIconDriftSlow{
+  0%{
+    background-position: 14% 24%, 82% 18%, 62% 78%, 24% 68%;
+  }
+  50%{
+    background-position: 20% 30%, 76% 22%, 58% 70%, 30% 74%;
+  }
+  100%{
+    background-position: 14% 24%, 82% 18%, 62% 78%, 24% 68%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce){
   .net-landing::before,
-  .net-landing::after{ animation: none !important; }
+  .net-landing::after,
+  .net-bg::after,
+  .net-figma-bg::after{ animation: none !important; }
 }
 
 /* Cards */
@@ -278,12 +331,21 @@ footer{
   box-shadow: 0 18px 44px rgba(6,182,212,.22);
   filter: brightness(0.99);
 }
-.btn-teal:active{ transform: translateY(0); }
+.btn-teal:active{
+  transform: translateY(0);
+  filter: brightness(0.95) saturate(1.05);
+}
 
 .btn{
   transition: transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
 }
-.btn:active{ transform: translateY(0); }
+.btn:hover{
+  box-shadow: 0 14px 30px rgba(2, 6, 23, .10);
+}
+.btn:active{
+  transform: translateY(1px);
+  filter: brightness(0.97) saturate(1.02);
+}
 
 .btn-outline-secondary,
 .btn-outline-light,
@@ -305,6 +367,21 @@ footer{
   transform: translateY(-1px);
   background: rgba(220,53,69,.08);
   box-shadow: 0 14px 30px rgba(220,53,69,.12);
+}
+.btn-outline-secondary:active,
+.btn-secondary:active{ background: rgba(15,23,42,.06); }
+.btn-outline-light:active{ background: rgba(255,255,255,.28); }
+.btn-outline-danger:active{ background: rgba(220,53,69,.12); }
+
+.net-userbtn:hover,
+.net-chip:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(2, 6, 23, .10);
+}
+.net-userbtn:active,
+.net-chip:active{
+  transform: translateY(1px);
+  filter: brightness(0.97);
 }
 
 
@@ -417,6 +494,22 @@ body.net-figma-landing{
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+}
+.net-figma-bg::after{
+  content:"";
+  position: absolute;
+  inset: -12%;
+  opacity: .22;
+  background-image:
+    var(--net-icon-net),
+    var(--net-icon-cap),
+    var(--net-icon-book),
+    var(--net-icon-net);
+  background-repeat: no-repeat;
+  background-size: 46px 46px, 38px 38px, 42px 42px, 34px 34px;
+  background-position: 14% 24%, 82% 18%, 62% 78%, 24% 68%;
+  animation: netIconDriftSlow 32s ease-in-out infinite;
+  filter: drop-shadow(0 18px 32px rgba(15,23,42,.06));
 }
 
 .net-figma-blob{
@@ -534,7 +627,7 @@ body.net-figma-landing{
   transition: transform .2s ease, box-shadow .2s ease;
 }
 .net-figma-btn:hover{ transform: translateY(-2px); box-shadow: 0 20px 38px rgba(20,184,166,.35); }
-.net-figma-btn:active{ transform: translateY(0); }
+.net-figma-btn:active{ transform: translateY(1px); filter: brightness(0.96); }
 
 .net-figma-hero{
   padding: 5rem 0 4rem;
@@ -591,7 +684,7 @@ body.net-figma-landing{
   transition: transform .2s ease, box-shadow .2s ease;
 }
 .net-figma-btn-lg:hover{ transform: translateY(-2px); box-shadow: 0 28px 60px rgba(20,184,166,.45); }
-.net-figma-btn-lg:active{ transform: translateY(0); }
+.net-figma-btn-lg:active{ transform: translateY(1px); filter: brightness(0.96); }
 
 .net-figma-hero-stats{
   display: flex;
@@ -748,7 +841,7 @@ body.net-figma-landing{
   transform: translateY(-2px);
   box-shadow: 0 24px 50px rgba(15,118,110,.36);
 }
-.net-figma-btn-light:active{ transform: translateY(0); }
+.net-figma-btn-light:active{ transform: translateY(1px); filter: brightness(0.97); }
 
 .net-figma-footer{
   border-top: 1px solid rgba(148,163,184,.2);
@@ -894,22 +987,26 @@ body.net-figma-landing{
   box-shadow: 0 18px 35px rgba(20,184,166,.35);
 }
 .net-landing-v2 .net-btn-primary:hover{ transform: translateY(-2px); box-shadow: 0 22px 44px rgba(20,184,166,.4); }
+.net-landing-v2 .net-btn-primary:active{ transform: translateY(1px); filter: brightness(0.96); }
 .net-landing-v2 .net-btn-ghost{
   background: transparent;
   color: #0f766e;
 }
 .net-landing-v2 .net-btn-ghost:hover{ color: #0b5b56; }
+.net-landing-v2 .net-btn-ghost:active{ transform: translateY(1px); color: #0b5b56; }
 .net-landing-v2 .net-btn-outline{
   border: 1px solid rgba(15,118,110,.25);
   background: rgba(255,255,255,.75);
   color: #0f766e;
 }
 .net-landing-v2 .net-btn-outline:hover{ transform: translateY(-2px); }
+.net-landing-v2 .net-btn-outline:active{ transform: translateY(1px); background: rgba(20,184,166,.08); }
 .net-landing-v2 .net-btn-light{
   background: #fff;
   color: #0f766e;
   box-shadow: 0 18px 40px rgba(15,118,110,.3);
 }
+.net-landing-v2 .net-btn-light:active{ transform: translateY(1px); filter: brightness(0.97); }
 .net-landing-v2 .net-btn-lg{ padding: .9rem 1.4rem; border-radius: 16px; }
 .net-landing-v2 .net-btn-sm{ padding: .45rem .85rem; border-radius: 12px; font-size: .9rem; }
 
@@ -1433,6 +1530,54 @@ body.net-auth-v2{
     radial-gradient(900px 600px at 12% 8%, rgba(20,184,166,.18), transparent 60%),
     radial-gradient(800px 600px at 88% 12%, rgba(6,182,212,.16), transparent 60%),
     linear-gradient(160deg, #f8fafc 0%, #e9fbff 45%, #f0f9ff 100%);
+}
+
+/* Slightly more breathing room between buttons across pages */
+.net-bg .d-flex.gap-2,
+.net-bg .d-grid.gap-2{ gap: .75rem !important; }
+.net-bg .d-flex.gap-3,
+.net-bg .d-grid.gap-3{ gap: 1.1rem !important; }
+
+/* Logo refresh (network + education) */
+.net-logo,
+.net-figma-logo,
+.net-auth-logo{
+  background-image: var(--net-logo-mark), linear-gradient(135deg, #14b8a6, #06b6d4);
+  background-size: 70% 70%, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: transparent;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.net-logo::after{ content: ""; }
+.net-figma-logo i,
+.net-auth-logo i{ display: none; }
+
+.net-logo:hover,
+.net-figma-logo:hover,
+.net-auth-logo:hover{
+  transform: translateY(-1px) rotate(-4deg);
+  box-shadow: 0 18px 36px rgba(20,184,166,.35);
+}
+.net-logo:active,
+.net-figma-logo:active,
+.net-auth-logo:active{
+  transform: translateY(1px) scale(.96) rotate(2deg);
+  filter: brightness(0.95);
+}
+.net-topnav-brand:hover .net-logo,
+.net-brandchip:hover .net-logo,
+.net-topbar a:hover .net-logo,
+.net-figma-brand:hover .net-figma-logo{
+  transform: translateY(-1px) rotate(-4deg);
+  box-shadow: 0 18px 36px rgba(20,184,166,.35);
+}
+.net-topnav-brand:active .net-logo,
+.net-brandchip:active .net-logo,
+.net-topbar a:active .net-logo,
+.net-figma-brand:active .net-figma-logo{
+  transform: translateY(1px) scale(.96) rotate(2deg);
+  filter: brightness(0.95);
 }
 body.net-auth-v2.net-landing::before{
   opacity: .35;
