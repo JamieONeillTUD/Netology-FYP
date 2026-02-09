@@ -2,7 +2,7 @@
 Student Number: C22320301
 Student Name: Jamie O'Neill
 Course Code: TU857/4
-Date: 10/11/2025
+Date: 09/02/2026
 
 Custom CSS styles for the Netology frontend application.
 
@@ -13,48 +13,87 @@ HOW THIS FILE IS ORGANISED (by HTML page)
 2) SHARED NETOLOGY THEME (used across most pages)
 3) index.html (Landing page)
 4) login.html / signup.html / forgot.html (Auth pages)
-5) dashboard.html (Dashboard + SIDEBAR layout)
+5) dashboard.html (Top Nav + Slide Sidebar + Dropdown + Course Grid)
 6) courses.html (Courses list)
 7) course.html (Single course + Khan-style sidebar/unit view)
 8) sandbox.html (Sandbox revamp)
+9) Shared components (toast, accessibility)
 =========================================================
 
-Updates (Dashboard sidebar revamp):
-- Added ChatGPT-style sidebar layout support (desktop) + offcanvas (mobile)
-- New components: .net-sidewrap, .net-userbox, .net-userchip, .net-navbtn
-- Softer buttons + consistent radii
-- Improved offcanvas styling to match Netology theme
-- Kept existing dashboard cards/search/chips/course cards
-
-NEW Updates (Top Nav + User Dropdown):
-- Added .net-topnav (Figma-inspired top navbar)
-- Center brand (Netology logo + text) styles
-- Right user dropdown button styles + dropdown menu look
-- Small logo variant: .net-logo-sm
-
-NEW polish upgrades:
-- Subtle glass blur behind top nav
-- Animated sidebar hover “slide”
-- Smoother course card gradient bars (hover shimmer)
-- Smoother progress bars (rounded + subtle animated fill)
-- Tiny badge shine on hover (Bootstrap-safe)
+This version:
+- Removes overlapping duplicates (body, btn-teal)
+- Matches new dashboard.html + dashboard.js output:
+  .net-topnav, .net-slideside, .net-dd, .net-coursegrid, .net-coursecard, .net-meter, etc.
+- Keeps prior site theme styles consistent and Bootstrap-safe.
 */
 
 /* =========================================================
    1) GLOBAL BASE (all pages)
 ========================================================= */
 
-body {
-  background-color: #E0F2F7;
+:root{
+  --net-teal:#0fb9b1;
+  --net-teal-2:#20bf6b;
+  --net-teal-dark:#0ea5a0;
+
+  --net-ink:#0b3b40;
+  --net-muted:#60737A;
+
+  --net-bg1:#EAF7FA;
+  --net-bg2:#F7FBFC;
+
+  --net-card:#ffffff;
+  --net-border:#D7EEF0;
+
+  --net-shadow: 0 10px 30px rgba(0,0,0,.08);
+  --net-shadow-2: 0 18px 55px rgba(0,0,0,.10);
+
+  --net-radius: 20px;
+  --net-radius-sm: 14px;
+  --net-radius-xs: 12px;
+
+  --net-focus: rgba(15,185,177,.40);
+}
+
+*{ box-sizing: border-box; }
+
+html, body{ height: 100%; }
+
+body{
+  background-color: var(--net-bg1);
   color: #111;
   font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
   line-height: 1.7;
+
+  /* smooth load */
+  animation: netFadeIn .22s ease;
 }
 
-/* Header (generic pages that use <header> without .net-topbar) */
-header {
+@keyframes netFadeIn{
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  body{ animation: none !important; }
+}
+
+a{ color: inherit; }
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible{
+  outline: 3px solid var(--net-focus);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+/* Generic header/footer (only for pages NOT using .net-topnav) */
+header{
   background-color: #fff;
   border-bottom: 2px solid #00838F;
   text-align: center;
@@ -62,71 +101,20 @@ header {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-header h1 {
+header h1{
   color: #00838F;
   margin-bottom: 0.25em;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
-header p {
+header p{
   color: #555;
   font-size: 1rem;
   margin: 0;
 }
 
-/* Cards (bootstrap .card fallback) */
-.card {
-  background-color: #fff;
-  border: 1px solid #B2DFDB;
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-}
-
-/* Buttons (base, upgraded later by .btn-teal final definition) */
-.btn-teal {
-  background-color: #00838F;
-  color: #fff;
-  font-weight: 600;
-  border: none;
-  padding: 0.75em 1.2em;
-  border-radius: 6px;
-  transition: background-color 0.25s ease, transform 0.15s ease;
-}
-
-.btn-teal:hover {
-  background-color: #00695C;
-  color: #fff;
-  transform: translateY(-1px);
-}
-
-/* Text and links */
-.text-teal { color: #00838F !important; }
-.bg-teal { background-color: #00838F !important; }
-.border-teal { border-color: #00838F !important; }
-
-/* Bootstrap doesn’t ship text-white-75 by default (your HTML uses it) */
-.text-white-75 { color: rgba(255,255,255,.75) !important; }
-
-.link-teal {
-  color: #00838F;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s ease, text-decoration 0.2s ease;
-}
-.link-teal:hover {
-  text-decoration: underline;
-  color: #00695C;
-}
-
-/* Footer (generic pages) */
-footer {
+footer{
   background-color: #fff;
   border-top: 2px solid #00838F;
   padding: 1.5em 0;
@@ -134,281 +122,17 @@ footer {
   margin-top: 3em;
 }
 
-/* Smooth Page Load (all pages) */
-body{
-  animation: fadeIn .25s ease;
-}
-@keyframes fadeIn{
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: none; }
-}
+/* Bootstrap helper missing class used in dashboard.html */
+.text-white-75{ color: rgba(255,255,255,.75) !important; }
 
 /* =========================================================
    2) SHARED NETOLOGY THEME (most pages)
 ========================================================= */
 
-:root{
-  --net-teal:#00838F;
-  --net-teal-dark:#006B74;
-  --net-bg1:#EAF7FA;
-  --net-bg2:#F7FBFC;
-  --net-card:#FFFFFF;
-  --net-border:#D7EEF0;
-  --net-shadow: 0 10px 30px rgba(0,0,0,.08);
-
-  /* Dashboard sidebar tokens */
-  --net-soft:#F3F6F7;
-  --net-soft-2:#EDF3F4;
-  --net-ink:#0b3b40;
-}
-
-/* Use this on pages you want to look more like Khan/Codecademy */
 .net-bg{
   background: linear-gradient(180deg, #f6fffd, #f9fafb);
   min-height: 100vh;
 }
-
-/* Top bar (Netology pages) */
-header.net-topbar{
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-  color: white;
-  border-bottom: none;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-  padding: .9rem 0;
-  text-align: left;
-}
-
-header.net-topbar .net-brand,
-header.net-topbar .net-subtitle{
-  color: #fff;
-}
-
-/* Brand text */
-.net-brand{
-  display:flex;
-  align-items:center;
-  gap:.65rem;
-  font-weight:800;
-  letter-spacing:.2px;
-}
-
-/* Netology logo badge (clean “N”) */
-.net-logo{
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ffffff, #eafffb);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
-}
-.net-logo::after{
-  content: "N";
-  font-weight: 800;
-  font-size: 20px;
-  color: #0fb9b1;
-}
-
-/* smaller logo variant for top nav */
-.net-logo-sm{
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-}
-.net-logo-sm::after{
-  font-size: 18px;
-}
-
-.net-subtitle{
-  color:#ffffffcc;
-}
-
-/* Netology layout cards */
-.net-card{
-  background: var(--net-card);
-  border: 1px solid var(--net-border);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-  transition: transform .2s ease, box-shadow .2s ease;
-}
-.net-card:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 14px 40px rgba(0,0,0,0.08);
-}
-.net-card .card{ box-shadow: none; }
-
-/* Big welcome/hero card (used on older landing blocks too) */
-.net-hero{
-  border-radius: 18px;
-  border: 1px solid var(--net-border);
-  background: linear-gradient(135deg, rgba(0,131,143,.10), rgba(255,255,255,.85));
-  box-shadow: 0 10px 30px rgba(0,0,0,.06);
-}
-
-/* Stat tiles (shared) */
-.net-stat{
-  border: 1px solid var(--net-border);
-  border-radius: 16px;
-  background: #fff;
-  padding: 1rem;
-}
-.net-stat .label{ color:#60737A; font-size:.85rem; }
-.net-stat .value{ font-size:1.35rem; font-weight:800; }
-
-/* Course cards grid (dashboard) */
-.net-course-grid{
-  display:grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 14px;
-}
-.net-course-grid > .card{
-  grid-column: span 12;
-  border-radius: 16px;
-  border: 1px solid var(--net-border);
-  box-shadow: 0 10px 25px rgba(0,0,0,.06);
-}
-@media (min-width: 768px){
-  .net-course-grid > .card{ grid-column: span 6; }
-}
-@media (min-width: 992px){
-  .net-course-grid > .card{ grid-column: span 4; }
-}
-
-/* FINAL modern teal button (single definition used everywhere) */
-.btn-teal{
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-  border: none;
-  color: #fff;
-  font-weight: 700;
-  padding: 0.75em 1.2em;
-  border-radius: 14px;
-  box-shadow: 0 10px 25px rgba(15,185,177,.18);
-  transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
-}
-.btn-teal:hover{
-  background: linear-gradient(135deg, #0ea5a0, #1eae62);
-  color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(15,185,177,.22);
-}
-.btn-teal:active{ transform: translateY(0); }
-
-/* Make outline buttons softer and consistent */
-.btn-outline-secondary,
-.btn-outline-light,
-.btn-secondary,
-.btn-outline-danger{
-  border-radius: 14px !important;
-}
-
-/* Inputs (shared) */
-.net-input{
-  border-radius: 12px !important;
-  border: 1px solid var(--net-border) !important;
-  padding: .8rem .9rem !important;
-}
-.net-input:focus{
-  border-color: rgba(0,131,143,.5) !important;
-  box-shadow: 0 0 0 4px rgba(0,131,143,.12) !important;
-}
-
-/* =========================================================
-   ✅ NEW: Smoother progress bars (Scoped to Netology UI)
-========================================================= */
-
-.net-bg .progress,
-.net-auth-page .progress,
-.net-card .progress,
-.net-userbox .progress,
-.net-cta .progress{
-  border-radius: 999px;
-  overflow: hidden;
-  background: rgba(17, 24, 39, .06);
-  box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
-}
-
-.net-bg .progress-bar,
-.net-auth-page .progress-bar,
-.net-card .progress-bar,
-.net-userbox .progress-bar,
-.net-cta .progress-bar{
-  transition: width .55s cubic-bezier(.2,.9,.2,1);
-  position: relative;
-  border-radius: 999px;
-}
-
-.progress-bar.net-progress{
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-}
-
-.progress-bar.net-progress::after,
-.progress-bar.net-progress-fill::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  transform: translateX(-120%);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
-  animation: netProgressSheen 2.4s ease-in-out infinite;
-  pointer-events: none;
-  opacity: .55;
-}
-
-@keyframes netProgressSheen{
-  0%   { transform: translateX(-120%); }
-  55%  { transform: translateX(120%); }
-  100% { transform: translateX(120%); }
-}
-
-@media (prefers-reduced-motion: reduce){
-  .progress-bar.net-progress::after,
-  .progress-bar.net-progress-fill::after{
-    animation: none !important;
-    opacity: 0 !important;
-  }
-}
-
-/* Badges (shared) */
-.badge{
-  border-radius: 999px;
-  padding: .35em .65em;
-}
-
-/* =========================================================
-   ✅ NEW: Tiny badge shine on hover (Scoped)
-========================================================= */
-
-.net-badge-shine{
-  position: relative;
-  overflow: hidden;
-}
-
-.net-badge-shine::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  transform: translateX(-130%);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
-  transition: transform .55s ease, opacity .2s ease;
-  pointer-events: none;
-  opacity: 0;
-}
-
-.net-badge-shine:hover::after{
-  transform: translateX(130%);
-  opacity: .6;
-}
-
-@media (prefers-reduced-motion: reduce){
-  .net-badge-shine::after{
-    transition:none !important;
-    transform:none !important;
-    opacity: 0 !important;
-  }
-}
-
-/* =========================================================
-   3) index.html (Landing page)
-========================================================= */
 
 .net-landing{
   position: relative;
@@ -426,25 +150,69 @@ header.net-topbar .net-subtitle{
     linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0));
 }
 
-.net-navglass{
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* Cards */
+.net-card{
+  background: var(--net-card);
+  border: 1px solid var(--net-border);
+  border-radius: var(--net-radius);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  transition: transform .18s ease, box-shadow .18s ease;
 }
-.net-landing-topbar{
-  text-shadow: 0 1px 10px rgba(0,0,0,.15);
+.net-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.08);
 }
 
-.net-landing .net-hero-plain{
-  padding: 6px 0;
-}
+/* If using Bootstrap .card inside .net-card containers */
+.net-card .card{ box-shadow: none; }
 
+/* Gradient text */
 .net-gradient-text{
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
+/* Links */
+.link-teal{
+  color: #00838F;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color .15s ease, text-decoration .15s ease;
+}
+.link-teal:hover{
+  text-decoration: underline;
+  color: #00695C;
+}
+
+/* Buttons: single source of truth */
+.btn-teal{
+  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
+  border: none;
+  color: #fff;
+  font-weight: 800;
+  padding: 0.75em 1.2em;
+  border-radius: var(--net-radius-sm);
+  box-shadow: 0 10px 25px rgba(15,185,177,.18);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.btn-teal:hover{
+  color:#fff;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(15,185,177,.22);
+  filter: brightness(0.98);
+}
+.btn-teal:active{ transform: translateY(0); }
+
+.btn-outline-secondary,
+.btn-outline-light,
+.btn-secondary,
+.btn-outline-danger{
+  border-radius: var(--net-radius-sm) !important;
+}
+
+/* Pill UI */
 .net-pill{
   display:inline-flex;
   align-items:center;
@@ -453,12 +221,36 @@ header.net-topbar .net-subtitle{
   border-radius:999px;
   background: rgba(255,255,255,.80);
   border: 1px solid rgba(0,131,143,.18);
-  color:#0b3b40;
+  color: var(--net-ink);
   box-shadow: 0 10px 25px rgba(0,0,0,.05);
 }
+.net-dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
+  box-shadow: 0 10px 20px rgba(15,185,177,.25);
+}
 
-.net-btn-shadow{
-  box-shadow: 0 14px 30px rgba(15,185,177,.22);
+/* Pop animation used across cards */
+.net-pop{
+  animation: netPop .55s ease both;
+}
+@keyframes netPop{
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce){
+  .net-pop{ animation: none !important; }
+}
+
+/* =========================================================
+   3) index.html (Landing page)
+========================================================= */
+
+.net-navglass{
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .net-avatars{
@@ -469,262 +261,25 @@ header.net-topbar .net-subtitle{
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
   color: #fff;
   display:grid;
   place-items:center;
-  font-weight:800;
+  font-weight:900;
   border: 2px solid #fff;
   margin-left: -10px;
   box-shadow: 0 10px 25px rgba(15,185,177,.18);
 }
 .net-avatar:first-child{ margin-left: 0; }
 
-.net-hero-visual-modern{
-  position: relative;
-  min-height: 420px;
-}
-@media (max-width: 991.98px){
-  .net-hero-visual-modern{ min-height: 380px; }
-}
-
-.net-hero-card{
-  background: rgba(255,255,255,.93);
-  border: 1px solid rgba(0,131,143,.14);
-  border-radius: 22px;
-  box-shadow: 0 18px 55px rgba(0,0,0,.10);
-  padding: 26px;
-  overflow: hidden;
-  position: relative;
-  z-index: 2;
-  transition: transform .18s ease, box-shadow .22s ease;
-}
-.net-hero-card:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 22px 65px rgba(0,0,0,.12);
-}
-
-.net-float-badge{
-  position:absolute;
-  top: -14px;
-  right: -14px;
-  width: 84px;
-  height: 84px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-  display:grid;
-  place-items:center;
-  color:#fff;
-  box-shadow: 0 12px 32px rgba(15,185,177,.25);
-  font-size: 34px;
-}
-
-.net-progress{
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-}
-
-.net-mini-row{
-  display:flex;
-  align-items:center;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(0,131,143,.07), rgba(32,191,107,.06));
-  border: 1px solid rgba(0,131,143,.12);
-  transition: transform .15s ease, background .15s ease, border-color .15s ease;
-}
-.net-mini-row:hover{
-  transform: translateY(-1px);
-  background: linear-gradient(135deg, rgba(0,131,143,.09), rgba(32,191,107,.08));
-  border-color: rgba(0,131,143,.16);
-}
-
-.net-mini-ico{
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: rgba(255,255,255,.92);
-  display:grid;
-  place-items:center;
-  color: #00838F;
-  font-size: 20px;
-  border: 1px solid rgba(0,131,143,.14);
-}
-
-.net-status-dot{
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  display: inline-block;
-  background: #adb5bd;
-  box-shadow: 0 0 0 4px rgba(173,181,189,.15);
-}
-
-@media (prefers-reduced-motion: no-preference){
-  .net-status-dot{ animation: netPulse 1.8s ease-in-out infinite; }
-  @keyframes netPulse{
-    0%, 100% { transform: scale(1); opacity: .95; }
-    50% { transform: scale(1.25); opacity: .65; }
-  }
-}
-
-.net-strip{
-  background: rgba(255,255,255,.60);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-.net-statbox{
-  background: rgba(255,255,255,.92);
-  border: 1px solid rgba(0,131,143,.12);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 12px 30px rgba(0,0,0,.05);
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.net-statbox:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 16px 38px rgba(0,0,0,.07);
-}
-.net-statico{
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 10px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-  color:#fff;
-  display:grid;
-  place-items:center;
-  font-size: 22px;
-  box-shadow: 0 14px 28px rgba(15,185,177,.22);
-}
-
-.net-timeline{
-  display:grid;
-  gap: 14px;
-  max-width: 980px;
-  margin: 0 auto;
-}
-.net-timeline-item{
-  display:grid;
-  grid-template-columns: 56px 1fr;
-  gap: 14px;
-  align-items: start;
-}
-.net-timeline-dot{
-  width: 52px;
-  height: 52px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-  color:#fff;
-  display:grid;
-  place-items:center;
-  box-shadow: 0 12px 26px rgba(15,185,177,.22);
-  font-size: 20px;
-}
-.net-timeline-card{
-  background: rgba(255,255,255,.93);
-  border: 1px solid rgba(0,131,143,.12);
-  border-radius: 18px;
-  padding: 16px 18px;
-  box-shadow: 0 12px 30px rgba(0,0,0,.06);
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.net-timeline-card:hover{
-  transform: translateY(-1px);
-  box-shadow: 0 16px 34px rgba(0,0,0,.07);
-}
-
-.net-features{
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-}
-.net-feature-card{
-  background: rgba(255,255,255,.12);
-  border: 1px solid rgba(255,255,255,.20);
-  border-radius: 22px;
-  padding: 18px;
-  box-shadow: 0 14px 35px rgba(0,0,0,.10);
-  transition: transform .18s ease, background .18s ease, border-color .18s ease;
-}
-.net-feature-card:hover{
-  transform: translateY(-3px);
-  background: rgba(255,255,255,.18);
-  border-color: rgba(255,255,255,.26);
-}
-.net-feature-ico{
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: rgba(255,255,255,.20);
-  display:grid;
-  place-items:center;
-  color:#fff;
-  font-size: 24px;
-  margin-bottom: 12px;
-  box-shadow: 0 14px 26px rgba(0,0,0,.12);
-}
-
 .net-cta{
   border-radius: 26px;
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
   box-shadow: 0 18px 50px rgba(15,185,177,.25);
 }
 
-.blob{
-  position:absolute;
-  border-radius: 999px;
-  filter: blur(34px);
-  opacity: .35;
-  z-index: 1;
-  pointer-events: none;
-}
-.blob-1{
-  width: 260px;
-  height: 260px;
-  left: -40px;
-  top: 40px;
-  background: radial-gradient(circle at 30% 30%, #0fb9b1, transparent 62%);
-}
-.blob-2{
-  width: 320px;
-  height: 320px;
-  right: -60px;
-  bottom: -40px;
-  background: radial-gradient(circle at 30% 30%, #20bf6b, transparent 62%);
-}
-
-.fade-in-up{
-  animation: netFadeUp .75s ease both;
-}
-@keyframes netFadeUp{
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-a:focus-visible,
-button:focus-visible,
-input:focus-visible{
-  outline: 3px solid rgba(0,131,143,.40);
-  outline-offset: 3px;
-  border-radius: 12px;
-}
-
-.net-landing .btn-outline-secondary{ border-color: rgba(0,0,0,.18); }
-.net-landing .btn-outline-secondary:hover{ border-color: rgba(0,0,0,.28); }
-
-@media (prefers-reduced-motion: reduce){
-  .fade-in-up{ animation: none !important; }
-  .net-feature-card,
-  .net-statbox,
-  .net-mini-row,
-  .net-timeline-card,
-  .net-hero-card{
-    transition: none !important;
-  }
-  .net-status-dot{ animation: none !important; }
-}
-
 /* =========================================================
-   login.html (Auth page – Figma-inspired)
+   4) login.html / signup.html / forgot.html (Auth pages)
 ========================================================= */
 
 .net-auth-page .net-auth-wrap{
@@ -738,10 +293,20 @@ input:focus-visible{
   border-radius: 18px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
   color: #fff;
   box-shadow: 0 14px 35px rgba(15,185,177,.25);
   font-size: 28px;
+}
+
+.net-input{
+  border-radius: 12px !important;
+  border: 1px solid var(--net-border) !important;
+  padding: .8rem .9rem !important;
+}
+.net-input:focus{
+  border-color: rgba(0,131,143,.5) !important;
+  box-shadow: 0 0 0 4px rgba(0,131,143,.12) !important;
 }
 
 .net-input-ico{
@@ -753,7 +318,6 @@ input:focus-visible{
   pointer-events: none;
   font-size: 18px;
 }
-
 .net-input-pad{
   padding-left: 42px !important;
   padding-right: 46px !important;
@@ -782,190 +346,21 @@ input:focus-visible{
   box-shadow: 0 12px 30px rgba(0,0,0,.05);
 }
 
-.net-pop{
-  animation: netPop .55s ease both;
-}
-@keyframes netPop{
-  from { opacity: 0; transform: translateY(14px) scale(.985); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.net-pop:nth-of-type(2){ animation-delay: .05s; }
-.net-pop:nth-of-type(3){ animation-delay: .10s; }
-
-@media (prefers-reduced-motion: reduce){
-  .net-pop{ animation: none !important; }
-}
-
 /* =========================================================
-   signup.html (Auth Wizard – Figma-inspired)
+   5) dashboard.html (Top Nav + Slide Sidebar + Dropdown)
 ========================================================= */
 
-.net-step-pill{
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  font-weight: 800;
-  font-size: .85rem;
-  border: 1px solid rgba(0,131,143,.16);
-  background: rgba(255,255,255,.8);
-  color: rgba(11,59,64,.7);
-  margin-left: 6px;
-}
-.net-step-pill.is-active{
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 12px 26px rgba(15,185,177,.22);
-}
-.net-step-pill.is-done{
-  background: rgba(15,185,177,.10);
-  color: #0b3b40;
-  border-color: rgba(0,131,143,.20);
-}
+/* prevent scroll when sidebar is open */
+.net-noscroll{ overflow: hidden; }
 
-.net-step-page{
-  animation: netWizardIn .32s ease both;
-}
-@keyframes netWizardIn{
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@media (prefers-reduced-motion: reduce){
-  .net-step-page{ animation: none !important; }
-}
-
-.net-choice-card{
-  cursor: pointer;
-  display: block;
-  border-radius: 18px;
-  border: 1px solid rgba(0,131,143,.14);
-  background: rgba(255,255,255,.88);
-  box-shadow: 0 12px 30px rgba(0,0,0,.05);
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  height: 100%;
-  position: relative;
-  overflow: hidden;
-}
-.net-choice-card:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(0,0,0,.07);
-  border-color: rgba(0,131,143,.22);
-}
-.net-choice-input{
-  position: absolute;
-  top: 14px;
-  right: 14px;
-}
-.net-choice-body{ padding: 16px; }
-.net-choice-top{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.net-choice-ico{
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  color: #0ea5a0;
-  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(32,191,107,.10));
-  border: 1px solid rgba(0,131,143,.12);
-  font-size: 18px;
-}
-.net-choice-tag{
-  font-weight: 800;
-  font-size: .85rem;
-  color: #0b3b40;
-  background: rgba(255,255,255,.85);
-  border: 1px solid rgba(0,131,143,.14);
-  padding: 6px 10px;
-  border-radius: 999px;
-}
-.net-choice-card:has(.net-choice-input:checked){
-  border-color: rgba(15,185,177,.55);
-  box-shadow: 0 18px 55px rgba(15,185,177,.14);
-}
-
-.net-check-card{
-  cursor: pointer;
-  display: block;
-  border-radius: 18px;
-  border: 1px solid rgba(0,131,143,.14);
-  background: rgba(255,255,255,.88);
-  box-shadow: 0 12px 30px rgba(0,0,0,.05);
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  height: 100%;
-  position: relative;
-  overflow: hidden;
-}
-.net-check-card:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(0,0,0,.07);
-  border-color: rgba(0,131,143,.22);
-}
-.net-check-input{
-  position: absolute;
-  top: 14px;
-  right: 14px;
-}
-.net-check-body{
-  padding: 16px;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-.net-check-ico{
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  color: #0ea5a0;
-  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(32,191,107,.10));
-  border: 1px solid rgba(0,131,143,.12);
-  font-size: 18px;
-  flex: 0 0 auto;
-}
-.net-check-card:has(.net-check-input:checked){
-  border-color: rgba(15,185,177,.55);
-  box-shadow: 0 18px 55px rgba(15,185,177,.14);
-}
-
-.net-success-badge{
-  width: 72px;
-  height: 72px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #20bf6b, #0fb9b1);
-  display:grid;
-  place-items:center;
-  color:#fff;
-  font-size: 34px;
-  box-shadow: 0 18px 45px rgba(32,191,107,.22);
-}
-
-.net-info-box{
-  background: rgba(13, 148, 136, .08);
-  border: 1px solid rgba(13, 148, 136, .18);
-  color: #0b3b40;
-}
-
-/* =========================================================
-   5) dashboard.html (Dashboard + SIDEBAR layout)
-========================================================= */
-
+/* Top navigation */
 .net-topnav{
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
   color: #fff;
   border-bottom: 1px solid rgba(255,255,255,.22);
   box-shadow: 0 10px 28px rgba(0,0,0,.10);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  background-color: rgba(15,185,177,.88);
 }
 
 .net-topnav .container-fluid{
@@ -990,6 +385,7 @@ input:focus-visible{
   min-width: 140px;
 }
 
+/* Center brand anchored perfectly */
 .net-topnav-center{
   position:absolute;
   left:50%;
@@ -1018,9 +414,56 @@ input:focus-visible{
   transform: translateY(-1px);
   color:#fff;
 }
-
 .net-brand-text{ font-size: 1.1rem; }
 
+/* Netology logo token (N badge) */
+.net-logo{
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff, #eafffb);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+.net-logo::after{
+  content: "N";
+  font-weight: 900;
+  font-size: 20px;
+  color: var(--net-teal);
+}
+.net-logo-sm{
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+.net-logo-sm::after{ font-size: 18px; }
+
+/* Search (topbar + mobile search share same base) */
+.net-search{
+  position: relative;
+  min-width: 220px;
+}
+.net-search i{
+  position:absolute;
+  left:10px;
+  top:50%;
+  transform: translateY(-50%);
+  color: rgba(0,0,0,.45);
+}
+.net-search input{
+  padding-left: 30px;
+  border-radius: 999px;
+}
+.net-topsearch{ min-width: 280px; }
+@media (max-width: 767.98px){
+  .net-topsearch{ min-width: auto; }
+}
+@media (max-width: 576px){
+  .net-search{ min-width: 100%; }
+}
+
+/* User button */
 .net-userbtn{
   display:inline-flex;
   align-items:center;
@@ -1058,14 +501,7 @@ input:focus-visible{
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .net-user-chevron{ opacity: .9; }
-
-.net-topnav-brand:focus-visible,
-.net-userbtn:focus-visible{
-  outline: 3px solid rgba(255,255,255,.55);
-  outline-offset: 3px;
-}
 
 @media (max-width: 520px){
   .net-topnav-left{ min-width: auto; }
@@ -1074,73 +510,57 @@ input:focus-visible{
   .net-user-name{ display:none; }
 }
 
-.net-sidewrap{
-  position: sticky;
-  top: 18px;
-}
-
-@media (min-width: 992px){
-  .border-end{
-    border-color: rgba(0,131,143,.10) !important;
-  }
-}
-
-.net-userbox{
-  background: linear-gradient(135deg, rgba(0,0,0,.03), rgba(0,131,143,.03));
-  border: 1px solid rgba(0,131,143,.12);
-  border-radius: 20px;
-  padding: 14px;
-  box-shadow: 0 14px 35px rgba(0,0,0,.05);
-}
-
-.net-userchip{
-  background: rgba(255,255,255,.75);
-  border: 1px solid rgba(0,131,143,.10);
+/* Dropdown menu */
+.net-dd{
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 260px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(0,131,143,.14);
   border-radius: 16px;
-  padding: 10px 12px;
-}
-
-.net-navbtn{
-  border-radius: 16px !important;
-  padding: .65rem .85rem !important;
-  border-color: rgba(0,0,0,.14) !important;
-  background: rgba(255,255,255,.75);
-  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease, background .14s ease;
-  position: relative;
+  box-shadow: 0 22px 60px rgba(0,0,0,.18);
   overflow: hidden;
+  display: none;
+  z-index: 60;
 }
-.net-navbtn:hover{
-  transform: translateY(-1px) translateX(4px);
-  border-color: rgba(0,131,143,.26) !important;
-  box-shadow: 0 12px 26px rgba(0,0,0,.06);
-  background: rgba(255,255,255,.92);
-}
-.net-navbtn.is-active{
-  border-color: rgba(15,185,177,.45) !important;
-  box-shadow: 0 14px 30px rgba(15,185,177,.12);
-  background: rgba(255,255,255,.92);
-}
-.net-navbtn::after{
-  content:"";
-  position:absolute;
-  inset: 0;
-  transform: translateX(-110%);
-  background: linear-gradient(90deg, transparent, rgba(15,185,177,.10), transparent);
-  transition: transform .35s ease;
-  pointer-events: none;
-}
-.net-navbtn:hover::after{ transform: translateX(110%); }
+.net-dd.is-open{ display:block; }
 
-.offcanvas{
-  border-right: 1px solid rgba(0,131,143,.12);
-  box-shadow: 0 18px 55px rgba(0,0,0,.16);
-  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,251,252,.96));
-}
-.offcanvas-header{
+.net-ddhead{
+  padding: 12px 12px;
+  background: linear-gradient(135deg, rgba(15,185,177,.10), rgba(32,191,107,.08));
   border-bottom: 1px solid rgba(0,131,143,.10);
 }
-.offcanvas .btn{ border-radius: 14px !important; }
 
+.net-dd a,
+.net-dd button{
+  width: 100%;
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  text-decoration:none;
+  color: var(--net-ink);
+  font-weight: 800;
+  text-align:left;
+  cursor: pointer;
+}
+.net-dd a:hover,
+.net-dd button:hover{ background: rgba(15,185,177,.08); }
+
+.net-ddsep{
+  height: 1px;
+  background: rgba(0,131,143,.10);
+  margin: 6px 0;
+}
+
+.net-dd button.danger{ color: #b42318; }
+.net-dd button.danger:hover{ background: rgba(220,53,69,.08); }
+.net-dd i{ opacity: .9; }
+
+/* Slide sidebar + backdrop */
 .net-sidebackdrop{
   position: fixed;
   inset: 0;
@@ -1180,7 +600,6 @@ input:focus-visible{
   border-bottom: 1px solid rgba(0,131,143,.10);
   background: linear-gradient(135deg, rgba(15,185,177,.08), rgba(32,191,107,.06));
 }
-
 .net-sidefoot{
   padding: 14px;
   border-top: 1px solid rgba(0,131,143,.10);
@@ -1203,9 +622,9 @@ input:focus-visible{
   border-radius: 16px;
   border: 1px solid rgba(0,0,0,.12);
   background: rgba(255,255,255,.78);
-  color: #0b3b40;
+  color: var(--net-ink);
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 800;
   transition: transform .16s ease, background .16s ease, border-color .16s ease;
   position: relative;
   overflow: hidden;
@@ -1214,7 +633,7 @@ input:focus-visible{
   transform: translateX(6px);
   background: rgba(15,185,177,.08);
   border-color: rgba(0,131,143,.22);
-  color: #0b3b40;
+  color: var(--net-ink);
 }
 .net-sidelink.is-active{
   background: rgba(15,185,177,.12);
@@ -1222,160 +641,174 @@ input:focus-visible{
 }
 .net-sidelink i{ font-size: 1.1rem; opacity: .9; }
 
-.net-dot{
-  width:10px;
-  height:10px;
-  border-radius:999px;
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
-  box-shadow: 0 10px 20px rgba(15,185,177,.25);
-}
-
-.net-mini-media{
-  background: rgba(255,255,255,.92);
-  border: 1px solid rgba(0,131,143,.12);
-  border-radius: 22px;
-  box-shadow: 0 18px 55px rgba(0,0,0,.08);
-}
-
-.net-mini-stat{
-  background: rgba(255,255,255,.75);
-  border: 1px solid rgba(0,131,143,.10);
+/* Sidebar brand chip */
+.net-brandchip{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  text-decoration:none;
+  padding: 8px 10px;
   border-radius: 16px;
-  padding: 12px 14px;
+  background: rgba(255,255,255,.75);
+  border: 1px solid rgba(0,131,143,.12);
+}
+.net-brandchip:hover{ background: rgba(255,255,255,.92); }
+.net-brandname{
+  font-weight: 900;
+  color: var(--net-ink);
+  letter-spacing: .2px;
 }
 
-.net-stat-card{
-  background: rgba(255,255,255,.92);
-  border: 1px solid rgba(0,131,143,.10);
-  border-radius: 22px;
-  padding: 18px;
-  box-shadow: 0 14px 35px rgba(0,0,0,.06);
-  transition: transform .15s ease;
-}
-.net-stat-card:hover{ transform: translateY(-2px); }
-
-.net-search{
-  position: relative;
-  min-width: 220px;
-}
-.net-search i{
-  position:absolute;
-  left:10px;
-  top:50%;
-  transform: translateY(-50%);
-  color: rgba(0,0,0,.45);
-}
-.net-search input{
-  padding-left: 30px;
-  border-radius: 999px;
+/* Sidebar user box */
+.net-userbox{
+  background: linear-gradient(135deg, rgba(0,0,0,.03), rgba(0,131,143,.03));
+  border: 1px solid rgba(0,131,143,.12);
+  border-radius: 20px;
+  padding: 14px;
+  box-shadow: 0 14px 35px rgba(0,0,0,.05);
 }
 
-.net-search input:focus-visible{
-  outline: none;
-  box-shadow: 0 0 0 .2rem rgba(15,185,177,.18);
-  border-color: rgba(0,131,143,.35);
+/* =========================================================
+   Dashboard course UI (matches dashboard.js output)
+========================================================= */
+
+.net-coursegrid{
+  display:grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
 }
 
-.net-chip.is-active{
-  border-color: rgba(0,131,143,.35) !important;
-  box-shadow: 0 10px 20px rgba(15,185,177,.12);
-}
-.net-chip:focus-visible{
-  outline: none;
-  box-shadow: 0 0 0 .2rem rgba(15,185,177,.18);
-  border-color: rgba(0,131,143,.35) !important;
-}
-
-.net-course-card{
-  position: relative;
+/* NOTE: dashboard.js generates .net-coursecard (not .net-course-card) */
+.net-coursecard{
+  grid-column: span 12;
   background: rgba(255,255,255,.92);
   border: 1px solid rgba(0,131,143,.10);
   border-radius: 22px;
   box-shadow: 0 14px 35px rgba(0,0,0,.06);
   overflow: hidden;
   transition: transform .15s ease, box-shadow .15s ease;
+  cursor: pointer;
+  position: relative;
 }
-.net-course-card::before{
-  content:"";
-  position:absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  height: 6px;
-  background: linear-gradient(90deg, rgba(15,185,177,.95), rgba(32,191,107,.85));
-  opacity: .9;
+
+@media (min-width: 768px){
+  .net-coursecard{ grid-column: span 6; }
 }
-.net-course-card::after{
-  content:"";
-  position:absolute;
-  inset: 0;
-  transform: translateX(-120%);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.40), transparent);
-  transition: transform .55s ease;
-  pointer-events: none;
+@media (min-width: 992px){
+  .net-coursecard{ grid-column: span 4; }
 }
-.net-course-card:hover{
-  transform: translateY(-2px);
+
+.net-coursecard:hover{
+  transform: translateY(-3px);
   box-shadow: 0 18px 55px rgba(0,0,0,.10);
 }
-.net-course-card:hover::after{
-  transform: translateX(120%);
+
+/* top bar gradient on course cards */
+.net-coursebar{
+  height: 6px;
+  width: 100%;
 }
 
-.net-course-lock{
+/* Gradients (used by dashboard.js) */
+.net-grad-nov{ background: linear-gradient(90deg, #10b981, #14b8a6); }
+.net-grad-int{ background: linear-gradient(90deg, #14b8a6, #22d3ee); }
+.net-grad-adv{ background: linear-gradient(90deg, #22d3ee, #3b82f6); }
+
+/* Difficulty badges (used by dashboard.js) */
+.net-diffbadge{
+  font-size: .75rem;
+  font-weight: 900;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.08);
+  white-space: nowrap;
+}
+
+.net-badge-nov{
+  background: rgba(16,185,129,.12);
+  color: #0f766e;
+  border-color: rgba(16,185,129,.22);
+}
+.net-badge-int{
+  background: rgba(20,184,166,.12);
+  color: #0f766e;
+  border-color: rgba(20,184,166,.22);
+}
+.net-badge-adv{
+  background: rgba(59,130,246,.10);
+  color: #1d4ed8;
+  border-color: rgba(59,130,246,.18);
+}
+
+/* Eyebrow text */
+.net-eyebrow{
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(11,59,64,.55);
+  font-weight: 800;
+}
+
+/* Meter / progress bar used by dashboard.js */
+.net-meter{
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, .06);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
+}
+
+.net-meter-fill{
+  height: 100%;
+  border-radius: 999px;
+  transition: width .55s cubic-bezier(.2,.9,.2,1);
+  position: relative;
+}
+
+/* shine animation on progress fill */
+.net-meter-fill::after{
+  content:"";
   position:absolute;
   inset:0;
-  background: rgba(255,255,255,.72);
-  backdrop-filter: blur(7px);
-  display:flex;
-  align-items:flex-start;
-  justify-content:flex-end;
-  padding: 14px;
-  z-index: 3;
-}
-.net-course-lock-inner{
-  background: rgba(255,255,255,.9);
-  border: 1px solid rgba(0,131,143,.12);
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: .85rem;
-  box-shadow: 0 14px 30px rgba(0,0,0,.08);
+  transform: translateX(-120%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+  animation: netProgressSheen 2.4s ease-in-out infinite;
+  pointer-events: none;
+  opacity: .55;
 }
 
+@keyframes netProgressSheen{
+  0%   { transform: translateX(-120%); }
+  55%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .net-meter-fill::after{ animation: none !important; opacity: 0 !important; }
+}
+
+/* Continue Learning card (dashboard.js uses .net-continue-card) */
 .net-continue-card{
   background: linear-gradient(135deg, rgba(0,131,143,.06), rgba(32,191,107,.05));
   border: 1px solid rgba(0,131,143,.10);
   border-radius: 18px;
   padding: 14px;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.net-continue-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 38px rgba(0,0,0,.07);
 }
 
-.net-lockline{
-  display:flex;
-  align-items:center;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(220,53,69,.08);
-  border: 1px solid rgba(220,53,69,.15);
-  color: #7a1e28;
-  font-size: .9rem;
-}
-
-.net-empty{
-  background: rgba(255,255,255,.75);
-  border: 1px dashed rgba(0,131,143,.20);
-  border-radius: 18px;
-  padding: 16px;
-}
-
-.net-pill-badge{ border-radius: 999px; }
-
+/* Skeleton loading */
 .net-continue-skel{
   background: rgba(255,255,255,.75);
   border: 1px dashed rgba(0,131,143,.18);
   border-radius: 18px;
   padding: 16px;
 }
-
 .net-skel{
   position: relative;
   overflow: hidden;
@@ -1400,35 +833,46 @@ input:focus-visible{
   0%{ transform: translateX(-100%); }
   100%{ transform: translateX(100%); }
 }
-
 .net-w-40{ width: 40%; }
 .net-w-60{ width: 60%; }
 .net-w-80{ width: 80%; }
 .net-w-90{ width: 90%; }
 
-@media (max-width: 576px){
-  .net-search{ min-width: 100%; }
+@media (prefers-reduced-motion: reduce){
+  .net-skel::after{ animation: none !important; transform:none !important; }
 }
 
-@media (prefers-reduced-motion: reduce){
-  .net-skel::after{
-    animation: none;
-    transform: none;
-  }
-  .net-stat-card,
-  .net-course-card,
-  .net-navbtn,
-  .net-topnav-brand,
-  .net-userbtn{
-    transition: none;
-  }
-  .net-course-card::after,
-  .net-navbtn::after{
-    transition: none !important;
-    transform: none !important;
-    opacity: 0 !important;
-  }
+/* Fade-out class used by applyCourseFilters() */
+.net-fadeout{ opacity: .35; transition: opacity .12s ease; }
+
+/* Empty state in course grid */
+.net-empty{
+  grid-column: 1 / -1;
+  text-align: center;
+  background: rgba(255,255,255,.75);
+  border: 1px dashed rgba(0,131,143,.20);
+  border-radius: 18px;
+  padding: 18px;
+  color: rgba(11,59,64,.75);
 }
+.net-empty i{ font-size: 34px; display:block; margin-bottom: 10px; opacity:.7; }
+
+/* Difficulty filter chips */
+.net-chip.is-active{
+  border-color: rgba(0,131,143,.35) !important;
+  box-shadow: 0 10px 20px rgba(15,185,177,.12);
+}
+.net-chip:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .2rem rgba(15,185,177,.18);
+  border-color: rgba(0,131,143,.35) !important;
+}
+
+/* =========================================================
+   6) courses.html (Courses list)
+========================================================= */
+/* (Keep light – dashboard styles already cover cards/grids.
+   If you want, we can unify courses.html to use .net-coursegrid + .net-coursecard too.) */
 
 /* =========================================================
    7) course.html (Single course + Khan-style sidebar)
@@ -1462,14 +906,8 @@ input:focus-visible{
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--net-teal), #14B8A6);
+  background: linear-gradient(135deg, #0fb9b1, #14B8A6);
   box-shadow: 0 10px 25px rgba(0,131,143,.22);
-}
-
-.net-mini-media{
-  background: linear-gradient(135deg, #ffffff, #f6fffd);
-  border-radius: 16px;
-  border: 1px solid #e5f6f3;
 }
 
 .net-learn-box{
@@ -1503,7 +941,7 @@ input:focus-visible{
   background: linear-gradient(135deg, #ffffff, #f6fffd);
 }
 .sb-canvas-toolbar .sb-hint{
-  color: #60737A;
+  color: var(--net-muted);
   font-size: .9rem;
 }
 
@@ -1547,13 +985,13 @@ input:focus-visible{
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(32,191,107,.10));
-  color: #0ea5a0;
+  color: var(--net-teal-dark);
   font-size: 18px;
   flex: 0 0 auto;
 }
 .sb-tool .sb-label{
-  font-weight: 700;
-  color: #0b3b40;
+  font-weight: 800;
+  color: var(--net-ink);
   font-size: .95rem;
   line-height: 1.1;
 }
@@ -1567,16 +1005,8 @@ input:focus-visible{
   .sb-side{ position: sticky; top: 90px; }
 }
 
-header.net-topbar .btn-outline-light{
-  border-color: rgba(255,255,255,.55) !important;
-  color: #fff !important;
-}
-header.net-topbar .btn-outline-light:hover{
-  background: rgba(255,255,255,.15) !important;
-}
-
 /* =========================================================
-   Shared (All Pages): Modern Popup Toast (showPopup)
+   9) Shared: Modern Popup Toast (showPopup)
 ========================================================= */
 
 .net-toast{
@@ -1604,8 +1034,8 @@ header.net-topbar .btn-outline-light:hover{
 }
 
 .net-toast-text{
-  font-weight: 700;
-  color: #0b3b40;
+  font-weight: 800;
+  color: var(--net-ink);
   line-height: 1.25;
   font-size: .95rem;
 }
@@ -1634,7 +1064,7 @@ header.net-topbar .btn-outline-light:hover{
 }
 
 .net-toast[data-type="success"] .net-toast-icon{
-  background: linear-gradient(135deg, #0fb9b1, #20bf6b);
+  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
 }
 .net-toast[data-type="success"] .net-toast-icon::before{
   content: "✓";
@@ -1676,136 +1106,7 @@ header.net-topbar .btn-outline-light:hover{
   .net-toast{ top: 12px; }
   .net-toast-text{ font-size: .92rem; }
 }
-
 @media (prefers-reduced-motion: reduce){
   .net-toast-enter,
   .net-toast-exit{ animation: none !important; }
 }
-
-/* =========================================================
-   ✅ REQUIRED DASHBOARD GLUE (Missing before)
-========================================================= */
-
-/* stop scroll when sidebar opens */
-.net-noscroll{ overflow: hidden; }
-
-/* sidebar brand chip */
-.net-brandchip{
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  text-decoration:none;
-  padding: 8px 10px;
-  border-radius: 16px;
-  background: rgba(255,255,255,.75);
-  border: 1px solid rgba(0,131,143,.12);
-}
-.net-brandchip:hover{ background: rgba(255,255,255,.92); }
-.net-brandname{
-  font-weight: 900;
-  color: #0b3b40;
-  letter-spacing: .2px;
-}
-
-/* top search width helper */
-.net-topsearch{ min-width: 280px; }
-@media (max-width: 767.98px){
-  .net-topsearch{ min-width: auto; }
-}
-
-/* user dropdown used by dashboard.html */
-.net-dd{
-  position: absolute;
-  right: 0;
-  top: calc(100% + 10px);
-  width: 260px;
-  background: rgba(255,255,255,.96);
-  border: 1px solid rgba(0,131,143,.14);
-  border-radius: 16px;
-  box-shadow: 0 22px 60px rgba(0,0,0,.18);
-  overflow: hidden;
-  display: none;
-  z-index: 60;
-}
-.net-dd.is-open{ display:block; }
-
-.net-ddhead{
-  padding: 12px 12px;
-  background: linear-gradient(135deg, rgba(15,185,177,.10), rgba(32,191,107,.08));
-  border-bottom: 1px solid rgba(0,131,143,.10);
-}
-
-.net-dd a,
-.net-dd button{
-  width: 100%;
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: transparent;
-  border: 0;
-  text-decoration:none;
-  color: #0b3b40;
-  font-weight: 700;
-  text-align:left;
-  cursor: pointer;
-}
-.net-dd a:hover{ background: rgba(15,185,177,.08); }
-.net-dd button:hover{ background: rgba(15,185,177,.08); }
-
-.net-ddsep{
-  height: 1px;
-  background: rgba(0,131,143,.10);
-  margin: 6px 0;
-}
-
-.net-dd button.danger{ color: #b42318; }
-.net-dd button.danger:hover{ background: rgba(220,53,69,.08); }
-
-.net-dd i{ opacity: .9; }
-
-/* course grid used by dashboard.html */
-.net-coursegrid{
-  display:grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 14px;
-}
-.net-coursegrid > .net-course-card{ grid-column: span 12; }
-@media (min-width: 768px){
-  .net-coursegrid > .net-course-card{ grid-column: span 6; }
-}
-@media (min-width: 992px){
-  .net-coursegrid > .net-course-card{ grid-column: span 4; }
-}
-
-/* icons used inside cards */
-.net-course-ico{
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
-  display:grid;
-  place-items:center;
-  color: #0ea5a0;
-  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(32,191,107,.10));
-  border: 1px solid rgba(0,131,143,.12);
-  flex: 0 0 auto;
-}
-
-.net-continue-ico{
-  width: 66px;
-  height: 66px;
-  border-radius: 20px;
-  display:grid;
-  place-items:center;
-  background: rgba(255,255,255,.75);
-  border: 1px solid rgba(0,131,143,.14);
-  color: #0ea5a0;
-}
-
-/* locked card helper (optional but useful) */
-.net-course-card.is-locked{
-  opacity: .75;
-  filter: grayscale(.05);
-  cursor: not-allowed;
-}
-.net-course-card.is-locked button{ pointer-events: none; }
