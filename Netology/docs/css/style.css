@@ -1316,12 +1316,76 @@ body.net-figma-landing{
 }
 
 .net-banner{
+  position: relative;
   border-radius: 18px;
   border: 1px solid rgba(6,182,212,.14);
   box-shadow: 0 14px 44px rgba(2, 6, 23, .08);
   background: rgba(255,255,255,.86);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  padding: .85rem 1rem .85rem 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.net-banner .net-banner-icon{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  margin-right: .5rem;
+  background: rgba(15,23,42,.08);
+  color: rgba(15,23,42,.7);
+  font-size: .95rem;
+  vertical-align: -2px;
+}
+.net-banner.alert-success .net-banner-icon{
+  background: rgba(16,185,129,.15);
+  color: #0f766e;
+}
+.net-banner.alert-warning .net-banner-icon{
+  background: rgba(245,158,11,.18);
+  color: #92400e;
+}
+.net-banner.alert-danger .net-banner-icon{
+  background: rgba(239,68,68,.18);
+  color: #991b1b;
+}
+.net-banner::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  border-radius: 18px 0 0 18px;
+  background: linear-gradient(180deg, rgba(20,184,166,.8), rgba(6,182,212,.8));
+  opacity: .9;
+}
+.net-banner.alert-success{
+  border-color: rgba(16,185,129,.35);
+  background: rgba(16,185,129,.10);
+  color: #0f766e;
+}
+.net-banner.alert-success::before{
+  background: linear-gradient(180deg, #10b981, #14b8a6);
+}
+.net-banner.alert-warning{
+  border-color: rgba(245,158,11,.4);
+  background: rgba(245,158,11,.12);
+  color: #92400e;
+}
+.net-banner.alert-warning::before{
+  background: linear-gradient(180deg, #f59e0b, #f97316);
+}
+.net-banner.alert-danger{
+  border-color: rgba(239,68,68,.4);
+  background: rgba(239,68,68,.12);
+  color: #991b1b;
+}
+.net-banner.alert-danger::before{
+  background: linear-gradient(180deg, #ef4444, #f97316);
 }
 
 .net-helper{
@@ -1330,6 +1394,163 @@ body.net-figma-landing{
   border-radius: 18px;
   padding: 14px 16px;
   box-shadow: 0 14px 44px rgba(2, 6, 23, .06);
+}
+
+/* Auth refresh (matches index + dashboard look) */
+body.net-auth-v2{
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+  color: #0f172a;
+  background:
+    radial-gradient(900px 600px at 12% 8%, rgba(20,184,166,.18), transparent 60%),
+    radial-gradient(800px 600px at 88% 12%, rgba(6,182,212,.16), transparent 60%),
+    linear-gradient(160deg, #f8fafc 0%, #e9fbff 45%, #f0f9ff 100%);
+}
+body.net-auth-v2.net-landing::before{
+  opacity: .35;
+  background:
+    radial-gradient(900px 560px at 12% 12%, rgba(15,185,177,.16), transparent 62%),
+    radial-gradient(820px 540px at 84% 18%, rgba(6,182,212,.14), transparent 62%);
+}
+
+.net-auth-v2 .net-topbar{
+  background: rgba(255,255,255,.82);
+  border-bottom: 1px solid rgba(20,184,166,.15);
+  box-shadow: 0 14px 36px rgba(15,23,42,.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.net-auth-v2 .net-logo{
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+.net-auth-v2 .net-brand{
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #0f172a;
+}
+.net-auth-v2 .net-subtitle{
+  color: #64748b;
+}
+.net-auth-v2 .net-auth-cta{
+  background: linear-gradient(135deg, #14b8a6, #06b6d4);
+  color: #fff !important;
+  border: none !important;
+  border-radius: 14px;
+  padding: .5rem 1rem;
+  font-weight: 600;
+  box-shadow: 0 12px 26px rgba(20,184,166,.25);
+}
+
+.net-auth-v2 .net-auth-card{
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(148,163,184,.18);
+  border-radius: 26px;
+  box-shadow: 0 24px 60px rgba(15,23,42,.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.net-auth-v2 .net-auth-logo{
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  box-shadow: 0 22px 50px rgba(20,184,166,.35);
+}
+.net-auth-v2 .net-banner{
+  background: rgba(255,255,255,.94);
+  border-color: rgba(20,184,166,.24);
+}
+.net-auth-v2 .net-helper{
+  background: rgba(255,255,255,.9);
+  border-color: rgba(148,163,184,.2);
+}
+.net-auth-v2 .form-label{
+  color: #0f172a;
+}
+
+.net-auth-v2 .net-step-pill{
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(148,163,184,.25);
+  color: #64748b;
+  font-weight: 700;
+  background: rgba(255,255,255,.7);
+  margin-left: 4px;
+}
+.net-auth-v2 .net-step-pill.is-active{
+  background: linear-gradient(135deg, #14b8a6, #06b6d4);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 10px 24px rgba(20,184,166,.3);
+}
+
+.net-auth-v2 .net-choice-card,
+.net-auth-v2 .net-check-card{
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+.net-auth-v2 .net-choice-input,
+.net-auth-v2 .net-check-input{
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.net-auth-v2 .net-choice-body,
+.net-auth-v2 .net-check-body{
+  border: 1px solid rgba(148,163,184,.18);
+  border-radius: 20px;
+  padding: 1rem 1.1rem;
+  background: rgba(255,255,255,.9);
+  box-shadow: 0 16px 36px rgba(15,23,42,.06);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+.net-auth-v2 .net-choice-input:checked + .net-choice-body,
+.net-auth-v2 .net-check-input:checked + .net-check-body{
+  border-color: rgba(20,184,166,.6);
+  background: rgba(20,184,166,.06);
+  box-shadow: 0 18px 40px rgba(20,184,166,.18);
+  transform: translateY(-3px);
+}
+
+.net-auth-v2 .net-choice-top{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .6rem;
+}
+.net-auth-v2 .net-choice-ico,
+.net-auth-v2 .net-check-ico{
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #14b8a6, #06b6d4);
+  color: #fff;
+  font-size: 1.1rem;
+}
+.net-auth-v2 .net-choice-tag{
+  font-size: .72rem;
+  font-weight: 600;
+  color: #0f766e;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(20,184,166,.12);
+}
+
+.net-auth-v2 .net-check-body{
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+}
+
+@media (prefers-reduced-motion: reduce){
+  body.net-auth-v2.net-landing::before{ animation: none !important; }
 }
 
 /* =========================================================
@@ -2164,33 +2385,36 @@ body.net-figma-landing{
   transform: translateX(-50%);
   z-index: 9999;
   width: min(520px, calc(100% - 24px));
-  border-radius: 18px;
-  border: 1px solid rgba(6,182,212,.14);
-  background: rgba(255,255,255,.88);
+  border-radius: 20px;
+  border: 1px solid rgba(20,184,166,.18);
+  background: rgba(255,255,255,.94);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 22px 70px rgba(2, 6, 23, .16);
+  box-shadow: 0 22px 70px rgba(2, 6, 23, .14);
   cursor: pointer;
 }
+.net-toast[data-type="success"]{ border-color: rgba(16,185,129,.35); }
+.net-toast[data-type="error"]{ border-color: rgba(239,68,68,.35); }
+.net-toast[data-type="info"]{ border-color: rgba(14,165,233,.35); }
 
 .net-toast-inner{
   display: grid;
-  grid-template-columns: 44px 1fr 40px;
+  grid-template-columns: 48px 1fr 40px;
   align-items: center;
   gap: 10px;
-  padding: 12px 12px;
+  padding: 14px 14px;
 }
 
 .net-toast-text{
-  font-weight: 900;
-  color: rgba(15, 23, 42, .86);
+  font-weight: 700;
+  color: rgba(15, 23, 42, .9);
   line-height: 1.25;
   font-size: .95rem;
 }
 
 .net-toast-close{
   border: 0;
-  background: transparent;
+  background: rgba(15, 23, 42, .04);
   width: 36px;
   height: 36px;
   border-radius: 12px;
@@ -2198,12 +2422,12 @@ body.net-figma-landing{
   place-items: center;
   color: rgba(15, 23, 42, .60);
 }
-.net-toast-close:hover{ background: rgba(2, 6, 23, .05); }
+.net-toast-close:hover{ background: rgba(2, 6, 23, .08); }
 
 .net-toast-icon{
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
   color: #fff;
@@ -2212,7 +2436,7 @@ body.net-figma-landing{
 }
 
 .net-toast[data-type="success"] .net-toast-icon{
-  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
+  background: linear-gradient(135deg, #10b981, #14b8a6);
 }
 .net-toast[data-type="success"] .net-toast-icon::before{
   content: "✓";
@@ -2230,7 +2454,7 @@ body.net-figma-landing{
 }
 
 .net-toast[data-type="info"] .net-toast-icon{
-  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
+  background: linear-gradient(135deg, #14b8a6, #06b6d4);
 }
 .net-toast[data-type="info"] .net-toast-icon::before{
   content: "i";
@@ -2627,4 +2851,21 @@ body.net-figma-landing{
 /* Slightly tighten buttons in course hero on small screens */
 @media (max-width: 575.98px){
   .net-course-hero .btn{ width: 100%; }
+}
+.net-success-panel{
+  padding: 1.2rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(16,185,129,.18);
+  background: linear-gradient(180deg, rgba(16,185,129,.10), rgba(255,255,255,.0));
+}
+.net-success-badge{
+  width: 84px;
+  height: 84px;
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  font-size: 2.1rem;
+  color: #fff;
+  background: linear-gradient(135deg, #10b981, #14b8a6);
+  box-shadow: 0 22px 46px rgba(16,185,129,.35);
 }

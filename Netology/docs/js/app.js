@@ -432,7 +432,7 @@ function showLoginBanner(message, type) {
   else if (type === "warning") banner.classList.add("alert-warning");
   else banner.classList.add("alert-danger");
 
-  banner.textContent = message;
+  banner.innerHTML = `${bannerIcon(type)}${escapeHtml(String(message || ""))}`;
 
   window.clearTimeout(showLoginBanner._t);
   showLoginBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4000);
@@ -449,7 +449,7 @@ function showSignupBanner(message, type) {
   else if (type === "warning") banner.classList.add("alert-warning");
   else banner.classList.add("alert-danger");
 
-  banner.textContent = message;
+  banner.innerHTML = `${bannerIcon(type)}${escapeHtml(String(message || ""))}`;
 
   window.clearTimeout(showSignupBanner._t);
   showSignupBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4500);
@@ -536,10 +536,18 @@ function showForgotBanner(message, type) {
   else if (type === "warning") banner.classList.add("alert-warning");
   else banner.classList.add("alert-danger");
 
-  banner.textContent = message;
+  banner.innerHTML = `${bannerIcon(type)}${escapeHtml(String(message || ""))}`;
 
   window.clearTimeout(showForgotBanner._t);
   showForgotBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4500);
+}
+
+function bannerIcon(type) {
+  const t = String(type || "").toLowerCase();
+  const cls = t === "success" ? "bi-check-circle-fill"
+            : t === "warning" ? "bi-exclamation-triangle-fill"
+            : "bi-x-circle-fill";
+  return `<span class="net-banner-icon" aria-hidden="true"><i class="bi ${cls}"></i></span>`;
 }
 
 function hideForgotBanner() {
