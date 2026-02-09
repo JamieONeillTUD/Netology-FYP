@@ -4,19 +4,26 @@ Student Name: Jamie O'Neill
 Course Code: TU857/4
 Date: 09/02/2026
 
-dashboard.js – Dashboard interactions (UPDATED)
+dashboard.js – Dashboard interactions (UPDATED for your latest dashboard.html)
 
-Matches dashboard.html:
+Works with:
+- NO topbar search (topSearch removed)
+- Course search stays in the Courses section:
+    #courseSearch (desktop) + #mobileSearch (mobile)
+  These are fully synced.
 - Slide sidebar open/close (backdrop + ESC)
 - User dropdown toggle + click outside + ESC
 - Brand routing: dashboard if logged in, index if not
-- Course search (topSearch + courseSearch + mobileSearch) all synced
-- Difficulty chips filter
-- Course access gating by numeric_level:
+- Course lock gating by numeric_level:
     novice unlocked at level >= 1
     intermediate unlocked at level >= 3
     advanced unlocked at level >= 5
-- Level ring animation on load (#welcomeRing)
+- Welcome/Sidebar UI fill:
+    sets name, email, avatar initial, level, XP bar, and updates the ring (#welcomeRing)
+- Continue Learning:
+    picks first unlocked course (simple but always works)
+- Courses grid:
+    shows unlocked courses as normal, locked courses show "Unlock at Level X" and are not clickable
 */
 
 (function () {
@@ -30,13 +37,12 @@ Matches dashboard.html:
   }
 
   function getCurrentUser() {
-    // dashboard.js uses netology_user
     return safeJSONParse(localStorage.getItem("netology_user"), null);
   }
 
   function isLoggedIn() {
     const u = getCurrentUser();
-    return !!(u && (u.email || u.username));
+    return !!(u && (u.email || u.username || u.name));
   }
 
   function userNumericLevel(user) {
@@ -52,21 +58,10 @@ Matches dashboard.html:
 
   function computeXP(user) {
     const totalXP = Number(user?.xp) || 0;
-    const currentLevelXP = totalXP % 250;
+    const currentLevelXP = ((totalXP % 250) + 250) % 250; // safe mod
     const progressPct = Math.max(0, Math.min(100, (currentLevelXP / 250) * 100));
     const toNext = 250 - currentLevelXP;
     return { totalXP, currentLevelXP, progressPct, toNext };
-  }
-
-  // ring progress animation
-  function setWelcomeRing(progressPct) {
-    const ring = $("welcomeRing");
-    if (!ring) return;
-    const r = 64;
-    const CIRC = 2 * Math.PI * r; // ~402
-    const offset = CIRC * (1 - (progressPct / 100));
-    ring.style.strokeDasharray = `${Math.round(CIRC)}`;
-    ring.style.strokeDashoffset = `${Math.round(offset)}`;
   }
 
   function difficultyRequiredLevel(diff) {
@@ -79,6 +74,20 @@ Matches dashboard.html:
   function prettyDiff(diff) {
     if (!diff) return "Novice";
     return diff.charAt(0).toUpperCase() + diff.slice(1);
+  }
+
+  // Welcome ring
+  // Your HTML uses the course-style ring (r=58, dasharray ~364.42)
+  function setWelcomeRing(progressPct) {
+    const ring = $("welcomeRing");
+    if (!ring) return;
+
+    const r = 58;
+    const CIRC = 2 * Math.PI * r; // ~364.42
+    const offset = CIRC * (1 - (progressPct / 100));
+
+    ring.style.strokeDasharray = `${CIRC.toFixed(2)}`;
+    ring.style.strokeDashoffset = `${offset.toFixed(2)}`;
   }
 
   // -----------------------------
@@ -191,18 +200,19 @@ Matches dashboard.html:
     const list = [];
 
     for (const key of Object.keys(cc)) {
-      const c = cc[key];
-
+      const c = cc[key] || {};
       const id = c.id || key;
       const title = c.title || "Untitled Course";
       const description = c.description || c.about || "Learn networking skills.";
       const difficulty = (c.difficulty || "novice").toLowerCase();
       const required_level = Number(c.required_level) || difficultyRequiredLevel(difficulty);
 
-      // estimate "items" count (best-effort)
-      let modules = 0;
+      // Estimate items count from units/sections
+      let items = 0;
       if (Array.isArray(c.units)) {
-        modules = c.units.reduce((sum, u) => sum + (Array.isArray(u.sections) ? u.sections.length : 0), 0);
+        for (const u of c.units) {
+          if (Array.isArray(u?.sections)) items += u.sections.length;
+        }
       }
 
       const xpReward = Number(c.xpReward || c.xp_reward || 500) || 500;
@@ -217,7 +227,7 @@ Matches dashboard.html:
         difficulty,
         required_level,
         xpReward,
-        modules,
+        items,
         category,
         estimatedTime,
       });
@@ -252,6 +262,7 @@ Matches dashboard.html:
     card.setAttribute("data-category", (course.category || "").toLowerCase());
     card.setAttribute("role", "button");
     card.setAttribute("tabindex", "0");
+    card.setAttribute("aria-label", locked ? `${course.title} locked` : `${course.title} open course`);
 
     card.innerHTML = `
       <div class="net-coursebar ${gradClass}"></div>
@@ -259,7 +270,10 @@ Matches dashboard.html:
         <div class="d-flex align-items-start justify-content-between gap-2">
           <div class="flex-grow-1">
             <div class="net-eyebrow">${course.category}</div>
-            <div class="fw-bold fs-6 mt-1">${course.title}</div>
+            <div class="fw-bold fs-6 mt-1 d-flex align-items-center gap-2">
+              ${course.title}
+              ${locked ? `<span class="badge bg-light text-dark border" title="Locked"><i class="bi bi-lock-fill me-1"></i>Locked</span>` : ``}
+            </div>
           </div>
           <span class="net-diffbadge ${badgeClass}">${prettyDiff(diff)}</span>
         </div>
@@ -270,7 +284,7 @@ Matches dashboard.html:
 
         <div class="d-flex align-items-center justify-content-between mt-3 small">
           <div class="text-muted">
-            ${course.modules ? `${course.modules} items` : `Course`} • ${course.estimatedTime}
+            ${course.items ? `${course.items} items` : `Course`} • ${course.estimatedTime}
           </div>
           <div class="fw-bold" style="color:#0f766e;">
             <i class="bi bi-lightning-charge-fill me-1"></i>${course.xpReward}
@@ -327,51 +341,46 @@ Matches dashboard.html:
       if (show) shown++;
     });
 
+    // If nothing matches, show empty-state (but DON'T permanently destroy the grid content)
+    const emptyId = "dashEmptyState";
+    const existing = $(emptyId);
+    if (existing) existing.remove();
+
     if (shown === 0) {
-      grid.innerHTML = `
-        <div class="net-empty">
-          <i class="bi bi-search"></i>
-          <div class="fw-bold">No courses found</div>
-          <div class="small text-muted">Try a different search or filter.</div>
-        </div>
+      const empty = document.createElement("div");
+      empty.id = emptyId;
+      empty.className = "net-empty";
+      empty.innerHTML = `
+        <i class="bi bi-search"></i>
+        <div class="fw-bold">No courses found</div>
+        <div class="small text-muted">Try a different search or filter.</div>
       `;
+      grid.appendChild(empty);
     }
-  }
-
-  // NEW: sync all search inputs (topSearch, courseSearch, mobileSearch)
-  function setupSearchSync() {
-    const topSearch = $("topSearch");
-    const courseSearch = $("courseSearch");
-    const mobileSearch = $("mobileSearch");
-
-    const inputs = [topSearch, courseSearch, mobileSearch].filter(Boolean);
-
-    function setAll(value, fromEl) {
-      inputs.forEach((el) => {
-        if (el !== fromEl) el.value = value;
-      });
-    }
-
-    function onAnyInput(e) {
-      const value = e.target.value || "";
-      window.__dashQuery = value;
-      setAll(value, e.target);
-      renderCourses(); // keeps empty state correct
-    }
-
-    inputs.forEach((el) => el.addEventListener("input", onAnyInput));
   }
 
   function setupCourseSearchAndChips() {
+    const desktop = $("courseSearch");
+    const mobile = $("mobileSearch");
     const chips = Array.from(document.querySelectorAll(".net-chip[data-diff]"));
 
     window.__dashQuery = "";
     window.__dashDiff = "all";
 
-    // sync all searches (top + course + mobile)
-    setupSearchSync();
+    function onSearchInput(from) {
+      const val = from?.value || "";
+      window.__dashQuery = val;
 
-    // Chips
+      // sync the other input
+      if (from === desktop && mobile) mobile.value = val;
+      if (from === mobile && desktop) desktop.value = val;
+
+      applyCourseFilters();
+    }
+
+    desktop?.addEventListener("input", () => onSearchInput(desktop));
+    mobile?.addEventListener("input", () => onSearchInput(mobile));
+
     chips.forEach((btn) => {
       btn.addEventListener("click", () => {
         chips.forEach((b) => b.classList.remove("is-active"));
@@ -383,7 +392,7 @@ Matches dashboard.html:
   }
 
   // -----------------------------
-  // Continue learning (simple heuristic)
+  // Continue learning
   // -----------------------------
   function renderContinueLearning() {
     const box = $("continueBox");
@@ -396,11 +405,12 @@ Matches dashboard.html:
     const unlocked = courses.filter(c => uLevel >= c.required_level);
 
     if (unlocked.length === 0) {
-      box.className = "net-continue-card";
+      box.className = "";
       box.innerHTML = `<div class="text-muted small">No unlocked courses yet. Earn XP to unlock content.</div>`;
       return;
     }
 
+    // simple “best” pick: first unlocked (sorted novice->adv, title)
     const pick = unlocked[0];
 
     box.className = "net-continue-card";
@@ -418,7 +428,7 @@ Matches dashboard.html:
         </div>
       </div>
       <div class="mt-3">
-        <button class="btn btn-teal btn-sm w-100">Continue</button>
+        <button class="btn btn-teal btn-sm w-100" type="button">Continue</button>
       </div>
     `;
 
@@ -472,7 +482,9 @@ Matches dashboard.html:
       : (user?.name || user?.username || "Student");
 
     const email = user?.email || "Not logged in";
-    const avatar = (name || "S").trim().charAt(0).toUpperCase();
+
+    // avatar = first letter of name/username
+    const initial = (name || "S").trim().charAt(0).toUpperCase();
 
     const lvl = userNumericLevel(user);
     const { totalXP, currentLevelXP, progressPct, toNext } = computeXP(user);
@@ -482,7 +494,7 @@ Matches dashboard.html:
 
     // Top user
     if ($("topUserName")) $("topUserName").textContent = name;
-    if ($("topAvatar")) $("topAvatar").textContent = avatar;
+    if ($("topAvatar")) $("topAvatar").textContent = initial;
 
     // Dropdown
     if ($("ddName")) $("ddName").textContent = name;
@@ -491,7 +503,7 @@ Matches dashboard.html:
     // Sidebar user
     if ($("sideUserName")) $("sideUserName").textContent = name;
     if ($("sideUserEmail")) $("sideUserEmail").textContent = email;
-    if ($("sideAvatar")) $("sideAvatar").textContent = avatar;
+    if ($("sideAvatar")) $("sideAvatar").textContent = initial;
 
     if ($("sideLevelBadge")) $("sideLevelBadge").textContent = `Lv ${lvl}`;
     if ($("sideXpText")) $("sideXpText").textContent = `${currentLevelXP}/250`;
@@ -503,49 +515,11 @@ Matches dashboard.html:
     if ($("statXp")) $("statXp").textContent = String(totalXP);
     if ($("statLevelHint")) $("statLevelHint").textContent = `${toNext} XP to next level`;
 
-    // Optional tiles if present
-    // (dashboard.html includes these IDs; if you later remove them, no issue)
-    // We'll compute rough counts from localStorage completions if available.
-    try {
-      const inProgEl = $("statInProgress");
-      const doneEl = $("statCompleted");
-      if (inProgEl || doneEl) {
-        const courses = getCoursesFromContent();
-        let inProgress = 0;
-        let completed = 0;
-
-        const emailKey = (user?.email || "guest").toLowerCase();
-        courses.forEach((c) => {
-          const lsKey = `netology_completions:${emailKey}:${c.key}`;
-          const payload = safeJSONParse(localStorage.getItem(lsKey), null);
-          if (!payload) return;
-
-          const lesson = new Set((payload.lesson || payload.lessons || []).map(Number));
-          const quiz = new Set((payload.quiz || payload.quizzes || []).map(Number));
-          const challenge = new Set((payload.challenge || payload.challenges || []).map(Number));
-
-          // required items: learn + quiz + challenge (per course.js logic)
-          // We don't know exact counts here, so we estimate completion:
-          // If at least 1 required done -> in progress
-          // If quiz+challenge sets have some values and lesson has values, consider completed only if lengths match (rough).
-          const any = (lesson.size + quiz.size + challenge.size) > 0;
-          if (any) inProgress++;
-
-          // rough "completed": at least 1 of each type and sizes match (best effort)
-          if (lesson.size > 0 && quiz.size > 0 && challenge.size > 0 && lesson.size === quiz.size && quiz.size === challenge.size) {
-            completed++;
-          }
-        });
-
-        if (inProgEl) inProgEl.textContent = String(inProgress);
-        if (doneEl) doneEl.textContent = String(completed);
-      }
-    } catch (_) {}
-
-    // Level ring card
+    // Welcome ring block
     if ($("welcomeLevel")) $("welcomeLevel").textContent = String(lvl);
     if ($("welcomeXpText")) $("welcomeXpText").textContent = `${currentLevelXP}/250 XP`;
     if ($("welcomeLevelHint")) $("welcomeLevelHint").textContent = `${toNext} XP to next level`;
+
     setWelcomeRing(progressPct);
   }
 
