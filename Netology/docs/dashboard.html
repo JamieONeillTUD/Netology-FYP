@@ -141,6 +141,12 @@ Updates requested:
         <!-- Right (dropdown only) -->
         <div class="net-topnav-right position-relative">
 
+          <!-- Streak pill (above account button) -->
+          <div class="net-streak-pill" id="topStreakPill" aria-label="Login streak">
+            <i class="bi bi-crown-fill" aria-hidden="true"></i>
+            <span class="net-streak-text" id="topStreakDays">0 days</span>
+          </div>
+
           <!-- User dropdown -->
           <div class="position-relative">
             <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
@@ -199,8 +205,8 @@ Updates requested:
                 <span class="small text-muted">Personalised learning</span>
               </div>
 
-              <div class="small text-muted">Welcome back</div>
-              <h1 class="display-6 fw-bold mb-2">
+              <div class="small text-muted dash-welcome-text">Welcome back</div>
+              <h1 class="display-6 fw-bold mb-2 dash-welcome-title">
                 <span id="welcomeName" class="net-gradient-text">Student</span> 👋
               </h1>
 
@@ -281,7 +287,7 @@ Updates requested:
                 <div class="small text-muted" id="welcomeLevelHint">100 XP to next level</div>
               </div>
 
-              <div class="net-ring" aria-label="Level progress ring">
+              <div class="net-ring net-ring--arc" aria-label="Level progress ring">
                 <svg viewBox="0 0 140 140" aria-hidden="true">
                   <defs>
                     <linearGradient id="netDashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -312,26 +318,25 @@ Updates requested:
 
             <div class="dash-xp-row">
               <div class="small text-muted" id="welcomeXpText">0/100 XP</div>
-              <span class="badge text-bg-light border" id="streakText">Streak: 0 days</span>
             </div>
 
             <div class="dash-mini-grid mt-3">
-              <div class="dash-mini">
-                <div class="dash-mini-ico"><i class="bi bi-trophy"></i></div>
-                <div>
-                  <div class="fw-semibold">Next badge</div>
-                  <div class="small text-muted" id="nextBadgeText">Complete 2 quizzes</div>
+                <div class="dash-mini">
+                  <div class="dash-mini-ico"><i class="bi bi-trophy"></i></div>
+                  <div>
+                    <div class="fw-semibold">Next badge</div>
+                    <div class="small text-muted" id="nextBadgeText">Log in 3 days in a row</div>
+                  </div>
                 </div>
-              </div>
-              <div class="dash-mini">
-                <div class="dash-mini-ico"><i class="bi bi-stars"></i></div>
-                <div>
-                  <div class="fw-semibold">Weekly goal</div>
-                  <div class="small text-muted" id="weeklyGoalText">3 lessons left</div>
+                <div class="dash-mini">
+                  <div class="dash-mini-ico"><i class="bi bi-stars"></i></div>
+                  <div>
+                    <div class="fw-semibold">Streak goal</div>
+                    <div class="small text-muted" id="weeklyGoalText">3 days to next badge</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
         </div>
       </div>
     </section>
@@ -406,46 +411,33 @@ Updates requested:
       <!-- Right rail -->
       <aside class="dash-side">
         <section class="dash-card net-card net-pop p-4 mb-4">
-          <div class="fw-semibold d-flex align-items-center gap-2 mb-3">
-            <i class="bi bi-bullseye text-teal" aria-hidden="true"></i>
-            Weekly Goals
-          </div>
-          <div class="dash-goal">
-            <div class="d-flex justify-content-between small text-muted mb-1">
-              <span>Lessons completed</span>
-              <span class="fw-semibold" id="weeklyLessonsText">0/5</span>
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="fw-semibold d-flex align-items-center gap-2">
+              <i class="bi bi-bullseye text-teal" aria-hidden="true"></i>
+              Weekly Focus
             </div>
-            <div class="progress" style="height: 10px;">
-              <div class="progress-bar net-progress" id="weeklyLessonsBar" style="width:0%"></div>
-            </div>
-          </div>
-          <div class="dash-goal">
-            <div class="d-flex justify-content-between small text-muted mb-1">
-              <span>Quizzes passed</span>
-              <span class="fw-semibold" id="weeklyQuizzesText">0/3</span>
-            </div>
-            <div class="progress" style="height: 10px;">
-              <div class="progress-bar net-progress" id="weeklyQuizzesBar" style="width:0%"></div>
+            <div class="dash-toggle" role="tablist" aria-label="Weekly goals and achievements">
+              <button class="dash-toggle-btn is-active" type="button" data-panel="weeklyPanel">
+                <span class="dash-toggle-dot"></span>
+                Goals
+              </button>
+              <button class="dash-toggle-btn" type="button" data-panel="achievementsPanel">
+                <span class="dash-toggle-dot"></span>
+                Achievements
+              </button>
             </div>
           </div>
-          <div class="dash-goal">
-            <div class="d-flex justify-content-between small text-muted mb-1">
-              <span>Sandbox builds</span>
-              <span class="fw-semibold" id="weeklySandboxText">0/2</span>
-            </div>
-            <div class="progress" style="height: 10px;">
-              <div class="progress-bar net-progress" id="weeklySandboxBar" style="width:0%"></div>
-            </div>
-          </div>
-        </section>
 
-        <section class="dash-card net-card net-pop p-4 mb-4">
-          <div class="fw-semibold d-flex align-items-center gap-2 mb-3">
-            <i class="bi bi-award text-teal" aria-hidden="true"></i>
-            Achievements
+          <div id="weeklyPanel" class="dash-panel is-active">
+            <div class="dash-tasklist" id="weeklyTasks">
+              <div class="small text-muted">Loading weekly challenges…</div>
+            </div>
           </div>
-          <div class="dash-badges" id="achievementsList">
-            <div class="small text-muted">No achievements in progress yet.</div>
+
+          <div id="achievementsPanel" class="dash-panel" hidden>
+            <div class="dash-badges" id="achievementsList">
+              <div class="small text-muted">No achievements in progress yet.</div>
+            </div>
           </div>
         </section>
       </aside>
@@ -453,24 +445,30 @@ Updates requested:
 
     <!-- CTA -->
     <section class="mt-4">
-      <div class="net-cta net-pop p-4 p-lg-5 text-white">
+      <div class="net-cta net-pop p-4 p-lg-5 text-white net-cta-animated">
+        <div class="net-cta-icons" aria-hidden="true">
+          <i class="bi bi-diagram-3"></i>
+          <i class="bi bi-wifi"></i>
+          <i class="bi bi-lightning-charge-fill"></i>
+          <i class="bi bi-award"></i>
+        </div>
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
           <div>
             <h2 class="h4 fw-bold mb-1">Ready to practise?</h2>
             <p class="mb-0 text-white-75">Open the sandbox and build real network topologies.</p>
           </div>
-          <a href="sandbox.html" class="btn btn-light fw-semibold d-inline-flex align-items-center">
+          <a href="sandbox.html" class="btn btn-light fw-semibold d-inline-flex align-items-center net-cta-btn">
             <i class="bi bi-diagram-3 me-2"></i>
             Open Sandbox
           </a>
         </div>
       </div>
     </section>
-
-    <footer class="text-center border-top py-4 bg-white mt-4" role="contentinfo">
-      <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
-    </footer>
   </main>
+
+  <footer class="net-footer-wide text-center border-top py-4 bg-white mt-4" role="contentinfo">
+    <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
+  </footer>
 
 
   <!-- Scripts -->

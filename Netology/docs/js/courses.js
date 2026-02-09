@@ -15,7 +15,7 @@ courses.js – All courses page grouped by difficulty.
 - Keeps same menu/drawer behaviour as dashboard
 */
 
-const XP_PER_LEVEL = 100;
+const BASE_XP = 100;
 
 document.addEventListener("DOMContentLoaded", async () => {
   const user = getCurrentUser();
@@ -30,9 +30,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadAllCourses(user.email, stats.level);
 });
 
+function totalXpForLevel(level) {
+  const lvl = Math.max(1, Number(level) || 1);
+  return BASE_XP * (lvl - 1) * lvl / 2;
+}
+
 function levelFromXP(totalXP) {
   const xp = Math.max(0, Number(totalXP) || 0);
-  return Math.max(1, Math.floor(xp / XP_PER_LEVEL) + 1);
+  const t = xp / BASE_XP;
+  const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
+  return Math.max(1, lvl);
+}
+
+function xpForNextLevel(level) {
+  const lvl = Math.max(1, Number(level) || 1);
+  return BASE_XP * lvl;
 }
 
 function getCurrentUser() {

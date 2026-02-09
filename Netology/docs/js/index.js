@@ -21,18 +21,38 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  const XP_PER_LEVEL = 100;
+  const BASE_XP = 100;
+
+  function totalXpForLevel(level) {
+    const lvl = Math.max(1, Number(level) || 1);
+    return BASE_XP * (lvl - 1) * lvl / 2;
+  }
+
+  function levelFromXP(totalXP) {
+    const xp = Math.max(0, Number(totalXP) || 0);
+    const t = xp / BASE_XP;
+    const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
+    return Math.max(1, lvl);
+  }
+
+  function xpForNextLevel(level) {
+    const lvl = Math.max(1, Number(level) || 1);
+    return BASE_XP * lvl;
+  }
 
   function userNumericLevel(user) {
     const xp = Number(user?.xp) || 0;
-    return Math.max(1, Math.floor(xp / XP_PER_LEVEL) + 1);
+    return levelFromXP(xp);
   }
 
   function computeXP(user) {
     const totalXP = Number(user?.xp) || 0;
-    const currentLevelXP = ((totalXP % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL;
-    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / XP_PER_LEVEL) * 100));
-    return { totalXP, currentLevelXP, progressPct };
+    const level = levelFromXP(totalXP);
+    const levelStart = totalXpForLevel(level);
+    const currentLevelXP = Math.max(0, totalXP - levelStart);
+    const xpNext = xpForNextLevel(level);
+    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / Math.max(xpNext, 1)) * 100));
+    return { totalXP, currentLevelXP, xpNext, progressPct };
   }
 
   function mapItemType(sectionType, item) {
@@ -264,10 +284,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const lvl = userNumericLevel(user);
-    const { totalXP, currentLevelXP, progressPct } = computeXP(user);
+    const { totalXP, currentLevelXP, xpNext, progressPct } = computeXP(user);
 
     if (heroLevel) heroLevel.textContent = `Level ${lvl}`;
-    if (heroXpText) heroXpText.textContent = `${currentLevelXP} / ${XP_PER_LEVEL}`;
+    if (heroXpText) heroXpText.textContent = `${currentLevelXP} / ${xpNext}`;
     if (heroXpBar) heroXpBar.style.width = `${progressPct}%`;
     if (heroTotalXp) heroTotalXp.textContent = String(totalXP);
 

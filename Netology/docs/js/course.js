@@ -36,7 +36,7 @@ What this file does:
   ========================================================= */
 
   const API = () => (window.API_BASE || "").replace(/\/$/, "");
-  const XP_PER_LEVEL = 100;
+  const BASE_XP = 100;
 
   // If your backend endpoints differ, update ONLY these paths.
   const ENDPOINTS = {
@@ -73,9 +73,31 @@ What this file does:
     return Math.min(max, Math.max(min, x));
   }
 
+  function totalXpForLevel(level) {
+    const lvl = Math.max(1, Number(level) || 1);
+    return BASE_XP * (lvl - 1) * lvl / 2;
+  }
+
   function levelFromXP(totalXP) {
     const xp = Math.max(0, Number(totalXP) || 0);
-    return Math.max(1, Math.floor(xp / XP_PER_LEVEL) + 1);
+    const t = xp / BASE_XP;
+    const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
+    return Math.max(1, lvl);
+  }
+
+  function xpForNextLevel(level) {
+    const lvl = Math.max(1, Number(level) || 1);
+    return BASE_XP * lvl;
+  }
+
+  function computeXPFromTotal(totalXP) {
+    const level = levelFromXP(totalXP);
+    const levelStart = totalXpForLevel(level);
+    const currentLevelXP = Math.max(0, totalXP - levelStart);
+    const xpNext = xpForNextLevel(level);
+    const xpProgressPct = Math.max(0, Math.min(100, (currentLevelXP / Math.max(xpNext, 1)) * 100));
+    const toNext = Math.max(0, xpNext - currentLevelXP);
+    return { level, currentLevelXP, xpNext, xpProgressPct, toNext };
   }
 
   function safeJson(str) {
@@ -257,6 +279,7 @@ What this file does:
       state.stats.xp = 0;
       state.stats.currentLevelXP = 0;
       state.stats.xpProgressPct = 0;
+      state.stats.xpNext = xpForNextLevel(1);
     }
 
     // lock logic
@@ -438,36 +461,36 @@ What this file does:
       if (!data || data.success === false) throw new Error("user-info failed");
 
       const xp = Number(data.xp || data.total_xp || 0) || 0;
-      const level = levelFromXP(xp);
+      const { level, currentLevelXP, xpNext, xpProgressPct } = computeXPFromTotal(xp);
       const rank = String(data.rank || data.level_name || data.level || "Novice");
 
       state.stats.level = level;
       state.stats.xp = xp;
       state.stats.rank = rank;
 
-      const currentLevelXP = ((xp % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL;
-      const xpProgressPct = (currentLevelXP / XP_PER_LEVEL) * 100;
-
       state.stats.currentLevelXP = currentLevelXP;
       state.stats.xpProgressPct = xpProgressPct;
+      state.stats.xpNext = xpNext;
 
       // Sidebar stats
       setText("sideLevelBadge", `Lv ${level}`);
-      setText("sideXPText", `${currentLevelXP}/${XP_PER_LEVEL}`);
+      setText("sideXPText", `${currentLevelXP}/${xpNext}`);
       const sideXPBar = el("sideXPBar");
       if (sideXPBar) sideXPBar.style.width = `${clamp(xpProgressPct, 0, 100)}%`;
 
     } catch (_) {
       // Safe fallback; do not break UI
       const localXP = Number(state.user?.xp || 0) || 0;
-      state.stats.level = levelFromXP(localXP);
+      const fallback = computeXPFromTotal(localXP);
+      state.stats.level = fallback.level;
       state.stats.rank = "Novice";
       state.stats.xp = localXP;
-      state.stats.currentLevelXP = ((localXP % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL;
-      state.stats.xpProgressPct = (state.stats.currentLevelXP / XP_PER_LEVEL) * 100;
+      state.stats.currentLevelXP = fallback.currentLevelXP;
+      state.stats.xpProgressPct = fallback.xpProgressPct;
+      state.stats.xpNext = fallback.xpNext;
 
       setText("sideLevelBadge", `Lv ${state.stats.level}`);
-      setText("sideXPText", `${state.stats.currentLevelXP}/${XP_PER_LEVEL}`);
+      setText("sideXPText", `${state.stats.currentLevelXP}/${state.stats.xpNext}`);
       const sideXPBar = el("sideXPBar");
       if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
     }
@@ -1256,12 +1279,14 @@ What this file does:
 
     // Update local stats so UI reflects progress immediately
     state.stats.xp = Number(state.stats.xp || 0) + Number(xp || 0);
-    state.stats.level = levelFromXP(state.stats.xp);
-    state.stats.currentLevelXP = ((state.stats.xp % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL;
-    state.stats.xpProgressPct = (state.stats.currentLevelXP / XP_PER_LEVEL) * 100;
+    const updated = computeXPFromTotal(state.stats.xp);
+    state.stats.level = updated.level;
+    state.stats.currentLevelXP = updated.currentLevelXP;
+    state.stats.xpProgressPct = updated.xpProgressPct;
+    state.stats.xpNext = updated.xpNext;
 
     setText("sideLevelBadge", `Lv ${state.stats.level}`);
-    setText("sideXPText", `${state.stats.currentLevelXP}/${XP_PER_LEVEL}`);
+    setText("sideXPText", `${state.stats.currentLevelXP}/${state.stats.xpNext}`);
     const sideXPBar = el("sideXPBar");
     if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
 

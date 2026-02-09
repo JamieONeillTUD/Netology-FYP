@@ -216,6 +216,11 @@ document.addEventListener("DOMContentLoaded", () => {
             unlock_tier: unlockTier
           }));
 
+          // Login streak tracking + badge awards
+          recordLoginDay(email);
+          const streak = computeLoginStreak(getLoginLog(email));
+          awardLoginStreakBadges(email, streak);
+
           // Once used, clear the pending value
           if (pendingTier) localStorage.removeItem("unlock_tier_pending");
 
@@ -559,6 +564,107 @@ function hideForgotBanner() {
 /* =========================================================
    SHARED HELPERS
 ========================================================= */
+
+/* =========================================================
+   LOGIN STREAKS + BADGES (localStorage)
+========================================================= */
+
+function dateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getLoginLog(email) {
+  try {
+    return JSON.parse(localStorage.getItem(`netology_login_log:${email}`) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveLoginLog(email, log) {
+  localStorage.setItem(`netology_login_log:${email}`, JSON.stringify(log));
+}
+
+function recordLoginDay(email) {
+  if (!email) return [];
+  const log = getLoginLog(email);
+  const today = dateKey();
+  if (!log.includes(today)) {
+    log.push(today);
+    log.sort();
+    saveLoginLog(email, log);
+  }
+  return log;
+}
+
+function computeLoginStreak(log) {
+  if (!Array.isArray(log) || !log.length) return 0;
+  const set = new Set(log);
+  let streak = 0;
+  const cursor = new Date();
+  while (set.has(dateKey(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function getBadges(email) {
+  try {
+    return JSON.parse(localStorage.getItem(`netology_badges:${email}`) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveBadges(email, badges) {
+  localStorage.setItem(`netology_badges:${email}`, JSON.stringify(badges));
+}
+
+function bumpUserXP(email, delta) {
+  if (!delta) return;
+  const rawUser = JSON.parse(localStorage.getItem("user") || "null");
+  if (rawUser && rawUser.email === email) {
+    rawUser.xp = Math.max(0, Number(rawUser.xp || 0) + delta);
+    localStorage.setItem("user", JSON.stringify(rawUser));
+  }
+  const rawNet = JSON.parse(localStorage.getItem("netology_user") || "null");
+  if (rawNet && rawNet.email === email) {
+    rawNet.xp = Math.max(0, Number(rawNet.xp || 0) + delta);
+    localStorage.setItem("netology_user", JSON.stringify(rawNet));
+  }
+}
+
+function loginBadgeDefs() {
+  return [
+    { id: "login-streak-3", name: "3-Day Streak", description: "Log in 3 days in a row", target: 3, xp: 50 },
+    { id: "login-streak-5", name: "5-Day Streak", description: "Log in 5 days in a row", target: 5, xp: 75 },
+    { id: "login-streak-7", name: "7-Day Streak", description: "Log in 7 days in a row", target: 7, xp: 100 },
+    { id: "login-streak-10", name: "10-Day Streak", description: "Log in 10 days in a row", target: 10, xp: 150 }
+  ];
+}
+
+function awardLoginStreakBadges(email, streak) {
+  if (!email) return;
+  const defs = loginBadgeDefs();
+  const badges = getBadges(email);
+  const earned = new Set(badges.map((b) => b.id));
+  let changed = false;
+
+  defs.forEach((def) => {
+    if (streak >= def.target && !earned.has(def.id)) {
+      badges.push({ id: def.id, name: def.name, description: def.description, xp: def.xp, earnedAt: dateKey() });
+      earned.add(def.id);
+      bumpUserXP(email, def.xp);
+      changed = true;
+    }
+  });
+
+  if (changed) saveBadges(email, badges);
+}
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(email || "").trim());

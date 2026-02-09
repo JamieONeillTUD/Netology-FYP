@@ -31,10 +31,18 @@ Works with:
   // Helpers
   // -----------------------------
   const $ = (id) => document.getElementById(id);
-  const XP_PER_LEVEL = 100;
+  const BASE_XP = 100;
 
   function safeJSONParse(str, fallback) {
     try { return JSON.parse(str); } catch { return fallback; }
+  }
+
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll("\"", "&quot;");
   }
 
   function getCurrentUser() {
@@ -50,9 +58,21 @@ Works with:
     return !!(u && (u.email || u.username || u.name));
   }
 
+  function totalXpForLevel(level) {
+    const lvl = Math.max(1, Number(level) || 1);
+    return BASE_XP * (lvl - 1) * lvl / 2;
+  }
+
   function levelFromXP(totalXP) {
     const xp = Math.max(0, Number(totalXP) || 0);
-    return Math.max(1, Math.floor(xp / XP_PER_LEVEL) + 1);
+    const t = xp / BASE_XP;
+    const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
+    return Math.max(1, lvl);
+  }
+
+  function xpForNextLevel(level) {
+    const lvl = Math.max(1, Number(level) || 1);
+    return BASE_XP * lvl;
   }
 
   function userNumericLevel(user) {
@@ -69,11 +89,13 @@ Works with:
 
   function computeXP(user) {
     const totalXP = Number(user?.xp) || 0;
-    const currentLevelXP = ((totalXP % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL; // safe mod
-    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / XP_PER_LEVEL) * 100));
-    const toNext = XP_PER_LEVEL - currentLevelXP;
     const level = levelFromXP(totalXP);
-    return { totalXP, currentLevelXP, progressPct, toNext, level };
+    const levelStart = totalXpForLevel(level);
+    const currentLevelXP = Math.max(0, totalXP - levelStart);
+    const xpNext = xpForNextLevel(level);
+    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / Math.max(xpNext, 1)) * 100));
+    const toNext = Math.max(0, xpNext - currentLevelXP);
+    return { totalXP, currentLevelXP, xpNext, progressPct, toNext, level };
   }
 
   function difficultyRequiredLevel(diff) {
@@ -88,18 +110,123 @@ Works with:
     return diff.charAt(0).toUpperCase() + diff.slice(1);
   }
 
+  // -----------------------------
+  // Login streak + badges
+  // -----------------------------
+  function dateKey(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function getLoginLog(email) {
+    const raw = localStorage.getItem(`netology_login_log:${email}`);
+    return safeJSONParse(raw, []);
+  }
+
+  function saveLoginLog(email, log) {
+    localStorage.setItem(`netology_login_log:${email}`, JSON.stringify(log));
+  }
+
+  function recordLoginDay(email) {
+    if (!email) return { log: [], isNew: false };
+    const log = getLoginLog(email);
+    const today = dateKey();
+    let isNew = false;
+    if (!log.includes(today)) {
+      log.push(today);
+      log.sort();
+      saveLoginLog(email, log);
+      isNew = true;
+    }
+    return { log, isNew };
+  }
+
+  function computeLoginStreak(log) {
+    if (!Array.isArray(log) || !log.length) return 0;
+    const set = new Set(log);
+    let streak = 0;
+    const cursor = new Date();
+    while (set.has(dateKey(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  function getBadges(email) {
+    return safeJSONParse(localStorage.getItem(`netology_badges:${email}`), []);
+  }
+
+  function saveBadges(email, badges) {
+    localStorage.setItem(`netology_badges:${email}`, JSON.stringify(badges));
+  }
+
+  function bumpUserXP(email, delta) {
+    if (!delta) return;
+    const rawUser = safeJSONParse(localStorage.getItem("user"), null);
+    if (rawUser && rawUser.email === email) {
+      rawUser.xp = Math.max(0, Number(rawUser.xp || 0) + delta);
+      localStorage.setItem("user", JSON.stringify(rawUser));
+    }
+    const rawNet = safeJSONParse(localStorage.getItem("netology_user"), null);
+    if (rawNet && rawNet.email === email) {
+      rawNet.xp = Math.max(0, Number(rawNet.xp || 0) + delta);
+      localStorage.setItem("netology_user", JSON.stringify(rawNet));
+    }
+  }
+
+  function loginBadgeDefs() {
+    return [
+      { id: "login-streak-3", title: "3-Day Streak", desc: "Log in 3 days in a row", icon: "bi-fire", type: "login", target: 3, xp: 50 },
+      { id: "login-streak-5", title: "5-Day Streak", desc: "Log in 5 days in a row", icon: "bi-fire", type: "login", target: 5, xp: 75 },
+      { id: "login-streak-7", title: "7-Day Streak", desc: "Log in 7 days in a row", icon: "bi-fire", type: "login", target: 7, xp: 100 },
+      { id: "login-streak-10", title: "10-Day Streak", desc: "Log in 10 days in a row", icon: "bi-fire", type: "login", target: 10, xp: 150 }
+    ];
+  }
+
+  function awardLoginStreakBadges(email, streak) {
+    if (!email) return;
+    const defs = loginBadgeDefs();
+    const badges = getBadges(email);
+    const earned = new Set(badges.map((b) => b.id));
+    let changed = false;
+
+    defs.forEach((def) => {
+      if (streak >= def.target && !earned.has(def.id)) {
+        badges.push({ ...def, earnedAt: dateKey() });
+        earned.add(def.id);
+        bumpUserXP(email, def.xp);
+        changed = true;
+      }
+    });
+
+    if (changed) saveBadges(email, badges);
+  }
+
   // Welcome ring
   // Your HTML uses the course-style ring (r=58, dasharray ~364.42)
   function setWelcomeRing(progressPct) {
     const ring = $("welcomeRing");
     if (!ring) return;
+    const track = ring.parentElement?.querySelector(".net-ring-track");
 
     const r = 58;
     const CIRC = 2 * Math.PI * r; // ~364.42
-    const offset = CIRC * (1 - (progressPct / 100));
+    const arc = 0.78; // ~280deg arc
+    const dash = CIRC * arc;
+    const gap = CIRC - dash;
+    const offset = dash * (1 - (progressPct / 100));
 
-    ring.style.strokeDasharray = `${CIRC.toFixed(2)}`;
+    const dashArray = `${dash.toFixed(2)} ${gap.toFixed(2)}`;
+    ring.style.strokeDasharray = dashArray;
     ring.style.strokeDashoffset = `${offset.toFixed(2)}`;
+
+    if (track) {
+      track.style.strokeDasharray = dashArray;
+      track.style.strokeDashoffset = "0";
+    }
   }
 
   // -----------------------------
@@ -501,6 +628,36 @@ Works with:
     });
   }
 
+  function setupGoalToggle() {
+    const btns = Array.from(document.querySelectorAll(".dash-toggle-btn[data-panel]"));
+    if (!btns.length) return;
+
+    btns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        btns.forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+
+        const panelId = btn.getAttribute("data-panel");
+        btns.forEach((b) => {
+          const id = b.getAttribute("data-panel");
+          if (!id) return;
+          const panel = document.getElementById(id);
+          if (!panel) return;
+
+          if (id === panelId) {
+            panel.hidden = false;
+            requestAnimationFrame(() => panel.classList.add("is-active"));
+          } else {
+            panel.classList.remove("is-active");
+            window.setTimeout(() => {
+              panel.hidden = true;
+            }, 200);
+          }
+        });
+      });
+    });
+  }
+
   // -----------------------------
   // Continue learning
   // -----------------------------
@@ -651,49 +808,136 @@ Works with:
     if ($("statInProgress")) $("statInProgress").textContent = String(inProgress);
     if ($("statCompleted")) $("statCompleted").textContent = String(completed);
 
-    // Streak + weekly goals
-    const log = getProgressLog(email);
-    const streak = computeStreak(log);
-    if ($("streakText")) $("streakText").textContent = `Streak: ${streak} day${streak === 1 ? "" : "s"}`;
+    // Login streak + streak badge progress
+    const loginLog = getLoginLog(email);
+    const loginStreak = computeLoginStreak(loginLog);
+    const topStreak = $("topStreakDays");
+    if (topStreak) topStreak.textContent = `${loginStreak} day${loginStreak === 1 ? "" : "s"}`;
 
-    const weeklyTargets = { lessons: 5, quizzes: 3, sandbox: 2 };
-    const weeklyLessons = countInLastDays(log, 7, "learn");
-    const weeklyQuizzes = countInLastDays(log, 7, "quiz");
-    const weeklySandbox = countInLastDays(log, 7, "challenge");
+    const earnedBadgeIds = new Set(getBadges(email).map((b) => b.id));
+    const streakDefs = loginBadgeDefs();
 
-    const weeklyLessonsPct = Math.min(100, Math.round((weeklyLessons / weeklyTargets.lessons) * 100));
-    const weeklyQuizzesPct = Math.min(100, Math.round((weeklyQuizzes / weeklyTargets.quizzes) * 100));
-    const weeklySandboxPct = Math.min(100, Math.round((weeklySandbox / weeklyTargets.sandbox) * 100));
+    // Weekly tasks list (personalized)
+    const taskPool = [];
+    taskPool.push({
+      id: "login-streak",
+      title: "Keep your streak alive",
+      progress: Math.min(loginStreak, 7),
+      target: 7,
+      unit: "days",
+      xp: 40,
+      tip: "Log in daily to build streak badges."
+    });
 
-    if ($("weeklyLessonsText")) $("weeklyLessonsText").textContent = `${weeklyLessons}/${weeklyTargets.lessons}`;
-    if ($("weeklyQuizzesText")) $("weeklyQuizzesText").textContent = `${weeklyQuizzes}/${weeklyTargets.quizzes}`;
-    if ($("weeklySandboxText")) $("weeklySandboxText").textContent = `${weeklySandbox}/${weeklyTargets.sandbox}`;
+    taskPool.push({
+      id: "lesson-focus",
+      title: lessonsDone < 5 ? "Complete 2 lessons" : "Complete 1 lesson",
+      progress: lessonsDone % 5,
+      target: lessonsDone < 5 ? 2 : 1,
+      unit: "lessons",
+      xp: lessonsDone < 5 ? 50 : 25,
+      tip: "Lessons unlock quizzes and sandbox challenges."
+    });
 
-    if ($("weeklyLessonsBar")) $("weeklyLessonsBar").style.width = `${weeklyLessonsPct}%`;
-    if ($("weeklyQuizzesBar")) $("weeklyQuizzesBar").style.width = `${weeklyQuizzesPct}%`;
-    if ($("weeklySandboxBar")) $("weeklySandboxBar").style.width = `${weeklySandboxPct}%`;
+    if (quizzesDone < 3) {
+      taskPool.push({
+        id: "quiz-focus",
+        title: "Pass a quiz",
+        progress: quizzesDone % 3,
+        target: 1,
+        unit: "quiz",
+        xp: 40,
+        tip: "Quizzes reinforce key concepts."
+      });
+    }
 
-    const lessonsLeft = Math.max(0, weeklyTargets.lessons - weeklyLessons);
+    if (challengesDone < 2) {
+      taskPool.push({
+        id: "sandbox-focus",
+        title: "Build 1 topology",
+        progress: challengesDone % 2,
+        target: 1,
+        unit: "topology",
+        xp: 60,
+        tip: "Sandbox practice accelerates mastery."
+      });
+    }
+
+    if (inProgress > 0) {
+      taskPool.push({
+        id: "finish-module",
+        title: "Continue an in‑progress course",
+        progress: inProgress,
+        target: Math.max(1, Math.min(3, inProgress)),
+        unit: "courses",
+        xp: 35,
+        tip: "Pick up where you left off."
+      });
+    }
+
+    // deterministic daily shuffle
+    const seed = Array.from(`${email}:${dateKey()}`).reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) >>> 0, 7);
+    let t = seed || 1;
+    const rng = () => {
+      t += 0x6D2B79F5;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+    const shuffled = taskPool.sort(() => rng() - 0.5).slice(0, 3);
+
+    const taskWrap = $("weeklyTasks");
+    if (taskWrap) {
+      taskWrap.innerHTML = shuffled.map((t) => `
+        <div class="dash-task" data-tip="${escapeHtml(`${t.tip} (+${t.xp} XP)`) }">
+          <div>
+            <div class="fw-semibold">${escapeHtml(t.title)}</div>
+            <div class="small text-muted">${t.progress}/${t.target} ${escapeHtml(t.unit)}</div>
+          </div>
+          <div class="dash-task-xp">+${t.xp} XP</div>
+        </div>
+      `).join("");
+    }
+
+    const nextLoginBadge = streakDefs.find((d) => !earnedBadgeIds.has(d.id));
     if ($("weeklyGoalText")) {
-      $("weeklyGoalText").textContent = lessonsLeft === 0 ? "Weekly goal complete" : `${lessonsLeft} lessons left`;
+      if (!nextLoginBadge) {
+        $("weeklyGoalText").textContent = "All streak badges earned";
+      } else {
+        const remaining = Math.max(0, nextLoginBadge.target - loginStreak);
+        $("weeklyGoalText").textContent = remaining === 0
+          ? `Earned ${nextLoginBadge.target}-day badge`
+          : `${remaining} days to ${nextLoginBadge.target}-day badge`;
+      }
     }
 
     // Achievements (show only incomplete)
     const achievements = [
-      { id: "fast-learner", title: "Fast Learner", desc: "Complete 5 lessons", icon: "bi-lightning-charge-fill", type: "lessons", target: 5 },
-      { id: "sandbox-builder", title: "Sandbox Builder", desc: "Build 2 topologies", icon: "bi-diagram-3", type: "challenges", target: 2 },
-      { id: "quiz-master", title: "Quiz Master", desc: "Pass 3 quizzes", icon: "bi-patch-check", type: "quizzes", target: 3 }
+      ...streakDefs,
+      { id: "fast-learner", title: "Fast Learner", desc: "Complete 5 lessons", icon: "bi-lightning-charge-fill", type: "lessons", target: 5, xp: 50 },
+      { id: "sandbox-builder", title: "Sandbox Builder", desc: "Build 2 topologies", icon: "bi-diagram-3", type: "challenges", target: 2, xp: 60 },
+      { id: "quiz-master", title: "Quiz Master", desc: "Pass 3 quizzes", icon: "bi-patch-check", type: "quizzes", target: 3, xp: 60 }
     ];
 
-    const counts = { lessons: lessonsDone, quizzes: quizzesDone, challenges: challengesDone };
-    const pending = achievements.filter(a => (counts[a.type] || 0) < a.target);
+    const counts = { lessons: lessonsDone, quizzes: quizzesDone, challenges: challengesDone, login: loginStreak };
+    const pending = achievements.filter((a) => {
+      if (a.type === "login") return !earnedBadgeIds.has(a.id);
+      return (counts[a.type] || 0) < a.target;
+    });
 
     if ($("nextBadgeText")) {
       if (pending.length) {
         const next = pending[0];
-        const remaining = Math.max(0, next.target - (counts[next.type] || 0));
-        const label = next.type === "quizzes" ? "quizzes" : next.type === "challenges" ? "topologies" : "lessons";
-        $("nextBadgeText").textContent = `Complete ${remaining} ${label}`;
+        const current = next.type === "login" ? loginStreak : (counts[next.type] || 0);
+        const remaining = Math.max(0, next.target - current);
+        const label =
+          next.type === "login" ? "login days" :
+          next.type === "quizzes" ? "quizzes" :
+          next.type === "challenges" ? "topologies" :
+          "lessons";
+        $("nextBadgeText").textContent = remaining === 0
+          ? `Badge ready: ${next.title}`
+          : `Complete ${remaining} ${label}`;
       } else {
         $("nextBadgeText").textContent = "All badges earned";
       }
@@ -705,7 +949,7 @@ Works with:
         list.innerHTML = `<div class="small text-muted">All achievements completed. Great work.</div>`;
       } else {
         list.innerHTML = pending.map((a) => {
-          const current = counts[a.type] || 0;
+          const current = a.type === "login" ? Math.min(loginStreak, a.target) : (counts[a.type] || 0);
           return `
             <div class="dash-badge">
               <span class="dash-badge-ico"><i class="bi ${a.icon}"></i></span>
@@ -720,11 +964,13 @@ Works with:
     }
 
     if ($("focusText")) {
-      $("focusText").textContent = streak > 0
-        ? "Complete 1 lesson to keep your streak"
-        : "Complete 1 lesson to start your streak";
+      $("focusText").textContent = loginStreak > 0
+        ? "Log in tomorrow to keep your streak"
+        : "Log in today to start a streak";
     }
-    if ($("focusXp")) $("focusXp").textContent = "XP varies";
+    if ($("focusXp")) {
+      $("focusXp").textContent = nextLoginBadge ? `+${nextLoginBadge.xp} XP` : "XP varies";
+    }
   }
 
   // -----------------------------
@@ -742,9 +988,11 @@ Works with:
 
     // avatar = first letter of name/username
     const initial = (name || "S").trim().charAt(0).toUpperCase();
+    const streakPill = $("topStreakPill");
+    if (streakPill) streakPill.style.display = user?.email ? "" : "none";
 
     const lvl = userNumericLevel(user);
-    const { totalXP, currentLevelXP, progressPct, toNext } = computeXP(user);
+    const { totalXP, currentLevelXP, xpNext, progressPct, toNext } = computeXP(user);
 
     // Welcome
     if ($("welcomeName")) $("welcomeName").textContent = name;
@@ -766,7 +1014,7 @@ Works with:
     if ($("sideAvatar")) $("sideAvatar").textContent = initial;
 
     if ($("sideLevelBadge")) $("sideLevelBadge").textContent = `Lv ${lvl}`;
-    if ($("sideXpText")) $("sideXpText").textContent = `${currentLevelXP}/${XP_PER_LEVEL}`;
+    if ($("sideXpText")) $("sideXpText").textContent = `${currentLevelXP}/${xpNext}`;
     if ($("sideXpBar")) $("sideXpBar").style.width = `${progressPct}%`;
     if ($("sideXpHint")) $("sideXpHint").textContent = `${toNext} XP to next level`;
 
@@ -778,7 +1026,7 @@ Works with:
     // Welcome ring block
     if ($("welcomeLevel")) $("welcomeLevel").textContent = String(lvl);
     if ($("welcomeRank")) $("welcomeRank").textContent = rank;
-    if ($("welcomeXpText")) $("welcomeXpText").textContent = `${currentLevelXP}/${XP_PER_LEVEL} XP`;
+    if ($("welcomeXpText")) $("welcomeXpText").textContent = `${currentLevelXP}/${xpNext} XP`;
     if ($("welcomeLevelHint")) $("welcomeLevelHint").textContent = `${toNext} XP to next level`;
 
     setWelcomeRing(progressPct);
@@ -792,6 +1040,24 @@ Works with:
     setupSidebar();
     setupUserDropdown();
     setupLogout();
+    setupGoalToggle();
+    const user = getCurrentUser();
+    if (user?.email) {
+      const loginInfo = recordLoginDay(user.email);
+      const streak = computeLoginStreak(loginInfo.log);
+      awardLoginStreakBadges(user.email, streak);
+
+      if (loginInfo.isNew) {
+        const pill = $("topStreakPill");
+        if (pill) {
+          pill.classList.remove("is-animate");
+          requestAnimationFrame(() => {
+            pill.classList.add("is-animate");
+            window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
+          });
+        }
+      }
+    }
     fillUserUI();
     setupCourseSearchAndChips();
     renderCourses();

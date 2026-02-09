@@ -6,24 +6,22 @@
   <title>Netology – Account</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="net-bg">
+<body class="net-bg net-landing">
 
-  <header class="net-topbar">
-    <div class="container d-flex align-items-center justify-content-between gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="net-logo" aria-hidden="true"></div>
-        <div>
-          <div class="net-brand">Netology</div>
-          <div class="net-subtitle small">Account</div>
-        </div>
-      </div>
-      <div class="d-flex gap-2">
-        <a href="dashboard.html" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+  <header class="net-figma-nav sticky-top" role="banner">
+    <div class="net-figma-container nav-inner">
+      <a href="dashboard.html" class="net-figma-brand" aria-label="Netology home">
+        <span class="net-figma-logo"><i class="bi bi-mortarboard-fill"></i></span>
+        <span class="net-figma-title">Netology</span>
+      </a>
+      <nav class="net-figma-actions" aria-label="Primary actions">
+        <a href="dashboard.html" class="net-figma-link">Dashboard</a>
         <button class="btn btn-outline-danger btn-sm" id="logoutBtn">Logout</button>
-      </div>
+      </nav>
     </div>
   </header>
 
@@ -54,22 +52,28 @@
           <div class="text-muted small mb-3">XP and level</div>
 
           <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="net-mini-media p-3">
                 <div class="small text-muted">Level</div>
                 <div class="h4 mb-0" id="levelText">1</div>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="net-mini-media p-3">
                 <div class="small text-muted">XP</div>
                 <div class="h4 mb-0" id="xpText">0</div>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="net-mini-media p-3">
                 <div class="small text-muted">Next level</div>
                 <div class="h6 mb-0" id="nextText">0 / 100</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="net-mini-media p-3">
+                <div class="small text-muted">Login streak</div>
+                <div class="h4 mb-0" id="streakCount">0</div>
               </div>
             </div>
           </div>
@@ -79,6 +83,7 @@
             <div class="progress" style="height:10px;">
               <div class="progress-bar bg-teal" id="xpBar" style="width:0%"></div>
             </div>
+            <div class="small text-muted mt-2" id="streakHint">Log in today to start a streak.</div>
           </div>
 
           <!-- NEW (added only): course access explanation -->
@@ -98,6 +103,41 @@
         </div>
       </div>
     </div>
+
+    <div class="row g-3 mt-1">
+      <div class="col-lg-6">
+        <div class="net-card p-4">
+          <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
+            <i class="bi bi-calendar3 text-teal" aria-hidden="true"></i>
+            Login Activity
+          </div>
+          <div class="small text-muted mb-3">Last 30 days</div>
+          <div class="net-activity-grid" id="loginActivity"></div>
+          <div class="small text-muted mt-2">Darker squares mean more consistent logins.</div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="net-card p-4">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="fw-semibold d-flex align-items-center gap-2">
+              <i class="bi bi-award text-teal" aria-hidden="true"></i>
+              Achievements
+            </div>
+            <span class="badge text-bg-light border" id="badgeCount">0 earned</span>
+          </div>
+
+          <div class="net-badge-section">
+            <div class="small text-muted fw-semibold mb-2">Earned</div>
+            <div class="net-badge-grid" id="earnedBadges"></div>
+          </div>
+
+          <div class="net-badge-section mt-4">
+            <div class="small text-muted fw-semibold mb-2">Locked</div>
+            <div class="net-badge-grid" id="lockedBadges"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <footer class="text-center border-top py-3 bg-white">
@@ -105,92 +145,8 @@
   </footer>
   
   <script src="js/config.js"></script>
+  <script src="js/course_content.js"></script>
   <script src="js/account.js"></script>
-
-  <!-- NEW (added only): safe inline enhancer (does not break account.js) -->
-  <script>
-    (function() {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      if (!user.email) return;
-
-      function calcLevelFromXp(totalXp) {
-        const xp = Math.max(0, Number(totalXp || 0));
-        const numericLevel = Math.floor(xp / 100) + 1;
-        const xpInto = xp % 100;
-        const xpNext = 100;
-        return { numericLevel, xpInto, xpNext };
-      }
-
-      function rankFromNumericLevel(lvl) {
-        const n = Number(lvl || 1);
-        if (n >= 5) return "Advanced";
-        if (n >= 3) return "Intermediate";
-        return "Novice";
-      }
-
-      function setRankBadge(rank) {
-        const badge = document.getElementById("rankBadge");
-        if (!badge) return;
-
-        badge.textContent = rank;
-
-        // Simple color mapping (Bootstrap badges)
-        const r = String(rank || "").toLowerCase();
-        badge.className = "badge";
-        if (r === "advanced") badge.classList.add("bg-danger");
-        else if (r === "intermediate") badge.classList.add("bg-info", "text-dark");
-        else badge.classList.add("text-bg-light", "border");
-      }
-
-      fetch(`/user-info?email=${encodeURIComponent(user.email)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (!data.success) return;
-
-          const totalXp = Number(data.xp || 0);
-
-          let numericLevel = Number(data.numeric_level || 0);
-          let xpInto = Number(data.xp_into_level || 0);
-          let xpNext = Number(data.next_level_xp || 0);
-
-          if (!numericLevel || !xpNext) {
-            const calc = calcLevelFromXp(totalXp);
-            numericLevel = calc.numericLevel;
-            xpInto = calc.xpInto;
-            xpNext = calc.xpNext;
-          }
-
-          let rank = String(data.rank || data.level || "").trim();
-          const computed = rankFromNumericLevel(numericLevel);
-          const low = rank.toLowerCase();
-          if (low !== "novice" && low !== "intermediate" && low !== "advanced") {
-            rank = computed;
-          }
-
-          setRankBadge(rank);
-
-          // Update these if account.js didn't
-          const levelText = document.getElementById("levelText");
-          const xpText = document.getElementById("xpText");
-          const nextText = document.getElementById("nextText");
-          const xpBar = document.getElementById("xpBar");
-
-          if (levelText && /^\d+$/.test(levelText.textContent.trim())) {
-            // leave account.js output if it already placed something richer
-          } else if (levelText) {
-            levelText.textContent = `${numericLevel} (${rank})`;
-          }
-
-          if (xpText && xpText.textContent.trim() === "0") xpText.textContent = totalXp;
-
-          if (nextText) nextText.textContent = `${xpInto} / ${xpNext}`;
-
-          const pct = Math.max(0, Math.min(100, Math.round((xpInto / Math.max(xpNext, 1)) * 100)));
-          if (xpBar) xpBar.style.width = `${pct}%`;
-        })
-        .catch(() => {});
-    })();
-  </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
