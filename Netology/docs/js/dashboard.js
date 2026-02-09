@@ -53,6 +53,22 @@ Works with:
     }
   }
 
+  const __dashErrors = [];
+  function reportError(label, err) {
+    __dashErrors.push({ label, err });
+    console.error(`[dashboard] ${label}`, err);
+  }
+
+  function safeStep(label, fn) {
+    try { return fn(); }
+    catch (e) { reportError(label, e); return null; }
+  }
+
+  async function safeStepAsync(label, fn) {
+    try { return await fn(); }
+    catch (e) { reportError(label, e); return null; }
+  }
+
   async function fetchJson(url) {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -170,7 +186,8 @@ Works with:
   }
 
   function getBadges(email) {
-    return safeJSONParse(localStorage.getItem(`netology_badges:${email}`), []);
+    const raw = safeJSONParse(localStorage.getItem(`netology_badges:${email}`), []);
+    return Array.isArray(raw) ? raw : [];
   }
 
   function saveBadges(email, badges) {
@@ -203,7 +220,8 @@ Works with:
   function awardLoginStreakBadges(email, streak) {
     if (!email) return;
     const defs = loginBadgeDefs();
-    const badges = getBadges(email);
+    let badges = getBadges(email);
+    if (!Array.isArray(badges)) badges = [];
     const earned = new Set(badges.map((b) => b.id));
     let changed = false;
 
@@ -354,7 +372,14 @@ Works with:
       ? COURSE_CONTENT
       : (window.COURSE_CONTENT || {});
     if (cc && Object.keys(cc).length) return cc;
-    return window.__dashCourseIndex || {};
+    if (window.__dashCourseIndex && Object.keys(window.__dashCourseIndex).length) {
+      return window.__dashCourseIndex;
+    }
+    try {
+      const cached = JSON.parse(localStorage.getItem("netology_courses_cache") || "null");
+      if (cached && typeof cached === "object") return cached;
+    } catch {}
+    return {};
   }
 
   async function fetchCoursesFromApi() {
@@ -383,6 +408,9 @@ Works with:
       });
 
       window.__dashCourseIndex = index;
+      try {
+        localStorage.setItem("netology_courses_cache", JSON.stringify(index));
+      } catch {}
       return Object.keys(index).map((k) => index[k]);
     } catch {
       return [];
@@ -1142,46 +1170,35 @@ Works with:
   // Init
   // -----------------------------
   async function init() {
-    try {
-      wireBrandRouting();
-      setupSidebar();
-      setupUserDropdown();
-      setupLogout();
-      setupGoalToggle();
+    safeStep("wireBrandRouting", wireBrandRouting);
+    safeStep("setupSidebar", setupSidebar);
+    safeStep("setupUserDropdown", setupUserDropdown);
+    safeStep("setupLogout", setupLogout);
+    safeStep("setupGoalToggle", setupGoalToggle);
 
-      const user = await refreshUserFromApi();
-      if (user?.email) {
-        const loginInfo = recordLoginDay(user.email);
-        const streak = computeLoginStreak(loginInfo.log);
-        awardLoginStreakBadges(user.email, streak);
+    const user = await safeStepAsync("refreshUserFromApi", refreshUserFromApi) || getCurrentUser();
+    if (user?.email) {
+      const loginInfo = safeStep("recordLoginDay", () => recordLoginDay(user.email)) || { log: [] };
+      const streak = safeStep("computeLoginStreak", () => computeLoginStreak(loginInfo.log)) || 0;
+      safeStep("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
 
-        if (loginInfo.isNew) {
-          const pill = $("topStreakPill");
-          if (pill) {
-            pill.classList.remove("is-animate");
-            requestAnimationFrame(() => {
-              pill.classList.add("is-animate");
-              window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
-            });
-          }
+      if (loginInfo.isNew) {
+        const pill = $("topStreakPill");
+        if (pill) {
+          pill.classList.remove("is-animate");
+          requestAnimationFrame(() => {
+            pill.classList.add("is-animate");
+            window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
+          });
         }
       }
-
-      fillUserUI();
-      setupCourseSearchAndChips();
-      await renderCourses();
-      renderContinueLearning();
-      renderProgressWidgets();
-    } catch (err) {
-      const box = $("continueBox");
-      if (box) {
-        box.className = "dash-continue-list";
-        box.innerHTML = `<div class="text-danger small">Dashboard failed to load. Please refresh and try again.</div>`;
-      }
-      const banner = $("courseErrorBanner");
-      if (banner) banner.classList.remove("d-none");
-      console.error("Dashboard init failed:", err);
     }
+
+    safeStep("fillUserUI", fillUserUI);
+    safeStep("setupCourseSearchAndChips", setupCourseSearchAndChips);
+    await safeStepAsync("renderCourses", renderCourses);
+    safeStep("renderContinueLearning", renderContinueLearning);
+    safeStep("renderProgressWidgets", renderProgressWidgets);
   }
 
   onReady(init);
