@@ -1,594 +1,830 @@
 /*
 Student Number: C22320301
-Student Name: Jamie O’Neill
+Student Name: Jamie O'Neill
 Course Code: TU857/4
 Date: 10/11/2025
 
-JavaScript
----------------------------------------
-dashboard.js – Netology Dashboard (Sidebar Layout)
+dashboard.js – Netology Dashboard logic (Vanilla JS)
 
-Updates:
-- Top nav brand click logic:
-  - signed in => dashboard.html
-  - signed out => index.html
-- Top right user dropdown:
-  - shows name/email
-  - logout button works
-- Course search + difficulty filters
+Matches dashboard.html you provided:
+- Slide sidebar open/close (backdrop click + ESC)
+- User dropdown open/close (click outside + ESC)
+- Loads user from localStorage OR API (token)
+- Builds course list from COURSE_CONTENT if available (fallback included)
+- Search + difficulty filtering (desktop + mobile synced)
+- Enforces access control: locked courses cannot be opened
+- Continue Learning auto-picks best in-progress unlocked course
 */
 
-// Safe: ensure API base is never undefined
-const API_BASE = (window.API_BASE || "").replace(/\/$/, "");
+(function () {
+  "use strict";
 
-let __dashState = {
-  email: "",
-  numericLevel: 1,
-  rank: "Novice",
-  xp: 0,
-  courses: [],
-  filter: { q: "", diff: "all" }
-};
+  // -----------------------------
+  // Helpers
+  // -----------------------------
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-document.addEventListener("DOMContentLoaded", async () => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-
-  // Dashboard should protect itself
-  if (!user.email) {
-    window.location.href = "login.html";
-    return;
+  function safeText(el, value) {
+    if (!el) return;
+    el.textContent = value ?? "";
   }
 
-  __dashState.email = user.email;
-
-  // Wire UI
-  wireTopNav(user);
-  wireFilters();
-  wireLogout();
-
-  // Names
-  const displayName = user.first_name || user.username || "Student";
-  setText("welcomeName", displayName);
-  setText("sideName", displayName);
-  setText("sideEmail", user.email);
-  setText("sideName_m", displayName);
-  setText("sideEmail_m", user.email);
-
-  // Load data
-  await loadUserStats(user.email);
-  await loadUserCourses(user.email);
-
-  renderLockNote();
-});
-
-/* =========================================================
-   TOP NAV (brand click + dropdown content + logout)
-========================================================= */
-function wireTopNav(user) {
-  const homeTop = document.getElementById("netTopHome");
-  const homeSide = document.getElementById("netSideHome");
-
-  const goHomeSmart = (e) => {
-    e?.preventDefault?.();
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    if (u && u.email) window.location.href = "dashboard.html";
-    else window.location.href = "index.html";
-  };
-
-  homeTop?.addEventListener("click", goHomeSmart);
-  homeSide?.addEventListener("click", goHomeSmart);
-
-  // Populate dropdown user info
-  const displayName = user.first_name || user.username || "Student";
-  setText("topUserName", displayName);
-  setText("topUserNameMenu", displayName);
-  setText("topUserEmail", user.email);
-
-  // Avatar letter
-  const avatar = document.getElementById("topAvatar");
-  if (avatar) {
-    const ch = String(displayName || "S").trim().charAt(0).toUpperCase() || "S";
-    avatar.textContent = ch;
+  function clamp(n, min, max) {
+    return Math.max(min, Math.min(max, n));
   }
 
-  // Top logout button
-  const logoutTop = document.getElementById("logoutBtnTop");
-  logoutTop?.addEventListener("click", doLogout);
-}
+  function getInitials(name) {
+    const s = (name || "").trim();
+    if (!s) return "S";
+    const parts = s.split(/\s+/).slice(0, 2);
+    return parts.map((p) => p[0]?.toUpperCase() || "").join("") || "S";
+  }
 
-/* =========================================================
-   LOGOUT (desktop sidebar + mobile sidebar)
-========================================================= */
-function wireLogout() {
-  document.getElementById("logoutBtn")?.addEventListener("click", doLogout);
-  document.getElementById("logoutBtn_m")?.addEventListener("click", doLogout);
-}
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
-function doLogout() {
-  localStorage.removeItem("user");
-  window.location.href = "login.html";
-}
+  // API base: dashboard.html sets window.API_BASE in <head>
+  const API_BASE = window.API_BASE || "http://127.0.0.1:5000";
 
-/* =========================================================
-   FILTERS (search + difficulty chips)
-========================================================= */
-function wireFilters() {
-  const search = document.getElementById("courseSearch");
-  const chips = Array.from(document.querySelectorAll(".net-chip"));
+  // -----------------------------
+  // Toast popup (uses your CSS .net-toast)
+  // -----------------------------
+  function showPopup(message, type = "info") {
+    const existing = document.querySelector(".net-toast");
+    if (existing) existing.remove();
 
-  search?.addEventListener("input", (e) => {
-    __dashState.filter.q = String(e.target.value || "").trim().toLowerCase();
-    renderCourses();
-  });
+    const toast = document.createElement("div");
+    toast.className = "net-toast net-toast-enter";
+    toast.setAttribute("data-type", type);
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
 
-  chips.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      chips.forEach(b => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      __dashState.filter.diff = String(btn.getAttribute("data-diff") || "all");
-      renderCourses();
+    toast.innerHTML = `
+      <div class="net-toast-inner">
+        <div class="net-toast-icon" aria-hidden="true"></div>
+        <div class="net-toast-text">${escapeHtml(message)}</div>
+        <button class="net-toast-close" aria-label="Close notification" type="button">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(toast);
+
+    const close = () => {
+      toast.classList.remove("net-toast-enter");
+      toast.classList.add("net-toast-exit");
+      setTimeout(() => toast.remove(), 220);
+    };
+
+    toast.addEventListener("click", close);
+    toast.querySelector(".net-toast-close")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      close();
     });
-  });
-}
 
-/* =========================================================
-   USER STATS (level + XP)
-========================================================= */
-async function loadUserStats(email) {
-  try {
-    const res = await fetch(`${API_BASE}/user-info?email=${encodeURIComponent(email)}`);
-    const data = await res.json();
-    if (!data.success) return;
+    setTimeout(close, 3200);
+  }
 
-    const totalXp = Number(data.xp || 0);
+  // -----------------------------
+  // Auth + User load
+  // -----------------------------
+  function getToken() {
+    return localStorage.getItem("token") || localStorage.getItem("authToken") || "";
+  }
 
-    // Prefer backend numeric_level if present, else fallback
-    let numericLevel = Number(data.numeric_level || 0);
-    let xpInto = Number(data.xp_into_level || 0);
-    let xpNext = Number(data.next_level_xp || 0);
-
-    if (!numericLevel || !xpNext) {
-      const calc = __calcLevelFromXp(totalXp);
-      numericLevel = calc.numericLevel;
-      xpInto = calc.xpInto;
-      xpNext = calc.xpNext;
+  function getStoredUser() {
+    try {
+      const raw = localStorage.getItem("user") || localStorage.getItem("net_user");
+      if (!raw) return null;
+      const u = JSON.parse(raw);
+      return u && typeof u === "object" ? u : null;
+    } catch {
+      return null;
     }
+  }
 
-    // Rank: prefer backend, else compute
-    let rank = String(data.rank || data.level || "").trim();
-    const computedRank = __rankFromNumericLevel(numericLevel);
-    if (!rank) rank = computedRank;
-    else {
-      const low = rank.toLowerCase();
-      if (low !== "novice" && low !== "intermediate" && low !== "advanced") {
-        rank = computedRank;
+  async function fetchMe(token) {
+    const candidates = [`${API_BASE}/auth/me`, `${API_BASE}/me`, `${API_BASE}/users/me`];
+
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) continue;
+        return await res.json();
+      } catch {
+        // try next
       }
     }
+    return null;
+  }
 
-    const pct = clamp(Math.round((xpInto / Math.max(xpNext, 1)) * 100), 0, 100);
+  function normalizeUser(raw) {
+    const name =
+      raw?.name ||
+      raw?.full_name ||
+      raw?.fullname ||
+      raw?.username ||
+      "Student";
+    const email = raw?.email || raw?.user_email || "email@example.com";
+    const level = Number(raw?.level ?? raw?.user_level ?? 1) || 1;
+    const xp = Number(raw?.xp ?? raw?.user_xp ?? 0) || 0;
 
-    __dashState.numericLevel = numericLevel;
-    __dashState.rank = rank;
-    __dashState.xp = totalXp;
+    return { name, email, level, xp };
+  }
 
-    // Sidebar + stats
-    setText("levelText", String(numericLevel));
-    setText("xpText", String(totalXp));
-    setText("xpNextText", `${xpInto} / ${xpNext}`);
+  function redirectToLogin() {
+    window.location.href = "login.html";
+  }
 
-    const xpBar = document.getElementById("xpBar");
-    if (xpBar) xpBar.style.width = `${pct}%`;
-
-    // Rank badge
-    const rankBadge = document.getElementById("rankBadge");
-    if (rankBadge) {
-      rankBadge.textContent = rank;
-      rankBadge.className = `badge ${rankBadgeClass(rank)} border`;
+  // -----------------------------
+  // Progress storage
+  // -----------------------------
+  // net_progress: { [courseId]: { progress: 0-100, completedModules, totalModules } }
+  function loadProgressMap() {
+    try {
+      return JSON.parse(localStorage.getItem("net_progress") || "{}");
+    } catch {
+      return {};
     }
-
-    // Stats tiles
-    setText("statLevel", String(numericLevel));
-    setText("statXp", String(totalXp));
-    setText("statRank", `${rank} rank`);
-
-    // Next tier line
-    const nextTier = nextTierText(numericLevel);
-    setText("unlockText", nextTier);
-    setText("unlockText_m", nextTier);
-
-  } catch (e) {
-    console.error("loadUserStats error:", e);
   }
-}
 
-function nextTierText(level) {
-  const lvl = Number(level || 1);
-  // L1-2 = Novice, L3-4 = Intermediate, L5+ = Advanced
-  if (lvl < 3) {
-    const left = 3 - lvl;
-    return `Next tier unlocks in ${left} level${left === 1 ? "" : "s"} (Intermediate).`;
+  // -----------------------------
+  // Course data (COURSE_CONTENT -> cards)
+  // -----------------------------
+  function inferDifficultyFromRequiredLevel(requiredLevel) {
+    if (requiredLevel >= 10) return "advanced";
+    if (requiredLevel >= 5) return "intermediate";
+    return "novice";
   }
-  if (lvl < 5) {
-    const left = 5 - lvl;
-    return `Next tier unlocks in ${left} level${left === 1 ? "" : "s"} (Advanced).`;
+
+  function buildCoursesFromCourseContent() {
+    const cc = window.COURSE_CONTENT;
+    if (!cc || typeof cc !== "object") return null;
+
+    const out = [];
+    Object.keys(cc).forEach((key) => {
+      const c = cc[key];
+      const id = c?.id || String(key);
+
+      const title = c?.title || `Course ${key}`;
+      const difficulty =
+        c?.difficulty || inferDifficultyFromRequiredLevel(c?.required_level ?? 1);
+      const requiredLevel = Number(c?.required_level ?? 1) || 1;
+
+      const units = Array.isArray(c?.units) ? c.units : [];
+      let modules = 0;
+
+      for (const u of units) {
+        const sections = Array.isArray(u?.sections) ? u.sections : [];
+        for (const s of sections) {
+          const items = Array.isArray(s?.items) ? s.items : [];
+          modules += Math.max(items.length, 0);
+        }
+      }
+      if (!modules) modules = units.length || 10;
+
+      const category =
+        c?.category ||
+        (difficulty === "advanced"
+          ? "Advanced"
+          : difficulty === "intermediate"
+          ? "Core Skills"
+          : "Fundamentals");
+
+      const xpReward =
+        c?.xpReward ||
+        c?.xp_reward ||
+        (difficulty === "advanced" ? 1200 : difficulty === "intermediate" ? 1000 : 800);
+
+      const estimatedTime =
+        c?.estimatedTime ||
+        c?.estimated_time ||
+        `${clamp(Math.round(modules / 3), 2, 14)} hours`;
+
+      const description =
+        c?.description ||
+        (units[0]?.about
+          ? units[0].about
+          : "Learn networking concepts through short lessons and practice.");
+
+      out.push({
+        id: String(id),
+        title,
+        description,
+        modules,
+        xpReward,
+        difficulty,
+        requiredLevel,
+        category,
+        estimatedTime,
+      });
+    });
+
+    out.sort((a, b) => a.requiredLevel - b.requiredLevel);
+    return out;
   }
-  return "All tiers unlocked. Keep going for more XP.";
-}
 
-/* =========================================================
-   COURSES
-========================================================= */
-async function loadUserCourses(email) {
-  const grid = document.getElementById("coursesGrid");
-  const continueBox = document.getElementById("continueBox");
-  if (!grid || !continueBox) return;
+  // Fallback list (only used if COURSE_CONTENT is missing)
+  // NOTE: IDs are numeric strings so they match common COURSE_CONTENT keys.
+  function fallbackCourses() {
+    return [
+      {
+        id: "1",
+        title: "Introduction to Networking",
+        description:
+          "Master the fundamentals of computer networks and understand how data flows across the internet.",
+        modules: 14,
+        xpReward: 800,
+        difficulty: "novice",
+        requiredLevel: 1,
+        category: "Fundamentals",
+        estimatedTime: "6 hours",
+      },
+      {
+        id: "2",
+        title: "Subnetting Basics",
+        description: "Learn IP subnetting, CIDR notation, and subnet masks through guided practice.",
+        modules: 27,
+        xpReward: 1200,
+        difficulty: "novice",
+        requiredLevel: 1,
+        category: "IP Addressing",
+        estimatedTime: "10 hours",
+      },
+      {
+        id: "3",
+        title: "Routing Protocols",
+        description: "Understand how routers communicate using RIP, OSPF, EIGRP, and BGP.",
+        modules: 29,
+        xpReward: 1400,
+        difficulty: "intermediate",
+        requiredLevel: 5,
+        category: "Routing",
+        estimatedTime: "12 hours",
+      },
+      {
+        id: "4",
+        title: "Switching & VLANs",
+        description: "Learn about switches, VLANs, trunking, and inter-VLAN routing.",
+        modules: 25,
+        xpReward: 1100,
+        difficulty: "intermediate",
+        requiredLevel: 5,
+        category: "Switching",
+        estimatedTime: "9 hours",
+      },
+      {
+        id: "5",
+        title: "Network Security",
+        description: "Explore firewalls, ACLs, VPNs, and network security best practices.",
+        modules: 18,
+        xpReward: 900,
+        difficulty: "intermediate",
+        requiredLevel: 5,
+        category: "Security",
+        estimatedTime: "8 hours",
+      },
+      {
+        id: "6",
+        title: "Advanced Routing",
+        description: "Deep dive into redistribution, policy routing, and advanced BGP.",
+        modules: 22,
+        xpReward: 1200,
+        difficulty: "advanced",
+        requiredLevel: 10,
+        category: "Advanced",
+        estimatedTime: "11 hours",
+      },
+    ];
+  }
 
-  try {
-    const res = await fetch(`${API_BASE}/user-courses?email=${encodeURIComponent(email)}`);
-    const data = await res.json();
+  function difficultyBadgeClass(diff) {
+    if (diff === "novice") return "bg-light text-success border";
+    if (diff === "intermediate") return "bg-light text-teal border";
+    if (diff === "advanced") return "bg-light text-primary border";
+    return "bg-light text-dark border";
+  }
 
-    if (!data.success) {
-      continueBox.textContent = "Could not load courses.";
+  function diffIcon(diff) {
+    if (diff === "novice") return "bi-stars";
+    if (diff === "intermediate") return "bi-lightning-charge";
+    if (diff === "advanced") return "bi-trophy";
+    return "bi-journal";
+  }
+
+  // -----------------------------
+  // UI: Sidebar (matches IDs in dashboard.html)
+  // -----------------------------
+  const sidebar = {
+    backdrop: $("#sideBackdrop"),
+    panel: $("#slideSidebar"),
+    openBtn: $("#openSidebarBtn"),
+    closeBtn: $("#closeSidebarBtn"),
+    isOpen: false,
+    open() {
+      this.isOpen = true;
+      this.panel?.classList.add("is-open");
+      this.backdrop?.classList.add("is-open");
+      this.panel?.setAttribute("aria-hidden", "false");
+      this.backdrop?.setAttribute("aria-hidden", "false");
+      document.body.classList.add("net-noscroll");
+    },
+    close() {
+      this.isOpen = false;
+      this.panel?.classList.remove("is-open");
+      this.backdrop?.classList.remove("is-open");
+      this.panel?.setAttribute("aria-hidden", "true");
+      this.backdrop?.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("net-noscroll");
+    },
+    init() {
+      this.openBtn?.addEventListener("click", () => this.open());
+      this.closeBtn?.addEventListener("click", () => this.close());
+      this.backdrop?.addEventListener("click", () => this.close());
+    },
+  };
+
+  // -----------------------------
+  // UI: User Dropdown (matches .net-dd)
+  // -----------------------------
+  const dropdown = {
+    btn: $("#userBtn"),
+    menu: $("#userDropdown"),
+    isOpen: false,
+    open() {
+      this.isOpen = true;
+      this.menu?.classList.add("is-open");
+      this.btn?.setAttribute("aria-expanded", "true");
+    },
+    close() {
+      this.isOpen = false;
+      this.menu?.classList.remove("is-open");
+      this.btn?.setAttribute("aria-expanded", "false");
+    },
+    toggle() {
+      this.isOpen ? this.close() : this.open();
+    },
+    init() {
+      this.btn?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.toggle();
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!this.isOpen) return;
+        const t = e.target;
+        if (this.menu && this.menu.contains(t)) return;
+        if (this.btn && this.btn.contains(t)) return;
+        this.close();
+      });
+    },
+  };
+
+  // -----------------------------
+  // Logout
+  // -----------------------------
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+    localStorage.removeItem("net_user");
+    showPopup("Logged out.", "info");
+    setTimeout(() => redirectToLogin(), 250);
+  }
+
+  // -----------------------------
+  // State
+  // -----------------------------
+  let state = {
+    user: { name: "Student", email: "email@example.com", level: 1, xp: 0 },
+    courses: [],
+    query: "",
+    filterDiff: "all",
+    progressMap: {},
+  };
+
+  function computeXpProgress(xp) {
+    const chunk = 250;
+    const currentInChunk = ((xp % chunk) + chunk) % chunk;
+    const pct = (currentInChunk / chunk) * 100;
+    const remaining = chunk - currentInChunk;
+    return { pct: clamp(pct, 0, 100), remaining };
+  }
+
+  function updateUserUI() {
+    const u = state.user;
+    const initials = getInitials(u.name);
+
+    // Top
+    safeText($("#topUserName"), u.name);
+    safeText($("#topAvatar"), initials);
+    safeText($("#ddName"), u.name);
+    safeText($("#ddEmail"), u.email);
+
+    // Sidebar
+    safeText($("#sideUserName"), u.name);
+    safeText($("#sideUserEmail"), u.email);
+    safeText($("#sideAvatar"), initials);
+
+    // Welcome
+    safeText($("#welcomeName"), u.name);
+
+    // Stats
+    safeText($("#statLevel"), String(u.level));
+    safeText($("#statXp"), String(u.xp));
+
+    const xp = computeXpProgress(u.xp);
+    safeText($("#statLevelHint"), `${xp.remaining} XP to next level`);
+    safeText($("#sideLevelBadge"), `Lv ${u.level}`);
+    safeText($("#sideXpText"), String(u.xp));
+    safeText($("#sideXpHint"), `${xp.remaining} XP to next level`);
+
+    const bar = $("#sideXpBar");
+    if (bar) bar.style.width = `${xp.pct}%`;
+  }
+
+  function getCourseProgress(courseId, totalModules) {
+    const p = state.progressMap[courseId];
+    if (!p) return { progress: 0, completedModules: 0, totalModules: totalModules || 0 };
+
+    const progress = clamp(Number(p.progress ?? 0) || 0, 0, 100);
+    const completedModules = clamp(Number(p.completedModules ?? 0) || 0, 0, totalModules || 9999);
+    const tm = Number(p.totalModules ?? totalModules ?? 0) || (totalModules || 0);
+
+    return { progress, completedModules, totalModules: tm };
+  }
+
+  function userCanAccess(course) {
+    return state.user.level >= (course.requiredLevel || 1);
+  }
+
+  function courseCardHtml(course) {
+    const locked = !userCanAccess(course);
+    const prog = getCourseProgress(course.id, course.modules);
+    const hasProgress = prog.progress > 0;
+    const isDone = prog.progress >= 100;
+
+    let cta = "Start Course";
+    if (locked) cta = `Unlock at Lv ${course.requiredLevel}`;
+    else if (isDone) cta = "✓ Review";
+    else if (hasProgress) cta = "Continue →";
+
+    return `
+      <article class="net-course-card ${locked ? "is-locked" : ""}" data-course-id="${escapeHtml(
+        course.id
+      )}" tabindex="0" role="button" aria-label="${escapeHtml(course.title)}">
+        ${
+          locked
+            ? `
+          <div class="net-course-lock" aria-hidden="true">
+            <div class="net-course-lock-inner">
+              <i class="bi bi-lock-fill me-1"></i> Lv ${escapeHtml(course.requiredLevel)}
+            </div>
+          </div>
+        `
+            : ""
+        }
+
+        <div class="p-4">
+          <div class="d-flex align-items-start justify-content-between gap-2">
+            <div class="flex-grow-1">
+              <div class="small text-muted text-uppercase fw-semibold">${escapeHtml(course.category)}</div>
+              <h3 class="h6 fw-bold mb-1 mt-1">${escapeHtml(course.title)}</h3>
+              <p class="small text-muted mb-3" style="min-height: 2.9em;">
+                ${escapeHtml(course.description)}
+              </p>
+            </div>
+
+            <div class="net-course-ico">
+              <i class="bi ${diffIcon(course.difficulty)}"></i>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <span class="badge border ${difficultyBadgeClass(course.difficulty)} net-badge-shine">${escapeHtml(
+      course.difficulty
+    )}</span>
+            <span class="small text-muted">
+              <i class="bi bi-clock me-1"></i>${escapeHtml(course.estimatedTime)}
+            </span>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <span class="small text-muted">
+              <i class="bi bi-journal-text me-1"></i>${escapeHtml(course.modules)} modules
+            </span>
+            <span class="small fw-semibold text-success">
+              <i class="bi bi-lightning-charge-fill me-1"></i>${escapeHtml(course.xpReward)} XP
+            </span>
+          </div>
+
+          ${
+            hasProgress
+              ? `
+            <div class="mb-3">
+              <div class="d-flex justify-content-between small text-muted mb-1">
+                <span>${escapeHtml(String(prog.progress))}%</span>
+                <span>${escapeHtml(String(prog.completedModules))}/${escapeHtml(
+                  String(prog.totalModules || course.modules)
+                )}</span>
+              </div>
+              <div class="progress" style="height: 10px;">
+                <div class="progress-bar net-progress net-progress-fill" style="width:${escapeHtml(
+                  String(prog.progress)
+                )}%"></div>
+              </div>
+            </div>
+          `
+              : `
+            <div class="mb-3 small text-muted">
+              ${locked ? "Reach the required level to unlock this course." : "Start now and track your progress here."}
+            </div>
+          `
+          }
+
+          <button class="btn ${locked ? "btn-light border text-muted" : "btn-teal"} w-100 fw-semibold" ${
+      locked ? "disabled" : ""
+    } type="button">
+            ${escapeHtml(cta)}
+          </button>
+        </div>
+      </article>
+    `;
+  }
+
+  function getFilteredCourses() {
+    const q = (state.query || "").trim().toLowerCase();
+    const d = state.filterDiff;
+
+    return state.courses.filter((c) => {
+      const diffOk = d === "all" ? true : c.difficulty === d;
+      if (!diffOk) return false;
+
+      if (!q) return true;
+
+      const hay = `${c.title} ${c.category} ${c.description}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
+
+  function renderCourses() {
+    const grid = $("#coursesGrid");
+    if (!grid) return;
+
+    const list = getFilteredCourses();
+
+    safeText($("#coursesTitle"), state.query ? "Search Results" : "All Courses");
+
+    if (list.length === 0) {
+      grid.innerHTML = `
+        <div class="net-empty text-center p-4">
+          <div class="fw-semibold mb-1">No courses found</div>
+          <div class="small text-muted">Try a different search or filter.</div>
+        </div>
+      `;
       return;
     }
 
-    __dashState.courses = Array.isArray(data.courses) ? data.courses : [];
+    grid.innerHTML = list.map(courseCardHtml).join("");
 
-    // Stats: in progress + completed
-    const inProg = __dashState.courses.filter(c => String(c.status).toLowerCase() === "in-progress").length;
-    const comp = __dashState.courses.filter(c => String(c.status).toLowerCase() === "completed").length;
+    $$("#coursesGrid .net-course-card").forEach((card) => {
+      const id = card.getAttribute("data-course-id");
 
-    setText("statInProgress", String(inProg));
-    setText("statCompleted", String(comp));
+      const openCourse = () => {
+        const course = state.courses.find((c) => c.id === id);
+        if (!course) return;
 
-    renderContinue();
-    renderCourses();
+        if (!userCanAccess(course)) {
+          showPopup(`Locked. Reach Level ${course.requiredLevel} to unlock "${course.title}".`, "error");
+          return;
+        }
 
-  } catch (e) {
-    console.error("loadUserCourses error:", e);
-    continueBox.textContent = "Server error loading courses.";
-  }
-}
+        localStorage.setItem("selectedCourseId", course.id);
+        window.location.href = `course.html?course=${encodeURIComponent(course.id)}`;
+      };
 
-/* =========================================================
-   CONTINUE LEARNING
-========================================================= */
-function renderContinue() {
-  const continueBox = document.getElementById("continueBox");
-  if (!continueBox) return;
-
-  const courses = __dashState.courses || [];
-  if (!courses.length) {
-    continueBox.innerHTML = `
-      <div class="net-empty">
-        <div class="fw-semibold mb-1">No courses yet</div>
-        <div class="small text-muted mb-3">Browse courses to begin your learning path.</div>
-        <a class="btn btn-teal btn-sm" href="courses.html" aria-label="Browse courses">
-          Browse courses <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
-        </a>
-      </div>
-    `;
-    return;
-  }
-
-  const lvl = Number(__dashState.numericLevel || 1);
-  const lastId = localStorage.getItem("last_course_id");
-
-  const byId = (id) => courses.find(c => String(c.id) === String(id));
-  const unlocked = (c) => !isLockedByLevel(c.id, lvl).locked;
-
-  let candidate =
-    (lastId && byId(lastId) && unlocked(byId(lastId)) ? byId(lastId) : null) ||
-    courses.find(c => String(c.status).toLowerCase() === "in-progress" && unlocked(c)) ||
-    courses.find(c => unlocked(c)) ||
-    courses[0];
-
-  const lockInfo = isLockedByLevel(candidate.id, lvl);
-  const meta = getCourseMeta(candidate.id);
-  const diff = String(meta?.difficulty || "").toLowerCase();
-  const pct = Number(candidate.progress_pct || 0);
-
-  const statusPill = statusBadge(candidate.status);
-  const diffPill = difficultyBadge(diff);
-
-  if (lockInfo.locked) {
-    continueBox.innerHTML = `
-      <div class="net-continue-card">
-        <div class="d-flex align-items-start justify-content-between gap-2">
-          <div>
-            <div class="fw-semibold">${escapeHtml(candidate.title)}</div>
-            <div class="small text-muted mt-1">${escapeHtml(candidate.description || "")}</div>
-          </div>
-          <div class="d-flex gap-2 flex-wrap justify-content-end">
-            ${diffPill}
-            ${statusPill}
-          </div>
-        </div>
-
-        <div class="net-lockline mt-3">
-          <i class="bi bi-lock-fill me-2" aria-hidden="true"></i>
-          Locked — unlocks at <strong>Level ${lockInfo.required}</strong>.
-        </div>
-
-        <div class="d-flex gap-2 flex-wrap mt-3">
-          <a class="btn btn-outline-secondary btn-sm" href="courses.html" aria-label="Browse courses">Browse courses</a>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  continueBox.innerHTML = `
-    <div class="net-continue-card">
-      <div class="d-flex align-items-start justify-content-between gap-2">
-        <div>
-          <div class="fw-semibold">${escapeHtml(candidate.title)}</div>
-          <div class="small text-muted mt-1">${escapeHtml(candidate.description || "")}</div>
-        </div>
-        <div class="d-flex gap-2 flex-wrap justify-content-end">
-          ${diffPill}
-          ${statusPill}
-        </div>
-      </div>
-
-      <div class="small text-muted mt-3 d-flex justify-content-between">
-        <span>Progress</span>
-        <span class="fw-semibold">${clamp(pct, 0, 100)}%</span>
-      </div>
-
-      <div class="progress mt-1" style="height:10px;">
-        <div class="progress-bar net-progress" style="width:${clamp(pct, 0, 100)}%"></div>
-      </div>
-
-      <div class="d-flex gap-2 flex-wrap mt-3">
-        <a class="btn btn-teal btn-sm"
-           href="course.html?id=${encodeURIComponent(candidate.id)}"
-           aria-label="Continue course"
-           data-course-open="1"
-           data-course-id="${escapeAttr(String(candidate.id))}">
-          Continue <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
-        </a>
-      </div>
-    </div>
-  `;
-
-  continueBox.querySelector('[data-course-open="1"]')?.addEventListener("click", (ev) => {
-    const id = ev.currentTarget.getAttribute("data-course-id");
-    if (id) localStorage.setItem("last_course_id", id);
-  });
-}
-
-/* =========================================================
-   COURSES GRID
-========================================================= */
-function renderCourses() {
-  const grid = document.getElementById("coursesGrid");
-  if (!grid) return;
-
-  const q = __dashState.filter.q;
-  const diffFilter = __dashState.filter.diff;
-  const lvl = Number(__dashState.numericLevel || 1);
-
-  const items = (__dashState.courses || []).filter((c) => {
-    const meta = getCourseMeta(c.id);
-    const diff = String(meta?.difficulty || "").toLowerCase();
-    const text = `${c.title || ""} ${c.description || ""}`.toLowerCase();
-    const matchQ = !q || text.includes(q);
-    const matchDiff = (diffFilter === "all") || (diff === diffFilter);
-    return matchQ && matchDiff;
-  });
-
-  grid.innerHTML = "";
-
-  if (!items.length) {
-    grid.innerHTML = `
-      <div class="col-12">
-        <div class="net-empty">
-          <div class="fw-semibold mb-1">No matching courses</div>
-          <div class="small text-muted">Try a different search or difficulty filter.</div>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  items.forEach((c) => {
-    const meta = getCourseMeta(c.id);
-    const diff = String(meta?.difficulty || "").toLowerCase();
-    const pct = Number(c.progress_pct || 0);
-
-    const lockInfo = isLockedByLevel(c.id, lvl);
-    const locked = lockInfo.locked;
-
-    const statusPill = statusBadge(c.status);
-    const diffPill = difficultyBadge(diff);
-
-    const btn = locked
-      ? `<button class="btn btn-sm btn-secondary" disabled aria-label="Locked course">
-           <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>
-           Locked
-         </button>`
-      : `<a class="btn btn-sm btn-teal"
-            href="course.html?id=${encodeURIComponent(c.id)}"
-            data-course-open="1"
-            data-course-id="${escapeAttr(String(c.id))}"
-            aria-label="Open course">
-           ${String(c.status).toLowerCase() === "completed" ? "Review" : (pct > 0 ? "Continue" : "Start")}
-           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
-         </a>`;
-
-    const lockOverlay = locked ? `
-      <div class="net-course-lock" aria-hidden="true">
-        <div class="net-course-lock-inner">
-          <i class="bi bi-lock-fill me-2"></i>
-          Unlocks at <strong>Level ${lockInfo.required}</strong>
-        </div>
-      </div>
-    ` : "";
-
-    grid.insertAdjacentHTML("beforeend", `
-      <div class="col-md-6">
-        <div class="net-course-card h-100">
-          ${lockOverlay}
-
-          <div class="p-4">
-            <div class="d-flex align-items-start justify-content-between gap-2">
-              <div>
-                <div class="fw-semibold">${escapeHtml(c.title)}</div>
-                <div class="small text-muted mt-1">${escapeHtml(c.description || "")}</div>
-              </div>
-              <div class="d-flex flex-column align-items-end gap-2">
-                ${diffPill}
-                ${statusPill}
-              </div>
-            </div>
-
-            <div class="small text-muted mt-3 d-flex justify-content-between">
-              <span>Progress</span>
-              <span class="fw-semibold">${clamp(pct, 0, 100)}%</span>
-            </div>
-
-            <div class="progress mt-1" style="height:10px;">
-              <div class="progress-bar net-progress" style="width:${clamp(pct, 0, 100)}%"></div>
-            </div>
-
-            <div class="d-flex gap-2 flex-wrap mt-3">
-              ${btn}
-              <a class="btn btn-sm btn-outline-secondary" href="sandbox.html" aria-label="Open sandbox">
-                <i class="bi bi-diagram-3 me-1" aria-hidden="true"></i>
-                Sandbox
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    `);
-  });
-
-  Array.from(grid.querySelectorAll('[data-course-open="1"]')).forEach((a) => {
-    a.addEventListener("click", () => {
-      const id = a.getAttribute("data-course-id");
-      if (id) localStorage.setItem("last_course_id", id);
+      card.addEventListener("click", openCourse);
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openCourse();
+        }
+      });
     });
-  });
-}
-
-function renderLockNote() {
-  const lockNote = document.getElementById("lockNote");
-  if (!lockNote) return;
-  lockNote.textContent = "Locked courses appear grey until you reach the required level.";
-}
-
-/* =========================================================
-   COURSE META + LOCKING
-========================================================= */
-function getCourseMeta(courseId) {
-  if (typeof COURSE_CONTENT === "undefined") return null;
-  return COURSE_CONTENT[String(courseId)] || null;
-}
-
-function isLockedByLevel(courseId, userLevel) {
-  const meta = getCourseMeta(courseId);
-  if (!meta) return { locked: false, required: 1 };
-  const required = Number(meta.required_level || 1);
-  return { locked: Number(userLevel) < required, required };
-}
-
-/* =========================================================
-   BADGES (Bootstrap Icons only)
-========================================================= */
-function difficultyBadge(difficulty) {
-  const d = String(difficulty || "").toLowerCase();
-
-  if (d === "novice") {
-    return `<span class="badge text-bg-light border net-pill-badge">
-      <i class="bi bi-seedling me-1" aria-hidden="true"></i>Novice
-    </span>`;
-  }
-  if (d === "intermediate") {
-    return `<span class="badge text-bg-info net-pill-badge">
-      <i class="bi bi-rocket-takeoff me-1" aria-hidden="true"></i>Intermediate
-    </span>`;
-  }
-  if (d === "advanced") {
-    return `<span class="badge text-bg-dark net-pill-badge">
-      <i class="bi bi-lightning-charge-fill me-1" aria-hidden="true"></i>Advanced
-    </span>`;
   }
 
-  return `<span class="badge text-bg-light border net-pill-badge">
-    <i class="bi bi-journal me-1" aria-hidden="true"></i>Course
-  </span>`;
-}
+  function renderStats() {
+    const inProgress = state.courses.filter((c) => {
+      const p = getCourseProgress(c.id, c.modules);
+      return p.progress > 0 && p.progress < 100;
+    }).length;
 
-function statusBadge(status) {
-  const s = String(status || "").toLowerCase();
+    const completed = state.courses.filter((c) => {
+      const p = getCourseProgress(c.id, c.modules);
+      return p.progress >= 100;
+    }).length;
 
-  if (s === "completed") {
-    return `<span class="badge bg-success net-pill-badge">
-      <i class="bi bi-check2 me-1" aria-hidden="true"></i>Completed
-    </span>`;
-  }
-  if (s === "in-progress") {
-    return `<span class="badge text-bg-warning net-pill-badge">
-      <i class="bi bi-play-circle me-1" aria-hidden="true"></i>In progress
-    </span>`;
+    safeText($("#statInProgress"), String(inProgress));
+    safeText($("#statCompleted"), String(completed));
   }
 
-  return `<span class="badge text-bg-light border net-pill-badge">
-    <i class="bi bi-circle me-1" aria-hidden="true"></i>Not started
-  </span>`;
-}
+  function renderContinueLearning() {
+    const box = $("#continueBox");
+    if (!box) return;
 
-function rankBadgeClass(rank) {
-  const r = String(rank || "").toLowerCase();
-  if (r === "advanced") return "text-bg-dark";
-  if (r === "intermediate") return "text-bg-info";
-  return "text-bg-light";
-}
+    const inProg = state.courses
+      .map((c) => ({ c, p: getCourseProgress(c.id, c.modules) }))
+      .filter((x) => x.p.progress > 0 && x.p.progress < 100 && userCanAccess(x.c))
+      .sort((a, b) => b.p.progress - a.p.progress);
 
-/* =========================================================
-   XP FALLBACK HELPERS
-========================================================= */
-function __calcLevelFromXp(totalXp) {
-  const xp = Math.max(0, Number(totalXp || 0));
-  const numericLevel = Math.floor(xp / 100) + 1;
-  const xpInto = xp % 100;
-  const xpNext = 100;
-  return { numericLevel, xpInto, xpNext };
-}
+    let pick = inProg[0]?.c || null;
 
-function __rankFromNumericLevel(numericLevel) {
-  const lvl = Number(numericLevel || 1);
-  if (lvl >= 5) return "Advanced";
-  if (lvl >= 3) return "Intermediate";
-  return "Novice";
-}
+    if (!pick) {
+      pick =
+        state.courses.find(
+          (c) => userCanAccess(c) && getCourseProgress(c.id, c.modules).progress === 0
+        ) || null;
+    }
 
-/* =========================================================
-   SMALL UTILITIES
-========================================================= */
-function setText(id, text) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = String(text ?? "");
-}
+    if (!pick) {
+      box.innerHTML = `
+        <div class="net-empty">
+          <div class="fw-semibold mb-1">No unlocked courses yet</div>
+          <div class="small text-muted">Gain XP to unlock your first course.</div>
+        </div>
+      `;
+      return;
+    }
 
-function clamp(n, min, max) {
-  const x = Number(n);
-  return Math.max(min, Math.min(max, x));
-}
+    const p = getCourseProgress(pick.id, pick.modules);
+    const cta = p.progress > 0 ? "Continue →" : "Start Course";
 
-function escapeHtml(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
+    box.classList.remove("net-continue-skel");
+    box.innerHTML = `
+      <div class="net-continue-card">
+        <div class="d-flex align-items-start justify-content-between gap-3">
+          <div class="flex-grow-1">
+            <div class="small text-muted text-uppercase fw-semibold">${escapeHtml(pick.category)}</div>
+            <div class="h6 fw-bold mb-1">${escapeHtml(pick.title)}</div>
+            <div class="small text-muted mb-3">${escapeHtml(pick.description)}</div>
 
-function escapeAttr(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+              <span class="badge border ${difficultyBadgeClass(pick.difficulty)} net-badge-shine">${escapeHtml(
+      pick.difficulty
+    )}</span>
+              <span class="small text-muted"><i class="bi bi-clock me-1"></i>${escapeHtml(pick.estimatedTime)}</span>
+              <span class="small fw-semibold text-success"><i class="bi bi-lightning-charge-fill me-1"></i>${escapeHtml(
+      pick.xpReward
+    )} XP</span>
+            </div>
+
+            <div class="progress mb-3" style="height: 10px;">
+              <div class="progress-bar net-progress net-progress-fill" style="width:${escapeHtml(
+      String(p.progress)
+    )}%"></div>
+            </div>
+
+            <button class="btn btn-teal btn-sm fw-semibold" id="continueBtn" type="button">
+              ${escapeHtml(cta)}
+            </button>
+          </div>
+
+          <div class="net-continue-ico d-none d-md-grid" aria-hidden="true">
+            <i class="bi bi-play-fill"></i>
+          </div>
+        </div>
+      </div>
+    `;
+
+    $("#continueBtn")?.addEventListener("click", () => {
+      if (!userCanAccess(pick)) {
+        showPopup(`Locked. Reach Level ${pick.requiredLevel} to unlock "${pick.title}".`, "error");
+        return;
+      }
+      localStorage.setItem("selectedCourseId", pick.id);
+      window.location.href = `course.html?course=${encodeURIComponent(pick.id)}`;
+    });
+  }
+
+  // -----------------------------
+  // Search + Filters
+  // -----------------------------
+  function setQuery(q) {
+    state.query = q || "";
+    renderCourses();
+  }
+
+  function syncSearchInputs(value) {
+    const top = $("#topSearch");
+    const mob = $("#mobileSearch");
+    if (top && top.value !== value) top.value = value;
+    if (mob && mob.value !== value) mob.value = value;
+  }
+
+  function initSearch() {
+    const top = $("#topSearch");
+    const mob = $("#mobileSearch");
+
+    const handler = (e) => {
+      const v = e.target.value || "";
+      syncSearchInputs(v);
+      setQuery(v);
+    };
+
+    top?.addEventListener("input", handler);
+    mob?.addEventListener("input", handler);
+  }
+
+  function initFilters() {
+    $$(".net-chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$(".net-chip").forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        state.filterDiff = btn.getAttribute("data-diff") || "all";
+        renderCourses();
+      });
+    });
+  }
+
+  // -----------------------------
+  // Global keyboard handlers
+  // -----------------------------
+  function initGlobalKeys() {
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (dropdown.isOpen) dropdown.close();
+        if (sidebar.isOpen) sidebar.close();
+      }
+    });
+  }
+
+  // -----------------------------
+  // Init
+  // -----------------------------
+  async function init() {
+    sidebar.init();
+    dropdown.init();
+    initSearch();
+    initFilters();
+    initGlobalKeys();
+
+    $("#sideLogoutBtn")?.addEventListener("click", logout);
+    $("#topLogoutBtn")?.addEventListener("click", logout);
+
+    $("#sideProgressLink")?.addEventListener("click", () => {
+      sidebar.close();
+    });
+
+    // load progress
+    state.progressMap = loadProgressMap();
+
+    // load user
+    const token = getToken();
+    let rawUser = getStoredUser();
+
+    // Protected dashboard
+    if (!token && !rawUser) {
+      redirectToLogin();
+      return;
+    }
+
+    if (token) {
+      const apiUser = await fetchMe(token);
+      if (apiUser) rawUser = apiUser;
+    }
+
+    state.user = normalizeUser(rawUser || {});
+    updateUserUI();
+
+    // load courses
+    state.courses = buildCoursesFromCourseContent() || fallbackCourses();
+
+    // enforce requiredLevel defaults if missing
+    state.courses = state.courses.map((c) => {
+      const requiredLevel =
+        Number(
+          c.requiredLevel ??
+            c.required_level ??
+            (c.difficulty === "advanced" ? 10 : c.difficulty === "intermediate" ? 5 : 1)
+        ) || 1;
+      return { ...c, requiredLevel };
+    });
+
+    // render
+    renderCourses();
+    renderStats();
+    renderContinueLearning();
+  }
+
+  init();
+})();

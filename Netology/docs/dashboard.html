@@ -1,31 +1,31 @@
-<!doctype html>
 <!--
 Student Number: C22320301
 Student Name: Jamie O’Neill
 Course Code: TU857/4
 Date: 10/11/2025
 
-HTML
----------------------------------
-dashboard.html – Netology Dashboard (Sidebar Layout)
+dashboard.html – Netology Dashboard (Figma-style, Vanilla HTML/JS)
 
-Updates:
-- Modern top navbar (Figma-inspired)
-- Center brand (Netology logo + word) clickable:
-  - if signed in => reload dashboard
-  - if not signed in => go to index.html
-- Right corner user name + dropdown menu:
-  - Account, Help, Logout
-- Mobile sidebar via Bootstrap Offcanvas
+Features:
+- Hamburger opens a sliding sidebar (like your React/Figma design)
+- Backdrop blur + click outside closes
+- ESC closes
+- User avatar dropdown (Account/Settings/Logout)
+- Search filters courses (desktop + mobile synced)
+- Difficulty chips filter
+- Course lock gating: user can ONLY open what their level allows
+- Continue learning auto picks best in-progress course
+- Uses your existing css/style.css + Bootstrap (NO React)
 -->
 
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Dashboard</title>
 
-  <!-- REQUIRED (C3): Render API base -->
+  <!-- REQUIRED: Render API base -->
   <script>
     window.API_BASE = "https://netology-fyp.onrender.com";
   </script>
@@ -40,89 +40,139 @@ Updates:
 
 <body class="net-bg net-landing">
 
-  <!-- =========================================================
-       TOP NAV (ALL SIZES)
-       - Center brand clickable
-       - Right user dropdown
-       - Mobile: menu button opens offcanvas
-  ========================================================== -->
+  <!-- Slide Sidebar Backdrop -->
+  <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
+
+  <!-- Slide Sidebar -->
+  <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
+    <div class="net-sidehead">
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <a href="dashboard.html" class="net-brandchip" id="sideBrand" aria-label="Netology home">
+          <div class="net-logo" aria-hidden="true"></div>
+          <div class="net-brandname">Netology</div>
+        </a>
+
+        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+
+    <nav class="net-sidenav" aria-label="Sidebar navigation">
+      <a class="net-sidelink is-active" href="dashboard.html">
+        <i class="bi bi-house-door"></i> Dashboard
+      </a>
+      <a class="net-sidelink" href="account.html">
+        <i class="bi bi-person-circle"></i> My Profile
+      </a>
+      <a class="net-sidelink" href="courses.html">
+        <i class="bi bi-journal-bookmark"></i> My Courses
+      </a>
+      <a class="net-sidelink" href="sandbox.html">
+        <i class="bi bi-diagram-3"></i> Network Sandbox
+      </a>
+      <a class="net-sidelink" href="#progress" id="sideProgressLink">
+        <i class="bi bi-graph-up"></i> Progress & Stats
+      </a>
+      <a class="net-sidelink" href="account.html">
+        <i class="bi bi-gear"></i> Settings
+      </a>
+    </nav>
+
+    <div class="net-sidefoot">
+      <div class="net-userbox">
+        <div class="d-flex align-items-center gap-3">
+          <div class="net-avatar-sm" id="sideAvatar">S</div>
+          <div class="flex-grow-1 min-width-0">
+            <div class="fw-semibold text-truncate" id="sideUserName">Student</div>
+            <div class="small text-muted text-truncate" id="sideUserEmail">email@example.com</div>
+          </div>
+          <span class="badge text-bg-light border" id="sideLevelBadge">Lv 1</span>
+        </div>
+
+        <div class="mt-3">
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>XP</span>
+            <span id="sideXpText">0</span>
+          </div>
+          <div class="progress" style="height: 10px;">
+            <div class="progress-bar net-progress net-progress-fill" id="sideXpBar" style="width:0%"></div>
+          </div>
+          <div class="small text-muted mt-2" id="sideXpHint">250 XP to next level</div>
+        </div>
+
+        <div class="d-grid gap-2 mt-3">
+          <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
+            <i class="bi bi-box-arrow-right me-2"></i>Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- TOP NAV -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
       <div class="net-topnav-inner">
 
-        <!-- LEFT: Mobile menu button -->
+        <!-- Left -->
         <div class="net-topnav-left">
-          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center d-lg-none"
+          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
+                  id="openSidebarBtn"
                   type="button"
-                  data-bs-toggle="offcanvas"
-                  data-bs-target="#sidebarMobile"
-                  aria-controls="sidebarMobile"
                   aria-label="Open menu">
             <i class="bi bi-list me-2" aria-hidden="true"></i>
             Menu
           </button>
 
-          <!-- Desktop: small label (optional) -->
           <div class="d-none d-lg-flex align-items-center gap-2 text-white-75 small">
             <i class="bi bi-grid-1x2" aria-hidden="true"></i>
             Dashboard
           </div>
         </div>
 
-        <!-- CENTER: Brand (logo + Netology) -->
+        <!-- Center brand -->
         <div class="net-topnav-center">
-          <a href="dashboard.html"
-             id="netTopHome"
-             class="net-topnav-brand"
-             aria-label="Netology home">
+          <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
             <span class="net-brand-text">Netology</span>
           </a>
         </div>
 
-        <!-- RIGHT: User dropdown -->
-        <div class="net-topnav-right">
-          <div class="dropdown">
-            <button class="net-userbtn"
-                    id="userMenuBtn"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                    aria-label="Open user menu">
+        <!-- Right -->
+        <div class="net-topnav-right position-relative">
+          <!-- Desktop search -->
+          <div class="d-none d-md-block net-topsearch">
+            <div class="net-search">
+              <i class="bi bi-search" aria-hidden="true"></i>
+              <input id="topSearch"
+                     class="form-control form-control-sm"
+                     type="search"
+                     placeholder="Search courses…"
+                     aria-label="Search courses">
+            </div>
+          </div>
+
+          <!-- User dropdown -->
+          <div class="position-relative">
+            <button class="net-userbtn" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
-              <span class="net-user-name" id="topUserName">Student</span>
+              <span class="net-user-name d-none d-sm-inline" id="topUserName">Student</span>
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
-            <ul class="dropdown-menu dropdown-menu-end net-user-menu" aria-labelledby="userMenuBtn">
-              <li class="px-3 py-2 border-bottom">
-                <div class="fw-semibold text-truncate" id="topUserNameMenu">Student</div>
-                <div class="small text-muted text-truncate" id="topUserEmail">email@example.com</div>
-              </li>
-
-              <li>
-                <a class="dropdown-item d-flex align-items-center gap-2" href="account.html">
-                  <i class="bi bi-person-circle" aria-hidden="true"></i>
-                  Account
-                </a>
-              </li>
-
-              <li>
-                <a class="dropdown-item d-flex align-items-center gap-2" href="help.html">
-                  <i class="bi bi-question-circle" aria-hidden="true"></i>
-                  Help
-                </a>
-              </li>
-
-              <li><hr class="dropdown-divider"></li>
-
-              <li>
-                <button class="dropdown-item d-flex align-items-center gap-2 text-danger" id="logoutBtnTop" type="button">
-                  <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-                  Logout
-                </button>
-              </li>
-            </ul>
+            <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
+              <div class="net-ddhead">
+                <div class="fw-semibold text-truncate" id="ddName">Student</div>
+                <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
+              </div>
+              <a href="account.html"><i class="bi bi-person-circle"></i> My Account</a>
+              <a href="account.html"><i class="bi bi-gear"></i> Settings</a>
+              <div class="net-ddsep"></div>
+              <button class="danger" id="topLogoutBtn" type="button">
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </button>
+            </div>
           </div>
         </div>
 
@@ -130,375 +180,202 @@ Updates:
     </div>
   </header>
 
-  <div class="container-fluid">
-    <div class="row g-0">
+  <!-- MAIN -->
+  <main class="container py-4 net-shell">
 
-      <!-- =========================================================
-           SIDEBAR (DESKTOP)
-      ========================================================== -->
-      <aside class="col-lg-3 col-xl-2 d-none d-lg-block border-end" aria-label="Sidebar navigation">
-        <div class="p-3 p-xl-4 net-sidewrap">
+    <!-- Welcome -->
+    <section class="net-card net-pop p-4 p-lg-5 mb-4">
+      <div class="row g-3 align-items-center">
+        <div class="col-lg-8">
+          <div class="net-pill mb-3">
+            <span class="net-dot" aria-hidden="true"></span>
+            <span class="small fw-semibold">Dashboard</span>
+            <span class="small text-muted">Keep learning</span>
+          </div>
 
-          <!-- Brand (clickable logic handled by JS) -->
-          <a href="dashboard.html" id="netSideHome" class="d-flex align-items-center gap-3 text-decoration-none mb-3" aria-label="Netology home">
-            <div class="net-logo" aria-hidden="true"></div>
-            <div>
-              <div class="fw-bold fs-5 net-gradient-text">Netology</div>
-              <div class="small text-muted">Dashboard</div>
-            </div>
-          </a>
+          <div class="small text-muted">Welcome back</div>
+          <h1 class="display-6 fw-bold mb-2">
+            <span id="welcomeName" class="net-gradient-text">Student</span> 👋
+          </h1>
 
-          <!-- User box -->
-          <div class="net-userbox mb-3">
-            <div class="d-flex align-items-center justify-content-between gap-2">
+          <p class="text-muted mb-0">
+            Continue your networking journey. Unlock new content and practise in the sandbox.
+          </p>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <a href="courses.html" class="btn btn-teal btn-sm">
+              <i class="bi bi-journal-bookmark me-2"></i>Browse Courses
+            </a>
+            <a href="sandbox.html" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-diagram-3 me-2"></i>Open Sandbox
+            </a>
+          </div>
+        </div>
+
+        <div class="col-lg-4 d-none d-lg-block">
+          <div class="net-mini-media p-4">
+            <div class="fw-semibold mb-1">Quick view</div>
+            <div class="small text-muted">Your learning snapshot</div>
+
+            <div class="mt-3 net-mini-row">
+              <div class="net-mini-ico"><i class="bi bi-lightning-charge-fill"></i></div>
               <div>
-                <div class="fw-semibold" id="sideName">Student</div>
-                <div class="small text-muted" id="sideEmail">email@example.com</div>
-              </div>
-              <span class="badge text-bg-light border" id="rankBadge">Novice</span>
-            </div>
-
-            <div class="row g-2 mt-3">
-              <div class="col-6">
-                <div class="net-userchip">
-                  <div class="text-muted small">Level</div>
-                  <div class="fw-bold" id="levelText">1</div>
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="net-userchip">
-                  <div class="text-muted small">Total XP</div>
-                  <div class="fw-bold" id="xpText">0</div>
-                </div>
+                <div class="fw-semibold">XP unlocks more courses</div>
+                <div class="small text-muted">Complete lessons and quizzes</div>
               </div>
             </div>
 
-            <div class="mt-3">
-              <div class="d-flex justify-content-between small text-muted mb-1">
-                <span>XP Progress</span>
-                <span id="xpNextText">0 / 100</span>
-              </div>
-              <div class="progress" style="height: 10px;">
-                <div class="progress-bar net-progress" id="xpBar" style="width:0%"></div>
+            <div class="mt-2 net-mini-row">
+              <div class="net-mini-ico"><i class="bi bi-award"></i></div>
+              <div>
+                <div class="fw-semibold">Earn badges</div>
+                <div class="small text-muted">Build consistency over time</div>
               </div>
             </div>
 
-            <div class="mt-3 small text-muted" id="unlockText">
-              Next tier unlocks soon.
-            </div>
-
-            <div class="d-grid gap-2 mt-3">
-              <a href="account.html" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center" aria-label="Open settings">
-                <i class="bi bi-gear me-2" aria-hidden="true"></i>
-                Settings
-              </a>
-              <button class="btn btn-outline-danger btn-sm d-inline-flex align-items-center" id="logoutBtn" aria-label="Logout">
-                <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>
-                Logout
-              </button>
-            </div>
-          </div>
-
-          <!-- Nav -->
-          <nav class="d-grid gap-2">
-            <a class="btn btn-outline-secondary btn-sm text-start net-navbtn is-active" href="dashboard.html" aria-label="My stuff">
-              <i class="bi bi-grid-1x2 me-2" aria-hidden="true"></i>
-              My stuff
-            </a>
-            <a class="btn btn-outline-secondary btn-sm text-start net-navbtn" href="courses.html" aria-label="Courses">
-              <i class="bi bi-journal-bookmark me-2" aria-hidden="true"></i>
-              Courses
-            </a>
-            <a class="btn btn-outline-secondary btn-sm text-start net-navbtn" href="#progress" aria-label="Progress section">
-              <i class="bi bi-graph-up me-2" aria-hidden="true"></i>
-              Progress
-            </a>
-            <a class="btn btn-outline-secondary btn-sm text-start net-navbtn" href="account.html" aria-label="My account">
-              <i class="bi bi-person-circle me-2" aria-hidden="true"></i>
-              My account
-            </a>
-            <a class="btn btn-outline-secondary btn-sm text-start net-navbtn" href="sandbox.html" aria-label="Sandbox">
-              <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>
-              Sandbox
-            </a>
-          </nav>
-
-          <div class="small text-muted mt-3">
-            Tip: practise in sandbox after each quiz to lock it in.
           </div>
         </div>
-      </aside>
 
-      <!-- =========================================================
-           MAIN
-      ========================================================== -->
-      <main class="col-12 col-lg-9 col-xl-10">
-        <div class="container py-4">
-
-          <!-- Hero -->
-          <section class="net-card net-pop p-4 p-lg-5 mb-3">
-            <div class="row g-4 align-items-center">
-              <div class="col-lg-8">
-                <div class="net-pill mb-3">
-                  <span class="net-dot" aria-hidden="true"></span>
-                  <span class="small fw-semibold">Dashboard</span>
-                  <span class="small text-muted">Continue learning</span>
-                </div>
-
-                <div class="small text-muted">Welcome back</div>
-                <h1 class="display-6 fw-bold mb-2">
-                  <span id="welcomeName" class="net-gradient-text">Student</span>
-                </h1>
-
-                <p class="text-muted mb-0">
-                  Track your progress, unlock content, and build network topologies in the sandbox.
-                </p>
-
-                <div class="d-flex flex-wrap gap-2 mt-3">
-                  <a href="courses.html" class="btn btn-teal btn-sm d-inline-flex align-items-center" aria-label="Browse courses">
-                    <i class="bi bi-journal-bookmark me-2" aria-hidden="true"></i>
-                    Browse Courses
-                  </a>
-                  <a href="sandbox.html" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center" aria-label="Open sandbox">
-                    <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>
-                    Open Sandbox
-                  </a>
-                </div>
-              </div>
-
-              <div class="col-lg-4 d-none d-lg-block">
-                <div class="net-mini-media p-4">
-                  <div class="fw-semibold mb-1">Quick view</div>
-                  <div class="small text-muted">Your learning snapshot</div>
-                  <div class="mt-3 net-mini-row">
-                    <div class="net-mini-ico" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></div>
-                    <div>
-                      <div class="fw-semibold">XP keeps you unlocking</div>
-                      <div class="small text-muted">Complete quizzes and lessons</div>
-                    </div>
-                  </div>
-                  <div class="mt-2 net-mini-row">
-                    <div class="net-mini-ico" aria-hidden="true"><i class="bi bi-award"></i></div>
-                    <div>
-                      <div class="fw-semibold">Earn badges</div>
-                      <div class="small text-muted">Build a streak over time</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </section>
-
-          <!-- Stats grid -->
-          <section class="mb-3" id="progress">
-            <div class="row g-3">
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="net-stat-card net-pop h-100">
-                  <div class="d-flex align-items-start justify-content-between">
-                    <div>
-                      <div class="text-muted small">Level</div>
-                      <div class="fw-bold fs-4" id="statLevel">1</div>
-                    </div>
-                    <div class="net-statico" aria-hidden="true"><i class="bi bi-bullseye"></i></div>
-                  </div>
-                  <div class="small text-muted mt-2" id="statRank">Novice rank</div>
-                </div>
-              </div>
-
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="net-stat-card net-pop h-100">
-                  <div class="d-flex align-items-start justify-content-between">
-                    <div>
-                      <div class="text-muted small">Total XP</div>
-                      <div class="fw-bold fs-4" id="statXp">0</div>
-                    </div>
-                    <div class="net-statico" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></div>
-                  </div>
-                  <div class="small text-muted mt-2">Earn XP from lessons, quizzes, and challenges.</div>
-                </div>
-              </div>
-
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="net-stat-card net-pop h-100">
-                  <div class="d-flex align-items-start justify-content-between">
-                    <div>
-                      <div class="text-muted small">In progress</div>
-                      <div class="fw-bold fs-4" id="statInProgress">0</div>
-                    </div>
-                    <div class="net-statico" aria-hidden="true"><i class="bi bi-journal-text"></i></div>
-                  </div>
-                  <div class="small text-muted mt-2">Pick up where you left off.</div>
-                </div>
-              </div>
-
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="net-stat-card net-pop h-100">
-                  <div class="d-flex align-items-start justify-content-between">
-                    <div>
-                      <div class="text-muted small">Completed</div>
-                      <div class="fw-bold fs-4" id="statCompleted">0</div>
-                    </div>
-                    <div class="net-statico" aria-hidden="true"><i class="bi bi-check2-circle"></i></div>
-                  </div>
-                  <div class="small text-muted mt-2">Review completed courses anytime.</div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Continue + Courses -->
-          <div class="row g-3">
-
-            <!-- Continue -->
-            <div class="col-lg-4">
-              <section class="net-card net-pop p-4 h-100">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                  <div class="fw-semibold">Continue learning</div>
-                  <a href="courses.html" class="small link-teal" aria-label="Browse all courses">Browse</a>
-                </div>
-
-                <div class="text-muted small mb-3">
-                  Your next lesson is one click away.
-                </div>
-
-                <div id="continueBox" class="net-continue-skel" aria-live="polite">
-                  <div class="net-skel net-w-80 mb-2"></div>
-                  <div class="net-skel net-w-60 mb-3"></div>
-                  <div class="net-skel net-w-40"></div>
-                </div>
-
-                <div class="d-grid gap-2 mt-3">
-                  <a href="sandbox.html" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center" aria-label="Practise in sandbox">
-                    <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>
-                    Practise in sandbox
-                  </a>
-                </div>
-              </section>
-            </div>
-
-            <!-- Courses -->
-            <div class="col-lg-8">
-              <section class="net-card net-pop p-4">
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                  <div>
-                    <div class="fw-semibold">Your courses</div>
-                    <div class="small text-muted">Search and filter to find your next course.</div>
-                  </div>
-
-                  <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <div class="net-search">
-                      <i class="bi bi-search" aria-hidden="true"></i>
-                      <input id="courseSearch"
-                             class="form-control form-control-sm"
-                             type="search"
-                             placeholder="Search courses…"
-                             aria-label="Search courses">
-                    </div>
-
-                    <div class="btn-group" role="group" aria-label="Filter courses by difficulty">
-                      <button type="button" class="btn btn-sm btn-outline-secondary net-chip is-active" data-diff="all">All</button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="novice">Novice</button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="intermediate">Intermediate</button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="advanced">Advanced</button>
-                    </div>
-                  </div>
-                </div>
-
-                <div id="coursesGrid" class="row g-3">
-                  <!-- Cards injected -->
-                </div>
-
-                <div class="small text-muted mt-3" id="lockNote">
-                  Locked courses appear grey until you reach the required level.
-                </div>
-              </section>
-            </div>
-
-          </div>
-
-          <!-- CTA -->
-          <section class="mt-3">
-            <div class="net-cta net-pop p-4 p-lg-5 text-white">
-              <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
-                <div>
-                  <h2 class="h4 fw-bold mb-1">Ready to practise?</h2>
-                  <p class="mb-0 text-white-75">Open the sandbox and build real network topologies.</p>
-                </div>
-                <a href="sandbox.html" class="btn btn-light fw-semibold d-inline-flex align-items-center" aria-label="Open sandbox">
-                  <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>
-                  Open Sandbox
-                </a>
-              </div>
-            </div>
-          </section>
-
-        </div>
-
-        <footer class="text-center border-top py-4 bg-white" role="contentinfo">
-          <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
-        </footer>
-      </main>
-
-    </div>
-  </div>
-
-  <!-- =========================================================
-       MOBILE SIDEBAR (Bootstrap Offcanvas)
-  ========================================================== -->
-  <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarMobile" aria-label="Mobile menu">
-    <div class="offcanvas-header">
-      <div class="d-flex align-items-center gap-2">
-        <div class="net-logo" aria-hidden="true"></div>
-        <div class="fw-bold">Netology</div>
       </div>
-      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="offcanvas" aria-label="Close menu">
-        <i class="bi bi-x-lg" aria-hidden="true"></i>
-      </button>
-    </div>
+    </section>
 
-    <div class="offcanvas-body">
-      <div class="net-userbox mb-3">
-        <div class="fw-semibold" id="sideName_m">Student</div>
-        <div class="small text-muted" id="sideEmail_m">email@example.com</div>
-        <div class="small text-muted mt-2" id="unlockText_m">Next tier unlocks soon.</div>
+    <!-- Stats -->
+    <section class="mb-4" id="progress">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="net-stat-card net-pop h-100">
+            <div class="d-flex align-items-start justify-content-between">
+              <div>
+                <div class="text-muted small">Level</div>
+                <div class="fw-bold fs-4" id="statLevel">1</div>
+              </div>
+              <div class="net-statico"><i class="bi bi-bullseye"></i></div>
+            </div>
+            <div class="small text-muted mt-2" id="statLevelHint">250 XP to next level</div>
+          </div>
+        </div>
 
-        <div class="d-grid gap-2 mt-3">
-          <a href="account.html" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center">
-            <i class="bi bi-gear me-2" aria-hidden="true"></i>
-            Settings
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="net-stat-card net-pop h-100">
+            <div class="d-flex align-items-start justify-content-between">
+              <div>
+                <div class="text-muted small">Total XP</div>
+                <div class="fw-bold fs-4" id="statXp">0</div>
+              </div>
+              <div class="net-statico"><i class="bi bi-lightning-charge-fill"></i></div>
+            </div>
+            <div class="small text-muted mt-2">Earn XP from lessons, quizzes, and challenges.</div>
+          </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="net-stat-card net-pop h-100">
+            <div class="d-flex align-items-start justify-content-between">
+              <div>
+                <div class="text-muted small">In progress</div>
+                <div class="fw-bold fs-4" id="statInProgress">0</div>
+              </div>
+              <div class="net-statico"><i class="bi bi-journal-text"></i></div>
+            </div>
+            <div class="small text-muted mt-2">Pick up where you left off.</div>
+          </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="net-stat-card net-pop h-100">
+            <div class="d-flex align-items-start justify-content-between">
+              <div>
+                <div class="text-muted small">Completed</div>
+                <div class="fw-bold fs-4" id="statCompleted">0</div>
+              </div>
+              <div class="net-statico"><i class="bi bi-check2-circle"></i></div>
+            </div>
+            <div class="small text-muted mt-2">Review completed courses anytime.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Continue Learning -->
+    <section class="net-card net-pop p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="fw-semibold d-flex align-items-center gap-2">
+          <i class="bi bi-trending-up text-teal" aria-hidden="true"></i>
+          Continue Learning
+        </div>
+        <a href="courses.html" class="small link-teal">Browse</a>
+      </div>
+      <div class="text-muted small mb-3">Your next lesson is one click away.</div>
+
+      <div id="continueBox" class="net-continue-skel" aria-live="polite">
+        <div class="net-skel net-w-80 mb-2"></div>
+        <div class="net-skel net-w-60 mb-3"></div>
+        <div class="net-skel net-w-40"></div>
+      </div>
+    </section>
+
+    <!-- Courses -->
+    <section class="net-card net-pop p-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+          <div class="fw-semibold" id="coursesTitle">All Courses</div>
+          <div class="small text-muted">Search or filter to find your next course.</div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <!-- Mobile search -->
+          <div class="net-search d-md-none" style="min-width: 240px;">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input id="mobileSearch"
+                   class="form-control form-control-sm"
+                   type="search"
+                   placeholder="Search courses…"
+                   aria-label="Search courses">
+          </div>
+
+          <div class="btn-group" role="group" aria-label="Filter courses by difficulty">
+            <button type="button" class="btn btn-sm btn-outline-secondary net-chip is-active" data-diff="all">All</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="novice">Novice</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="intermediate">Intermediate</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="advanced">Advanced</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="coursesGrid" class="net-coursegrid">
+        <!-- cards injected -->
+      </div>
+
+      <div class="small text-muted mt-3" id="lockNote">
+        Locked courses appear grey until you reach the required level.
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="mt-4">
+      <div class="net-cta net-pop p-4 p-lg-5 text-white">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+          <div>
+            <h2 class="h4 fw-bold mb-1">Ready to practise?</h2>
+            <p class="mb-0 text-white-75">Open the sandbox and build real network topologies.</p>
+          </div>
+          <a href="sandbox.html" class="btn btn-light fw-semibold d-inline-flex align-items-center">
+            <i class="bi bi-diagram-3 me-2"></i>
+            Open Sandbox
           </a>
-          <button class="btn btn-outline-danger btn-sm d-inline-flex align-items-center" id="logoutBtn_m">
-            <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>
-            Logout
-          </button>
         </div>
       </div>
+    </section>
 
-      <div class="d-grid gap-2">
-        <a class="btn btn-outline-secondary btn-sm text-start" href="dashboard.html">
-          <i class="bi bi-grid-1x2 me-2"></i>My stuff
-        </a>
-        <a class="btn btn-outline-secondary btn-sm text-start" href="courses.html">
-          <i class="bi bi-journal-bookmark me-2"></i>Courses
-        </a>
-        <a class="btn btn-outline-secondary btn-sm text-start" href="#progress" data-bs-dismiss="offcanvas">
-          <i class="bi bi-graph-up me-2"></i>Progress
-        </a>
-        <a class="btn btn-outline-secondary btn-sm text-start" href="account.html">
-          <i class="bi bi-person-circle me-2"></i>My account
-        </a>
-        <a class="btn btn-outline-secondary btn-sm text-start" href="sandbox.html">
-          <i class="bi bi-diagram-3 me-2"></i>Sandbox
-        </a>
-      </div>
-    </div>
-  </div>
+    <footer class="text-center border-top py-4 bg-white mt-4" role="contentinfo">
+      <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
+    </footer>
+  </main>
 
   <!-- Scripts -->
   <script src="js/config.js"></script>
   <script src="js/course_content.js"></script>
-  <script src="js/dashboard_new.js"></script>
+  <script src="js/dashboard.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
