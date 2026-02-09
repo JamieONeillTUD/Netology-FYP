@@ -1,1004 +1,1267 @@
 /*
 Student Number: C22320301
-Student Name: Jamie O’Neill
+Student Name: Jamie O'Neill
 Course Code: TU857/4
-Date: 10/11/2025
+Date: 09/02/2026
 
-JavaScript
----------------------------------------
-course.js – Handles all course pages.
+course.js – Netology Course Detail (Figma-inspired behaviour)
 
-Loading course details and lessons
-Showing user progress
-Completing lessons and updating XP
-Universal and reusable for all course pages.
-
-UPDATES ADDED (kept simple + same style as your code):
-- Current Lesson section: Learn + Quiz + Sandbox Challenge
-- Prev/Next lesson buttons
-- Quiz stores answer in localStorage and shows correct/wrong feedback
-- Challenge stores rules in localStorage and opens sandbox with ?challenge=1
-
-UPDATED (Part 2):
-- Completing a lesson sends lesson_number to backend (tracks real lesson completion + prevents duplicate XP)
-- Correct quiz awards XP once via /complete-quiz (prevents duplicate XP)
-- Course content now comes from course_content.js (Units + Lessons like Khan Academy)
-
-UPDATED (Part 2 - Status Badges):
-- Loads lesson/quiz/challenge completion from /user-course-status
-- Sidebar shows badges per lesson: Done / Quiz / Chal (like Khan Academy)
-- Badges update instantly when user completes a lesson or quiz
-
-UPDATED (Unit Page View - Khan Style):
-- Clicking a Unit title shows a Unit page (About this unit + sections)
-- Unit page items (Learn / Practice / Quiz / Challenge) open the lesson view
-- Unit view and Lesson view toggle using #unitView and #lessonView in course.html
+What this file does:
+- Uses dashboard chrome (slide sidebar + user dropdown + brand routing)
+- Reads courseId from URL (?id=)
+- Loads course structure from COURSE_CONTENT[courseId]
+- Loads completion state (best-effort):
+    1) tries backend endpoints (if they exist)
+    2) falls back to localStorage cache so page still works offline
+- Renders:
+    - hero (title/desc/difficulty/meta)
+    - modules accordion (Khan style)
+    - lesson modal for "Learn" items
+    - progress ring + progress bar + sidebar stats
+- Click actions:
+    - Learn -> opens modal
+    - Quiz -> go to quiz.html with course/lesson info
+    - Sandbox / Challenge -> go to sandbox.html with context
+- Completion logic:
+    Course completes ONLY when all required items are complete:
+      Learn + Quiz + Challenge
+    (Sandbox Practice is optional; Sandbox Challenge counts as Challenge.)
 */
 
-// ---------------------------
-// Page load
-// ---------------------------
-document.addEventListener("DOMContentLoaded", async () => {
-  const params = new URLSearchParams(window.location.search);
-  const courseId = params.get("id");
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+(function () {
+  "use strict";
 
-  // Redirect if not logged in or missing course ID
-  if (!user.email || !courseId) {
-    window.location.href = "login.html";
-    return;
+  /* =========================================================
+     CONFIG / FALLBACKS
+  ========================================================= */
+
+  const API = () => (window.API_BASE || "").replace(/\/$/, "");
+  const XP_PER_LEVEL = 250;
+
+  // If your backend endpoints differ, update ONLY these paths.
+  const ENDPOINTS = {
+    userInfo: (email) => `${API()}/user-info?email=${encodeURIComponent(email)}`,
+
+    // Best-guess completion endpoints (optional)
+    getCompletions: (email, courseId) =>
+      `${API()}/completions?email=${encodeURIComponent(email)}&course_id=${encodeURIComponent(courseId)}`,
+
+    completeLesson: `${API()}/complete-lesson`,
+    completeQuiz: `${API()}/complete-quiz`,
+    completeChallenge: `${API()}/complete-challenge`,
+  };
+
+  // localStorage fallback key
+  const LS_KEY = (email, courseId) => `netology_completions:${email}:${courseId}`;
+
+  /* =========================================================
+     HELPERS
+  ========================================================= */
+
+  const el = (id) => document.getElementById(id);
+
+  function setText(id, text) {
+    const n = el(id);
+    if (n) n.textContent = String(text ?? "");
   }
 
-  // NEW (Part 3): allow returning to a specific lesson (from sandbox "Return to lesson")
-  // If URL has &lesson=, use it. Otherwise use netology_return_lesson if it matches this course.
-  const lessonParam = Number(params.get("lesson") || 0);
+  function clamp(n, min, max) {
+    const x = Number(n);
+    if (Number.isNaN(x)) return min;
+    return Math.min(max, Math.max(min, x));
+  }
 
-  // Load course info and user progress
-  await loadCourse(courseId, user.email);
+  function safeJson(str) {
+    try { return JSON.parse(str); } catch { return null; }
+  }
 
-  // NEW (Part 3): if the URL requested a specific lesson, jump to it after loadCourse builds flatLessons
-  if (lessonParam && !isNaN(lessonParam)) {
-    __courseState.activeLesson = Math.min(Math.max(lessonParam, 1), __courseState.totalLessons || 1);
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
-    // ADDITION ONLY: keep activeUnit in sync for dropdown open state
+  function cssEscape(str) {
+    // minimal escape for attribute selectors
+    return String(str ?? "").replace(/"/g, '\\"');
+  }
+
+  function cap(s) {
+    const t = String(s || "");
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
+  }
+
+  function showAria(text) {
+    const aria = el("ariaStatus");
+    if (aria) aria.textContent = String(text || "");
+  }
+
+  // Accept both keys (older + newer)
+  function getCurrentUser() {
+    return (
+      safeJson(localStorage.getItem("netology_user")) ||
+      safeJson(localStorage.getItem("user")) ||
+      null
+    );
+  }
+
+  function isLoggedIn(user) {
+    return !!(user && (user.email || user.username));
+  }
+
+  /* =========================================================
+     STATE
+  ========================================================= */
+
+  const state = {
+    user: null,
+    courseId: null,
+
+    // normalized course model
+    course: {
+      id: null,
+      title: "",
+      description: "",
+      difficulty: "novice",  // novice/intermediate/advanced
+      required_level: 1,
+      estimatedTime: "—",
+      totalXP: 0,
+      modules: [],           // [{ id, title, description, items:[...] }]
+    },
+
+    // completion sets
+    completed: {
+      lesson: new Set(),     // lesson_number
+      quiz: new Set(),       // lesson_number
+      challenge: new Set(),  // lesson_number
+    },
+
+    expandedModules: new Set(),
+
+    learnItemsFlat: [],
+    activeLearnIndex: -1,
+    activeLearn: null,
+
+    stats: {
+      level: 1,
+      rank: "Novice",
+      xp: 0,
+      currentLevelXP: 0,
+      xpProgressPct: 0,
+    },
+
+    courseLocked: false,
+    courseCompleted: false,
+  };
+
+  /* =========================================================
+     BOOT
+  ========================================================= */
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    // user (can be null -> guest)
+    const u = getCurrentUser();
+    state.user = isLoggedIn(u) ? u : null;
+
+    // Brand routing (dashboard if logged in else index)
+    wireBrandRouting();
+
+    // Chrome
+    if (!state.user) wireChromeGuest();
+    else wireChrome(state.user);
+
+    // course id from URL (?id=)
+    const courseId = new URLSearchParams(window.location.search).get("id");
+    state.courseId = courseId || "1";
+    state.course.id = state.courseId;
+
+    // load course structure (from COURSE_CONTENT)
+    hydrateCourseFromContent(state.courseId);
+
+    // expand first module by default
+    if (state.course.modules[0]) state.expandedModules.add(state.course.modules[0].id);
+
+    // load user stats + completions (if logged in)
+    if (state.user?.email) {
+      await loadUserStats(state.user.email);
+      await loadCompletions(state.user.email, state.courseId);
+    } else {
+      // Guest defaults
+      state.stats.level = 0;
+      state.stats.xp = 0;
+      state.stats.currentLevelXP = 0;
+      state.stats.xpProgressPct = 0;
+    }
+
+    // lock logic
+    computeLockState();
+
+    // derived
+    buildLearnFlatList();
+
+    // render
+    renderAll();
+
+    // wire after render
+    wireCourseActions();
+
+    // if returning from quiz/sandbox completion, support toast via URL params
+    maybeShowReturnToast();
+  });
+
+  /* =========================================================
+     CHROME (sidebar + dropdown)  (matches dashboard behaviour)
+  ========================================================= */
+
+  function wireBrandRouting() {
+    const brand = el("brandHome");
+    const sideBrand = el("sideBrandHome");
+    const back = el("backLink");
+
+    const loggedIn = !!(state.user && state.user.email);
+    const href = loggedIn ? "dashboard.html" : "index.html";
+
+    if (brand) brand.setAttribute("href", href);
+    if (sideBrand) sideBrand.setAttribute("href", href);
+    if (back) back.setAttribute("href", href);
+  }
+
+  function wireChromeGuest() {
+    // identity
+    setText("topUserName", "Guest");
+    setText("ddName", "Guest");
+    setText("ddEmail", "Sign in to track progress");
+    setText("topAvatar", "G");
+
+    setText("sideAvatar", "G");
+    setText("sideUserName", "Guest");
+    setText("sideUserEmail", "Sign in to save progress");
+    setText("sideLevelBadge", "Lv —");
+    setText("sideXPText", "—");
+    const bar = el("sideXPBar");
+    if (bar) bar.style.width = "0%";
+
+    // hide logout buttons
+    const topLogout = el("topLogoutBtn");
+    const sideLogout = el("sideLogoutBtn");
+    if (topLogout) topLogout.style.display = "none";
+    if (sideLogout) sideLogout.style.display = "none";
+
+    wireSidebar();
+    wireUserDropdown();
+  }
+
+  function wireChrome(user) {
+    wireSidebar();
+    wireUserDropdown();
+    fillIdentity(user);
+
+    // logout
+    const topLogout = el("topLogoutBtn");
+    const sideLogout = el("sideLogoutBtn");
+    if (topLogout) topLogout.addEventListener("click", logout);
+    if (sideLogout) sideLogout.addEventListener("click", logout);
+  }
+
+  function wireSidebar() {
+    const openBtn = el("openSidebarBtn");
+    const closeBtn = el("closeSidebarBtn");
+    const sidebar = el("slideSidebar");
+    const backdrop = el("sideBackdrop");
+
+    const open = () => {
+      if (!sidebar || !backdrop) return;
+      sidebar.classList.add("is-open");
+      backdrop.classList.add("is-open");
+      document.body.classList.add("net-noscroll");
+      sidebar.setAttribute("aria-hidden", "false");
+      backdrop.setAttribute("aria-hidden", "false");
+    };
+
+    const close = () => {
+      if (!sidebar || !backdrop) return;
+      sidebar.classList.remove("is-open");
+      backdrop.classList.remove("is-open");
+      document.body.classList.remove("net-noscroll");
+      sidebar.setAttribute("aria-hidden", "true");
+      backdrop.setAttribute("aria-hidden", "true");
+    };
+
+    openBtn?.addEventListener("click", open);
+    closeBtn?.addEventListener("click", close);
+    backdrop?.addEventListener("click", close);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        close();
+        toggleDropdown(false);
+      }
+    });
+  }
+
+  function wireUserDropdown() {
+    const userBtn = el("userBtn");
+    const dd = el("userDropdown");
+    if (!userBtn || !dd) return;
+
+    userBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleDropdown();
+    });
+
+    dd.addEventListener("click", (e) => e.stopPropagation());
+
+    document.addEventListener("click", (e) => {
+      const t = e.target;
+      if (dd.contains(t) || userBtn.contains(t)) return;
+      toggleDropdown(false);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") toggleDropdown(false);
+    });
+  }
+
+  function toggleDropdown(force) {
+    const dd = el("userDropdown");
+    const userBtn = el("userBtn");
+    if (!dd) return;
+
+    const open = typeof force === "boolean" ? force : !dd.classList.contains("is-open");
+    dd.classList.toggle("is-open", open);
+    if (userBtn) userBtn.setAttribute("aria-expanded", String(open));
+  }
+
+  function fillIdentity(user) {
+    const fullName =
+      user?.name ||
+      `${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
+      user?.username ||
+      "Student";
+
+    const initial = (fullName || "S").trim().charAt(0).toUpperCase();
+
+    setText("topAvatar", initial);
+    setText("topUserName", fullName);
+    setText("ddName", fullName);
+    setText("ddEmail", user?.email || "");
+
+    setText("sideAvatar", initial);
+    setText("sideUserName", fullName);
+    setText("sideUserEmail", user?.email || "");
+  }
+
+  function logout() {
+    localStorage.removeItem("netology_user");
+    localStorage.removeItem("netology_token");
+    localStorage.removeItem("user"); // backwards-compat
+    window.location.href = "index.html";
+  }
+
+  /* =========================================================
+     LOADERS (user stats + completions)
+  ========================================================= */
+
+  async function loadUserStats(email) {
     try {
-      const f = getFlatLessonByIndex(__courseState.activeLesson);
-      if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
-    } catch (e) {}
+      // If no API base, just fallback
+      if (!API()) throw new Error("no api");
 
-    __courseState.view = "lesson";
-    renderCurrentLesson();
-  } else {
-    // NEW (Part 3): if returning from sandbox, jump back to last stored lesson (only if same course)
+      const res = await fetch(ENDPOINTS.userInfo(email));
+      const data = await res.json().catch(() => null);
+      if (!data || data.success === false) throw new Error("user-info failed");
+
+      const level = Number(data.numeric_level || data.level || 1) || 1;
+      const xp = Number(data.xp || 0) || 0;
+      const rank = String(data.rank || data.level_name || data.level || "Novice");
+
+      state.stats.level = level;
+      state.stats.xp = xp;
+      state.stats.rank = rank;
+
+      const currentLevelXP = xp % XP_PER_LEVEL;
+      const xpProgressPct = (currentLevelXP / XP_PER_LEVEL) * 100;
+
+      state.stats.currentLevelXP = currentLevelXP;
+      state.stats.xpProgressPct = xpProgressPct;
+
+      // Sidebar stats
+      setText("sideLevelBadge", `Lv ${level}`);
+      setText("sideXPText", `${currentLevelXP}/${XP_PER_LEVEL}`);
+      const sideXPBar = el("sideXPBar");
+      if (sideXPBar) sideXPBar.style.width = `${clamp(xpProgressPct, 0, 100)}%`;
+
+    } catch (_) {
+      // Safe fallback; do not break UI
+      state.stats.level = 1;
+      state.stats.rank = "Novice";
+      state.stats.xp = 0;
+      state.stats.currentLevelXP = 0;
+      state.stats.xpProgressPct = 0;
+
+      setText("sideLevelBadge", `Lv 1`);
+      setText("sideXPText", `0/${XP_PER_LEVEL}`);
+      const sideXPBar = el("sideXPBar");
+      if (sideXPBar) sideXPBar.style.width = `0%`;
+    }
+  }
+
+  async function loadCompletions(email, courseId) {
+    // 1) Try backend
     try {
-      const rawReturn = localStorage.getItem("netology_return_lesson");
-      if (rawReturn) {
-        const ret = JSON.parse(rawReturn);
-        if (String(ret.course_id) === String(courseId) && ret.lesson_number) {
-          __courseState.activeLesson = Math.min(
-            Math.max(Number(ret.lesson_number) || 1, 1),
-            __courseState.totalLessons || 1
-          );
-
-          // ADDITION ONLY: keep activeUnit in sync for dropdown open state
-          const f = getFlatLessonByIndex(__courseState.activeLesson);
-          if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
-
-          __courseState.view = "lesson";
-          renderCurrentLesson();
+      if (API()) {
+        const res = await fetch(ENDPOINTS.getCompletions(email, courseId));
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data && data.success !== false && data.completions) {
+            applyCompletionsPayload(data.completions);
+            cacheCompletionsToLS(email, courseId);
+            return;
+          }
         }
       }
-    } catch (e) {
-      console.error("return_lesson parse error:", e);
+    } catch (_) {
+      // ignore
     }
+
+    // 2) Fallback localStorage
+    const cached = safeJson(localStorage.getItem(LS_KEY(email, courseId)));
+    if (cached) applyCompletionsPayload(cached);
   }
 
-  // NEW (Part 3): read challenge completion flag written by sandbox.js and update UI instantly
-  // (still safe because backend /user-course-status is the source of truth)
-  try {
-    const raw = localStorage.getItem("netology_challenge_completed");
-    if (raw) {
-      const done = JSON.parse(raw);
-      if (String(done.courseId) === String(courseId) && Number(done.lesson)) {
-        __courseState.completed.challenges.add(Number(done.lesson));
-        renderLessons(__courseState.totalLessons, __courseState.progressPct);
+  function applyCompletionsPayload(payload) {
+    const lessonArr = payload.lesson || payload.lessons || payload.learn || [];
+    const quizArr = payload.quiz || payload.quizzes || [];
+    const chArr = payload.challenge || payload.challenges || [];
 
-        // Clear after applying so it doesn't keep re-triggering
-        localStorage.removeItem("netology_challenge_completed");
-      }
-    }
-  } catch (e) {
-    console.error("challenge_completed parse error:", e);
+    state.completed.lesson = new Set((lessonArr || []).map(Number));
+    state.completed.quiz = new Set((quizArr || []).map(Number));
+    state.completed.challenge = new Set((chArr || []).map(Number));
   }
 
-  // Complete lesson button (existing)
-  const completeBtn = document.getElementById("completeLessonBtn");
-  if (completeBtn) {
-    completeBtn.addEventListener("click", async () => {
-      await completeLesson(courseId, user.email);
-    });
+  function cacheCompletionsToLS(email, courseId) {
+    const payload = {
+      lesson: Array.from(state.completed.lesson),
+      quiz: Array.from(state.completed.quiz),
+      challenge: Array.from(state.completed.challenge),
+    };
+    localStorage.setItem(LS_KEY(email, courseId), JSON.stringify(payload));
   }
 
-  // NEW: lesson navigation buttons (only works if you added them in course.html)
-  const prevBtn = document.getElementById("prevLessonBtn");
-  const nextBtn = document.getElementById("nextLessonBtn");
-  if (prevBtn) prevBtn.addEventListener("click", () => changeLesson(-1));
-  if (nextBtn) nextBtn.addEventListener("click", () => changeLesson(1));
+  /* =========================================================
+     COURSE CONTENT NORMALIZATION
+  ========================================================= */
 
-  // NEW: challenge buttons
-  const startChallengeBtn = document.getElementById("startChallengeBtn");
-  const validateChallengeBtn = document.getElementById("validateChallengeBtn");
-  if (startChallengeBtn) startChallengeBtn.addEventListener("click", () => openChallengeInSandbox());
-  if (validateChallengeBtn) validateChallengeBtn.addEventListener("click", () => openChallengeInSandbox(true));
-
-  // =========================================================
-  // ADDITION ONLY (Course tidy): top "Start Challenge" button support
-  // This was added in your updated course.html as id="startChallengeBtnTop"
-  // =========================================================
-  const startChallengeBtnTop = document.getElementById("startChallengeBtnTop");
-  if (startChallengeBtnTop) {
-    startChallengeBtnTop.addEventListener("click", () => {
-      // Make sure we are in lesson view, then open challenge for current lesson
-      __courseState.view = "lesson";
-      renderCurrentLesson();
-      openChallengeInSandbox();
-    });
+  function difficultyRequiredLevel(diff) {
+    if (diff === "novice") return 1;
+    if (diff === "intermediate") return 3;
+    if (diff === "advanced") return 5;
+    return 1;
   }
 
-  // =========================================================
-  // ADDITION ONLY (Full Quiz Page):
-  // - Opens quiz.html for the current course + active lesson
-  // - URL: quiz.html?course=${courseId}&lesson=${activeLesson}
-  // =========================================================
-  function openFullQuizPage() {
-    const c = __courseState.courseId || courseId;
-    const l = __courseState.activeLesson || 1;
+  function hydrateCourseFromContent(courseId) {
+    const raw = (typeof window.COURSE_CONTENT !== "undefined")
+      ? window.COURSE_CONTENT[String(courseId)]
+      : null;
 
-    // Store return target (nice UX: quiz can send them back)
-    localStorage.setItem("netology_return_lesson", JSON.stringify({
-      course_id: c,
-      lesson_number: l
-    }));
-
-    window.location.href = `quiz.html?course=${encodeURIComponent(c)}&lesson=${encodeURIComponent(l)}`;
-  }
-
-  const openFullQuizBtn = document.getElementById("openFullQuizBtn");
-  if (openFullQuizBtn) openFullQuizBtn.addEventListener("click", openFullQuizPage);
-
-  // Optional button inside the quiz card
-  const openFullQuizBtn2 = document.getElementById("openFullQuizBtn2");
-  if (openFullQuizBtn2) openFullQuizBtn2.addEventListener("click", openFullQuizPage);
-});
-
-// ---------------------------
-// Simple state (same style)
-// ---------------------------
-let __courseState = {
-  courseId: null,
-  email: null,
-  courseTitle: "",
-  totalLessons: 0,
-  progressPct: 0,
-  activeLesson: 1,
-
-  // NEW: unit/lesson map for Khan layout
-  flatLessons: [], // [{ index, unitIndex, lessonIndex, unitTitle, lesson }]
-
-  // NEW: completion status sets (for sidebar badges)
-  completed: {
-    lessons: new Set(),
-    quizzes: new Set(),
-    challenges: new Set()
-  },
-
-  // NEW: Unit page view state
-  activeUnit: 0,
-  view: "unit" // "unit" or "lesson"
-};
-
-// ---------------------------
-// Course content helpers (Khan-style)
-// ---------------------------
-/*
-AI PROMPTED CODE BELOW
-"Can you write helper functions to flatten units/lessons so I can navigate lessons by a single index
-but still display Unit and Lesson titles like Khan Academy?"
-*/
-
-function getCourseContent(courseId, fallbackTitle) {
-  // COURSE_CONTENT is loaded from course_content.js
-  if (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT[courseId]) {
-    return COURSE_CONTENT[courseId];
-  }
-
-  // Fallback to simple template content if courseId not found
-  return {
-    title: fallbackTitle || "Course",
-    units: [
-      {
-        title: "Unit 1",
-        lessons: [
-          {
-            title: "Lesson 1",
-            learn: "No content found for this course yet. Add it in course_content.js.",
-            quiz: null,
-            challenge: null
-          }
-        ]
-      }
-    ]
-  };
-}
-
-function flattenLessons(courseContent) {
-  const flat = [];
-  let idx = 1;
-
-  (courseContent.units || []).forEach((unit, uIndex) => {
-    (unit.lessons || []).forEach((lesson, lIndex) => {
-      flat.push({
-        index: idx,
-        unitIndex: uIndex,
-        lessonIndex: lIndex,
-        unitTitle: unit.title || `Unit ${uIndex + 1}`,
-        lesson: lesson
-      });
-      idx += 1;
-    });
-  });
-
-  return flat;
-}
-
-function getFlatLessonByIndex(index) {
-  const n = Number(index) || 1;
-  return (__courseState.flatLessons || []).find(x => x.index === n) || __courseState.flatLessons[0];
-}
-
-function totalFlatLessons() {
-  return (__courseState.flatLessons || []).length || 1;
-}
-
-// ---------------------------
-// NEW: Unit view helpers (Khan-style unit page)
-// ---------------------------
-/*
-AI PROMPTED CODE BELOW
-"Can you write simple functions that show a unit page like Khan Academy:
-- About this unit
-- Sections with Learn/Practice/Quiz/Challenge items
-- Clicking an item opens the lesson view?"
-*/
-
-function getUnits() {
-  const content = getCourseContent(__courseState.courseId, __courseState.courseTitle);
-  return content.units || [];
-}
-
-function getUnitByIndex(uIndex) {
-  const units = getUnits();
-  return units[uIndex] || units[0];
-}
-
-function showUnitView(uIndex) {
-  __courseState.activeUnit = Number(uIndex) || 0;
-  __courseState.view = "unit";
-
-  const unitView = document.getElementById("unitView");
-  const lessonView = document.getElementById("lessonView");
-  if (unitView) unitView.style.display = "block";
-  if (lessonView) lessonView.style.display = "none";
-
-  const unit = getUnitByIndex(__courseState.activeUnit);
-
-  const unitTitleEl = document.getElementById("unitTitle");
-  const unitAboutEl = document.getElementById("unitAbout");
-  const unitSectionsEl = document.getElementById("unitSections");
-
-  if (unitTitleEl) unitTitleEl.textContent = unit.title || "Unit";
-  if (unitAboutEl) unitAboutEl.textContent = unit.about || "No unit description yet.";
-
-  if (!unitSectionsEl) return;
-
-  let html = "";
-
-  (unit.sections || []).forEach(sec => {
-    html += `
-      <div class="net-card p-4 mb-3">
-        <div class="fw-semibold mb-2">${escapeHtml(sec.title || "Section")}</div>
-        <div class="d-grid gap-2">
-    `;
-
-    (sec.items || []).forEach(item => {
-      const type = item.type || "Learn";
-      const label = item.label || "Item";
-      const q = item.questions ? `<span class="small text-muted">${item.questions} questions</span>` : "";
-
-      const badge =
-        type === "Learn" ? `<span class="badge text-bg-light border">Learn</span>` :
-        type === "Practice" ? `<span class="badge bg-info text-dark">Practice</span>` :
-        type === "Quiz" ? `<span class="badge bg-success">Quiz</span>` :
-        `<span class="badge bg-teal text-white">Challenge</span>`;
-
-      html += `
-        <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center"
-                type="button"
-                onclick="openUnitItem(${Number(item.lesson_index || 1)})"
-                aria-label="Open ${escapeHtml(type)}: ${escapeHtml(label)}">
-          <span class="d-flex gap-2 align-items-center">
-            ${badge}
-            <span>${escapeHtml(label)}</span>
-          </span>
-          ${q}
-        </button>
-      `;
-    });
-
-    html += `
-        </div>
-      </div>
-    `;
-  });
-
-  unitSectionsEl.innerHTML = html;
-
-  // ADDITION ONLY: keep sidebar dropdown open on this unit
-  renderLessons(__courseState.totalLessons, __courseState.progressPct);
-}
-
-// When user clicks an item in the unit list, open the lesson view
-function openUnitItem(lessonIndex) {
-  __courseState.activeLesson = Number(lessonIndex) || 1;
-
-  // ADDITION ONLY: keep activeUnit in sync for dropdown open state
-  try {
-    const f = getFlatLessonByIndex(__courseState.activeLesson);
-    if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
-  } catch (e) {}
-
-  __courseState.view = "lesson";
-  renderCurrentLesson();
-}
-
-// ---------------------------
-// NEW: Load completion status for sidebar badges
-// ---------------------------
-/*
-AI PROMPTED CODE BELOW
-"Can you write a small function that loads a user's completed lessons/quizzes/challenges
-from /user-course-status so I can show badges beside each lesson in the sidebar?"
-*/
-async function loadCompletionStatus() {
-  try {
-    const res = await fetch(
-      `${window.API_BASE}/user-course-status?email=${encodeURIComponent(__courseState.email)}&course_id=${__courseState.courseId}`
-    );
-    const data = await res.json();
-
-    if (!data.success) return;
-
-    __courseState.completed.lessons = new Set((data.lessons || []).map(Number));
-    __courseState.completed.quizzes = new Set((data.quizzes || []).map(Number));
-    __courseState.completed.challenges = new Set((data.challenges || []).map(Number));
-  } catch (e) {
-    console.error("loadCompletionStatus error:", e);
-  }
-}
-
-// ---------------------------
-// Load course details and user progress,
-// Shows course title, description, lessons and user progress
-// ---------------------------
-async function loadCourse(courseId, email) {
-  try {
-    __courseState.courseId = courseId;
-    __courseState.email = email;
-
-    // Get course info from backend (still used for desc + total_lessons)
-    const res = await fetch(`${window.API_BASE}/course?id=${courseId}`);
-    const data = await res.json();
-
-    if (!data.success) {
-      showPopup("Course not found.", "error");
+    if (!raw) {
+      state.course = {
+        id: courseId,
+        title: "Course",
+        description: "No content found for this course yet.",
+        difficulty: "novice",
+        required_level: 1,
+        estimatedTime: "—",
+        totalXP: 0,
+        modules: [],
+      };
       return;
     }
 
-    // Load structured content from course_content.js (Khan style)
-    const content = getCourseContent(courseId, data.title);
-    __courseState.courseTitle = content.title || data.title;
+    state.course.title = raw.title || raw.name || "Course";
+    state.course.description = raw.description || raw.about || "No description yet.";
+    state.course.difficulty = String(raw.difficulty || "novice").toLowerCase();
+    state.course.required_level = Number(raw.required_level || difficultyRequiredLevel(state.course.difficulty)) || 1;
+    state.course.estimatedTime = raw.estimatedTime || raw.estimated_time || "—";
 
-    // Flatten units/lessons to a single list of lesson numbers (lesson_number = flat index)
-    __courseState.flatLessons = flattenLessons(content);
+    const units = raw.units || raw.modules || [];
+    const modules = [];
 
-    // IMPORTANT: total lessons should be based on content if available
-    __courseState.totalLessons = totalFlatLessons();
+    let lessonCounter = 1;
+    let totalXP = 0;
 
-    // Display course title and description
-    const titleEl = document.getElementById("courseTitle");
-    if (titleEl) titleEl.textContent = __courseState.courseTitle;
+    units.forEach((u, i) => {
+      const moduleId = u.id || `module-${i + 1}`;
+      const module = {
+        id: moduleId,
+        index: i,
+        title: u.title || `Module ${i + 1}`,
+        description: u.about || u.description || "",
+        items: [],
+      };
 
-    document.getElementById("courseDesc").textContent = data.description;
+      const normalized = normalizeUnitItems(u, lessonCounter);
+      module.items = normalized.items;
+      lessonCounter = normalized.nextLessonCounter;
 
-    // Get user's progress for this course
-    const progressRes = await fetch(`${window.API_BASE}/user-courses?email=${encodeURIComponent(email)}`);
-    const progressData = await progressRes.json();
+      module.items.forEach((it) => { totalXP += Number(it.xp || 0); });
 
-    const course = (progressData.courses || []).find(c => c.id == courseId);
-    const progressPct = course ? course.progress_pct : 0;
-
-    __courseState.progressPct = progressPct;
-
-    // NEW: Load completion status (lesson/quiz/challenge badges)
-    await loadCompletionStatus();
-
-    // Render lessons visually (NOW: Units + Lessons clickable + badges)
-    renderLessons(__courseState.totalLessons, progressPct);
-
-    // Update progress bar
-    updateProgress(progressPct);
-
-    // Decide which lesson to show in "Current Lesson" (next lesson after completed)
-    const completedLessons = Math.floor((progressPct / 100) * __courseState.totalLessons);
-    __courseState.activeLesson = Math.min(completedLessons + 1, __courseState.totalLessons);
-
-    // ADDITION ONLY: keep activeUnit in sync (so dropdown opens correctly)
-    try {
-      const f = getFlatLessonByIndex(__courseState.activeLesson);
-      if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
-    } catch (e) {}
-
-    // NEW: Show Unit 1 page by default (Khan style landing)
-    showUnitView(0);
-
-    // NOTE: renderCurrentLesson is still available when user clicks lessons/items
-    // Render Current Lesson (Learn + Quiz + Challenge)
-    // renderCurrentLesson();
-
-  } catch (err) {
-    console.error("loadCourse error:", err);
-    showPopup("Error loading course details.", "error");
-  }
-}
-
-// ---------------------------
-// AI Prompted Code Below:
-// "Can you please write me a JavaScript function that shows all of the lessons completed in a course
-// shows the list of lessons with completion status"
-// UPDATED: now renders Units + Lessons like Khan (clickable)
-// UPDATED (Badges): shows Done / Quiz / Chal based on backend status
-// UPDATED (Unit Click): Unit headers are clickable and open Unit page
-// ---------------------------
-function renderLessons(totalLessons, progressPct) {
-  const lessonsContainer = document.getElementById("lessonsList");
-
-  if (!lessonsContainer) return;
-
-  if (!totalLessons || totalLessons <= 0) {
-    lessonsContainer.innerHTML = `<p class="text-muted small">No lessons available.</p>`;
-    return;
-  }
-
-  // Build Unit/Lesson sidebar
-  let html = "";
-  let currentUnitTitle = null;
-
-  (__courseState.flatLessons || []).forEach((item) => {
-    const unitTitle = item.unitTitle || "Unit";
-
-    // Unit header (UPDATED: clickable)
-    if (unitTitle !== currentUnitTitle) {
-      currentUnitTitle = unitTitle;
-      html += `
-        <button type="button"
-          class="btn btn-sm w-100 text-start mb-1"
-          style="border:1px solid var(--net-border); border-radius:12px;"
-          onclick="showUnitView(${item.unitIndex})"
-          aria-label="Open ${escapeHtml(unitTitle)}">
-          <span class="small text-muted fw-semibold" style="letter-spacing:.2px;">
-            ${escapeHtml(unitTitle)}
-          </span>
-        </button>
-      `;
-    }
-
-    // Badges from backend completion status
-    const doneBadge = __courseState.completed.lessons.has(item.index)
-      ? `<span class="badge bg-teal text-white">Done</span>`
-      : "";
-
-    const quizBadge = __courseState.completed.quizzes.has(item.index)
-      ? `<span class="badge bg-success">Quiz</span>`
-      : "";
-
-    const challengeBadge = __courseState.completed.challenges.has(item.index)
-      ? `<span class="badge bg-info text-dark">Chal</span>`
-      : "";
-
-    const activeClass = item.index === __courseState.activeLesson ? "border border-teal" : "";
-
-    html += `
-      <button
-        type="button"
-        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${activeClass}"
-        style="border-radius:12px;margin-bottom:8px;"
-        onclick="jumpToLesson(${item.index})"
-        aria-label="Open lesson ${item.index}"
-      >
-        <span class="small">Lesson ${item.index}: ${escapeHtml(item.lesson.title || "Lesson")}</span>
-        <span class="d-flex gap-1 align-items-center">
-          ${doneBadge}
-          ${quizBadge}
-          ${challengeBadge}
-        </span>
-      </button>
-    `;
-  });
-
-  lessonsContainer.innerHTML = `<div class="list-group">${html}</div>`;
-}
-
-// Called from sidebar buttons
-function jumpToLesson(index) {
-  __courseState.activeLesson = Number(index) || 1;
-
-  // ADDITION ONLY: keep activeUnit in sync for dropdown open state
-  try {
-    const f = getFlatLessonByIndex(__courseState.activeLesson);
-    if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
-  } catch (e) {}
-
-  __courseState.view = "lesson";
-  renderCurrentLesson();
-}
-
-// ---------------------------
-// Completing a lesson and updating user progress and XP
-// ---------------------------
-async function completeLesson(courseId, email) {
-  try {
-    const res = await fetch(`${window.API_BASE}/complete-lesson`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-
-      // Sends lesson_number so backend can prevent duplicate XP
-      body: JSON.stringify({
-        email,
-        course_id: courseId,
-        lesson_number: __courseState.activeLesson
-      }),
+      modules.push(module);
     });
 
-    const result = await res.json();
+    state.course.modules = modules;
+    state.course.totalXP = totalXP;
+  }
 
-    if (result.success) {
-      if (result.already_completed) {
-        showPopup("Lesson already completed.", "info");
+  function normalizeUnitItems(unit, startingLessonNumber) {
+    const items = [];
+    let lessonCounter = startingLessonNumber;
+
+    const pushItem = (type, data) => {
+      items.push({
+        type, // learn|quiz|sandbox|challenge
+        title: data.title || data.name || cap(type),
+        content: data.content || data.learn || data.text || "",
+        duration: data.duration || data.time || "—",
+        xp: Number(data.xp || data.xpReward || data.xp_reward || 0),
+        lesson_number: Number(data.lesson_number || data.lessonNumber || 0),
+        assigned: false,
+      });
+    };
+
+    // Shape A: array sections
+    if (Array.isArray(unit.sections)) {
+      unit.sections.forEach((sec) => {
+        const t = String(sec.type || sec.kind || sec.title || "").toLowerCase();
+        const secItems = sec.items || sec.lessons || [];
+        if (!Array.isArray(secItems)) return;
+
+        secItems.forEach((li) => {
+          const type = mapSectionTypeToItemType(t, li);
+          pushItem(type, li);
+        });
+      });
+    }
+
+    // Shape B: object sections
+    if (!items.length && unit.sections && typeof unit.sections === "object" && !Array.isArray(unit.sections)) {
+      const obj = unit.sections;
+      (obj.learn || obj.lesson || obj.lessons || []).forEach((li) => pushItem("learn", li));
+      (obj.quiz || obj.quizzes || []).forEach((li) => pushItem("quiz", li));
+      (obj.practice || obj.sandbox || []).forEach((li) => pushItem("sandbox", li));
+      (obj.challenge || obj.challenges || []).forEach((li) => pushItem("challenge", li));
+    }
+
+    // Shape C: unit.lessons
+    if (!items.length && Array.isArray(unit.lessons)) {
+      unit.lessons.forEach((li) => {
+        const t = String(li.type || "learn").toLowerCase();
+        pushItem(
+          t === "quiz" ? "quiz" :
+          t === "sandbox" ? "sandbox" :
+          t === "challenge" ? "challenge" :
+          "learn",
+          li
+        );
+      });
+    }
+
+    // Assign lesson_number
+    let lastLearn = lessonCounter - 1;
+
+    items.forEach((it) => {
+      if (it.type === "learn") {
+        if (!it.lesson_number) {
+          it.lesson_number = lessonCounter++;
+          it.assigned = true;
+        } else {
+          lessonCounter = Math.max(lessonCounter, it.lesson_number + 1);
+        }
+        lastLearn = it.lesson_number;
       } else {
-        showPopup(`+${result.xp_added} XP earned!`, "success");
-
-        // NEW: update local Done badge instantly
-        __courseState.completed.lessons.add(__courseState.activeLesson);
+        if (!it.lesson_number) {
+          it.lesson_number = Math.max(1, lastLearn || 1);
+          it.assigned = true;
+        }
       }
 
-      __courseState.progressPct = result.progress_pct;
-      updateProgress(result.progress_pct);
+      // Defaults
+      if (!it.xp) {
+        it.xp =
+          it.type === "quiz" ? 60 :
+          it.type === "challenge" ? 80 :
+          it.type === "sandbox" ? 30 :
+          40;
+      }
+      if (!it.duration || it.duration === "—") {
+        it.duration =
+          it.type === "quiz" ? "5–10 min" :
+          it.type === "challenge" ? "10–15 min" :
+          it.type === "sandbox" ? "10 min" :
+          "8–12 min";
+      }
+    });
 
-      // Re-render sidebar list with updated completion
-      renderLessons(__courseState.totalLessons, result.progress_pct);
+    // Sort in learning flow, grouped by lesson_number
+    items.sort((a, b) => {
+      if (a.lesson_number !== b.lesson_number) return a.lesson_number - b.lesson_number;
+      const order = { learn: 1, quiz: 2, sandbox: 3, challenge: 4 };
+      return (order[a.type] || 9) - (order[b.type] || 9);
+    });
 
-      // Move to next lesson after completion
-      const completedLessons = Math.floor((result.progress_pct / 100) * __courseState.totalLessons);
-      __courseState.activeLesson = Math.min(completedLessons + 1, __courseState.totalLessons);
-
-      // ADDITION ONLY: keep activeUnit in sync for dropdown open state
-      try {
-        const f = getFlatLessonByIndex(__courseState.activeLesson);
-        if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
-      } catch (e) {}
-
-      renderCurrentLesson();
-    } else {
-      showPopup(result.message || "Could not complete lesson.", "error");
-    }
-  } catch (err) {
-    console.error("completeLesson error:", err);
-    showPopup("Server error completing lesson.", "error");
+    return { items, nextLessonCounter: lessonCounter };
   }
-}
 
-// ---------------------------
-// Update progress bar
-// ---------------------------
-function updateProgress(percent) {
-  const bar = document.getElementById("progressBar");
-  const txt = document.getElementById("progressText");
+  function mapSectionTypeToItemType(sectionType, item) {
+    if (sectionType.includes("quiz")) return "quiz";
+    if (sectionType.includes("challenge")) return "challenge";
+    if (sectionType.includes("practice") || sectionType.includes("sandbox")) return "sandbox";
 
-  if (bar) bar.style.width = `${percent}%`;
-  if (txt) txt.textContent = `${percent}%`;
-}
+    const t = String(item.type || "").toLowerCase();
+    if (t === "quiz") return "quiz";
+    if (t === "challenge") return "challenge";
+    if (t === "sandbox") return "sandbox";
+    return "learn";
+  }
 
-// ---------------------------
-// Current Lesson (Learn + Quiz + Challenge) using real content
-// ---------------------------
-function changeLesson(delta) {
-  let next = (__courseState.activeLesson || 1) + delta;
-  if (next < 1) next = 1;
-  if (next > (__courseState.totalLessons || 1)) next = __courseState.totalLessons;
-  __courseState.activeLesson = next;
+  /* =========================================================
+     LOCK / COMPLETION / PROGRESS
+  ========================================================= */
 
-  // ADDITION ONLY: keep activeUnit in sync for dropdown open state
-  try {
-    const f = getFlatLessonByIndex(__courseState.activeLesson);
-    if (f) __courseState.activeUnit = Number(f.unitIndex || 0);
-  } catch (e) {}
+  function computeLockState() {
+    const userLevel = state.user ? Number(state.stats.level || 1) : 0;
+    state.courseLocked = userLevel < Number(state.course.required_level || 1);
+  }
 
-  __courseState.view = "lesson";
-  renderCurrentLesson();
-}
+  function getRequiredItems() {
+    const required = [];
+    state.course.modules.forEach((m) => {
+      m.items.forEach((it) => {
+        if (it.type === "learn" || it.type === "quiz" || it.type === "challenge") required.push(it);
+      });
+    });
+    return required;
+  }
 
-function renderCurrentLesson() {
-  // NEW: Toggle views (Unit view hidden, Lesson view shown)
-  const unitView = document.getElementById("unitView");
-  const lessonView = document.getElementById("lessonView");
-  if (unitView) unitView.style.display = "none";
-  if (lessonView) lessonView.style.display = "block";
+  function isItemCompleted(it) {
+    const n = Number(it.lesson_number || 0);
+    if (!n) return false;
 
-  // Only render if the HTML exists
-  const titleEl = document.getElementById("lessonTitle");
-  const contentEl = document.getElementById("lessonContent");
-  const indicatorEl = document.getElementById("lessonIndicator");
-  if (!titleEl || !contentEl) return;
+    if (it.type === "learn") return state.completed.lesson.has(n);
+    if (it.type === "quiz") return state.completed.quiz.has(n);
+    if (it.type === "challenge") return state.completed.challenge.has(n);
+    return false; // sandbox optional
+  }
 
-  const total = __courseState.totalLessons || 1;
-  const lessonNum = __courseState.activeLesson || 1;
+  function computeProgress() {
+    const required = getRequiredItems();
+    const total = required.length || 1;
+    const done = required.filter(isItemCompleted).length;
+    const pct = Math.round((done / total) * 100);
 
-  // Update nav buttons
-  const prevBtn = document.getElementById("prevLessonBtn");
-  const nextBtn = document.getElementById("nextLessonBtn");
-  if (prevBtn) prevBtn.disabled = lessonNum <= 1;
-  if (nextBtn) nextBtn.disabled = lessonNum >= total;
+    state.courseCompleted = (required.length > 0 && done === required.length);
+    return { done, total: required.length, pct };
+  }
 
-  const flat = getFlatLessonByIndex(lessonNum);
-  if (!flat) return;
+  function computeModuleCompletion(module) {
+    const required = module.items.filter((it) => it.type === "learn" || it.type === "quiz" || it.type === "challenge");
+    const done = required.filter(isItemCompleted).length;
+    const total = required.length || 0;
+    return { done, total, completed: total > 0 && done === total };
+  }
 
-  // ADDITION ONLY: keep activeUnit in sync for dropdown open state
-  __courseState.activeUnit = Number(flat.unitIndex || 0);
+  function buildLearnFlatList() {
+    const list = [];
+    state.course.modules.forEach((m) => m.items.forEach((it) => { if (it.type === "learn") list.push(it); }));
+    state.learnItemsFlat = list;
 
-  // Lesson title + indicator (Unit + Lesson like Khan)
-  const unitTitle = flat.unitTitle || `Unit ${flat.unitIndex + 1}`;
-  const lessonTitle = flat.lesson.title || `Lesson ${lessonNum}`;
+    const idx = list.findIndex((it) => !isItemCompleted(it));
+    state.activeLearnIndex = idx >= 0 ? idx : (list.length ? 0 : -1);
+    state.activeLearn = state.activeLearnIndex >= 0 ? list[state.activeLearnIndex] : null;
+  }
 
-  titleEl.textContent = `Lesson ${lessonNum}: ${lessonTitle}`;
-  if (indicatorEl) indicatorEl.textContent = `${unitTitle} • Lesson ${lessonNum} of ${total}`;
+  /* =========================================================
+     RENDER
+  ========================================================= */
 
-  // Learn
-  contentEl.textContent = flat.lesson.learn || "No lesson text.";
+  function renderAll() {
+    renderHero();
+    renderModules();
+    renderSidebarCards();
+  }
 
-  // Quiz + challenge
-  renderQuiz(flat.lesson.quiz);
-  renderChallenge(flat.lesson.challenge);
+  function renderHero() {
+    setText("courseTitle", state.course.title);
+    setText("courseDescription", state.course.description);
 
-  // Keep sidebar highlight (and badges)
-  renderLessons(__courseState.totalLessons, __courseState.progressPct);
-}
+    setText("metaModules", `${state.course.modules.length} modules`);
+    setText("metaTime", state.course.estimatedTime || "—");
+    setText("metaXP", `${state.course.totalXP} XP Total`);
 
-// ---------------------------
-// Quiz (simple, 1 question) + XP award once
-// ---------------------------
-function quizKey() {
-  const u = __courseState.email || "anon";
-  const c = __courseState.courseId || "0";
-  const l = __courseState.activeLesson || 1;
-  return `netology_quiz:${u}:${c}:${l}`;
-}
+    // difficulty pill class
+    const pill = el("difficultyPill");
+    if (pill) {
+      pill.textContent = cap(state.course.difficulty);
+      pill.classList.remove("net-diff-novice", "net-diff-intermediate", "net-diff-advanced");
+      pill.classList.add(`net-diff-${state.course.difficulty}`);
+    }
 
-/*
-AI PROMPTED CODE BELOW:
-"Can you write a small JavaScript function that calls my backend route /complete-quiz
-when the user answers a quiz correctly, and make sure it cannot award XP multiple times?"
-*/
-let __quizXpAwardedCache = {};
+    // locked?
+    const lockedPill = el("courseLockedPill");
+    const lockedExplainer = el("lockedExplainer");
+    const lockedText = el("lockedText");
 
-async function awardQuizXpOnce() {
-  const key = quizKey();
-  if (__quizXpAwardedCache[key]) return;
-  __quizXpAwardedCache[key] = true;
+    if (state.courseLocked) {
+      lockedPill?.classList.remove("d-none");
+      lockedExplainer?.classList.remove("d-none");
+      if (lockedText) lockedText.textContent = `Locked — requires Level ${state.course.required_level}.`;
 
-  try {
-    const res = await fetch(`${window.API_BASE}/complete-quiz`, {
+      // disable primary actions
+      const continueBtn = el("continueBtn");
+      const openSandboxBtn = el("openSandboxBtn");
+      continueBtn && (continueBtn.disabled = true);
+      openSandboxBtn && (openSandboxBtn.disabled = true);
+    } else {
+      lockedPill?.classList.add("d-none");
+      lockedExplainer?.classList.add("d-none");
+
+      const continueBtn = el("continueBtn");
+      const openSandboxBtn = el("openSandboxBtn");
+      continueBtn && (continueBtn.disabled = false);
+      openSandboxBtn && (openSandboxBtn.disabled = false);
+    }
+
+    // completed?
+    const completedPill = el("courseCompletedPill");
+    const reviewBtn = el("reviewBtn");
+    const continueBtn = el("continueBtn");
+
+    if (state.courseCompleted) {
+      completedPill?.classList.remove("d-none");
+      reviewBtn?.classList.remove("d-none");
+      if (continueBtn) continueBtn.textContent = "Review";
+    } else {
+      completedPill?.classList.add("d-none");
+      reviewBtn?.classList.add("d-none");
+      if (continueBtn) {
+        continueBtn.innerHTML = `Continue <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>`;
+      }
+    }
+
+    // progress ring + bar
+    const prog = computeProgress();
+
+    setText("progressPct", `${prog.pct}%`);
+    setText("progressText", `${prog.pct}%`);
+    setText("progressCount", `${prog.done}/${prog.total}`);
+
+    const ring = el("progressRing");
+    if (ring) {
+      const CIRC = 2 * Math.PI * 58; // r=58 (matches HTML)
+      const offset = CIRC * (1 - prog.pct / 100);
+      ring.style.strokeDasharray = `${CIRC.toFixed(2)}`;
+      ring.style.strokeDashoffset = `${offset.toFixed(2)}`;
+    }
+
+    const bar = el("progressBar");
+    if (bar) bar.style.width = `${clamp(prog.pct, 0, 100)}%`;
+
+    // sandbox buttons carry course context
+    const q = `course_id=${encodeURIComponent(state.courseId)}`;
+    const topSandbox = el("topSandboxLink");
+    const sidebarSandboxBtn = el("sidebarSandboxBtn");
+    const openSandboxBtn = el("openSandboxBtn");
+
+    if (topSandbox) topSandbox.setAttribute("href", `sandbox.html?${q}`);
+    if (sidebarSandboxBtn) sidebarSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
+    if (openSandboxBtn) openSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
+  }
+
+  function renderModules() {
+    const wrap = el("modulesWrap");
+    const empty = el("modulesEmpty");
+    if (!wrap) return;
+
+    if (!state.course.modules.length) {
+      wrap.innerHTML = "";
+      empty?.classList.remove("d-none");
+      return;
+    }
+    empty?.classList.add("d-none");
+
+    wrap.innerHTML = "";
+
+    state.course.modules.forEach((m, idx) => {
+      const modProg = computeModuleCompletion(m);
+      const expanded = state.expandedModules.has(m.id);
+
+      const iconHtml = moduleIcon(modProg, state.courseLocked);
+      const headerBadge = modProg.completed
+        ? `<span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Completed</span>`
+        : `<span class="badge text-bg-light border">${modProg.done}/${modProg.total} items</span>`;
+
+      const chevronClass = expanded ? "bi-chevron-up" : "bi-chevron-down";
+      const bodyStyle = expanded ? "" : "style='display:none'";
+
+      wrap.insertAdjacentHTML("beforeend", `
+        <article class="net-course-card net-module-card" data-module-id="${escapeHtml(m.id)}">
+          <div class="p-0">
+            <button class="net-module-btn p-4 d-flex align-items-start justify-content-between gap-3"
+                    type="button"
+                    data-action="toggle-module"
+                    data-module="${escapeHtml(m.id)}"
+                    aria-expanded="${expanded ? "true" : "false"}">
+
+              <div class="d-flex align-items-start gap-3">
+                <div class="net-module-ico">${iconHtml}</div>
+
+                <div class="flex-grow-1">
+                  <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                    <span class="small text-teal fw-semibold text-uppercase" style="letter-spacing:.04em;">Module ${idx + 1}</span>
+                    ${headerBadge}
+                  </div>
+                  <div class="fw-semibold fs-5">${escapeHtml(m.title)}</div>
+                  ${m.description ? `<div class="text-muted small mt-1">${escapeHtml(m.description)}</div>` : ""}
+                </div>
+              </div>
+
+              <div class="d-flex align-items-center gap-3">
+                <div class="text-end small text-muted d-none d-sm-block">
+                  <div class="fw-semibold text-dark">${modProg.done}/${modProg.total}</div>
+                  <div>required</div>
+                </div>
+                <i class="bi ${chevronClass} text-muted" aria-hidden="true"></i>
+              </div>
+            </button>
+
+            <div class="border-top" ${bodyStyle} data-module-body="${escapeHtml(m.id)}">
+              <div class="p-2 p-sm-3 net-module-body-bg">
+                ${renderModuleItems(m)}
+              </div>
+            </div>
+          </div>
+        </article>
+      `);
+    });
+  }
+
+  function renderModuleItems(module) {
+    // group by lesson_number
+    const groups = new Map();
+    module.items.forEach((it) => {
+      const k = Number(it.lesson_number || 0) || 0;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(it);
+    });
+
+    const keys = Array.from(groups.keys()).sort((a, b) => a - b);
+    let html = `<div class="d-grid gap-2">`;
+
+    keys.forEach((lessonNum) => {
+      const items = groups.get(lessonNum) || [];
+      items.forEach((it) => {
+        const completed = isItemCompleted(it);
+        const locked = state.courseLocked;
+
+        const icon = lessonIcon(it, completed, locked);
+        const right = completed
+          ? `<span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Done</span>`
+          : `<i class="bi bi-play-fill text-teal" aria-hidden="true"></i>`;
+
+        const hint =
+          it.type === "quiz" ? "Quiz" :
+          it.type === "challenge" ? "Challenge" :
+          it.type === "sandbox" ? "Sandbox" :
+          "Lesson";
+
+        const lockedClass = locked ? "is-locked" : "";
+        const completedClass = completed ? "is-complete" : "";
+
+        html += `
+          <button class="net-lesson-row px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${lockedClass} ${completedClass}"
+                  type="button"
+                  data-action="open-item"
+                  data-type="${escapeHtml(it.type)}"
+                  data-lesson="${Number(it.lesson_number)}"
+                  data-title="${escapeHtml(it.title)}"
+                  ${locked ? "disabled aria-disabled='true'" : ""}>
+            <div class="d-flex align-items-center gap-3">
+              <div class="net-lesson-ico">${icon}</div>
+              <div>
+                <div class="fw-semibold text-dark">${escapeHtml(it.title)}</div>
+                <div class="small text-muted d-flex flex-wrap gap-2 align-items-center mt-1">
+                  <span class="d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-clock" aria-hidden="true"></i> ${escapeHtml(it.duration)}
+                  </span>
+                  <span class="text-muted">•</span>
+                  <span class="d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold">
+                    <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> ${Number(it.xp)} XP
+                  </span>
+                  <span class="text-muted">•</span>
+                  <span class="badge text-bg-light border">${hint}</span>
+                </div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              ${right}
+            </div>
+          </button>
+        `;
+      });
+    });
+
+    html += `</div>`;
+    return html;
+  }
+
+  function renderSidebarCards() {
+    const prog = computeProgress();
+    setText("sidePct", `${prog.pct}%`);
+
+    let modulesDone = 0;
+    state.course.modules.forEach((m) => { if (computeModuleCompletion(m).completed) modulesDone++; });
+    setText("sideModules", `${modulesDone}/${state.course.modules.length}`);
+
+    let xpEarned = 0;
+    getRequiredItems().forEach((it) => { if (isItemCompleted(it)) xpEarned += Number(it.xp || 0); });
+    setText("sideXPEarned", xpEarned);
+
+    const next = getRequiredItems().find((it) => !isItemCompleted(it));
+    setText("nextStepText", next ? `${cap(next.type)}: ${next.title}` : "All done 🎉");
+
+    const nextBtn = el("nextStepBtn");
+    const jumpBtn = el("jumpToFirstIncompleteBtn");
+
+    if (nextBtn) nextBtn.disabled = !next || state.courseLocked;
+    if (jumpBtn) jumpBtn.disabled = !next || state.courseLocked;
+  }
+
+  /* =========================================================
+     ACTIONS / EVENTS
+  ========================================================= */
+
+  function wireCourseActions() {
+    // expand / collapse
+    const expandAllBtn = el("expandAllBtn");
+    const collapseAllBtn = el("collapseAllBtn");
+
+    expandAllBtn?.addEventListener("click", () => {
+      state.course.modules.forEach((m) => state.expandedModules.add(m.id));
+      renderModules();
+      wireDynamicHandlers();
+    });
+
+    collapseAllBtn?.addEventListener("click", () => {
+      state.expandedModules.clear();
+      renderModules();
+      wireDynamicHandlers();
+    });
+
+    // continue button
+    const continueBtn = el("continueBtn");
+    continueBtn?.addEventListener("click", () => {
+      if (state.courseLocked) return;
+
+      const next = getRequiredItems().find((it) => !isItemCompleted(it));
+      if (!next) {
+        // review: open first learn
+        if (state.learnItemsFlat[0]) openLearnModalByLessonNumber(state.learnItemsFlat[0].lesson_number);
+        return;
+      }
+      openItem(next.type, next.lesson_number);
+    });
+
+    // review button
+    const reviewBtn = el("reviewBtn");
+    reviewBtn?.addEventListener("click", () => {
+      if (state.learnItemsFlat[0]) openLearnModalByLessonNumber(state.learnItemsFlat[0].lesson_number);
+    });
+
+    // next step buttons
+    const nextStepBtn = el("nextStepBtn");
+    const jumpBtn = el("jumpToFirstIncompleteBtn");
+    const clickNext = () => {
+      if (state.courseLocked) return;
+      const next = getRequiredItems().find((it) => !isItemCompleted(it));
+      if (next) openItem(next.type, next.lesson_number);
+    };
+    nextStepBtn?.addEventListener("click", clickNext);
+    jumpBtn?.addEventListener("click", clickNext);
+
+    // dynamic handlers (module toggles + item open)
+    wireDynamicHandlers();
+
+    // lesson modal controls
+    wireLessonModalControls();
+  }
+
+  function wireDynamicHandlers() {
+    document.querySelectorAll('[data-action="toggle-module"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-module");
+        if (!id) return;
+
+        if (state.expandedModules.has(id)) state.expandedModules.delete(id);
+        else state.expandedModules.add(id);
+
+        const body = document.querySelector(`[data-module-body="${cssEscape(id)}"]`);
+        if (body) body.style.display = state.expandedModules.has(id) ? "" : "none";
+
+        const icon = btn.querySelector("i.bi");
+        if (icon) {
+          icon.classList.toggle("bi-chevron-up", state.expandedModules.has(id));
+          icon.classList.toggle("bi-chevron-down", !state.expandedModules.has(id));
+        }
+
+        btn.setAttribute("aria-expanded", state.expandedModules.has(id) ? "true" : "false");
+      });
+    });
+
+    document.querySelectorAll('[data-action="open-item"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (state.courseLocked) return;
+
+        const type = btn.getAttribute("data-type");
+        const lesson = Number(btn.getAttribute("data-lesson") || "0");
+        if (!type || !lesson) return;
+        openItem(type, lesson);
+      });
+    });
+  }
+
+  function openItem(type, lessonNumber) {
+    const t = String(type).toLowerCase();
+
+    if (t === "learn") {
+      openLearnModalByLessonNumber(lessonNumber);
+      return;
+    }
+
+    if (t === "quiz") {
+      window.location.href =
+        `quiz.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
+      return;
+    }
+
+    if (t === "sandbox") {
+      window.location.href =
+        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}&mode=practice`;
+      return;
+    }
+
+    if (t === "challenge") {
+      window.location.href =
+        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}&mode=challenge`;
+      return;
+    }
+  }
+
+  /* =========================================================
+     LESSON MODAL
+  ========================================================= */
+
+  function wireLessonModalControls() {
+    const prevBtn = el("lessonPrevBtn");
+    const nextBtn = el("lessonNextBtn");
+    const completeBtn = el("lessonCompleteBtn");
+
+    prevBtn?.addEventListener("click", () => moveLearn(-1));
+    nextBtn?.addEventListener("click", () => moveLearn(1));
+
+    completeBtn?.addEventListener("click", async () => {
+      if (!state.user?.email) {
+        showAria("Sign in to save progress.");
+        return;
+      }
+      if (!state.activeLearn) return;
+
+      await completeItem("learn", state.activeLearn.lesson_number, state.activeLearn.xp);
+      renderAll();
+      wireDynamicHandlers();
+      updateLessonModalButtons();
+    });
+  }
+
+  function openLearnModalByLessonNumber(lessonNumber) {
+    const idx = state.learnItemsFlat.findIndex((it) => Number(it.lesson_number) === Number(lessonNumber));
+    if (idx < 0) return;
+
+    state.activeLearnIndex = idx;
+    state.activeLearn = state.learnItemsFlat[idx];
+
+    fillLessonModal(state.activeLearn);
+
+    const modalEl = el("lessonModal");
+    if (!modalEl) return;
+
+    // Bootstrap 5 Modal
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+
+  function fillLessonModal(item) {
+    setText("lessonModalLabel", item.title);
+    setText("lessonMetaTime", item.duration || "—");
+    setText("lessonMetaXP", Number(item.xp || 0));
+
+    const body = el("lessonModalBody");
+    if (body) {
+      const c = item.content;
+      if (Array.isArray(c)) {
+        body.innerHTML = c.map((p) => `<p>${escapeHtml(p)}</p>`).join("");
+      } else if (typeof c === "string" && c.trim()) {
+        body.innerHTML = escapeHtml(c).replace(/\n/g, "<br>");
+      } else {
+        body.innerHTML = `
+          <p class="text-muted mb-2">Lesson content not added yet.</p>
+          <p class="text-muted small mb-0">We can plug your in-depth content here from COURSE_CONTENT next.</p>
+        `;
+      }
+    }
+
+    updateLessonModalButtons();
+  }
+
+  function moveLearn(dir) {
+    if (!state.learnItemsFlat.length) return;
+
+    let next = state.activeLearnIndex + dir;
+    next = clamp(next, 0, state.learnItemsFlat.length - 1);
+
+    state.activeLearnIndex = next;
+    state.activeLearn = state.learnItemsFlat[next];
+
+    fillLessonModal(state.activeLearn);
+  }
+
+  function updateLessonModalButtons() {
+    const prevBtn = el("lessonPrevBtn");
+    const nextBtn = el("lessonNextBtn");
+    const completeBtn = el("lessonCompleteBtn");
+
+    if (prevBtn) prevBtn.disabled = state.activeLearnIndex <= 0;
+    if (nextBtn) nextBtn.disabled = state.activeLearnIndex >= state.learnItemsFlat.length - 1;
+
+    if (completeBtn && state.activeLearn) {
+      const done = state.completed.lesson.has(Number(state.activeLearn.lesson_number));
+      completeBtn.disabled = done || state.courseLocked;
+      completeBtn.innerHTML = done
+        ? `<i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Completed`
+        : `<i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Mark Complete`;
+    }
+  }
+
+  /* =========================================================
+     COMPLETION WRITES (backend best-effort + local fallback)
+  ========================================================= */
+
+  async function completeItem(type, lessonNumber, xp) {
+    const t = String(type).toLowerCase();
+    const n = Number(lessonNumber);
+
+    // Optimistic update
+    if (t === "learn") state.completed.lesson.add(n);
+    if (t === "quiz") state.completed.quiz.add(n);
+    if (t === "challenge") state.completed.challenge.add(n);
+
+    cacheCompletionsToLS(state.user.email, state.courseId);
+
+    showAria(`${cap(t)} completed. +${Number(xp || 0)} XP`);
+
+    await tryBackendComplete(t, n).catch(() => {});
+
+    const prog = computeProgress();
+    if (prog.pct === 100) showAria("Course completed! 🎉");
+  }
+
+  async function tryBackendComplete(type, lessonNumber) {
+    if (!API()) return false;
+
+    const payload = {
+      email: state.user.email,
+      course_id: Number(state.courseId),
+      lesson_number: Number(lessonNumber),
+    };
+
+    let url = "";
+    if (type === "learn") url = ENDPOINTS.completeLesson;
+    if (type === "quiz") url = ENDPOINTS.completeQuiz;
+    if (type === "challenge") url = ENDPOINTS.completeChallenge;
+    if (!url) return false;
+
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: __courseState.email,
-        course_id: __courseState.courseId,
-        lesson_number: __courseState.activeLesson
-      })
+      body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    if (!res.ok) return false;
 
-    if (data.success && data.xp_added > 0) {
-      showPopup(`+${data.xp_added} XP (Quiz)`, "success");
+    const data = await res.json().catch(() => ({}));
+    if (data && data.success === false) return false;
 
-      // NEW: update local Quiz badge instantly
-      __courseState.completed.quizzes.add(__courseState.activeLesson);
-      renderLessons(__courseState.totalLessons, __courseState.progressPct);
+    return true;
+  }
+
+  /* =========================================================
+     RETURN TOAST
+  ========================================================= */
+
+  function maybeShowReturnToast() {
+    const params = new URLSearchParams(window.location.search);
+    const msg = params.get("toast");
+    if (!msg) return;
+
+    const decoded = decodeURIComponent(msg);
+    if (typeof window.showPopup === "function") window.showPopup(decoded, "success");
+    else showAria(decoded);
+  }
+
+  /* =========================================================
+     ICON HELPERS (Bootstrap Icons)
+  ========================================================= */
+
+  function moduleIcon(modProg, locked) {
+    if (locked) return `<i class="bi bi-lock-fill text-muted" aria-hidden="true"></i>`;
+    if (modProg.completed) return `<i class="bi bi-check2-circle text-white" aria-hidden="true"></i>`;
+    return `<i class="bi bi-book text-white" aria-hidden="true"></i>`;
+  }
+
+  function lessonIcon(it, completed, locked) {
+    if (locked) {
+      return `<div class="net-ico-pill bg-light border"><i class="bi bi-lock-fill text-muted" aria-hidden="true"></i></div>`;
     }
-  } catch (e) {
-    console.error("awardQuizXpOnce error:", e);
-  }
-}
-
-function renderQuiz(quiz) {
-  const quizBox = document.getElementById("quizBox");
-  const quizFeedback = document.getElementById("quizFeedback");
-  const quizScore = document.getElementById("quizScore");
-
-  if (!quizBox || !quizFeedback || !quizScore) return;
-
-  if (!quiz) {
-    quizBox.innerHTML = `<div class="text-muted small">No quiz for this lesson.</div>`;
-    quizFeedback.textContent = "";
-    quizScore.textContent = "0/0";
-    return;
-  }
-
-  const saved = JSON.parse(localStorage.getItem(quizKey()) || "{}");
-  const chosen = saved.chosen;
-
-  quizScore.textContent = chosen === undefined ? "0/1" : (chosen === quiz.answer ? "1/1" : "0/1");
-
-  quizBox.innerHTML = "";
-  quiz.options.forEach((opt, idx) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn btn-outline-secondary text-start";
-    btn.textContent = opt;
-
-    if (chosen !== undefined) {
-      if (idx === quiz.answer) btn.className = "btn btn-outline-success text-start";
-      if (idx === chosen && chosen !== quiz.answer) btn.className = "btn btn-outline-danger text-start";
+    if (completed) {
+      return `<div class="net-ico-pill net-ico-success">
+                <i class="bi bi-check2-circle" aria-hidden="true"></i>
+              </div>`;
     }
 
-    btn.addEventListener("click", () => {
-      localStorage.setItem(quizKey(), JSON.stringify({ chosen: idx }));
-      renderQuiz(quiz);
-    });
-
-    quizBox.appendChild(btn);
-  });
-
-  if (chosen === undefined) {
-    quizFeedback.className = "small mt-2 text-muted";
-    quizFeedback.textContent = quiz.question;
-  } else if (chosen === quiz.answer) {
-    quizFeedback.className = "small mt-2 text-success fw-semibold";
-    quizFeedback.textContent = `Correct ✅ ${quiz.explain}`;
-
-    // Award XP once when correct
-    awardQuizXpOnce();
-  } else {
-    quizFeedback.className = "small mt-2 text-danger fw-semibold";
-    quizFeedback.textContent = `Wrong ❌ ${quiz.explain}`;
-  }
-}
-
-// ---------------------------
-// Challenge (stores rules for sandbox validator)
-// ---------------------------
-function renderChallenge(challenge) {
-  const challengeBox = document.getElementById("challengeBox");
-  if (!challengeBox) return;
-
-  if (!challenge) {
-    challengeBox.innerHTML = `<div class="text-muted small">No challenge for this lesson.</div>`;
-    return;
-  }
-
-  const list = (challenge.objectives || []).map(o => `<li>${escapeHtml(o)}</li>`).join("");
-  challengeBox.innerHTML = `
-    <div class="small">
-      <div class="fw-semibold mb-1">${escapeHtml(challenge.title || "Challenge")}</div>
-      <ul class="mb-0">${list}</ul>
-    </div>
-  `;
-}
-
-function openChallengeInSandbox(validateOnly) {
-  const flat = getFlatLessonByIndex(__courseState.activeLesson);
-  if (!flat || !flat.lesson || !flat.lesson.challenge) {
-    showPopup("No challenge in this lesson.", "error");
-    return;
-  }
-
-  // Store active challenge so sandbox can read it and validate
-  localStorage.setItem("netology_active_challenge", JSON.stringify({
-    courseId: __courseState.courseId,
-    courseTitle: __courseState.courseTitle,
-    lesson: __courseState.activeLesson,     // IMPORTANT: this is the backend lesson_number
-    unitTitle: flat.unitTitle,
-    lessonTitle: flat.lesson.title,
-    challenge: flat.lesson.challenge
-  }));
-
-  // NEW (Part 3): also store a return target so sandbox can "Return to lesson"
-  localStorage.setItem("netology_return_lesson", JSON.stringify({
-    course_id: __courseState.courseId,
-    lesson_number: __courseState.activeLesson
-  }));
-
-  // Sandbox checks ?challenge=1
-  // NOTE: validateOnly is kept for future use (Part 3+), but routing stays the same right now.
-  window.location.href = "sandbox.html?challenge=1";
-}
-
-// Small helper (prevents HTML injection)
-function escapeHtml(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-// ---------------------------
-// Popup alerts (existing)
-// ---------------------------
-function showPopup(message, type = "info") {
-  const old = document.getElementById("alertBox");
-  if (old) old.remove();
-
-  const popup = document.createElement("div");
-  popup.id = "alertBox";
-  popup.className =
-    "alert text-center fw-semibold position-fixed top-0 start-50 translate-middle-x mt-4 shadow";
-  popup.style.zIndex = "9999";
-  popup.style.minWidth = "260px";
-  popup.style.borderRadius = "6px";
-
-  if (type === "success") popup.classList.add("alert-success");
-  else if (type === "error") popup.classList.add("alert-danger");
-  else popup.classList.add("alert-info");
-
-  popup.textContent = message;
-  document.body.appendChild(popup);
-  setTimeout(() => popup.remove(), 2500);
-}
-
-/* =========================================================
-   ADDITIONS ONLY (Accessibility + Readability):
-   - Render sidebar as Unit dropdowns (<details>) so it’s less confusing
-   - Keeps ALL existing renderLessons logic above untouched
-   - Overrides renderLessons safely (same style you used elsewhere)
-   ========================================================= */
-
-/*
-AI PROMPTED CODE BELOW:
-"Can you make the sidebar less confusing by grouping lessons under each unit in a dropdown,
-without deleting the existing function? Make it keyboard accessible and keep it simple."
-*/
-function __groupFlatLessonsByUnit() {
-  const groups = [];
-  const byUnit = {};
-  (__courseState.flatLessons || []).forEach((x) => {
-    const u = Number(x.unitIndex || 0);
-    if (!byUnit[u]) {
-      byUnit[u] = {
-        unitIndex: u,
-        unitTitle: x.unitTitle || `Unit ${u + 1}`,
-        lessons: []
-      };
-      groups.push(byUnit[u]);
+    if (it.type === "learn") {
+      return `<div class="net-ico-pill net-ico-learn">
+                <i class="bi bi-file-text" aria-hidden="true"></i>
+              </div>`;
     }
-    byUnit[u].lessons.push(x);
-  });
-  return groups;
-}
+    if (it.type === "quiz") {
+      return `<div class="net-ico-pill net-ico-quiz">
+                <i class="bi bi-patch-question" aria-hidden="true"></i>
+              </div>`;
+    }
+    if (it.type === "sandbox") {
+      return `<div class="net-ico-pill net-ico-sandbox">
+                <i class="bi bi-diagram-3" aria-hidden="true"></i>
+              </div>`;
+    }
+    if (it.type === "challenge") {
+      return `<div class="net-ico-pill net-ico-challenge">
+                <i class="bi bi-flag" aria-hidden="true"></i>
+              </div>`;
+    }
 
-function renderLessonsDropdown(totalLessons, progressPct) {
-  const lessonsContainer = document.getElementById("lessonsList");
-  if (!lessonsContainer) return;
-
-  if (!totalLessons || totalLessons <= 0) {
-    lessonsContainer.innerHTML = `<p class="text-muted small">No lessons available.</p>`;
-    return;
+    return `<div class="net-ico-pill bg-light border"><i class="bi bi-circle text-muted" aria-hidden="true"></i></div>`;
   }
 
-  // ADDITION ONLY: open dropdown based on current active lesson/unit
-  let activeUnitFromLesson = 0;
-  try {
-    const f = getFlatLessonByIndex(__courseState.activeLesson);
-    if (f) activeUnitFromLesson = Number(f.unitIndex || 0);
-  } catch (e) {}
-
-  const groups = __groupFlatLessonsByUnit();
-
-  let html = "";
-  groups.forEach((g) => {
-    const isActiveUnit =
-      Number(__courseState.activeUnit || 0) === Number(g.unitIndex || 0) ||
-      Number(activeUnitFromLesson || 0) === Number(g.unitIndex || 0);
-
-    html += `
-      <details class="mb-2" ${isActiveUnit ? "open" : ""} style="border:1px solid var(--net-border); border-radius:14px; background:#fff;">
-        <summary
-          class="px-3 py-2"
-          style="list-style:none; cursor:pointer; user-select:none; border-radius:14px;"
-          aria-label="Toggle ${escapeHtml(g.unitTitle)} lessons"
-        >
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="fw-semibold small text-teal">${escapeHtml(g.unitTitle)}</span>
-            <span class="small text-muted">▼</span>
-          </div>
-          <div class="small text-muted mt-1">
-            ${g.lessons.length} lesson${g.lessons.length === 1 ? "" : "s"}
-          </div>
-        </summary>
-
-        <div class="px-3 pb-3">
-          <div class="d-grid gap-2 mt-2">
-            <button type="button"
-              class="btn btn-outline-secondary btn-sm text-start"
-              onclick="showUnitView(${Number(g.unitIndex)})"
-              aria-label="Open ${escapeHtml(g.unitTitle)} overview">
-              Open unit overview →
-            </button>
-          </div>
-
-          <div class="list-group mt-2" role="list">
-    `;
-
-    g.lessons.forEach((item) => {
-      const doneBadge = __courseState.completed.lessons.has(item.index)
-        ? `<span class="badge bg-teal text-white">Done</span>`
-        : "";
-
-      const quizBadge = __courseState.completed.quizzes.has(item.index)
-        ? `<span class="badge bg-success">Quiz</span>`
-        : "";
-
-      const challengeBadge = __courseState.completed.challenges.has(item.index)
-        ? `<span class="badge bg-info text-dark">Chal</span>`
-        : "";
-
-      const isActive = item.index === __courseState.activeLesson;
-      const activeClass = isActive ? "border border-teal" : "";
-
-      html += `
-        <button
-          type="button"
-          class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${activeClass}"
-          style="border-radius:12px;margin-bottom:8px;"
-          onclick="jumpToLesson(${item.index})"
-          aria-label="Open lesson ${item.index}: ${escapeHtml(item.lesson.title || "Lesson")}"
-        >
-          <span class="small">
-            Lesson ${item.index}: ${escapeHtml(item.lesson.title || "Lesson")}
-          </span>
-          <span class="d-flex gap-1 align-items-center">
-            ${doneBadge}
-            ${quizBadge}
-            ${challengeBadge}
-          </span>
-        </button>
-      `;
-    });
-
-    html += `
-          </div>
-        </div>
-      </details>
-    `;
-  });
-
-  lessonsContainer.innerHTML = html;
-}
-
-/*
-UPDATED (Override safely):
-- Keep original renderLessons above 100% intact
-- Replace its output with the dropdown version for readability
-*/
-renderLessons = function(totalLessons, progressPct) {
-  return renderLessonsDropdown(totalLessons, progressPct);
-};
+})();

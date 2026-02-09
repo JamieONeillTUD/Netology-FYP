@@ -21,10 +21,10 @@ HOW THIS FILE IS ORGANISED (by HTML page)
 =========================================================
 
 This version:
-- Removes overlapping duplicates (body, btn-teal)
-- Matches new dashboard.html + dashboard.js output:
-  .net-topnav, .net-slideside, .net-dd, .net-coursegrid, .net-coursecard, .net-meter, etc.
-- Keeps prior site theme styles consistent and Bootstrap-safe.
+- Green/teal + light blue/grey + white modern palette
+- Animated gradient/radial background layers (professional, not noisy)
+- Consistent spacing + better form controls + better chips/search layout
+- Keeps Bootstrap-safe styles and existing dashboard.js output classes
 */
 
 /* =========================================================
@@ -32,27 +32,41 @@ This version:
 ========================================================= */
 
 :root{
+  /* Primary palette */
   --net-teal:#0fb9b1;
   --net-teal-2:#20bf6b;
-  --net-teal-dark:#0ea5a0;
+  --net-cyan:#06b6d4;
+  --net-sky:#38bdf8;
 
+  /* Inks / text */
   --net-ink:#0b3b40;
-  --net-muted:#60737A;
+  --net-ink-2:#0f172a;            /* slate-900-ish */
+  --net-muted:#60737A;            /* muted grey */
+  --net-muted-2:#7b8a92;
 
-  --net-bg1:#EAF7FA;
-  --net-bg2:#F7FBFC;
-
+  /* Surfaces */
+  --net-bg1:#eefbff;              /* airy */
+  --net-bg2:#f7fbff;              /* near-white */
   --net-card:#ffffff;
-  --net-border:#D7EEF0;
+  --net-border: rgba(14, 116, 144, .14); /* teal/blue border */
 
-  --net-shadow: 0 10px 30px rgba(0,0,0,.08);
-  --net-shadow-2: 0 18px 55px rgba(0,0,0,.10);
+  /* Shadows */
+  --net-shadow: 0 10px 30px rgba(2, 6, 23, .08);
+  --net-shadow-2: 0 18px 55px rgba(2, 6, 23, .12);
+  --net-shadow-soft: 0 12px 34px rgba(2, 6, 23, .10);
 
-  --net-radius: 20px;
-  --net-radius-sm: 14px;
+  /* Radii */
+  --net-radius: 22px;
+  --net-radius-sm: 16px;
   --net-radius-xs: 12px;
 
-  --net-focus: rgba(15,185,177,.40);
+  /* Focus */
+  --net-focus: rgba(6, 182, 212, .32);
+
+  /* Fancy gradients */
+  --net-grad-main: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
+  --net-grad-accent: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
+  --net-grad-soft: linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.25));
 }
 
 *{ box-sizing: border-box; }
@@ -60,12 +74,15 @@ This version:
 html, body{ height: 100%; }
 
 body{
-  background-color: var(--net-bg1);
-  color: #111;
+  background:
+    radial-gradient(1100px 680px at 10% 8%, rgba(15,185,177,.12), transparent 60%),
+    radial-gradient(900px 600px at 88% 18%, rgba(56,189,248,.12), transparent 58%),
+    linear-gradient(180deg, var(--net-bg1), var(--net-bg2));
+  color: var(--net-ink-2);
   font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
-  line-height: 1.7;
+  line-height: 1.65;
 
   /* smooth load */
   animation: netFadeIn .22s ease;
@@ -80,7 +97,8 @@ body{
   body{ animation: none !important; }
 }
 
-a{ color: inherit; }
+a{ color: inherit; text-decoration: none; }
+a:hover{ text-decoration: none; }
 
 a:focus-visible,
 button:focus-visible,
@@ -92,75 +110,133 @@ textarea:focus-visible{
   border-radius: 12px;
 }
 
+/* Better bootstrap form feel everywhere */
+.form-control,
+.form-select{
+  border-radius: 14px !important;
+  border-color: rgba(14, 116, 144, .18) !important;
+}
+.form-control:focus,
+.form-select:focus{
+  border-color: rgba(6, 182, 212, .45) !important;
+  box-shadow: 0 0 0 .25rem rgba(6, 182, 212, .15) !important;
+}
+
 /* Generic header/footer (only for pages NOT using .net-topnav) */
 header{
-  background-color: #fff;
-  border-bottom: 2px solid #00838F;
+  background: rgba(255,255,255,.86);
+  border-bottom: 1px solid rgba(14, 116, 144, .16);
   text-align: center;
-  padding: 1.5em 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 1.25em 0;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, .06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 header h1{
-  color: #00838F;
+  color: var(--net-ink);
   margin-bottom: 0.25em;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
 }
 
 header p{
-  color: #555;
+  color: rgba(15, 23, 42, .65);
   font-size: 1rem;
   margin: 0;
 }
 
 footer{
-  background-color: #fff;
-  border-top: 2px solid #00838F;
-  padding: 1.5em 0;
+  background: rgba(255,255,255,.86);
+  border-top: 1px solid rgba(14, 116, 144, .16);
+  padding: 1.25em 0;
   text-align: center;
   margin-top: 3em;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* Bootstrap helper missing class used in dashboard.html */
-.text-white-75{ color: rgba(255,255,255,.75) !important; }
+.text-white-75{ color: rgba(255,255,255,.78) !important; }
 
 /* =========================================================
    2) SHARED NETOLOGY THEME (most pages)
 ========================================================= */
 
 .net-bg{
-  background: linear-gradient(180deg, #f6fffd, #f9fafb);
   min-height: 100vh;
+  background:
+    radial-gradient(1300px 720px at 12% 8%, rgba(15,185,177,.12), transparent 60%),
+    radial-gradient(900px 680px at 86% 18%, rgba(56,189,248,.12), transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0)),
+    linear-gradient(180deg, var(--net-bg1), var(--net-bg2));
 }
 
+/* Animated background layers (subtle, premium) */
 .net-landing{
   position: relative;
   isolation: isolate;
+  overflow-x: clip;
 }
+
 .net-landing::before{
   content:"";
   position: fixed;
-  inset: 0;
+  inset: -120px;
   pointer-events: none;
   z-index: -1;
   background:
-    radial-gradient(1200px 700px at 12% 10%, rgba(15,185,177,.18), transparent 60%),
-    radial-gradient(900px 600px at 88% 20%, rgba(32,191,107,.14), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0));
+    radial-gradient(1000px 620px at 12% 14%, rgba(15,185,177,.18), transparent 62%),
+    radial-gradient(860px 580px at 84% 22%, rgba(6,182,212,.16), transparent 62%),
+    radial-gradient(740px 520px at 50% 78%, rgba(32,191,107,.12), transparent 60%);
+  filter: blur(0px);
+  animation: netBgDrift 14s ease-in-out infinite alternate;
+  opacity: .95;
+}
+
+.net-landing::after{
+  content:"";
+  position: fixed;
+  inset: -140px;
+  pointer-events: none;
+  z-index: -2;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,.40), rgba(255,255,255,0)),
+    radial-gradient(900px 520px at 20% 80%, rgba(56,189,248,.10), transparent 62%),
+    radial-gradient(900px 520px at 90% 76%, rgba(15,185,177,.10), transparent 62%);
+  animation: netBgFloat 18s ease-in-out infinite alternate;
+  opacity: .85;
+}
+
+@keyframes netBgDrift{
+  from { transform: translate3d(-18px, -10px, 0) scale(1.02); }
+  to   { transform: translate3d(18px, 10px, 0) scale(1.06); }
+}
+
+@keyframes netBgFloat{
+  from { transform: translate3d(12px, -10px, 0) scale(1.01); }
+  to   { transform: translate3d(-12px, 12px, 0) scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .net-landing::before,
+  .net-landing::after{ animation: none !important; }
 }
 
 /* Cards */
 .net-card{
-  background: var(--net-card);
+  background: rgba(255,255,255,.92);
   border: 1px solid var(--net-border);
   border-radius: var(--net-radius);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-  transition: transform .18s ease, box-shadow .18s ease;
+  box-shadow: var(--net-shadow);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .net-card:hover{
   transform: translateY(-2px);
-  box-shadow: 0 14px 40px rgba(0,0,0,0.08);
+  box-shadow: var(--net-shadow-2);
+  border-color: rgba(6, 182, 212, .22);
 }
 
 /* If using Bootstrap .card inside .net-card containers */
@@ -168,7 +244,7 @@ footer{
 
 /* Gradient text */
 .net-gradient-text{
-  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -176,14 +252,13 @@ footer{
 
 /* Links */
 .link-teal{
-  color: #00838F;
-  text-decoration: none;
-  font-weight: 600;
-  transition: color .15s ease, text-decoration .15s ease;
+  color: rgba(6, 182, 212, .95);
+  font-weight: 800;
+  transition: opacity .15s ease, transform .15s ease;
 }
 .link-teal:hover{
-  text-decoration: underline;
-  color: #00695C;
+  opacity: .9;
+  transform: translateY(-1px);
 }
 
 /* Buttons: single source of truth */
@@ -191,17 +266,17 @@ footer{
   background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
   border: none;
   color: #fff;
-  font-weight: 800;
-  padding: 0.75em 1.2em;
+  font-weight: 900;
+  padding: .78em 1.15em;
   border-radius: var(--net-radius-sm);
-  box-shadow: 0 10px 25px rgba(15,185,177,.18);
+  box-shadow: 0 14px 34px rgba(15,185,177,.20);
   transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
 }
 .btn-teal:hover{
   color:#fff;
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(15,185,177,.22);
-  filter: brightness(0.98);
+  box-shadow: 0 18px 44px rgba(6,182,212,.22);
+  filter: brightness(0.99);
 }
 .btn-teal:active{ transform: translateY(0); }
 
@@ -216,20 +291,21 @@ footer{
 .net-pill{
   display:inline-flex;
   align-items:center;
-  gap:.5rem;
+  gap:.55rem;
   padding:.55rem .95rem;
-  border-radius:999px;
-  background: rgba(255,255,255,.80);
-  border: 1px solid rgba(0,131,143,.18);
-  color: var(--net-ink);
-  box-shadow: 0 10px 25px rgba(0,0,0,.05);
+  border-radius: 999px;
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(6,182,212,.16);
+  color: rgba(15, 23, 42, .82);
+  box-shadow: 0 12px 26px rgba(2, 6, 23, .06);
 }
+
 .net-dot{
   width:10px;
   height:10px;
   border-radius:999px;
-  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
-  box-shadow: 0 10px 20px rgba(15,185,177,.25);
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
+  box-shadow: 0 12px 22px rgba(6,182,212,.22);
 }
 
 /* Pop animation used across cards */
@@ -251,6 +327,10 @@ footer{
 .net-navglass{
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  background: rgba(255,255,255,.70);
+  border: 1px solid rgba(6,182,212,.14);
+  box-shadow: 0 14px 44px rgba(2, 6, 23, .08);
+  border-radius: 18px;
 }
 
 .net-avatars{
@@ -268,14 +348,14 @@ footer{
   font-weight:900;
   border: 2px solid #fff;
   margin-left: -10px;
-  box-shadow: 0 10px 25px rgba(15,185,177,.18);
+  box-shadow: 0 12px 26px rgba(15,185,177,.18);
 }
 .net-avatar:first-child{ margin-left: 0; }
 
 .net-cta{
-  border-radius: 26px;
-  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
-  box-shadow: 0 18px 50px rgba(15,185,177,.25);
+  border-radius: 28px;
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
+  box-shadow: 0 20px 60px rgba(6,182,212,.22);
 }
 
 /* =========================================================
@@ -293,20 +373,21 @@ footer{
   border-radius: 18px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
   color: #fff;
-  box-shadow: 0 14px 35px rgba(15,185,177,.25);
+  box-shadow: 0 18px 48px rgba(6,182,212,.22);
   font-size: 28px;
 }
 
 .net-input{
-  border-radius: 12px !important;
-  border: 1px solid var(--net-border) !important;
-  padding: .8rem .9rem !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(6,182,212,.18) !important;
+  padding: .9rem 1rem !important;
+  background: rgba(255,255,255,.92) !important;
 }
 .net-input:focus{
-  border-color: rgba(0,131,143,.5) !important;
-  box-shadow: 0 0 0 4px rgba(0,131,143,.12) !important;
+  border-color: rgba(6,182,212,.45) !important;
+  box-shadow: 0 0 0 4px rgba(6,182,212,.14) !important;
 }
 
 .net-input-ico{
@@ -314,7 +395,7 @@ footer{
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(17, 24, 39, .45);
+  color: rgba(15, 23, 42, .45);
   pointer-events: none;
   font-size: 18px;
 }
@@ -333,17 +414,20 @@ footer{
 }
 
 .net-banner{
-  border-radius: 14px;
-  border: 1px solid rgba(0,131,143,.12);
-  box-shadow: 0 12px 30px rgba(0,0,0,.06);
+  border-radius: 18px;
+  border: 1px solid rgba(6,182,212,.14);
+  box-shadow: 0 14px 44px rgba(2, 6, 23, .08);
+  background: rgba(255,255,255,.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .net-helper{
-  background: rgba(255,255,255,.80);
-  border: 1px solid rgba(0,131,143,.12);
-  border-radius: 16px;
+  background: rgba(255,255,255,.82);
+  border: 1px solid rgba(6,182,212,.12);
+  border-radius: 18px;
   padding: 14px 16px;
-  box-shadow: 0 12px 30px rgba(0,0,0,.05);
+  box-shadow: 0 14px 44px rgba(2, 6, 23, .06);
 }
 
 /* =========================================================
@@ -355,33 +439,33 @@ footer{
 
 /* Top navigation */
 .net-topnav{
-  background: linear-gradient(135deg, var(--net-teal), var(--net-teal-2));
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
   color: #fff;
   border-bottom: 1px solid rgba(255,255,255,.22);
-  box-shadow: 0 10px 28px rgba(0,0,0,.10);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 16px 44px rgba(2, 6, 23, .14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .net-topnav .container-fluid{
-  padding-top: .55rem;
-  padding-bottom: .55rem;
+  padding-top: .6rem;
+  padding-bottom: .6rem;
 }
 
 .net-topnav-inner{
   position: relative;
-  min-height: 44px;
+  min-height: 46px;
   display:flex;
   align-items:center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
 }
 
 .net-topnav-left,
 .net-topnav-right{
   display:flex;
   align-items:center;
-  gap: 10px;
+  gap: 12px;
   min-width: 140px;
 }
 
@@ -402,35 +486,38 @@ footer{
   gap: 10px;
   text-decoration:none;
   color:#fff;
-  font-weight: 900;
+  font-weight: 950;
   letter-spacing: .2px;
-  padding: 6px 10px;
-  border-radius: 14px;
+  padding: 7px 12px;
+  border-radius: 16px;
   transition: background .15s ease, transform .12s ease;
-  text-shadow: 0 1px 12px rgba(0,0,0,.18);
+  text-shadow: 0 1px 16px rgba(2, 6, 23, .20);
 }
 .net-topnav-brand:hover{
-  background: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.14);
   transform: translateY(-1px);
   color:#fff;
 }
-.net-brand-text{ font-size: 1.1rem; }
+.net-brand-text{ font-size: 1.08rem; }
 
 /* Netology logo token (N badge) */
 .net-logo{
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #ffffff, #eafffb);
+  background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(255,255,255,.75));
   display: grid;
   place-items: center;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, .18);
 }
 .net-logo::after{
   content: "N";
-  font-weight: 900;
+  font-weight: 950;
   font-size: 20px;
-  color: var(--net-teal);
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .net-logo-sm{
   width: 38px;
@@ -439,28 +526,23 @@ footer{
 }
 .net-logo-sm::after{ font-size: 18px; }
 
-/* Search (topbar + mobile search share same base) */
+/* Search (shared base) */
 .net-search{
   position: relative;
   min-width: 220px;
 }
 .net-search i{
   position:absolute;
-  left:10px;
+  left:12px;
   top:50%;
   transform: translateY(-50%);
-  color: rgba(0,0,0,.45);
+  color: rgba(15, 23, 42, .45);
 }
 .net-search input{
-  padding-left: 30px;
-  border-radius: 999px;
-}
-.net-topsearch{ min-width: 280px; }
-@media (max-width: 767.98px){
-  .net-topsearch{ min-width: auto; }
-}
-@media (max-width: 576px){
-  .net-search{ min-width: 100%; }
+  padding-left: 34px;
+  border-radius: 999px !important;
+  border: 1px solid rgba(6,182,212,.20) !important;
+  background: rgba(255,255,255,.92) !important;
 }
 
 /* User button */
@@ -469,11 +551,11 @@ footer{
   align-items:center;
   gap: 10px;
   border: 0;
-  background: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.14);
   color: #fff;
-  border-radius: 14px;
-  padding: 7px 10px;
-  box-shadow: 0 10px 24px rgba(0,0,0,.08);
+  border-radius: 16px;
+  padding: 8px 10px;
+  box-shadow: 0 14px 34px rgba(2, 6, 23, .10);
   transition: background .15s ease, transform .12s ease;
 }
 .net-userbtn:hover{
@@ -488,20 +570,20 @@ footer{
   border-radius: 999px;
   display:grid;
   place-items:center;
-  font-weight: 900;
+  font-weight: 950;
   color:#fff;
-  background: linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.10));
-  border: 1px solid rgba(255,255,255,.28);
+  background: linear-gradient(135deg, rgba(255,255,255,.24), rgba(255,255,255,.10));
+  border: 1px solid rgba(255,255,255,.30);
 }
 
 .net-user-name{
-  font-weight: 800;
+  font-weight: 900;
   max-width: 160px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.net-user-chevron{ opacity: .9; }
+.net-user-chevron{ opacity: .92; }
 
 @media (max-width: 520px){
   .net-topnav-left{ min-width: auto; }
@@ -515,21 +597,23 @@ footer{
   position: absolute;
   right: 0;
   top: calc(100% + 10px);
-  width: 260px;
-  background: rgba(255,255,255,.96);
-  border: 1px solid rgba(0,131,143,.14);
-  border-radius: 16px;
-  box-shadow: 0 22px 60px rgba(0,0,0,.18);
+  width: 270px;
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(6,182,212,.16);
+  border-radius: 18px;
+  box-shadow: 0 26px 70px rgba(2, 6, 23, .18);
   overflow: hidden;
   display: none;
   z-index: 60;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .net-dd.is-open{ display:block; }
 
 .net-ddhead{
   padding: 12px 12px;
-  background: linear-gradient(135deg, rgba(15,185,177,.10), rgba(32,191,107,.08));
-  border-bottom: 1px solid rgba(0,131,143,.10);
+  background: linear-gradient(135deg, rgba(15,185,177,.10), rgba(56,189,248,.08));
+  border-bottom: 1px solid rgba(6,182,212,.12);
 }
 
 .net-dd a,
@@ -541,18 +625,17 @@ footer{
   padding: 10px 12px;
   background: transparent;
   border: 0;
-  text-decoration:none;
-  color: var(--net-ink);
-  font-weight: 800;
+  color: rgba(15, 23, 42, .88);
+  font-weight: 900;
   text-align:left;
   cursor: pointer;
 }
 .net-dd a:hover,
-.net-dd button:hover{ background: rgba(15,185,177,.08); }
+.net-dd button:hover{ background: rgba(6,182,212,.08); }
 
 .net-ddsep{
   height: 1px;
-  background: rgba(0,131,143,.10);
+  background: rgba(6,182,212,.12);
   margin: 6px 0;
 }
 
@@ -564,9 +647,9 @@ footer{
 .net-sidebackdrop{
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.45);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(2,6,23,.48);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   opacity: 0;
   pointer-events: none;
   transition: opacity .18s ease;
@@ -582,28 +665,30 @@ footer{
   top: 0;
   left: 0;
   height: 100vh;
-  width: min(320px, 86vw);
-  background: rgba(255,255,255,.96);
-  border-right: 1px solid rgba(0,131,143,.12);
-  box-shadow: 0 24px 70px rgba(0,0,0,.22);
+  width: min(340px, 88vw);
+  background: rgba(255,255,255,.92);
+  border-right: 1px solid rgba(6,182,212,.14);
+  box-shadow: 0 28px 78px rgba(2, 6, 23, .22);
   transform: translateX(-110%);
   transition: transform .22s cubic-bezier(.2,.9,.2,1);
   z-index: 1050;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 .net-slideside.is-open{ transform: translateX(0); }
 
 .net-sidehead{
   padding: 18px 18px 14px;
-  border-bottom: 1px solid rgba(0,131,143,.10);
-  background: linear-gradient(135deg, rgba(15,185,177,.08), rgba(32,191,107,.06));
+  border-bottom: 1px solid rgba(6,182,212,.10);
+  background: linear-gradient(135deg, rgba(15,185,177,.08), rgba(56,189,248,.07));
 }
 .net-sidefoot{
   padding: 14px;
-  border-top: 1px solid rgba(0,131,143,.10);
-  background: linear-gradient(135deg, rgba(15,185,177,.07), rgba(32,191,107,.06));
+  border-top: 1px solid rgba(6,182,212,.10);
+  background: linear-gradient(135deg, rgba(15,185,177,.06), rgba(56,189,248,.06));
 }
 
 .net-sidenav{
@@ -619,25 +704,23 @@ footer{
   align-items:center;
   gap: 12px;
   padding: 12px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(0,0,0,.12);
-  background: rgba(255,255,255,.78);
-  color: var(--net-ink);
-  text-decoration: none;
-  font-weight: 800;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, .10);
+  background: rgba(255,255,255,.76);
+  color: rgba(15, 23, 42, .86);
+  font-weight: 900;
   transition: transform .16s ease, background .16s ease, border-color .16s ease;
   position: relative;
   overflow: hidden;
 }
 .net-sidelink:hover{
   transform: translateX(6px);
-  background: rgba(15,185,177,.08);
-  border-color: rgba(0,131,143,.22);
-  color: var(--net-ink);
+  background: rgba(6,182,212,.08);
+  border-color: rgba(6,182,212,.22);
 }
 .net-sidelink.is-active{
   background: rgba(15,185,177,.12);
-  border-color: rgba(15,185,177,.40);
+  border-color: rgba(15,185,177,.32);
 }
 .net-sidelink i{ font-size: 1.1rem; opacity: .9; }
 
@@ -646,26 +729,148 @@ footer{
   display:flex;
   align-items:center;
   gap: 10px;
-  text-decoration:none;
   padding: 8px 10px;
-  border-radius: 16px;
-  background: rgba(255,255,255,.75);
-  border: 1px solid rgba(0,131,143,.12);
+  border-radius: 18px;
+  background: rgba(255,255,255,.74);
+  border: 1px solid rgba(6,182,212,.12);
 }
 .net-brandchip:hover{ background: rgba(255,255,255,.92); }
 .net-brandname{
-  font-weight: 900;
-  color: var(--net-ink);
+  font-weight: 950;
+  color: rgba(15, 23, 42, .88);
   letter-spacing: .2px;
 }
 
 /* Sidebar user box */
 .net-userbox{
-  background: linear-gradient(135deg, rgba(0,0,0,.03), rgba(0,131,143,.03));
-  border: 1px solid rgba(0,131,143,.12);
-  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(2,6,23,.02), rgba(6,182,212,.04));
+  border: 1px solid rgba(6,182,212,.12);
+  border-radius: 22px;
   padding: 14px;
-  box-shadow: 0 14px 35px rgba(0,0,0,.05);
+  box-shadow: 0 16px 44px rgba(2, 6, 23, .06);
+}
+
+/* =========================================================
+   Dashboard tweaks requested (Top nav / Courses search / Level ring)
+========================================================= */
+
+/* Rotate logo on hover */
+.net-topnav-brand:hover .net-logo-spin,
+.net-brandchip:hover .net-logo-spin{
+  transform: rotate(360deg);
+}
+
+.net-logo-spin{
+  display: inline-block;
+  transition: transform .55s cubic-bezier(.2,.9,.2,1);
+}
+
+@media (prefers-reduced-motion: reduce){
+  .net-logo-spin{ transition: none !important; }
+  .net-topnav-brand:hover .net-logo-spin,
+  .net-brandchip:hover .net-logo-spin{
+    transform: none !important;
+  }
+}
+
+/* Courses search sizing / spacing */
+.net-course-search{
+  min-width: 320px;
+}
+@media (max-width: 575.98px){
+  .net-course-search{ min-width: 100%; }
+}
+
+/* Give chips a bit more breathing room */
+.net-chipgroup{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.net-chipgroup .net-chip{
+  padding: .48rem .85rem !important;
+  border-radius: 999px !important;
+  font-weight: 900 !important;
+  border-color: rgba(6,182,212,.18) !important;
+  background: rgba(255,255,255,.70) !important;
+}
+.net-chipgroup .net-chip:hover{
+  background: rgba(6,182,212,.08) !important;
+  border-color: rgba(6,182,212,.26) !important;
+}
+.net-chip.is-active{
+  border-color: rgba(15,185,177,.42) !important;
+  box-shadow: 0 14px 30px rgba(6,182,212,.14);
+  background: rgba(15,185,177,.10) !important;
+}
+
+/* Level ring (Figma-like) */
+.net-level-ring-wrap{
+  position: relative;
+  width: 180px;
+  height: 180px;
+  animation: netPopIn .55s ease both;
+}
+
+@keyframes netPopIn{
+  from { opacity: 0; transform: scale(.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.net-level-ring{
+  width: 180px;
+  height: 180px;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 20px 44px rgba(2, 6, 23, .10));
+}
+
+.net-ring-bg{
+  fill: none;
+  stroke: rgba(15, 23, 42, .10);
+  stroke-width: 14;
+}
+
+.net-ring-fg{
+  fill: none;
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke: rgba(15,185,177,.95);
+  stroke-dasharray: 402;
+  stroke-dashoffset: 402;
+  transition: stroke-dashoffset .9s cubic-bezier(.2,.9,.2,1);
+}
+
+.net-level-ring-center{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.net-level-label{
+  font-size: .72rem;
+  letter-spacing: .18em;
+  font-weight: 950;
+  color: rgba(15, 23, 42, .55);
+  margin-top: 22px;
+}
+
+.net-level-num{
+  font-size: 3rem;
+  font-weight: 950;
+  line-height: 1;
+  margin-top: -6px;
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.net-level-sub{
+  font-size: .88rem;
+  margin-top: -4px;
+  color: rgba(15, 23, 42, .72);
 }
 
 /* =========================================================
@@ -675,22 +880,20 @@ footer{
 .net-coursegrid{
   display:grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 14px;
+  gap: 16px;
 }
 
-/* NOTE: dashboard.js generates .net-coursecard (not .net-course-card) */
 .net-coursecard{
   grid-column: span 12;
   background: rgba(255,255,255,.92);
-  border: 1px solid rgba(0,131,143,.10);
-  border-radius: 22px;
-  box-shadow: 0 14px 35px rgba(0,0,0,.06);
+  border: 1px solid rgba(6,182,212,.14);
+  border-radius: 24px;
+  box-shadow: 0 16px 44px rgba(2, 6, 23, .08);
   overflow: hidden;
-  transition: transform .15s ease, box-shadow .15s ease;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   cursor: pointer;
   position: relative;
 }
-
 @media (min-width: 768px){
   .net-coursecard{ grid-column: span 6; }
 }
@@ -700,12 +903,13 @@ footer{
 
 .net-coursecard:hover{
   transform: translateY(-3px);
-  box-shadow: 0 18px 55px rgba(0,0,0,.10);
+  box-shadow: 0 22px 62px rgba(2, 6, 23, .12);
+  border-color: rgba(6,182,212,.24);
 }
 
 /* top bar gradient on course cards */
 .net-coursebar{
-  height: 6px;
+  height: 7px;
   width: 100%;
 }
 
@@ -714,13 +918,13 @@ footer{
 .net-grad-int{ background: linear-gradient(90deg, #14b8a6, #22d3ee); }
 .net-grad-adv{ background: linear-gradient(90deg, #22d3ee, #3b82f6); }
 
-/* Difficulty badges (used by dashboard.js) */
+/* Difficulty badges */
 .net-diffbadge{
-  font-size: .75rem;
-  font-weight: 900;
+  font-size: .74rem;
+  font-weight: 950;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(0,0,0,.08);
+  border: 1px solid rgba(15, 23, 42, .10);
   white-space: nowrap;
 }
 
@@ -743,69 +947,64 @@ footer{
 /* Eyebrow text */
 .net-eyebrow{
   font-size: .72rem;
-  letter-spacing: .08em;
+  letter-spacing: .09em;
   text-transform: uppercase;
-  color: rgba(11,59,64,.55);
-  font-weight: 800;
+  color: rgba(15, 23, 42, .55);
+  font-weight: 900;
 }
 
-/* Meter / progress bar used by dashboard.js */
+/* Meter / progress bar */
 .net-meter{
   width: 100%;
   height: 10px;
   border-radius: 999px;
-  background: rgba(17, 24, 39, .06);
+  background: rgba(15, 23, 42, .06);
   overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: inset 0 1px 2px rgba(2, 6, 23, .08);
 }
-
 .net-meter-fill{
   height: 100%;
   border-radius: 999px;
   transition: width .55s cubic-bezier(.2,.9,.2,1);
   position: relative;
 }
-
-/* shine animation on progress fill */
 .net-meter-fill::after{
   content:"";
   position:absolute;
   inset:0;
   transform: translateX(-120%);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.48), transparent);
   animation: netProgressSheen 2.4s ease-in-out infinite;
   pointer-events: none;
   opacity: .55;
 }
-
 @keyframes netProgressSheen{
   0%   { transform: translateX(-120%); }
   55%  { transform: translateX(120%); }
   100% { transform: translateX(120%); }
 }
-
 @media (prefers-reduced-motion: reduce){
   .net-meter-fill::after{ animation: none !important; opacity: 0 !important; }
 }
 
-/* Continue Learning card (dashboard.js uses .net-continue-card) */
+/* Continue Learning card */
 .net-continue-card{
-  background: linear-gradient(135deg, rgba(0,131,143,.06), rgba(32,191,107,.05));
-  border: 1px solid rgba(0,131,143,.10);
-  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(15,185,177,.08), rgba(56,189,248,.06));
+  border: 1px solid rgba(6,182,212,.14);
+  border-radius: 20px;
   padding: 14px;
   cursor: pointer;
   transition: transform .15s ease, box-shadow .15s ease;
 }
 .net-continue-card:hover{
   transform: translateY(-2px);
-  box-shadow: 0 16px 38px rgba(0,0,0,.07);
+  box-shadow: 0 18px 52px rgba(2, 6, 23, .10);
 }
 
 /* Skeleton loading */
 .net-continue-skel{
   background: rgba(255,255,255,.75);
-  border: 1px dashed rgba(0,131,143,.18);
+  border: 1px dashed rgba(6,182,212,.18);
   border-radius: 18px;
   padding: 16px;
 }
@@ -813,7 +1012,7 @@ footer{
   position: relative;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(0,0,0,.06);
+  background: rgba(15, 23, 42, .06);
   height: 10px;
 }
 .net-skel::after{
@@ -821,12 +1020,7 @@ footer{
   position:absolute;
   inset:0;
   transform: translateX(-100%);
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,.65) 50%,
-    rgba(255,255,255,0) 100%
-  );
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.65), rgba(255,255,255,0));
   animation: net-skel 1.15s ease-in-out infinite;
 }
 @keyframes net-skel{
@@ -837,42 +1031,88 @@ footer{
 .net-w-60{ width: 60%; }
 .net-w-80{ width: 80%; }
 .net-w-90{ width: 90%; }
-
 @media (prefers-reduced-motion: reduce){
   .net-skel::after{ animation: none !important; transform:none !important; }
 }
-
-/* Fade-out class used by applyCourseFilters() */
-.net-fadeout{ opacity: .35; transition: opacity .12s ease; }
 
 /* Empty state in course grid */
 .net-empty{
   grid-column: 1 / -1;
   text-align: center;
-  background: rgba(255,255,255,.75);
-  border: 1px dashed rgba(0,131,143,.20);
+  background: rgba(255,255,255,.78);
+  border: 1px dashed rgba(6,182,212,.22);
   border-radius: 18px;
   padding: 18px;
-  color: rgba(11,59,64,.75);
+  color: rgba(15, 23, 42, .72);
 }
 .net-empty i{ font-size: 34px; display:block; margin-bottom: 10px; opacity:.7; }
-
-/* Difficulty filter chips */
-.net-chip.is-active{
-  border-color: rgba(0,131,143,.35) !important;
-  box-shadow: 0 10px 20px rgba(15,185,177,.12);
-}
-.net-chip:focus-visible{
-  outline: none;
-  box-shadow: 0 0 0 .2rem rgba(15,185,177,.18);
-  border-color: rgba(0,131,143,.35) !important;
-}
 
 /* =========================================================
    6) courses.html (Courses list)
 ========================================================= */
-/* (Keep light – dashboard styles already cover cards/grids.
-   If you want, we can unify courses.html to use .net-coursegrid + .net-coursecard too.) */
+
+/* Courses page layout helpers (works even if your HTML is simple) */
+.net-pagehead{
+  display:flex;
+  align-items:flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.net-pagehead h1,
+.net-pagehead h2{
+  margin: 0;
+  font-weight: 950;
+  letter-spacing: .2px;
+}
+.net-subtitle{
+  color: rgba(15, 23, 42, .65);
+  margin-top: 4px;
+}
+
+.net-toolbar{
+  display:flex;
+  flex-wrap: wrap;
+  align-items:center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.net-toolbar-left{
+  display:flex;
+  flex-wrap: wrap;
+  align-items:center;
+  gap: 12px;
+}
+.net-toolbar-right{
+  display:flex;
+  flex-wrap: wrap;
+  align-items:center;
+  gap: 12px;
+}
+
+/* If courses.html uses the same “search + chips” pattern */
+.net-course-search{
+  min-width: 320px;
+}
+@media (max-width: 575.98px){
+  .net-course-search{ min-width: 100%; }
+}
+
+/* Optional “course list container” */
+.net-courses-wrap{
+  background: rgba(255,255,255,.70);
+  border: 1px solid rgba(6,182,212,.12);
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 18px 60px rgba(2, 6, 23, .08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Courses can reuse .net-coursegrid + .net-coursecard */
+/* If your courses.html has a different class, these still won’t break anything. */
 
 /* =========================================================
    7) course.html (Single course + Khan-style sidebar)
@@ -881,12 +1121,14 @@ footer{
 .net-sidebar{
   position: sticky;
   top: 90px;
-  border-radius: 18px;
+  border-radius: 20px;
   background: rgba(255,255,255,.92);
-  border: 1px solid var(--net-border);
-  box-shadow: var(--net-shadow);
+  border: 1px solid rgba(6,182,212,.14);
+  box-shadow: 0 18px 54px rgba(2, 6, 23, .10);
   max-height: calc(100vh - 120px);
   overflow: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .net-lessons-scroll{
@@ -896,25 +1138,27 @@ footer{
 }
 
 .net-lessons-scroll .list-group-item{
-  border-radius: 12px;
-  margin-bottom: 8px;
-  border: 1px solid var(--net-border);
+  border-radius: 14px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(6,182,212,.14);
+  background: rgba(255,255,255,.86);
 }
 .net-lessons-scroll .list-group{ border: 0; }
 
 .net-course-badge{
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #0fb9b1, #14B8A6);
-  box-shadow: 0 10px 25px rgba(0,131,143,.22);
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
+  box-shadow: 0 16px 44px rgba(6,182,212,.22);
 }
 
 .net-learn-box{
-  border-radius: 16px;
-  border: 1px solid var(--net-border);
+  border-radius: 18px;
+  border: 1px solid rgba(6,182,212,.12);
   padding: 14px;
-  background: rgba(247,251,252,.8);
+  background: rgba(255,255,255,.76);
+  box-shadow: 0 12px 34px rgba(2, 6, 23, .06);
 }
 
 /* =========================================================
@@ -924,11 +1168,13 @@ footer{
 .sb-wrap{ gap: 14px; }
 
 .sb-surface{
-  background: #ffffff;
-  border: 1px solid var(--net-border);
-  border-radius: 20px;
-  box-shadow: var(--net-shadow);
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(6,182,212,.14);
+  border-radius: 22px;
+  box-shadow: 0 18px 60px rgba(2, 6, 23, .10);
   overflow: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .sb-canvas-toolbar{
@@ -937,11 +1183,11 @@ footer{
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--net-border);
-  background: linear-gradient(135deg, #ffffff, #f6fffd);
+  border-bottom: 1px solid rgba(6,182,212,.12);
+  background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,255,255,.72));
 }
 .sb-canvas-toolbar .sb-hint{
-  color: var(--net-muted);
+  color: rgba(15, 23, 42, .62);
   font-size: .9rem;
 }
 
@@ -952,8 +1198,8 @@ footer{
   height: auto;
   display: block;
   background: #fff;
-  border: 1px solid #B2DFDB;
-  border-radius: 14px;
+  border: 1px solid rgba(6,182,212,.20);
+  border-radius: 16px;
 }
 
 .sb-tool-grid{
@@ -962,42 +1208,42 @@ footer{
   gap: 10px;
 }
 .sb-tool{
-  border: 1px solid var(--net-border);
-  border-radius: 16px;
-  background: #fff;
+  border: 1px solid rgba(6,182,212,.14);
+  border-radius: 18px;
+  background: rgba(255,255,255,.92);
   padding: 12px 10px;
   text-align: left;
   display: flex;
   align-items: center;
   gap: 10px;
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  box-shadow: 0 8px 18px rgba(0,0,0,.05);
+  box-shadow: 0 12px 28px rgba(2, 6, 23, .06);
 }
 .sb-tool:hover{
   transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(0,0,0,.07);
-  border-color: rgba(0,131,143,.35);
+  box-shadow: 0 16px 40px rgba(2, 6, 23, .10);
+  border-color: rgba(6,182,212,.26);
 }
 .sb-tool .sb-ico{
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(32,191,107,.10));
-  color: var(--net-teal-dark);
+  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(56,189,248,.10));
+  color: rgba(15, 23, 42, .80);
   font-size: 18px;
   flex: 0 0 auto;
 }
 .sb-tool .sb-label{
-  font-weight: 800;
-  color: var(--net-ink);
+  font-weight: 950;
+  color: rgba(15, 23, 42, .86);
   font-size: .95rem;
   line-height: 1.1;
 }
 .sb-tool .sb-sub{
-  font-size: .8rem;
-  color: #6b7c80;
+  font-size: .82rem;
+  color: rgba(15, 23, 42, .62);
   margin-top: 2px;
 }
 
@@ -1016,12 +1262,12 @@ footer{
   transform: translateX(-50%);
   z-index: 9999;
   width: min(520px, calc(100% - 24px));
-  border-radius: 16px;
-  border: 1px solid rgba(0,131,143,.14);
-  background: rgba(255,255,255,.92);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 18px 55px rgba(0,0,0,.14);
+  border-radius: 18px;
+  border: 1px solid rgba(6,182,212,.14);
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 22px 70px rgba(2, 6, 23, .16);
   cursor: pointer;
 }
 
@@ -1034,8 +1280,8 @@ footer{
 }
 
 .net-toast-text{
-  font-weight: 800;
-  color: var(--net-ink);
+  font-weight: 900;
+  color: rgba(15, 23, 42, .86);
   line-height: 1.25;
   font-size: .95rem;
 }
@@ -1048,9 +1294,9 @@ footer{
   border-radius: 12px;
   display: grid;
   place-items: center;
-  color: rgba(17,24,39,.65);
+  color: rgba(15, 23, 42, .60);
 }
-.net-toast-close:hover{ background: rgba(0,0,0,.05); }
+.net-toast-close:hover{ background: rgba(2, 6, 23, .05); }
 
 .net-toast-icon{
   width: 40px;
@@ -1059,7 +1305,7 @@ footer{
   display: grid;
   place-items: center;
   color: #fff;
-  box-shadow: 0 12px 26px rgba(0,0,0,.10);
+  box-shadow: 0 14px 30px rgba(2, 6, 23, .12);
   position: relative;
 }
 
@@ -1068,7 +1314,7 @@ footer{
 }
 .net-toast[data-type="success"] .net-toast-icon::before{
   content: "✓";
-  font-weight: 900;
+  font-weight: 950;
   font-size: 18px;
 }
 
@@ -1077,16 +1323,16 @@ footer{
 }
 .net-toast[data-type="error"] .net-toast-icon::before{
   content: "!";
-  font-weight: 900;
+  font-weight: 950;
   font-size: 18px;
 }
 
 .net-toast[data-type="info"] .net-toast-icon{
-  background: linear-gradient(135deg, #0ea5a0, #22c55e);
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
 }
 .net-toast[data-type="info"] .net-toast-icon::before{
   content: "i";
-  font-weight: 900;
+  font-weight: 950;
   font-size: 18px;
 }
 
@@ -1109,4 +1355,374 @@ footer{
 @media (prefers-reduced-motion: reduce){
   .net-toast-enter,
   .net-toast-exit{ animation: none !important; }
+}
+
+/* =========================================================
+   ✅ ADDITIONS (09/02/2026) — Dashboard + Course page alignment
+   (Nothing removed; only added so your new HTML/JS classes render perfectly)
+========================================================= */
+
+/* Small utility colors used in course.html/dashboard.html */
+.text-teal{ color: rgba(15,185,177,.98) !important; }
+.net-xp-accent{ color: rgba(15,118,110,.98) !important; }
+
+/* Dashboard container spacing */
+.net-shell{
+  max-width: 1140px;
+}
+
+/* Top-right desktop search container in the nav */
+.net-topsearch{
+  display:flex;
+  align-items:center;
+}
+
+/* Mini media panel in dashboard welcome */
+.net-mini-media{
+  background: linear-gradient(135deg, rgba(255,255,255,.86), rgba(255,255,255,.70));
+  border: 1px solid rgba(6,182,212,.14);
+  border-radius: 22px;
+  box-shadow: 0 16px 44px rgba(2, 6, 23, .08);
+}
+.net-mini-row{
+  display:flex;
+  align-items:flex-start;
+  gap: 12px;
+}
+.net-mini-ico{
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  display:grid;
+  place-items:center;
+  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(56,189,248,.10));
+  border: 1px solid rgba(6,182,212,.14);
+  color: rgba(15, 23, 42, .82);
+  box-shadow: 0 14px 34px rgba(2, 6, 23, .06);
+}
+
+/* Dashboard stat cards */
+.net-stat-card{
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(6,182,212,.14);
+  border-radius: 22px;
+  padding: 16px 16px;
+  box-shadow: 0 16px 44px rgba(2, 6, 23, .08);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.net-stat-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 22px 62px rgba(2, 6, 23, .12);
+  border-color: rgba(6,182,212,.22);
+}
+.net-statico{
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display:grid;
+  place-items:center;
+  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(6,182,212,.10));
+  border: 1px solid rgba(6,182,212,.14);
+  color: rgba(15, 23, 42, .82);
+}
+
+/* Bootstrap progress bar “net-progress” helper used across pages */
+.net-progress{
+  background: linear-gradient(90deg, var(--net-teal), var(--net-cyan)) !important;
+}
+.net-progress-fill{
+  background: linear-gradient(90deg, var(--net-teal), var(--net-cyan)) !important;
+}
+
+/* Chips: your HTML uses .btn-group + .net-chip (not .net-chipgroup) */
+.btn-group .net-chip{
+  border-radius: 999px !important;
+  font-weight: 900 !important;
+  border-color: rgba(6,182,212,.18) !important;
+  background: rgba(255,255,255,.70) !important;
+}
+.btn-group .net-chip:hover{
+  background: rgba(6,182,212,.08) !important;
+  border-color: rgba(6,182,212,.26) !important;
+}
+.btn-group .net-chip.is-active{
+  border-color: rgba(15,185,177,.42) !important;
+  box-shadow: 0 14px 30px rgba(6,182,212,.14);
+  background: rgba(15,185,177,.10) !important;
+}
+
+/* Slightly nicer spacing when search + filters wrap */
+@media (max-width: 991.98px){
+  .net-search{ min-width: 200px; }
+}
+
+/* =========================================================
+   Course page (course.html) — Figma-inspired layout support
+========================================================= */
+
+.net-course-page{
+  /* lets course hero breathe under the nav */
+  --net-course-gap: 22px;
+}
+
+.net-course-shell{
+  max-width: 1180px;
+}
+
+/* Course hero */
+.net-course-hero{
+  overflow: hidden;
+  position: relative;
+}
+.net-course-hero::before{
+  content:"";
+  position:absolute;
+  inset: -2px;
+  pointer-events:none;
+  background:
+    radial-gradient(800px 320px at 20% 20%, rgba(15,185,177,.14), transparent 60%),
+    radial-gradient(700px 280px at 80% 30%, rgba(6,182,212,.12), transparent 62%);
+  opacity: .9;
+}
+.net-course-hero > *{ position: relative; }
+
+.net-course-hero-top{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+}
+@media (min-width: 992px){
+  .net-course-hero-top{
+    grid-template-columns: 1.35fr .65fr;
+    align-items: center;
+  }
+}
+
+.net-course-title{
+  font-weight: 950;
+  letter-spacing: .2px;
+}
+
+/* Difficulty pill variants (course.js adds net-diff-novice/intermediate/advanced) */
+.net-pill-badge{
+  border-radius: 999px !important;
+  font-weight: 950 !important;
+}
+.net-diff-novice{
+  background: rgba(16,185,129,.12) !important;
+  color: #0f766e !important;
+  border-color: rgba(16,185,129,.22) !important;
+}
+.net-diff-intermediate{
+  background: rgba(20,184,166,.12) !important;
+  color: #0f766e !important;
+  border-color: rgba(20,184,166,.22) !important;
+}
+.net-diff-advanced{
+  background: rgba(59,130,246,.10) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(59,130,246,.18) !important;
+}
+
+/* Lock line */
+.net-lockline{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(220,53,69,.06);
+  border: 1px solid rgba(220,53,69,.14);
+  color: rgba(180,35,24,.92);
+  font-weight: 900;
+}
+
+/* Progress ring (course.html SVG) */
+.net-ring{
+  width: 160px;
+  height: 160px;
+  margin: 0 auto;
+  position: relative;
+  display:grid;
+  place-items:center;
+}
+.net-ring svg{
+  width: 160px;
+  height: 160px;
+  filter: drop-shadow(0 20px 44px rgba(2, 6, 23, .10));
+}
+.net-ring-track{
+  stroke: rgba(15, 23, 42, .10);
+}
+.net-ring-fill{
+  transition: stroke-dashoffset .9s cubic-bezier(.2,.9,.2,1);
+}
+.net-ring-center{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  text-align:center;
+}
+.net-ring-pct{
+  font-size: 2.2rem;
+  font-weight: 950;
+  line-height: 1;
+}
+.net-ring-sub{
+  font-size: .85rem;
+  color: rgba(15, 23, 42, .62);
+  margin-top: 2px;
+}
+
+/* Course grid: modules left, sticky sidebar right */
+.net-course-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items:start;
+}
+@media (min-width: 992px){
+  .net-course-grid{
+    grid-template-columns: 1.65fr .85fr;
+    gap: 22px;
+  }
+}
+
+.net-course-side{
+  position: relative;
+}
+.net-sticky{
+  position: sticky;
+  top: 96px;
+}
+
+/* Modules accordion cards */
+.net-course-card{
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(6,182,212,.14);
+  border-radius: 24px;
+  box-shadow: 0 16px 44px rgba(2, 6, 23, .08);
+  overflow: hidden;
+}
+
+.net-module-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 22px 62px rgba(2, 6, 23, .12);
+  border-color: rgba(6,182,212,.22);
+}
+
+.net-module-btn{
+  width: 100%;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  border-radius: 24px;
+  transition: background .15s ease, transform .12s ease;
+}
+.net-module-btn:hover{
+  background: rgba(6,182,212,.06);
+}
+.net-module-ico{
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  display:grid;
+  place-items:center;
+  background: linear-gradient(135deg, rgba(15,185,177,.14), rgba(6,182,212,.10));
+  border: 1px solid rgba(6,182,212,.14);
+  box-shadow: 0 14px 34px rgba(2, 6, 23, .06);
+}
+.net-module-ico i{
+  font-size: 1.25rem;
+  color: rgba(15, 23, 42, .82);
+}
+
+/* Lesson rows */
+.net-lesson-row{
+  width: 100%;
+  background: rgba(255,255,255,.86);
+  border: 1px solid rgba(6,182,212,.14);
+  border-radius: 18px;
+  text-align:left;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease, background .14s ease;
+}
+.net-lesson-row:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(2, 6, 23, .10);
+  border-color: rgba(6,182,212,.22);
+  background: rgba(255,255,255,.92);
+}
+.net-lesson-row.is-complete{
+  border-color: rgba(16,185,129,.22);
+  background: rgba(16,185,129,.06);
+}
+.net-lesson-row.is-locked{
+  opacity: .72;
+  cursor: not-allowed;
+}
+.net-lesson-row:disabled{
+  opacity: .68;
+  cursor: not-allowed;
+}
+
+/* Small icon pill used in course.js */
+.net-ico-pill{
+  width: 40px;
+  height: 40px;
+  border-radius: 16px;
+  display:grid;
+  place-items:center;
+}
+
+/* Sidebar pro tip + sandbox CTA */
+.net-protip{
+  background: linear-gradient(135deg, rgba(15,185,177,.08), rgba(56,189,248,.06));
+  border-color: rgba(6,182,212,.16);
+}
+.net-sandbox-cta{
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
+  border: 0;
+  box-shadow: 0 22px 70px rgba(6,182,212,.22);
+}
+.net-sandbox-cta .net-cta-ico{
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.25);
+}
+
+/* Lesson modal */
+.net-lesson-modal{
+  border-radius: 22px;
+  overflow:hidden;
+  border: 1px solid rgba(6,182,212,.14);
+  box-shadow: 0 28px 90px rgba(2, 6, 23, .18);
+}
+.net-lesson-modal-head{
+  background: linear-gradient(135deg, rgba(15,185,177,.08), rgba(56,189,248,.06));
+  border-bottom: 1px solid rgba(6,182,212,.12);
+}
+.net-lesson-modal-foot{
+  background: rgba(255,255,255,.86);
+  border-top: 1px solid rgba(6,182,212,.12);
+}
+.net-lesson-body p{
+  margin-bottom: .85rem;
+}
+
+/* Quick check block inside modal */
+.net-quickcheck{
+  border-radius: 18px;
+  border: 1px dashed rgba(6,182,212,.20);
+  background: rgba(255,255,255,.72);
+  padding: 14px;
+}
+
+/* Make long sidebar content scroll nicely on small screens */
+@media (max-width: 991.98px){
+  .net-sticky{ position: static; }
+}
+
+/* Slightly tighten buttons in course hero on small screens */
+@media (max-width: 575.98px){
+  .net-course-hero .btn{ width: 100%; }
 }

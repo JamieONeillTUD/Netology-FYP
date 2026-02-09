@@ -4,112 +4,125 @@ Student Name: Jamie O'Neill
 Course Code: TU857/4
 Date: 09/02/2026
 
-JavaScript
----------------------------------------
-dashboard.js – Modern Netology Dashboard (Figma/React-inspired, Vanilla JS)
+dashboard.js – Dashboard interactions (UPDATED)
 
-Implements:
-- Slide sidebar (backdrop + ESC + click outside)
-- User avatar dropdown (click outside + ESC)
-- Live course search + difficulty chip filters
-- Course access gating by numeric level (Level 1=Novice, 3=Intermediate, 5=Advanced)
-- Continue Learning section (top 2 in-progress courses)
-
-Backend endpoints used:
-- GET /user-info?email=
-- GET /user-courses?email=
+Matches dashboard.html:
+- Slide sidebar open/close (backdrop + ESC)
+- User dropdown toggle + click outside + ESC
+- Brand routing: dashboard if logged in, index if not
+- Course search (topSearch + courseSearch + mobileSearch) all synced
+- Difficulty chips filter
+- Course access gating by numeric_level:
+    novice unlocked at level >= 1
+    intermediate unlocked at level >= 3
+    advanced unlocked at level >= 5
+- Level ring animation on load (#welcomeRing)
 */
 
 (function () {
-  "use strict";
-
   // -----------------------------
   // Helpers
   // -----------------------------
-  function $(id) { return document.getElementById(id); }
+  const $ = (id) => document.getElementById(id);
 
-  function escapeHtml(str) {
-    return String(str || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+  function safeJSONParse(str, fallback) {
+    try { return JSON.parse(str); } catch { return fallback; }
   }
 
-  function clamp(n, min, max) {
-    n = Number(n);
-    if (Number.isNaN(n)) return min;
-    return Math.min(max, Math.max(min, n));
+  function getCurrentUser() {
+    // dashboard.js uses netology_user
+    return safeJSONParse(localStorage.getItem("netology_user"), null);
   }
 
-  function tierMinLevel(tier) {
-    const t = String(tier || "").toLowerCase();
-    if (t === "advanced") return 5;
-    if (t === "intermediate") return 3;
-    return 1; // novice/default
+  function isLoggedIn() {
+    const u = getCurrentUser();
+    return !!(u && (u.email || u.username));
   }
 
-  function rankFromLevel(level) {
-    if (level >= 5) return "Advanced";
-    if (level >= 3) return "Intermediate";
-    return "Novice";
-  }
+  function userNumericLevel(user) {
+    const n = Number(user?.numeric_level);
+    if (Number.isFinite(n) && n > 0) return n;
 
-  function getCourseMeta(courseId) {
-    if (typeof window.COURSE_CONTENT === "undefined") return null;
-    return window.COURSE_CONTENT[String(courseId)] || null;
-  }
-
-  function requiredLevelFromDifficulty(diff) {
-    const d = String(diff || "").toLowerCase();
-    if (d === "advanced") return 5;
-    if (d === "intermediate") return 3;
+    const lvl = (user?.level || "").toLowerCase();
+    if (lvl.includes("advanced")) return 5;
+    if (lvl.includes("intermediate")) return 3;
+    if (lvl.includes("novice")) return 1;
     return 1;
   }
 
-  function normalizeDifficulty(diff) {
-    const d = String(diff || "novice").toLowerCase();
-    if (d === "advanced") return "advanced";
-    if (d === "intermediate") return "intermediate";
-    return "novice";
+  function computeXP(user) {
+    const totalXP = Number(user?.xp) || 0;
+    const currentLevelXP = totalXP % 250;
+    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / 250) * 100));
+    const toNext = 250 - currentLevelXP;
+    return { totalXP, currentLevelXP, progressPct, toNext };
   }
 
-  function difficultyLabel(diff) {
-    const d = normalizeDifficulty(diff);
-    return d.charAt(0).toUpperCase() + d.slice(1);
+  // ring progress animation
+  function setWelcomeRing(progressPct) {
+    const ring = $("welcomeRing");
+    if (!ring) return;
+    const r = 64;
+    const CIRC = 2 * Math.PI * r; // ~402
+    const offset = CIRC * (1 - (progressPct / 100));
+    ring.style.strokeDasharray = `${Math.round(CIRC)}`;
+    ring.style.strokeDashoffset = `${Math.round(offset)}`;
+  }
+
+  function difficultyRequiredLevel(diff) {
+    if (diff === "novice") return 1;
+    if (diff === "intermediate") return 3;
+    if (diff === "advanced") return 5;
+    return 1;
+  }
+
+  function prettyDiff(diff) {
+    if (!diff) return "Novice";
+    return diff.charAt(0).toUpperCase() + diff.slice(1);
   }
 
   // -----------------------------
-  // UI: sidebar + dropdown
+  // Brand routing (dashboard vs index)
   // -----------------------------
-  function wireSidebar() {
-    const sidebar = $("slideSidebar");
-    const backdrop = $("sideBackdrop");
+  function wireBrandRouting() {
+    const topBrand = $("topBrand");
+    const sideBrand = $("sideBrand");
+    const target = isLoggedIn() ? "dashboard.html" : "index.html";
+
+    if (topBrand) topBrand.setAttribute("href", target);
+    if (sideBrand) sideBrand.setAttribute("href", target);
+  }
+
+  // -----------------------------
+  // Sidebar
+  // -----------------------------
+  function setupSidebar() {
     const openBtn = $("openSidebarBtn");
     const closeBtn = $("closeSidebarBtn");
-
-    if (!sidebar || !backdrop) return;
+    const sidebar = $("slideSidebar");
+    const backdrop = $("sideBackdrop");
 
     function open() {
+      if (!sidebar || !backdrop) return;
       sidebar.classList.add("is-open");
       backdrop.classList.add("is-open");
+      document.body.classList.add("net-noscroll");
       sidebar.setAttribute("aria-hidden", "false");
       backdrop.setAttribute("aria-hidden", "false");
-      document.body.classList.add("net-noscroll");
     }
 
     function close() {
+      if (!sidebar || !backdrop) return;
       sidebar.classList.remove("is-open");
       backdrop.classList.remove("is-open");
+      document.body.classList.remove("net-noscroll");
       sidebar.setAttribute("aria-hidden", "true");
       backdrop.setAttribute("aria-hidden", "true");
-      document.body.classList.remove("net-noscroll");
     }
 
-    openBtn && openBtn.addEventListener("click", open);
-    closeBtn && closeBtn.addEventListener("click", close);
-    backdrop.addEventListener("click", close);
+    openBtn?.addEventListener("click", open);
+    closeBtn?.addEventListener("click", close);
+    backdrop?.addEventListener("click", close);
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") close();
@@ -118,38 +131,34 @@ Backend endpoints used:
     return { open, close };
   }
 
-  function wireUserDropdown() {
+  // -----------------------------
+  // User dropdown
+  // -----------------------------
+  function setupUserDropdown() {
     const btn = $("userBtn");
     const dd = $("userDropdown");
 
-    if (!btn || !dd) return;
-
     function open() {
+      if (!btn || !dd) return;
       dd.classList.add("is-open");
       btn.setAttribute("aria-expanded", "true");
     }
+
     function close() {
+      if (!btn || !dd) return;
       dd.classList.remove("is-open");
       btn.setAttribute("aria-expanded", "false");
     }
-    function toggle() {
-      if (dd.classList.contains("is-open")) close();
-      else open();
-    }
 
-    btn.addEventListener("click", (e) => {
+    btn?.addEventListener("click", (e) => {
       e.stopPropagation();
-      toggle();
+      if (!dd) return;
+      dd.classList.contains("is-open") ? close() : open();
     });
 
-    // click outside
-    document.addEventListener("click", (e) => {
-      if (!dd.classList.contains("is-open")) return;
-      const target = e.target;
-      if (target instanceof Node && !dd.contains(target) && !btn.contains(target)) close();
-    });
+    document.addEventListener("click", () => close());
+    dd?.addEventListener("click", (e) => e.stopPropagation());
 
-    // ESC
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") close();
     });
@@ -157,418 +166,402 @@ Backend endpoints used:
     return { open, close };
   }
 
-  function wireLogout() {
-    const sideLogout = $("sideLogoutBtn");
+  // -----------------------------
+  // Logout
+  // -----------------------------
+  function setupLogout() {
     const topLogout = $("topLogoutBtn");
+    const sideLogout = $("sideLogoutBtn");
 
     function doLogout() {
-      localStorage.removeItem("user");
-      window.location.href = "login.html";
+      localStorage.removeItem("netology_user");
+      localStorage.removeItem("netology_token");
+      window.location.href = "index.html";
     }
 
-    sideLogout && sideLogout.addEventListener("click", doLogout);
-    topLogout && topLogout.addEventListener("click", doLogout);
+    topLogout?.addEventListener("click", doLogout);
+    sideLogout?.addEventListener("click", doLogout);
   }
 
   // -----------------------------
-  // Data loaders
+  // Courses data (from course_content.js)
   // -----------------------------
-  async function loadUserStats(email) {
-    try {
-      const res = await fetch(`${window.API_BASE}/user-info?email=${encodeURIComponent(email)}`);
-      const data = await res.json();
-      if (!data || !data.success) {
-        return { level: 1, xp: 0, rank: "Novice" };
+  function getCoursesFromContent() {
+    const cc = window.COURSE_CONTENT || {};
+    const list = [];
+
+    for (const key of Object.keys(cc)) {
+      const c = cc[key];
+
+      const id = c.id || key;
+      const title = c.title || "Untitled Course";
+      const description = c.description || c.about || "Learn networking skills.";
+      const difficulty = (c.difficulty || "novice").toLowerCase();
+      const required_level = Number(c.required_level) || difficultyRequiredLevel(difficulty);
+
+      // estimate "items" count (best-effort)
+      let modules = 0;
+      if (Array.isArray(c.units)) {
+        modules = c.units.reduce((sum, u) => sum + (Array.isArray(u.sections) ? u.sections.length : 0), 0);
       }
-      const level = Number(data.numeric_level || 1);
-      const xp = Number(data.xp || 0);
-      const rank = String(data.rank || rankFromLevel(level));
-      return { level, xp, rank };
-    } catch (err) {
-      console.error("loadUserStats failed:", err);
-      return { level: 1, xp: 0, rank: "Novice" };
-    }
-  }
 
-  async function loadUserCourses(email) {
-    try {
-      const res = await fetch(`${window.API_BASE}/user-courses?email=${encodeURIComponent(email)}`);
-      const data = await res.json();
-      if (!data || !data.success) return [];
-      return Array.isArray(data.courses) ? data.courses : [];
-    } catch (err) {
-      console.error("loadUserCourses failed:", err);
-      return [];
-    }
-  }
+      const xpReward = Number(c.xpReward || c.xp_reward || 500) || 500;
+      const category = c.category || "Core";
+      const estimatedTime = c.estimatedTime || "—";
 
-  // -----------------------------
-  // Rendering
-  // -----------------------------
-  function renderUser(user, stats) {
-    const name = user.first_name || user.name || "Student";
-    const email = user.email || "";
-
-    const letter = String(name).trim().charAt(0).toUpperCase() || "S";
-
-    // Welcome
-    const welcomeName = $("welcomeName");
-    if (welcomeName) welcomeName.textContent = name;
-
-    // Top bar
-    const topAvatar = $("topAvatar");
-    const topUserName = $("topUserName");
-    if (topAvatar) topAvatar.textContent = letter;
-    if (topUserName) topUserName.textContent = name;
-
-    // Dropdown
-    const ddName = $("ddName");
-    const ddEmail = $("ddEmail");
-    if (ddName) ddName.textContent = name;
-    if (ddEmail) ddEmail.textContent = email;
-
-    // Sidebar
-    const sideAvatar = $("sideAvatar");
-    const sideUserName = $("sideUserName");
-    const sideUserEmail = $("sideUserEmail");
-    const sideLevelBadge = $("sideLevelBadge");
-
-    if (sideAvatar) sideAvatar.textContent = letter;
-    if (sideUserName) sideUserName.textContent = name;
-    if (sideUserEmail) sideUserEmail.textContent = email;
-    if (sideLevelBadge) sideLevelBadge.textContent = `Lv ${stats.level}`;
-
-    // Stats cards
-    const statLevel = $("statLevel");
-    const statXp = $("statXp");
-    if (statLevel) statLevel.textContent = String(stats.level);
-    if (statXp) statXp.textContent = String(stats.xp);
-
-    // XP progress (per-level is 250)
-    const perLevel = 250;
-    const currentLevelXP = ((stats.xp % perLevel) + perLevel) % perLevel;
-    const xpProgress = clamp((currentLevelXP / perLevel) * 100, 0, 100);
-    const toNext = perLevel - currentLevelXP;
-
-    const sideXpText = $("sideXpText");
-    const sideXpBar = $("sideXpBar");
-    const sideXpHint = $("sideXpHint");
-
-    if (sideXpText) sideXpText.textContent = `${currentLevelXP}/${perLevel}`;
-    if (sideXpHint) sideXpHint.textContent = `${toNext} XP to next level`;
-
-    // animate XP bar
-    if (sideXpBar) {
-      sideXpBar.style.width = "0%";
-      requestAnimationFrame(() => {
-        sideXpBar.style.width = `${xpProgress}%`;
+      list.push({
+        key,
+        id,
+        title,
+        description,
+        difficulty,
+        required_level,
+        xpReward,
+        modules,
+        category,
+        estimatedTime,
       });
     }
 
-    const statLevelHint = $("statLevelHint");
-    if (statLevelHint) statLevelHint.textContent = `${toNext} XP to next level`;
+    const rank = { novice: 1, intermediate: 2, advanced: 3 };
+    list.sort((a, b) => (rank[a.difficulty] - rank[b.difficulty]) || a.title.localeCompare(b.title));
+    return list;
   }
 
-  function buildCourseViewModel(courseRow) {
-    const meta = getCourseMeta(courseRow.id) || {};
+  // -----------------------------
+  // Render course cards
+  // -----------------------------
+  function buildCourseCard(course, userLevel) {
+    const locked = userLevel < course.required_level;
+    const diff = course.difficulty;
 
-    const difficulty = normalizeDifficulty(meta.difficulty || meta.difficulty_label || meta.level || "novice");
-    const requiredLevel = Number(meta.required_level || requiredLevelFromDifficulty(difficulty));
+    const gradClass =
+      diff === "advanced" ? "net-grad-adv"
+      : diff === "intermediate" ? "net-grad-int"
+      : "net-grad-nov";
 
-    const totalLessons = Number(courseRow.total_lessons || meta.total_lessons || meta.totalLessons || 0);
-    const xpReward = Number(courseRow.xp_reward || meta.xp_reward || meta.xpReward || 0);
-    const progress = clamp(courseRow.progress_pct || 0, 0, 100);
+    const badgeClass =
+      diff === "advanced" ? "net-badge-adv"
+      : diff === "intermediate" ? "net-badge-int"
+      : "net-badge-nov";
 
-    const completedLessons = totalLessons > 0 ? Math.floor((progress / 100) * totalLessons) : 0;
+    const card = document.createElement("div");
+    card.className = "net-coursecard";
+    card.setAttribute("data-diff", diff);
+    card.setAttribute("data-title", (course.title || "").toLowerCase());
+    card.setAttribute("data-category", (course.category || "").toLowerCase());
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
 
-    return {
-      id: courseRow.id,
-      title: courseRow.title || meta.title || "Course",
-      description: courseRow.description || meta.description || "",
-      difficulty,
-      requiredLevel,
-      totalLessons,
-      xpReward,
-      progress,
-      status: courseRow.status || (progress === 100 ? "completed" : progress > 0 ? "in-progress" : "not-started"),
-      completedLessons,
-      estimatedTime: meta.estimatedTime || meta.estimated_time || "",
-      category: meta.category || "",
-    };
-  }
-
-  function difficultyGradientClass(diff) {
-    const d = normalizeDifficulty(diff);
-    if (d === "advanced") return "net-grad-adv";
-    if (d === "intermediate") return "net-grad-int";
-    return "net-grad-nov";
-  }
-
-  function difficultyBadgeClass(diff) {
-    const d = normalizeDifficulty(diff);
-    if (d === "advanced") return "net-badge-adv";
-    if (d === "intermediate") return "net-badge-int";
-    return "net-badge-nov";
-  }
-
-  function courseButtonLabel(course) {
-    if (course.progress === 100) return "Review";
-    if (course.progress > 0) return "Continue";
-    return "Start";
-  }
-
-  function courseCardHtml(course) {
-    const diff = normalizeDifficulty(course.difficulty);
-
-    const metaLine = [
-      course.totalLessons ? `${course.totalLessons} lessons` : "",
-      course.estimatedTime ? course.estimatedTime : "",
-    ].filter(Boolean).join(" • ");
-
-    const progressBar = course.progress > 0
-      ? `
-        <div class="mt-3">
-          <div class="d-flex justify-content-between small text-muted mb-1">
-            <span>${course.progress}%</span>
-            <span>${course.completedLessons}${course.totalLessons ? `/${course.totalLessons}` : ""}</span>
-          </div>
-          <div class="net-meter">
-            <div class="net-meter-fill ${difficultyGradientClass(diff)}" style="width:${course.progress}%"></div>
-          </div>
-        </div>
-      `
-      : "";
-
-    return `
-      <article class="net-coursecard net-pop" data-diff="${diff}" data-title="${escapeHtml(course.title).toLowerCase()}" data-cat="${escapeHtml(course.category).toLowerCase()}">
-        <div class="net-coursebar ${difficultyGradientClass(diff)}" aria-hidden="true"></div>
-
-        <div class="p-4">
-          <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-            <div class="flex-grow-1">
-              ${course.category ? `<div class="net-eyebrow">${escapeHtml(course.category)}</div>` : ""}
-              <h3 class="h6 fw-semibold mb-0">${escapeHtml(course.title)}</h3>
-            </div>
-            <span class="net-diffbadge ${difficultyBadgeClass(diff)}">${difficultyLabel(diff)}</span>
-          </div>
-
-          <p class="text-muted small mb-2">${escapeHtml(course.description)}</p>
-
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div class="small text-muted">${escapeHtml(metaLine)}</div>
-            <div class="small fw-semibold text-teal d-inline-flex align-items-center gap-1">
-              <i class="bi bi-lightning-charge-fill"></i>
-              ${course.xpReward}
-            </div>
-          </div>
-
-          ${progressBar}
-
-          <div class="mt-3 d-grid">
-            <a class="btn btn-sm ${course.progress === 100 ? "btn-outline-success" : course.progress > 0 ? "btn-outline-teal" : "btn-teal"}"
-               href="course.html?id=${encodeURIComponent(course.id)}">
-              ${courseButtonLabel(course)}
-            </a>
-          </div>
-        </div>
-      </article>
-    `;
-  }
-
-  function continueCardHtml(course) {
-    const diff = normalizeDifficulty(course.difficulty);
-    return `
-      <div class="net-continue-card net-pop" role="button" tabindex="0" data-course="${encodeURIComponent(course.id)}">
-        <div class="d-flex align-items-start justify-content-between gap-3">
+    card.innerHTML = `
+      <div class="net-coursebar ${gradClass}"></div>
+      <div class="p-4">
+        <div class="d-flex align-items-start justify-content-between gap-2">
           <div class="flex-grow-1">
-            <span class="net-diffbadge ${difficultyBadgeClass(diff)}">${difficultyLabel(diff)}</span>
-            <div class="fw-semibold mt-2">${escapeHtml(course.title)}</div>
-            <div class="text-muted small mt-1">${course.progress}% complete</div>
+            <div class="net-eyebrow">${course.category}</div>
+            <div class="fw-bold fs-6 mt-1">${course.title}</div>
           </div>
-          <i class="bi bi-arrow-right-circle text-teal fs-4" aria-hidden="true"></i>
+          <span class="net-diffbadge ${badgeClass}">${prettyDiff(diff)}</span>
         </div>
-        <div class="mt-3 net-meter">
-          <div class="net-meter-fill ${difficultyGradientClass(diff)}" style="width:${course.progress}%"></div>
+
+        <div class="text-muted small mt-2" style="min-height:44px;">
+          ${course.description}
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between mt-3 small">
+          <div class="text-muted">
+            ${course.modules ? `${course.modules} items` : `Course`} • ${course.estimatedTime}
+          </div>
+          <div class="fw-bold" style="color:#0f766e;">
+            <i class="bi bi-lightning-charge-fill me-1"></i>${course.xpReward}
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <button class="btn ${locked ? "btn-outline-secondary" : "btn-teal"} btn-sm w-100" ${locked ? "disabled" : ""}>
+            ${locked ? `Unlock at Level ${course.required_level}` : "Open Course"}
+          </button>
         </div>
       </div>
     `;
+
+    function goCourse() {
+      if (locked) return;
+      window.location.href = `course.html?id=${encodeURIComponent(course.key)}`;
+    }
+
+    card.addEventListener("click", goCourse);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        goCourse();
+      }
+    });
+
+    return { card, locked };
   }
 
-  function attachContinueHandlers() {
+  // -----------------------------
+  // Search + filter
+  // -----------------------------
+  function applyCourseFilters() {
+    const q = (window.__dashQuery || "").trim().toLowerCase();
+    const diff = window.__dashDiff || "all";
+
+    const grid = $("coursesGrid");
+    if (!grid) return;
+
+    const cards = Array.from(grid.querySelectorAll(".net-coursecard"));
+    let shown = 0;
+
+    cards.forEach((el) => {
+      const title = el.getAttribute("data-title") || "";
+      const cat = el.getAttribute("data-category") || "";
+      const cdiff = el.getAttribute("data-diff") || "novice";
+
+      const matchQuery = !q || title.includes(q) || cat.includes(q);
+      const matchDiff = diff === "all" || cdiff === diff;
+
+      const show = matchQuery && matchDiff;
+      el.style.display = show ? "" : "none";
+      if (show) shown++;
+    });
+
+    if (shown === 0) {
+      grid.innerHTML = `
+        <div class="net-empty">
+          <i class="bi bi-search"></i>
+          <div class="fw-bold">No courses found</div>
+          <div class="small text-muted">Try a different search or filter.</div>
+        </div>
+      `;
+    }
+  }
+
+  // NEW: sync all search inputs (topSearch, courseSearch, mobileSearch)
+  function setupSearchSync() {
+    const topSearch = $("topSearch");
+    const courseSearch = $("courseSearch");
+    const mobileSearch = $("mobileSearch");
+
+    const inputs = [topSearch, courseSearch, mobileSearch].filter(Boolean);
+
+    function setAll(value, fromEl) {
+      inputs.forEach((el) => {
+        if (el !== fromEl) el.value = value;
+      });
+    }
+
+    function onAnyInput(e) {
+      const value = e.target.value || "";
+      window.__dashQuery = value;
+      setAll(value, e.target);
+      renderCourses(); // keeps empty state correct
+    }
+
+    inputs.forEach((el) => el.addEventListener("input", onAnyInput));
+  }
+
+  function setupCourseSearchAndChips() {
+    const chips = Array.from(document.querySelectorAll(".net-chip[data-diff]"));
+
+    window.__dashQuery = "";
+    window.__dashDiff = "all";
+
+    // sync all searches (top + course + mobile)
+    setupSearchSync();
+
+    // Chips
+    chips.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        chips.forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        window.__dashDiff = btn.getAttribute("data-diff") || "all";
+        applyCourseFilters();
+      });
+    });
+  }
+
+  // -----------------------------
+  // Continue learning (simple heuristic)
+  // -----------------------------
+  function renderContinueLearning() {
     const box = $("continueBox");
     if (!box) return;
 
-    box.querySelectorAll(".net-continue-card").forEach((el) => {
-      const id = el.getAttribute("data-course");
-      const go = () => {
-        if (!id) return;
-        window.location.href = `course.html?id=${id}`;
-      };
-      el.addEventListener("click", go);
-      el.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          go();
-        }
-      });
-    });
-  }
+    const user = getCurrentUser();
+    const uLevel = userNumericLevel(user);
 
-  function renderDashboardCourses(allCourses, effectiveLevel) {
-    const grid = $("coursesGrid");
-    const title = $("coursesTitle");
+    const courses = getCoursesFromContent();
+    const unlocked = courses.filter(c => uLevel >= c.required_level);
 
-    if (!grid) return;
-
-    // Only show accessible courses per requirement
-    const accessible = allCourses.filter((c) => c.requiredLevel <= effectiveLevel);
-
-    // Stats
-    const inProgress = allCourses.filter((c) => c.progress > 0 && c.progress < 100);
-    const completed = allCourses.filter((c) => c.progress === 100);
-
-    const statInProgress = $("statInProgress");
-    const statCompleted = $("statCompleted");
-    if (statInProgress) statInProgress.textContent = String(inProgress.length);
-    if (statCompleted) statCompleted.textContent = String(completed.length);
-
-    // Continue learning (top 2 by progress desc)
-    const continueBox = $("continueBox");
-    if (continueBox) {
-      const cont = inProgress
-        .slice()
-        .sort((a, b) => (b.progress - a.progress))
-        .slice(0, 2);
-
-      if (cont.length === 0) {
-        continueBox.innerHTML = `
-          <div class="text-muted small">
-            You haven't started a course yet. Pick one below to begin.
-          </div>
-        `;
-      } else {
-        continueBox.innerHTML = cont.map(continueCardHtml).join("");
-        attachContinueHandlers();
-      }
-    }
-
-    // Render initial (all accessible)
-    grid.innerHTML = accessible.map(courseCardHtml).join("");
-
-    if (title) title.textContent = "All Courses";
-
-    // Store for filtering
-    grid.__allAccessible = accessible;
-  }
-
-  function applyCourseFilters() {
-    const grid = $("coursesGrid");
-    if (!grid || !grid.__allAccessible) return;
-
-    const q = String(grid.__searchQuery || "").trim().toLowerCase();
-    const diff = String(grid.__diffFilter || "all").toLowerCase();
-
-    const filtered = grid.__allAccessible.filter((c) => {
-      const inDiff = diff === "all" ? true : normalizeDifficulty(c.difficulty) === diff;
-      if (!inDiff) return false;
-      if (!q) return true;
-      return (
-        String(c.title || "").toLowerCase().includes(q) ||
-        String(c.description || "").toLowerCase().includes(q) ||
-        String(c.category || "").toLowerCase().includes(q)
-      );
-    });
-
-    const title = $("coursesTitle");
-    if (title) title.textContent = q ? "Search Results" : "All Courses";
-
-    // small animation: fade
-    grid.classList.add("net-fadeout");
-    window.setTimeout(() => {
-      grid.innerHTML = filtered.length
-        ? filtered.map(courseCardHtml).join("")
-        : `
-          <div class="net-empty">
-            <i class="bi bi-search" aria-hidden="true"></i>
-            <div class="fw-semibold">No courses found</div>
-            <div class="small text-muted">Try a different search or filter.</div>
-          </div>
-        `;
-      grid.classList.remove("net-fadeout");
-    }, 120);
-  }
-
-  function wireSearchAndFilters() {
-    const topSearch = $("topSearch");
-    const mobileSearch = $("mobileSearch");
-    const chips = Array.from(document.querySelectorAll(".net-chip[data-diff]"));
-    const grid = $("coursesGrid");
-
-    if (!grid) return;
-
-    function setQuery(val) {
-      grid.__searchQuery = val || "";
-      // sync both inputs
-      if (topSearch && topSearch.value !== val) topSearch.value = val;
-      if (mobileSearch && mobileSearch.value !== val) mobileSearch.value = val;
-      applyCourseFilters();
-    }
-
-    function setDiff(val) {
-      grid.__diffFilter = val || "all";
-      chips.forEach((c) => {
-        const isActive = c.getAttribute("data-diff") === grid.__diffFilter;
-        c.classList.toggle("is-active", isActive);
-      });
-      applyCourseFilters();
-    }
-
-    if (topSearch) topSearch.addEventListener("input", (e) => setQuery(e.target.value));
-    if (mobileSearch) mobileSearch.addEventListener("input", (e) => setQuery(e.target.value));
-
-    chips.forEach((chip) => {
-      chip.addEventListener("click", () => {
-        setDiff(chip.getAttribute("data-diff") || "all");
-      });
-    });
-
-    // defaults
-    grid.__searchQuery = "";
-    grid.__diffFilter = "all";
-  }
-
-  // -----------------------------
-  // Boot
-  // -----------------------------
-  document.addEventListener("DOMContentLoaded", async () => {
-    const stored = JSON.parse(localStorage.getItem("user") || "{}");
-    if (!stored || !stored.email) {
-      window.location.href = "login.html";
+    if (unlocked.length === 0) {
+      box.className = "net-continue-card";
+      box.innerHTML = `<div class="text-muted small">No unlocked courses yet. Earn XP to unlock content.</div>`;
       return;
     }
 
-    // Basic wiring first (so UI feels alive immediately)
-    wireSidebar();
-    wireUserDropdown();
-    wireLogout();
-    wireSearchAndFilters();
+    const pick = unlocked[0];
 
-    // Load stats + courses
-    const stats = await loadUserStats(stored.email);
+    box.className = "net-continue-card";
+    box.innerHTML = `
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="fw-bold">${pick.title}</div>
+          <div class="text-muted small">${pick.category} • ${prettyDiff(pick.difficulty)}</div>
+        </div>
+        <div class="text-end">
+          <div class="small text-muted">Suggested</div>
+          <div class="fw-bold" style="color:#0f766e;">
+            <i class="bi bi-lightning-charge-fill me-1"></i>${pick.xpReward}
+          </div>
+        </div>
+      </div>
+      <div class="mt-3">
+        <button class="btn btn-teal btn-sm w-100">Continue</button>
+      </div>
+    `;
 
-    // If the user selected a starting tier, ensure their effective level respects it.
-    // (Backend may already set numeric_level, but this keeps front-end logic consistent.)
-    const chosenTier = stored.unlock_tier || stored.tier || stored.start_tier;
-    const effectiveLevel = Math.max(stats.level, tierMinLevel(chosenTier));
+    box.addEventListener("click", () => {
+      window.location.href = `course.html?id=${encodeURIComponent(pick.key)}`;
+    });
+  }
 
-    renderUser(stored, { ...stats, level: effectiveLevel, rank: rankFromLevel(effectiveLevel) });
+  // -----------------------------
+  // Render courses
+  // -----------------------------
+  function renderCourses() {
+    const grid = $("coursesGrid");
+    if (!grid) return;
 
-    const rawCourses = await loadUserCourses(stored.email);
-    const viewModels = rawCourses.map(buildCourseViewModel);
+    const user = getCurrentUser();
+    const uLevel = userNumericLevel(user);
 
-    renderDashboardCourses(viewModels, effectiveLevel);
+    const courses = getCoursesFromContent();
 
-    // Apply initial filters (to render empty state if needed)
+    grid.innerHTML = "";
+    let anyLocked = false;
+
+    courses.forEach((c) => {
+      const { card, locked } = buildCourseCard(c, uLevel);
+      if (locked) anyLocked = true;
+      grid.appendChild(card);
+    });
+
     applyCourseFilters();
-  });
+
+    const lockNote = $("lockNote");
+    if (lockNote) {
+      if (anyLocked) {
+        lockNote.style.display = "";
+        lockNote.textContent = "Some courses are locked until you level up (Intermediate unlocks at Level 3, Advanced at Level 5).";
+      } else {
+        lockNote.style.display = "none";
+      }
+    }
+  }
+
+  // -----------------------------
+  // User UI fill
+  // -----------------------------
+  function fillUserUI() {
+    const user = getCurrentUser();
+
+    const name = user?.first_name
+      ? `${user.first_name} ${user.last_name || ""}`.trim()
+      : (user?.name || user?.username || "Student");
+
+    const email = user?.email || "Not logged in";
+    const avatar = (name || "S").trim().charAt(0).toUpperCase();
+
+    const lvl = userNumericLevel(user);
+    const { totalXP, currentLevelXP, progressPct, toNext } = computeXP(user);
+
+    // Welcome
+    if ($("welcomeName")) $("welcomeName").textContent = name;
+
+    // Top user
+    if ($("topUserName")) $("topUserName").textContent = name;
+    if ($("topAvatar")) $("topAvatar").textContent = avatar;
+
+    // Dropdown
+    if ($("ddName")) $("ddName").textContent = name;
+    if ($("ddEmail")) $("ddEmail").textContent = email;
+
+    // Sidebar user
+    if ($("sideUserName")) $("sideUserName").textContent = name;
+    if ($("sideUserEmail")) $("sideUserEmail").textContent = email;
+    if ($("sideAvatar")) $("sideAvatar").textContent = avatar;
+
+    if ($("sideLevelBadge")) $("sideLevelBadge").textContent = `Lv ${lvl}`;
+    if ($("sideXpText")) $("sideXpText").textContent = `${currentLevelXP}/250`;
+    if ($("sideXpBar")) $("sideXpBar").style.width = `${progressPct}%`;
+    if ($("sideXpHint")) $("sideXpHint").textContent = `${toNext} XP to next level`;
+
+    // Stats tiles
+    if ($("statLevel")) $("statLevel").textContent = String(lvl);
+    if ($("statXp")) $("statXp").textContent = String(totalXP);
+    if ($("statLevelHint")) $("statLevelHint").textContent = `${toNext} XP to next level`;
+
+    // Optional tiles if present
+    // (dashboard.html includes these IDs; if you later remove them, no issue)
+    // We'll compute rough counts from localStorage completions if available.
+    try {
+      const inProgEl = $("statInProgress");
+      const doneEl = $("statCompleted");
+      if (inProgEl || doneEl) {
+        const courses = getCoursesFromContent();
+        let inProgress = 0;
+        let completed = 0;
+
+        const emailKey = (user?.email || "guest").toLowerCase();
+        courses.forEach((c) => {
+          const lsKey = `netology_completions:${emailKey}:${c.key}`;
+          const payload = safeJSONParse(localStorage.getItem(lsKey), null);
+          if (!payload) return;
+
+          const lesson = new Set((payload.lesson || payload.lessons || []).map(Number));
+          const quiz = new Set((payload.quiz || payload.quizzes || []).map(Number));
+          const challenge = new Set((payload.challenge || payload.challenges || []).map(Number));
+
+          // required items: learn + quiz + challenge (per course.js logic)
+          // We don't know exact counts here, so we estimate completion:
+          // If at least 1 required done -> in progress
+          // If quiz+challenge sets have some values and lesson has values, consider completed only if lengths match (rough).
+          const any = (lesson.size + quiz.size + challenge.size) > 0;
+          if (any) inProgress++;
+
+          // rough "completed": at least 1 of each type and sizes match (best effort)
+          if (lesson.size > 0 && quiz.size > 0 && challenge.size > 0 && lesson.size === quiz.size && quiz.size === challenge.size) {
+            completed++;
+          }
+        });
+
+        if (inProgEl) inProgEl.textContent = String(inProgress);
+        if (doneEl) doneEl.textContent = String(completed);
+      }
+    } catch (_) {}
+
+    // Level ring card
+    if ($("welcomeLevel")) $("welcomeLevel").textContent = String(lvl);
+    if ($("welcomeXpText")) $("welcomeXpText").textContent = `${currentLevelXP}/250 XP`;
+    if ($("welcomeLevelHint")) $("welcomeLevelHint").textContent = `${toNext} XP to next level`;
+    setWelcomeRing(progressPct);
+  }
+
+  // -----------------------------
+  // Init
+  // -----------------------------
+  function init() {
+    wireBrandRouting();
+    setupSidebar();
+    setupUserDropdown();
+    setupLogout();
+    fillUserUI();
+    setupCourseSearchAndChips();
+    renderCourses();
+    renderContinueLearning();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
 })();

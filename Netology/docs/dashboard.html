@@ -52,7 +52,7 @@ Features:
           <div class="net-brandname">Netology</div>
         </a>
 
-        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu">
+        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu" type="button">
           <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
       </div>
@@ -90,7 +90,7 @@ Features:
         <div class="mt-3">
           <div class="d-flex justify-content-between small text-muted mb-1">
             <span>XP</span>
-            <span id="sideXpText">0</span>
+            <span class="fw-semibold" id="sideXpText">0/250</span>
           </div>
           <div class="progress" style="height: 10px;">
             <div class="progress-bar net-progress net-progress-fill" id="sideXpBar" style="width:0%"></div>
@@ -138,7 +138,7 @@ Features:
 
         <!-- Right -->
         <div class="net-topnav-right position-relative">
-          <!-- Desktop search -->
+          <!-- Desktop search (topbar) -->
           <div class="d-none d-md-block net-topsearch">
             <div class="net-search">
               <i class="bi bi-search" aria-hidden="true"></i>
@@ -209,10 +209,26 @@ Features:
           </div>
         </div>
 
+        <!-- RIGHT: ring snapshot (IDs required by dashboard.js) -->
         <div class="col-lg-4 d-none d-lg-block">
           <div class="net-mini-media p-4">
-            <div class="fw-semibold mb-1">Quick view</div>
-            <div class="small text-muted">Your learning snapshot</div>
+            <div class="d-flex align-items-start justify-content-between gap-3">
+              <div>
+                <div class="fw-semibold mb-1">Your level</div>
+                <div class="small text-muted" id="welcomeLevelHint">250 XP to next level</div>
+              </div>
+              <div class="net-welcome-ring-sm" aria-label="Level progress ring">
+                <svg viewBox="0 0 160 160" aria-hidden="true">
+                  <circle cx="80" cy="80" r="64" class="net-ring-track"></circle>
+                  <circle cx="80" cy="80" r="64" id="welcomeRing" class="net-ring-fill"></circle>
+                </svg>
+                <div class="net-ring-center">
+                  <div class="net-ring-num" id="welcomeLevel">1</div>
+                  <div class="net-ring-sub">Level</div>
+                  <div class="small text-muted mt-1" id="welcomeXpText">0/250 XP</div>
+                </div>
+              </div>
+            </div>
 
             <div class="mt-3 net-mini-row">
               <div class="net-mini-ico"><i class="bi bi-lightning-charge-fill"></i></div>
@@ -330,6 +346,16 @@ Features:
                    aria-label="Search courses">
           </div>
 
+          <!-- Desktop search (required by dashboard.js) -->
+          <div class="net-search net-course-search d-none d-md-block">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input id="courseSearch"
+                   class="form-control form-control-sm"
+                   type="search"
+                   placeholder="Search courses…"
+                   aria-label="Search courses">
+          </div>
+
           <div class="btn-group" role="group" aria-label="Filter courses by difficulty">
             <button type="button" class="btn btn-sm btn-outline-secondary net-chip is-active" data-diff="all">All</button>
             <button type="button" class="btn btn-sm btn-outline-secondary net-chip" data-diff="novice">Novice</button>
@@ -340,7 +366,7 @@ Features:
       </div>
 
       <div id="coursesGrid" class="net-coursegrid">
-        <!-- cards injected -->
+        <!-- cards injected by dashboard.js -->
       </div>
 
       <div class="small text-muted mt-3" id="lockNote" style="display:none"></div>
