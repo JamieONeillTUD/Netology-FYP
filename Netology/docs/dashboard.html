@@ -128,11 +128,6 @@ Updates requested:
             <i class="bi bi-list me-2" aria-hidden="true"></i>
             Menu
           </button>
-
-          <div class="d-none d-lg-flex align-items-center gap-2 text-white-75 small">
-            <i class="bi bi-grid-1x2" aria-hidden="true"></i>
-            Dashboard
-          </div>
         </div>
 
         <!-- Center brand -->
@@ -226,6 +221,13 @@ Updates requested:
 
               <div class="net-ring" aria-label="Level progress ring">
                 <svg viewBox="0 0 140 140" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="netDashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#14b8a6"></stop>
+                      <stop offset="100%" stop-color="#06b6d4"></stop>
+                    </linearGradient>
+                  </defs>
+
                   <circle class="net-ring-track" cx="70" cy="70" r="58" stroke-width="10" fill="none"></circle>
                   <circle id="welcomeRing"
                           class="net-ring-fill"
@@ -236,12 +238,6 @@ Updates requested:
                           fill="none"
                           stroke-dasharray="364.42"
                           stroke-dashoffset="364.42"></circle>
-                  <defs>
-                    <linearGradient id="netDashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stop-color="#14b8a6"></stop>
-                      <stop offset="100%" stop-color="#06b6d4"></stop>
-                    </linearGradient>
-                  </defs>
                 </svg>
 
                 <div class="net-ring-center">
@@ -422,6 +418,11 @@ Updates requested:
   <!-- Scripts -->
   <script src="js/config.js"></script>
   <script src="js/course_content.js"></script>
+  <script>
+    if (typeof COURSE_CONTENT !== "undefined") {
+      window.COURSE_CONTENT = COURSE_CONTENT;
+    }
+  </script>
   <script src="js/dashboard.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -196,7 +196,9 @@ Works with:
   // Courses data (from course_content.js)
   // -----------------------------
   function getCoursesFromContent() {
-    const cc = window.COURSE_CONTENT || {};
+    const cc = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT)
+      ? COURSE_CONTENT
+      : (window.COURSE_CONTENT || {});
     const list = [];
 
     for (const key of Object.keys(cc)) {
@@ -448,6 +450,18 @@ Works with:
     const uLevel = userNumericLevel(user);
 
     const courses = getCoursesFromContent();
+    if (!courses.length) {
+      grid.innerHTML = `
+        <div class="net-empty">
+          <i class="bi bi-journal-x"></i>
+          <div class="fw-bold">No courses available</div>
+          <div class="small text-muted">Please check back later.</div>
+        </div>
+      `;
+      const lockNote = $("lockNote");
+      if (lockNote) lockNote.style.display = "none";
+      return;
+    }
 
     grid.innerHTML = "";
     let anyLocked = false;

@@ -9,6 +9,138 @@ document.addEventListener("DOMContentLoaded", () => {
   // Respect accessibility preference
   const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  function safeJson(str) {
+    try { return JSON.parse(str); } catch { return null; }
+  }
+
+  function getCurrentUser() {
+    return (
+      safeJson(localStorage.getItem("netology_user")) ||
+      safeJson(localStorage.getItem("user")) ||
+      null
+    );
+  }
+
+  function userNumericLevel(user) {
+    const n = Number(user?.numeric_level);
+    if (Number.isFinite(n) && n > 0) return n;
+
+    const lvl = String(user?.level || user?.unlock_tier || "").toLowerCase();
+    if (lvl.includes("advanced")) return 5;
+    if (lvl.includes("intermediate")) return 3;
+    if (lvl.includes("novice")) return 1;
+    return 1;
+  }
+
+  function computeXP(user) {
+    const totalXP = Number(user?.xp) || 0;
+    const currentLevelXP = ((totalXP % 250) + 250) % 250;
+    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / 250) * 100));
+    return { totalXP, currentLevelXP, progressPct };
+  }
+
+  function mapItemType(sectionType, item) {
+    const st = String(sectionType || "").toLowerCase();
+    if (st.includes("quiz")) return "quiz";
+    if (st.includes("challenge")) return "challenge";
+    if (st.includes("practice") || st.includes("sandbox")) return "sandbox";
+
+    const t = String(item?.type || "").toLowerCase();
+    if (t === "quiz") return "quiz";
+    if (t === "challenge") return "challenge";
+    if (t === "sandbox" || t === "practice") return "sandbox";
+    return "learn";
+  }
+
+  function getCourseTotals() {
+    const content = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT)
+      ? COURSE_CONTENT
+      : null;
+    if (!content) return { totalCourses: 0, totalChallenges: 0, courseIds: [], courseMeta: {} };
+
+    const courseIds = Object.keys(content);
+    let totalChallenges = 0;
+    const courseMeta = {};
+
+    courseIds.forEach((id) => {
+      const c = content[id];
+      const units = c?.units || [];
+      let requiredCount = 0;
+      let challengeCount = 0;
+
+      units.forEach((u) => {
+        if (Array.isArray(u?.sections)) {
+          u.sections.forEach((s) => {
+            const st = String(s?.type || s?.kind || s?.title || "").toLowerCase();
+            const items = s?.items || s?.lessons || [];
+            if (!Array.isArray(items)) return;
+
+            items.forEach((it) => {
+              const t = mapItemType(st, it);
+              if (t === "learn" || t === "quiz" || t === "challenge") requiredCount += 1;
+              if (t === "challenge") challengeCount += 1;
+            });
+          });
+        } else if (u?.sections && typeof u.sections === "object") {
+          const obj = u.sections;
+          const learnArr = obj.learn || obj.lesson || obj.lessons || [];
+          const quizArr = obj.quiz || obj.quizzes || [];
+          const practiceArr = obj.practice || obj.sandbox || [];
+          const challengeArr = obj.challenge || obj.challenges || [];
+
+          requiredCount += (learnArr.length || 0);
+          requiredCount += (quizArr.length || 0);
+          requiredCount += (challengeArr.length || 0);
+          challengeCount += (challengeArr.length || 0);
+
+          // practice/sandbox not required for completion
+          void practiceArr;
+        } else if (Array.isArray(u?.lessons)) {
+          u.lessons.forEach((it) => {
+            const t = mapItemType("", it);
+            if (t === "learn" || t === "quiz" || t === "challenge") requiredCount += 1;
+            if (t === "challenge") challengeCount += 1;
+          });
+        }
+      });
+
+      courseMeta[id] = { requiredCount, challengeCount };
+      totalChallenges += challengeCount;
+    });
+
+    return { totalCourses: courseIds.length, totalChallenges, courseIds, courseMeta };
+  }
+
+  function getCompletionStats(email, courseIds, courseMeta) {
+    if (!email || !courseIds.length) return { coursesCompleted: 0, challengesDone: 0 };
+
+    let coursesCompleted = 0;
+    let challengesDone = 0;
+
+    courseIds.forEach((id) => {
+      const raw = localStorage.getItem(`netology_completions:${email}:${id}`);
+      if (!raw) return;
+      const payload = safeJson(raw);
+      if (!payload) return;
+
+      const lesson = payload.lesson || payload.lessons || [];
+      const quiz = payload.quiz || payload.quizzes || [];
+      const challenge = payload.challenge || payload.challenges || [];
+
+      const lessonSet = new Set((lesson || []).map(Number));
+      const quizSet = new Set((quiz || []).map(Number));
+      const challengeSet = new Set((challenge || []).map(Number));
+
+      const done = lessonSet.size + quizSet.size + challengeSet.size;
+      const required = Number(courseMeta?.[id]?.requiredCount || 0);
+      if (required > 0 && done >= required) coursesCompleted += 1;
+
+      challengesDone += challengeSet.size;
+    });
+
+    return { coursesCompleted, challengesDone };
+  }
+
   // Make status updates accessible
   if (statusEl) {
     statusEl.setAttribute("role", "status");
@@ -106,6 +238,56 @@ document.addEventListener("DOMContentLoaded", () => {
   // Run once quickly, then refresh occasionally
   checkBackend();
   setInterval(checkBackend, 30000);
+
+  // --- Hero progress card (logged-in data) ---
+  function fillHeroProgress() {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    const greeting = document.getElementById("heroGreeting");
+    const greetingName = document.getElementById("heroGreetingName");
+    const heroLevel = document.getElementById("heroLevel");
+    const heroXpText = document.getElementById("heroXpText");
+    const heroXpBar = document.getElementById("heroXpBar");
+    const heroTotalXp = document.getElementById("heroTotalXp");
+    const heroCoursesCompleted = document.getElementById("heroCoursesCompleted");
+    const heroCoursesTotal = document.getElementById("heroCoursesTotal");
+    const heroCoursesCompletedValue = document.getElementById("heroCoursesCompletedValue");
+    const heroChallengesDone = document.getElementById("heroChallengesDone");
+    const heroChallengesTotal = document.getElementById("heroChallengesTotal");
+    const heroChallengesDoneValue = document.getElementById("heroChallengesDoneValue");
+
+    const fullName = user?.first_name
+      ? `${user.first_name} ${user.last_name || ""}`.trim()
+      : (user?.name || user?.username || "Student");
+    const firstName = String(fullName || "Student").split(" ")[0];
+
+    if (greeting && greetingName) {
+      greeting.classList.remove("d-none");
+      greetingName.textContent = firstName || "Student";
+    }
+
+    const lvl = userNumericLevel(user);
+    const { totalXP, currentLevelXP, progressPct } = computeXP(user);
+
+    if (heroLevel) heroLevel.textContent = `Level ${lvl}`;
+    if (heroXpText) heroXpText.textContent = `${currentLevelXP} / 250`;
+    if (heroXpBar) heroXpBar.style.width = `${progressPct}%`;
+    if (heroTotalXp) heroTotalXp.textContent = String(totalXP);
+
+    const { totalCourses, totalChallenges, courseIds, courseMeta } = getCourseTotals();
+    const { coursesCompleted, challengesDone } = getCompletionStats(user?.email, courseIds, courseMeta);
+
+    if (heroCoursesCompleted) heroCoursesCompleted.textContent = String(coursesCompleted);
+    if (heroCoursesTotal) heroCoursesTotal.textContent = String(totalCourses);
+    if (heroCoursesCompletedValue) heroCoursesCompletedValue.textContent = String(coursesCompleted);
+
+    if (heroChallengesDone) heroChallengesDone.textContent = String(challengesDone);
+    if (heroChallengesTotal) heroChallengesTotal.textContent = String(totalChallenges);
+    if (heroChallengesDoneValue) heroChallengesDoneValue.textContent = String(challengesDone);
+  }
+
+  fillHeroProgress();
 
   // --- Modern tilt/parallax on hero card (only if motion allowed) ---
   if (!reduceMotion && visualWrap && heroCard) {
