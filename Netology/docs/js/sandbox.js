@@ -71,6 +71,76 @@ Clear the entire canvas
     pingContainer.style.display = selectedDeviceId ? "block" : "none";
   }
 
+  // ---------------------------
+  // Progress logging (local)
+  // ---------------------------
+  function safeJson(str) {
+    try { return JSON.parse(str); } catch { return null; }
+  }
+
+  function bumpUserXP(email, addXP) {
+    if (!email || !addXP) return;
+    const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
+    const user = safeJson(raw) || {};
+    if (!user || user.email !== email) return;
+    user.xp = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
+    if (localStorage.getItem("netology_user")) localStorage.setItem("netology_user", JSON.stringify(user));
+    if (localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify(user));
+  }
+
+  function logProgressEvent(email, payload) {
+    if (!email) return;
+    const entry = {
+      type: payload.type,
+      course_id: payload.course_id,
+      lesson_number: payload.lesson_number,
+      xp: Number(payload.xp || 0),
+      ts: Date.now(),
+      date: new Date().toISOString().slice(0, 10)
+    };
+    const key = `netology_progress_log:${email}`;
+    const list = safeJson(localStorage.getItem(key)) || [];
+    list.push(entry);
+    localStorage.setItem(key, JSON.stringify(list));
+  }
+
+  function trackCourseStart(email, courseId, lessonNumber) {
+    if (!email || !courseId) return;
+    const key = `netology_started_courses:${email}`;
+    const list = safeJson(localStorage.getItem(key)) || [];
+    const existing = list.find((c) => String(c.id) === String(courseId));
+    const payload = {
+      id: String(courseId),
+      lastViewed: Date.now(),
+      lastLesson: Number(lessonNumber || 0) || undefined
+    };
+    if (existing) {
+      existing.lastViewed = payload.lastViewed;
+      if (payload.lastLesson) existing.lastLesson = payload.lastLesson;
+    } else {
+      list.push(payload);
+    }
+    localStorage.setItem(key, JSON.stringify(list));
+  }
+
+  function markChallengeCompletion(email, courseId, lessonNumber, xpAdded) {
+    if (!email || !courseId) return;
+    const key = `netology_completions:${email}:${courseId}`;
+    const data = safeJson(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
+    const chArr = data.challenge || data.challenges || [];
+    const isNew = !chArr.includes(Number(lessonNumber));
+    if (isNew) {
+      chArr.push(Number(lessonNumber));
+      data.challenge = chArr;
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+    trackCourseStart(email, courseId, lessonNumber);
+    if (isNew) {
+      logProgressEvent(email, { type: "challenge", course_id: courseId, lesson_number: lessonNumber, xp: Number(xpAdded || 0) });
+      bumpUserXP(email, Number(xpAdded || 0));
+    }
+  }
+
 
   // ---------------------------
   // NEW (Part 3): Lesson session state (DB save/load per lesson)
@@ -1117,6 +1187,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           } else {
             box.textContent = `✅ Passed! +${xpData.xp_added} XP earned.`;
           }
+
+          markChallengeCompletion(
+            user.email,
+            __lessonSession.course_id,
+            __lessonSession.lesson_number,
+            xpData.xp_added || 0
+          );
         } else {
           box.className = "small mt-2 text-warning fw-semibold";
           box.textContent = "✅ Passed, but XP award failed.";

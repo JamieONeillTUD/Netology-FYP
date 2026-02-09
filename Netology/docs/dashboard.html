@@ -97,12 +97,12 @@ Updates requested:
         <div class="mt-3">
           <div class="d-flex justify-content-between small text-muted mb-1">
             <span>XP</span>
-            <span class="fw-semibold" id="sideXpText">0/250</span>
+            <span class="fw-semibold" id="sideXpText">0/100</span>
           </div>
           <div class="progress" style="height: 10px;">
             <div class="progress-bar net-progress net-progress-fill" id="sideXpBar" style="width:0%"></div>
           </div>
-          <div class="small text-muted mt-2" id="sideXpHint">250 XP to next level</div>
+          <div class="small text-muted mt-2" id="sideXpHint">100 XP to next level</div>
         </div>
 
         <div class="d-grid gap-2 mt-3">
@@ -121,12 +121,12 @@ Updates requested:
 
         <!-- Left -->
         <div class="net-topnav-left">
-          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
+          <button class="net-hambtn"
                   id="openSidebarBtn"
                   type="button"
                   aria-label="Open menu">
-            <i class="bi bi-list me-2" aria-hidden="true"></i>
-            Menu
+            <i class="bi bi-list" aria-hidden="true"></i>
+            <span class="visually-hidden">Open menu</span>
           </button>
         </div>
 
@@ -143,17 +143,25 @@ Updates requested:
 
           <!-- User dropdown -->
           <div class="position-relative">
-            <button class="net-userbtn" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
+            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
-              <span class="net-user-name d-none d-sm-inline" id="topUserName">Student</span>
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
             <!-- Dropdown shows details (dashboard.js fills ddName + ddEmail) -->
             <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
               <div class="net-ddhead">
-                <div class="fw-semibold text-truncate" id="ddName">Student</div>
-                <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="net-avatar-sm" id="ddAvatar" aria-hidden="true">S</div>
+                  <div class="min-width-0">
+                    <div class="fw-semibold text-truncate" id="ddName">Student</div>
+                    <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  <span class="badge text-bg-light border" id="ddLevel">Level 1</span>
+                  <span class="badge text-bg-light border" id="ddRank">Novice</span>
+                </div>
               </div>
               <a href="account.html"><i class="bi bi-person-circle"></i> My Account</a>
               <a href="account.html"><i class="bi bi-gear"></i> Settings</a>
@@ -205,10 +213,10 @@ Updates requested:
               <a href="courses.html" class="btn btn-teal btn-sm">
                 <i class="bi bi-journal-bookmark me-2"></i>Browse Courses
               </a>
-              <a href="sandbox.html" class="btn btn-outline-secondary btn-sm">
+              <a href="sandbox.html" class="btn btn-soft btn-sm">
                 <i class="bi bi-diagram-3 me-2"></i>Open Sandbox
               </a>
-              <a href="account.html" class="btn btn-outline-secondary btn-sm">
+              <a href="account.html" class="btn btn-soft btn-sm">
                 <i class="bi bi-person-circle me-2"></i>View Profile
               </a>
             </div>
@@ -217,9 +225,9 @@ Updates requested:
               <div class="d-flex align-items-center justify-content-between">
                 <div>
                   <div class="small text-muted">Today’s focus</div>
-                  <div class="fw-semibold">Finish 1 lesson to keep your streak</div>
+                  <div class="fw-semibold" id="focusText">Complete 1 lesson to keep your streak</div>
                 </div>
-                <span class="badge text-bg-light border">+80 XP</span>
+                <span class="badge text-bg-light border" id="focusXp">+0 XP</span>
               </div>
             </div>
 
@@ -230,7 +238,7 @@ Updates requested:
                 <div>
                   <div class="text-muted small">Level</div>
                   <div class="fw-bold fs-4" id="statLevel">1</div>
-                  <div class="small text-muted" id="statLevelHint">250 XP to next level</div>
+                  <div class="small text-muted" id="statLevelHint">100 XP to next level</div>
                 </div>
               </div>
 
@@ -270,7 +278,7 @@ Updates requested:
             <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
               <div>
                 <div class="fw-semibold mb-1">Your level</div>
-                <div class="small text-muted" id="welcomeLevelHint">250 XP to next level</div>
+                <div class="small text-muted" id="welcomeLevelHint">100 XP to next level</div>
               </div>
 
               <div class="net-ring" aria-label="Level progress ring">
@@ -297,13 +305,14 @@ Updates requested:
                 <div class="net-ring-center">
                   <div class="net-ring-pct net-gradient-text" id="welcomeLevel">1</div>
                   <div class="net-ring-sub">Level</div>
+                  <div class="net-ring-rank" id="welcomeRank">Novice</div>
                 </div>
               </div>
             </div>
 
             <div class="dash-xp-row">
-              <div class="small text-muted" id="welcomeXpText">0/250 XP</div>
-              <span class="badge text-bg-light border">Streak: 3 days</span>
+              <div class="small text-muted" id="welcomeXpText">0/100 XP</div>
+              <span class="badge text-bg-light border" id="streakText">Streak: 0 days</span>
             </div>
 
             <div class="dash-mini-grid mt-3">
@@ -311,14 +320,14 @@ Updates requested:
                 <div class="dash-mini-ico"><i class="bi bi-trophy"></i></div>
                 <div>
                   <div class="fw-semibold">Next badge</div>
-                  <div class="small text-muted">Complete 2 quizzes</div>
+                  <div class="small text-muted" id="nextBadgeText">Complete 2 quizzes</div>
                 </div>
               </div>
               <div class="dash-mini">
                 <div class="dash-mini-ico"><i class="bi bi-stars"></i></div>
                 <div>
                   <div class="fw-semibold">Weekly goal</div>
-                  <div class="small text-muted">3 lessons left</div>
+                  <div class="small text-muted" id="weeklyGoalText">3 lessons left</div>
                 </div>
               </div>
             </div>
@@ -341,48 +350,10 @@ Updates requested:
           </div>
           <div class="text-muted small mb-3">Your next lesson is one click away.</div>
 
-          <div id="continueBox" class="net-continue-skel" aria-live="polite">
+          <div id="continueBox" class="dash-continue-list net-continue-skel" aria-live="polite">
             <div class="net-skel net-w-80 mb-2"></div>
             <div class="net-skel net-w-60 mb-3"></div>
             <div class="net-skel net-w-40"></div>
-          </div>
-        </section>
-
-        <!-- Learning Path -->
-        <section class="dash-card net-card net-pop p-4 mb-4">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <div class="fw-semibold d-flex align-items-center gap-2">
-              <i class="bi bi-map text-teal" aria-hidden="true"></i>
-              Your Learning Path
-            </div>
-            <span class="small text-muted">Personalised</span>
-          </div>
-
-          <div class="dash-path">
-            <div class="dash-path-item is-active">
-              <div class="dash-path-dot"></div>
-              <div>
-                <div class="fw-semibold">Networking Foundations</div>
-                <div class="small text-muted">Build core concepts</div>
-              </div>
-              <span class="badge text-bg-light border">In progress</span>
-            </div>
-            <div class="dash-path-item">
-              <div class="dash-path-dot"></div>
-              <div>
-                <div class="fw-semibold">Switching & VLANs</div>
-                <div class="small text-muted">Segment and secure networks</div>
-              </div>
-              <span class="badge text-bg-light border">Next</span>
-            </div>
-            <div class="dash-path-item">
-              <div class="dash-path-dot"></div>
-              <div>
-                <div class="fw-semibold">Routing Basics</div>
-                <div class="small text-muted">Get packets moving</div>
-              </div>
-              <span class="badge text-bg-light border">Locked</span>
-            </div>
           </div>
         </section>
 
@@ -442,28 +413,28 @@ Updates requested:
           <div class="dash-goal">
             <div class="d-flex justify-content-between small text-muted mb-1">
               <span>Lessons completed</span>
-              <span class="fw-semibold">2/5</span>
+              <span class="fw-semibold" id="weeklyLessonsText">0/5</span>
             </div>
             <div class="progress" style="height: 10px;">
-              <div class="progress-bar net-progress" style="width:40%"></div>
+              <div class="progress-bar net-progress" id="weeklyLessonsBar" style="width:0%"></div>
             </div>
           </div>
           <div class="dash-goal">
             <div class="d-flex justify-content-between small text-muted mb-1">
               <span>Quizzes passed</span>
-              <span class="fw-semibold">1/3</span>
+              <span class="fw-semibold" id="weeklyQuizzesText">0/3</span>
             </div>
             <div class="progress" style="height: 10px;">
-              <div class="progress-bar net-progress" style="width:33%"></div>
+              <div class="progress-bar net-progress" id="weeklyQuizzesBar" style="width:0%"></div>
             </div>
           </div>
           <div class="dash-goal">
             <div class="d-flex justify-content-between small text-muted mb-1">
               <span>Sandbox builds</span>
-              <span class="fw-semibold">0/2</span>
+              <span class="fw-semibold" id="weeklySandboxText">0/2</span>
             </div>
             <div class="progress" style="height: 10px;">
-              <div class="progress-bar net-progress" style="width:0%"></div>
+              <div class="progress-bar net-progress" id="weeklySandboxBar" style="width:0%"></div>
             </div>
           </div>
         </section>
@@ -473,40 +444,8 @@ Updates requested:
             <i class="bi bi-award text-teal" aria-hidden="true"></i>
             Achievements
           </div>
-          <div class="dash-badges">
-            <div class="dash-badge">
-              <span class="dash-badge-ico"><i class="bi bi-lightning-charge-fill"></i></span>
-              <div>
-                <div class="fw-semibold">Fast Learner</div>
-                <div class="small text-muted">Complete 5 lessons</div>
-              </div>
-            </div>
-            <div class="dash-badge">
-              <span class="dash-badge-ico"><i class="bi bi-diagram-3"></i></span>
-              <div>
-                <div class="fw-semibold">Sandbox Builder</div>
-                <div class="small text-muted">Build 2 topologies</div>
-              </div>
-            </div>
-            <div class="dash-badge">
-              <span class="dash-badge-ico"><i class="bi bi-patch-check"></i></span>
-              <div>
-                <div class="fw-semibold">Quiz Master</div>
-                <div class="small text-muted">Pass 3 quizzes</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="dash-card net-card net-pop p-4">
-          <div class="fw-semibold d-flex align-items-center gap-2 mb-3">
-            <i class="bi bi-lightning text-teal" aria-hidden="true"></i>
-            Quick Links
-          </div>
-          <div class="d-grid gap-2">
-            <a href="courses.html" class="btn btn-outline-secondary btn-sm">Browse Courses</a>
-            <a href="sandbox.html" class="btn btn-outline-secondary btn-sm">Open Sandbox</a>
-            <a href="account.html" class="btn btn-outline-secondary btn-sm">Edit Profile</a>
+          <div class="dash-badges" id="achievementsList">
+            <div class="small text-muted">No achievements in progress yet.</div>
           </div>
         </section>
       </aside>

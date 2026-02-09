@@ -36,7 +36,7 @@ What this file does:
   ========================================================= */
 
   const API = () => (window.API_BASE || "").replace(/\/$/, "");
-  const XP_PER_LEVEL = 250;
+  const XP_PER_LEVEL = 100;
 
   // If your backend endpoints differ, update ONLY these paths.
   const ENDPOINTS = {
@@ -53,6 +53,8 @@ What this file does:
 
   // localStorage fallback key
   const LS_KEY = (email, courseId) => `netology_completions:${email}:${courseId}`;
+  const STARTED_KEY = (email) => `netology_started_courses:${email}`;
+  const LOG_KEY = (email) => `netology_progress_log:${email}`;
 
   /* =========================================================
      HELPERS
@@ -69,6 +71,11 @@ What this file does:
     const x = Number(n);
     if (Number.isNaN(x)) return min;
     return Math.min(max, Math.max(min, x));
+  }
+
+  function levelFromXP(totalXP) {
+    const xp = Math.max(0, Number(totalXP) || 0);
+    return Math.max(1, Math.floor(xp / XP_PER_LEVEL) + 1);
   }
 
   function safeJson(str) {
@@ -97,6 +104,57 @@ What this file does:
   function showAria(text) {
     const aria = el("ariaStatus");
     if (aria) aria.textContent = String(text || "");
+  }
+
+  function logProgressEvent(email, payload) {
+    if (!email) return;
+    const entry = {
+      type: payload.type,
+      course_id: payload.course_id,
+      lesson_number: payload.lesson_number,
+      xp: Number(payload.xp || 0),
+      ts: Date.now(),
+      date: new Date().toISOString().slice(0, 10)
+    };
+    const raw = localStorage.getItem(LOG_KEY(email));
+    const list = safeJson(raw) || [];
+    list.push(entry);
+    localStorage.setItem(LOG_KEY(email), JSON.stringify(list));
+  }
+
+  function trackCourseStart(email, courseId, lessonNumber) {
+    if (!email || !courseId) return;
+    const raw = localStorage.getItem(STARTED_KEY(email));
+    const list = safeJson(raw) || [];
+    const existing = list.find((c) => String(c.id) === String(courseId));
+    const payload = {
+      id: String(courseId),
+      lastViewed: Date.now(),
+      lastLesson: Number(lessonNumber || 0) || undefined
+    };
+
+    if (existing) {
+      existing.lastViewed = payload.lastViewed;
+      if (payload.lastLesson) existing.lastLesson = payload.lastLesson;
+    } else {
+      list.push(payload);
+    }
+    localStorage.setItem(STARTED_KEY(email), JSON.stringify(list));
+  }
+
+  function bumpUserXP(email, addXP) {
+    if (!email || !addXP) return;
+    const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
+    const user = safeJson(raw) || {};
+    if (!user || user.email !== email) return;
+    const nextXP = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
+    user.xp = nextXP;
+    if (localStorage.getItem("netology_user")) {
+      localStorage.setItem("netology_user", JSON.stringify(user));
+    }
+    if (localStorage.getItem("user")) {
+      localStorage.setItem("user", JSON.stringify(user));
+    }
   }
 
   // Accept both keys (older + newer)
@@ -178,6 +236,11 @@ What this file does:
     state.courseId = courseId || "1";
     state.course.id = state.courseId;
 
+    const lessonParam = new URLSearchParams(window.location.search).get("lesson");
+    if (state.user?.email) {
+      trackCourseStart(state.user.email, state.courseId, lessonParam);
+    }
+
     // load course structure (from COURSE_CONTENT)
     hydrateCourseFromContent(state.courseId);
 
@@ -190,7 +253,7 @@ What this file does:
       await loadCompletions(state.user.email, state.courseId);
     } else {
       // Guest defaults
-      state.stats.level = 0;
+      state.stats.level = 1;
       state.stats.xp = 0;
       state.stats.currentLevelXP = 0;
       state.stats.xpProgressPct = 0;
@@ -374,15 +437,15 @@ What this file does:
       const data = await res.json().catch(() => null);
       if (!data || data.success === false) throw new Error("user-info failed");
 
-      const level = Number(data.numeric_level || data.level || 1) || 1;
-      const xp = Number(data.xp || 0) || 0;
+      const xp = Number(data.xp || data.total_xp || 0) || 0;
+      const level = levelFromXP(xp);
       const rank = String(data.rank || data.level_name || data.level || "Novice");
 
       state.stats.level = level;
       state.stats.xp = xp;
       state.stats.rank = rank;
 
-      const currentLevelXP = xp % XP_PER_LEVEL;
+      const currentLevelXP = ((xp % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL;
       const xpProgressPct = (currentLevelXP / XP_PER_LEVEL) * 100;
 
       state.stats.currentLevelXP = currentLevelXP;
@@ -396,16 +459,17 @@ What this file does:
 
     } catch (_) {
       // Safe fallback; do not break UI
-      state.stats.level = 1;
+      const localXP = Number(state.user?.xp || 0) || 0;
+      state.stats.level = levelFromXP(localXP);
       state.stats.rank = "Novice";
-      state.stats.xp = 0;
-      state.stats.currentLevelXP = 0;
-      state.stats.xpProgressPct = 0;
+      state.stats.xp = localXP;
+      state.stats.currentLevelXP = ((localXP % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL;
+      state.stats.xpProgressPct = (state.stats.currentLevelXP / XP_PER_LEVEL) * 100;
 
-      setText("sideLevelBadge", `Lv 1`);
-      setText("sideXPText", `0/${XP_PER_LEVEL}`);
+      setText("sideLevelBadge", `Lv ${state.stats.level}`);
+      setText("sideXPText", `${state.stats.currentLevelXP}/${XP_PER_LEVEL}`);
       const sideXPBar = el("sideXPBar");
-      if (sideXPBar) sideXPBar.style.width = `0%`;
+      if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
     }
   }
 
@@ -561,7 +625,7 @@ What this file does:
         const t = String(li.type || "learn").toLowerCase();
         pushItem(
           t === "quiz" ? "quiz" :
-          t === "sandbox" ? "sandbox" :
+          t === "sandbox" || t === "practice" ? "sandbox" :
           t === "challenge" ? "challenge" :
           "learn",
           li
@@ -618,12 +682,12 @@ What this file does:
   function mapSectionTypeToItemType(sectionType, item) {
     if (sectionType.includes("quiz")) return "quiz";
     if (sectionType.includes("challenge")) return "challenge";
-    if (sectionType.includes("practice") || sectionType.includes("sandbox")) return "sandbox";
+    if (sectionType.includes("practice") || sectionType.includes("sandbox") || sectionType.includes("hands-on")) return "sandbox";
 
     const t = String(item.type || "").toLowerCase();
     if (t === "quiz") return "quiz";
     if (t === "challenge") return "challenge";
-    if (t === "sandbox") return "sandbox";
+    if (t === "sandbox" || t === "practice") return "sandbox";
     return "learn";
   }
 
@@ -874,7 +938,7 @@ What this file does:
         const hint =
           it.type === "quiz" ? "Quiz" :
           it.type === "challenge" ? "Challenge" :
-          it.type === "sandbox" ? "Sandbox" :
+          (it.type === "sandbox" || it.type === "practice") ? "Sandbox" :
           "Lesson";
 
         const lockedClass = locked ? "is-locked" : "";
@@ -1034,6 +1098,9 @@ What this file does:
 
   function openItem(type, lessonNumber) {
     const t = String(type).toLowerCase();
+    if (state.user?.email) {
+      trackCourseStart(state.user.email, state.courseId, lessonNumber);
+    }
 
     if (t === "learn") {
       openLearnModalByLessonNumber(lessonNumber);
@@ -1046,7 +1113,7 @@ What this file does:
       return;
     }
 
-    if (t === "sandbox") {
+    if (t === "sandbox" || t === "practice") {
       window.location.href =
         `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}&mode=practice`;
       return;
@@ -1161,6 +1228,15 @@ What this file does:
   async function completeItem(type, lessonNumber, xp) {
     const t = String(type).toLowerCase();
     const n = Number(lessonNumber);
+    const already =
+      (t === "learn" && state.completed.lesson.has(n)) ||
+      (t === "quiz" && state.completed.quiz.has(n)) ||
+      (t === "challenge" && state.completed.challenge.has(n));
+
+    if (already) {
+      showAria(`${cap(t)} already completed.`);
+      return;
+    }
 
     // Optimistic update
     if (t === "learn") state.completed.lesson.add(n);
@@ -1168,8 +1244,28 @@ What this file does:
     if (t === "challenge") state.completed.challenge.add(n);
 
     cacheCompletionsToLS(state.user.email, state.courseId);
+    logProgressEvent(state.user.email, {
+      type: t,
+      course_id: state.courseId,
+      lesson_number: n,
+      xp: Number(xp || 0)
+    });
+    bumpUserXP(state.user.email, Number(xp || 0));
 
     showAria(`${cap(t)} completed. +${Number(xp || 0)} XP`);
+
+    // Update local stats so UI reflects progress immediately
+    state.stats.xp = Number(state.stats.xp || 0) + Number(xp || 0);
+    state.stats.level = levelFromXP(state.stats.xp);
+    state.stats.currentLevelXP = ((state.stats.xp % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL;
+    state.stats.xpProgressPct = (state.stats.currentLevelXP / XP_PER_LEVEL) * 100;
+
+    setText("sideLevelBadge", `Lv ${state.stats.level}`);
+    setText("sideXPText", `${state.stats.currentLevelXP}/${XP_PER_LEVEL}`);
+    const sideXPBar = el("sideXPBar");
+    if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
+
+    computeLockState();
 
     await tryBackendComplete(t, n).catch(() => {});
 
@@ -1250,7 +1346,7 @@ What this file does:
                 <i class="bi bi-patch-question" aria-hidden="true"></i>
               </div>`;
     }
-    if (it.type === "sandbox") {
+    if (it.type === "sandbox" || it.type === "practice") {
       return `<div class="net-ico-pill net-ico-sandbox">
                 <i class="bi bi-diagram-3" aria-hidden="true"></i>
               </div>`;

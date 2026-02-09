@@ -339,6 +339,26 @@ footer{
   filter: brightness(0.95) saturate(1.05);
 }
 
+/* Soft secondary button */
+.btn-soft{
+  background: linear-gradient(135deg, rgba(20,184,166,.18), rgba(56,189,248,.18));
+  border: 1px solid rgba(6,182,212,.22);
+  color: #0f766e;
+  font-weight: 800;
+  padding: .78em 1.15em;
+  border-radius: var(--net-radius-sm);
+  box-shadow: 0 10px 26px rgba(6,182,212,.12);
+}
+.btn-soft:hover{
+  color: #0f766e;
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(6,182,212,.18);
+  filter: brightness(1.02);
+}
+.btn-soft:active{
+  transform: translateY(0);
+}
+
 .btn{
   transition: transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
 }
@@ -1808,6 +1828,28 @@ body.net-auth-v2.net-landing::before{
   min-width: 140px;
 }
 
+/* Hamburger button */
+.net-hambtn{
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.28);
+  background: rgba(255,255,255,.16);
+  color: #fff;
+  display:grid;
+  place-items:center;
+  box-shadow: 0 12px 30px rgba(2, 6, 23, .12);
+  transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+  cursor: pointer;
+}
+.net-hambtn:hover{
+  background: rgba(255,255,255,.22);
+  transform: translateY(-1px);
+}
+.net-hambtn:active{
+  transform: translateY(0);
+}
+
 /* Center brand anchored perfectly */
 .net-topnav-center{
   position:absolute;
@@ -1888,6 +1930,10 @@ body.net-auth-v2.net-landing::before{
   padding: 8px 10px;
   box-shadow: 0 14px 34px rgba(2, 6, 23, .10);
   transition: background .15s ease, transform .12s ease;
+}
+.net-userbtn--icon{
+  gap: 8px;
+  padding: 6px 8px;
 }
 .net-userbtn:hover{
   background: rgba(255,255,255,.18);
@@ -2195,6 +2241,41 @@ body.net-auth-v2.net-landing::before{
   color: rgba(15, 23, 42, .86);
 }
 
+/* Continue learning list */
+.dash-continue-list{
+  display:grid;
+  gap: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.dash-continue-item{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(6,182,212,.14);
+  background: rgba(255,255,255,.92);
+  transition: transform .15s ease, box-shadow .15s ease;
+  cursor: pointer;
+}
+.dash-continue-item:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 14px 36px rgba(2, 6, 23, .10);
+}
+.dash-continue-meta{
+  font-size: .82rem;
+  color: rgba(15, 23, 42, .65);
+}
+
+/* Filter group breathing room */
+.dash-card .btn-group{
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .dash-grid{
   display:grid;
   gap: 20px;
@@ -2213,6 +2294,7 @@ body.net-auth-v2.net-landing::before{
 
 .dash-card{
   transition: transform .18s ease, box-shadow .18s ease;
+  animation: dashFadeUp .45s ease both;
 }
 .dash-card:hover{
   transform: translateY(-2px);
@@ -2275,8 +2357,14 @@ body.net-auth-v2.net-landing::before{
   50%{ transform: scale(1.12); opacity: 1; }
 }
 
+@keyframes dashFadeUp{
+  from{ opacity: 0; transform: translateY(6px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce){
   .dash-pill-dot{ animation: none !important; }
+  .dash-card{ animation: none !important; }
 }
 
 /* =========================================================
@@ -2575,10 +2663,101 @@ body.net-auth-v2.net-landing::before{
   color: rgba(15, 23, 42, .72);
 }
 .net-empty i{ font-size: 34px; display:block; margin-bottom: 10px; opacity:.7; }
+.net-empty--tiny{
+  padding: 14px;
+  border-radius: 16px;
+}
+.net-empty--tiny i{
+  font-size: 22px;
+  margin-bottom: 6px;
+}
 
 /* =========================================================
    6) courses.html (Courses list)
 ========================================================= */
+
+/* Course library shell */
+.net-courses-page .net-courses-shell{
+  max-width: 1180px;
+}
+
+.net-courses-hero{
+  position: relative;
+  overflow: hidden;
+}
+.net-courses-hero::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    radial-gradient(700px 280px at 20% 20%, rgba(15,185,177,.14), transparent 60%),
+    radial-gradient(620px 260px at 85% 30%, rgba(6,182,212,.12), transparent 62%);
+  opacity: .9;
+  pointer-events: none;
+}
+.net-courses-hero > *{ position: relative; }
+
+.net-courses-hero-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+}
+@media (min-width: 992px){
+  .net-courses-hero-grid{
+    grid-template-columns: 1.2fr .8fr;
+    align-items: center;
+  }
+}
+
+.net-courses-hero-search{
+  background: rgba(255,255,255,.88);
+  border: 1px solid rgba(6,182,212,.16);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: 0 18px 50px rgba(2, 6, 23, .08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.net-courses-section{
+  border: 1px solid rgba(6,182,212,.14);
+}
+
+.net-coursecard--library{
+  position: relative;
+}
+.net-coursecard--library .net-coursebar{
+  height: 6px;
+}
+.net-coursecard--library .net-course-meta i{
+  color: rgba(15, 23, 42, .55);
+}
+.net-coursecard--library.is-locked{
+  opacity: .9;
+}
+
+.net-course-lock{
+  position:absolute;
+  inset: 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(15, 23, 42, .35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 24px;
+  z-index: 2;
+  cursor: not-allowed;
+}
+.net-course-lock-inner{
+  background: rgba(15, 23, 42, .78);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: .85rem;
+  box-shadow: 0 14px 40px rgba(2, 6, 23, .25);
+}
 
 /* Courses page layout helpers (works even if your HTML is simple) */
 .net-pagehead{
@@ -3021,7 +3200,7 @@ body.net-auth-v2.net-landing::before{
 .net-course-hero-top{
   display:grid;
   grid-template-columns: 1fr;
-  gap: 22px;
+  gap: 16px;
 }
 @media (min-width: 992px){
   .net-course-hero-top{
@@ -3083,6 +3262,16 @@ body.net-auth-v2.net-landing::before{
   height: 160px;
   filter: drop-shadow(0 20px 44px rgba(2, 6, 23, .10));
 }
+
+/* Tighter ring sizing specifically for course hero */
+.net-course-hero .net-ring{
+  width: 148px;
+  height: 148px;
+}
+.net-course-hero .net-ring svg{
+  width: 148px;
+  height: 148px;
+}
 .net-ring-track{
   stroke: rgba(15, 23, 42, .10);
 }
@@ -3095,6 +3284,7 @@ body.net-auth-v2.net-landing::before{
   display:grid;
   place-items:center;
   text-align:center;
+  gap: 2px;
 }
 .net-ring-pct{
   font-size: 2.2rem;
@@ -3104,6 +3294,11 @@ body.net-auth-v2.net-landing::before{
 .net-ring-sub{
   font-size: .85rem;
   color: rgba(15, 23, 42, .62);
+  margin-top: 2px;
+}
+.net-ring-rank{
+  font-size: .8rem;
+  color: rgba(15, 23, 42, .58);
   margin-top: 2px;
 }
 
@@ -3128,6 +3323,14 @@ body.net-auth-v2.net-landing::before{
   position: sticky;
   top: 96px;
 }
+.net-course-side .net-card{
+  border-radius: 20px;
+  border: 1px solid rgba(6,182,212,.16);
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 18px 54px rgba(2, 6, 23, .10);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
 
 /* Modules accordion cards */
 .net-course-card{
@@ -3136,11 +3339,12 @@ body.net-auth-v2.net-landing::before{
   border-radius: 24px;
   box-shadow: 0 16px 44px rgba(2, 6, 23, .08);
   overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 
 .net-module-card:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 22px 62px rgba(2, 6, 23, .12);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 26px 70px rgba(2, 6, 23, .14);
   border-color: rgba(6,182,212,.22);
 }
 
@@ -3205,6 +3409,31 @@ body.net-auth-v2.net-landing::before{
   border-radius: 16px;
   display:grid;
   place-items:center;
+}
+.net-ico-success{
+  background: rgba(16,185,129,.14);
+  border: 1px solid rgba(16,185,129,.28);
+  color: #10b981;
+}
+.net-ico-learn{
+  background: rgba(20,184,166,.14);
+  border: 1px solid rgba(20,184,166,.24);
+  color: #0f766e;
+}
+.net-ico-quiz{
+  background: rgba(56,189,248,.14);
+  border: 1px solid rgba(56,189,248,.24);
+  color: #0284c7;
+}
+.net-ico-sandbox{
+  background: rgba(16,185,129,.14);
+  border: 1px solid rgba(16,185,129,.24);
+  color: #0f766e;
+}
+.net-ico-challenge{
+  background: rgba(59,130,246,.14);
+  border: 1px solid rgba(59,130,246,.24);
+  color: #2563eb;
 }
 
 /* Sidebar pro tip + sandbox CTA */

@@ -2,11 +2,11 @@
 Student Number: C22320301
 Student Name: Jamie O’Neill
 Course Code: TU857/4
-Date: 10/11/2025
+Date: 09/02/2026
 
 HTML
 ---------------------------------
-courses.html – All courses page grouped by difficulty.
+courses.html – Course library grouped by difficulty.
 Shows Novice / Intermediate / Advanced sections.
 Locks courses until user level requirement is met.
 -->
@@ -16,7 +16,7 @@ Locks courses until user level requirement is met.
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Netology – All Courses</title>
+  <title>Netology – Courses</title>
 
   <!-- REQUIRED: Render API base -->
   <script>
@@ -28,7 +28,7 @@ Locks courses until user level requirement is met.
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="net-bg net-landing">
+<body class="net-bg net-landing net-courses-page">
 
   <!-- Slide Sidebar Backdrop -->
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
@@ -106,17 +106,6 @@ Locks courses until user level requirement is met.
 
         <!-- Right -->
         <div class="net-topnav-right position-relative">
-          <div class="d-none d-md-block net-topsearch">
-            <div class="net-search">
-              <i class="bi bi-search" aria-hidden="true"></i>
-              <input id="topSearch"
-                     class="form-control form-control-sm"
-                     type="search"
-                     placeholder="Search courses…"
-                     aria-label="Search courses">
-            </div>
-          </div>
-
           <!-- User dropdown -->
           <div class="position-relative">
             <button class="net-userbtn" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
@@ -142,59 +131,85 @@ Locks courses until user level requirement is met.
     </div>
   </header>
 
-  <main class="container my-4" role="main">
+  <main class="container my-4 net-courses-shell" role="main">
 
-    <!-- Header card -->
-    <section class="net-card p-4 p-lg-5 mb-3">
-      <div class="row g-4 align-items-center">
-        <div class="col-lg-8">
-          <div class="small text-muted">Course library</div>
-          <h1 class="h3 mb-2"><span class="text-teal">All Courses</span></h1>
-          <p class="text-muted mb-0">
-            Courses unlock based on your level. Complete lessons, quizzes, and challenges to earn XP.
-          </p>
-        </div>
-        <div class="col-lg-4">
-          <div class="net-mini-media p-3">
-            <div class="small text-muted mb-1">Your access</div>
-            <div class="small">Level: <span class="fw-semibold" id="levelText">1</span></div>
-            <div class="small">Rank: <span class="fw-semibold" id="rankText">Novice</span></div>
+    <!-- Hero -->
+    <section class="net-card net-courses-hero p-4 p-lg-5 mb-4" aria-label="Course library overview">
+      <div class="net-courses-hero-grid">
+        <div>
+          <div class="net-pill mb-3">
+            <span class="net-dot" aria-hidden="true"></span>
+            <span class="small fw-semibold">Course Library</span>
+            <span class="small text-muted">Pick your next path</span>
           </div>
+          <h1 class="display-6 fw-bold mb-2">Explore Networking Courses</h1>
+          <p class="text-muted mb-0">
+            Follow guided tracks, earn XP, and unlock advanced challenges as you level up.
+          </p>
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <span class="badge text-bg-light border">
+              Level <span class="fw-semibold" id="levelText">1</span>
+            </span>
+            <span class="badge text-bg-light border">
+              Rank <span class="fw-semibold" id="rankText">Novice</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="net-courses-hero-search">
+          <div class="net-search net-course-search w-100">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input id="topSearch"
+                   class="form-control form-control-sm"
+                   type="search"
+                   placeholder="Search courses…"
+                   aria-label="Search courses">
+          </div>
+          <div class="small text-muted mt-2">Try: routing, subnetting, firewalls</div>
         </div>
       </div>
     </section>
 
     <!-- Novice -->
-    <section class="net-card p-4 mb-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <div class="fw-semibold">Novice</div>
-        <span class="badge text-bg-light border">Level 1+</span>
+    <section class="net-card net-courses-section p-4 mb-4" aria-label="Novice courses">
+      <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-3">
+        <div>
+          <div class="fw-semibold">Novice Track</div>
+          <div class="small text-muted">Start here if you are new to networking.</div>
+        </div>
+        <span class="net-diffbadge net-badge-nov">Level 1+</span>
       </div>
-      <div class="net-coursegrid" id="noviceRow" aria-label="Novice courses"></div>
+      <div class="net-coursegrid" id="noviceRow"></div>
     </section>
 
     <!-- Intermediate -->
-    <section class="net-card p-4 mb-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <div class="fw-semibold">Intermediate</div>
-        <span class="badge bg-info text-dark">Level 3+</span>
+    <section class="net-card net-courses-section p-4 mb-4" aria-label="Intermediate courses">
+      <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-3">
+        <div>
+          <div class="fw-semibold">Intermediate Track</div>
+          <div class="small text-muted">Build depth in VLANs, routing, and troubleshooting.</div>
+        </div>
+        <span class="net-diffbadge net-badge-int">Level 3+</span>
       </div>
-      <div class="net-coursegrid" id="intermediateRow" aria-label="Intermediate courses"></div>
+      <div class="net-coursegrid" id="intermediateRow"></div>
     </section>
 
     <!-- Advanced -->
-    <section class="net-card p-4 mb-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <div class="fw-semibold">Advanced</div>
-        <span class="badge bg-danger">Level 5+</span>
+    <section class="net-card net-courses-section p-4" aria-label="Advanced courses">
+      <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-3">
+        <div>
+          <div class="fw-semibold">Advanced Track</div>
+          <div class="small text-muted">Security, automation, and enterprise-scale design.</div>
+        </div>
+        <span class="net-diffbadge net-badge-adv">Level 5+</span>
       </div>
-      <div class="net-coursegrid" id="advancedRow" aria-label="Advanced courses"></div>
+      <div class="net-coursegrid" id="advancedRow"></div>
     </section>
 
   </main>
 
   <footer class="text-center border-top py-3 bg-white">
-    <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
+    <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
   </footer>
 
   <!-- course content meta (required_level/difficulty) -->

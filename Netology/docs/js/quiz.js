@@ -88,6 +88,80 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderQuestion(state);
 });
 
+const QUIZ_PASS_PCT = 60;
+
+function safeJson(str) {
+  try { return JSON.parse(str); } catch { return null; }
+}
+
+function bumpUserXP(email, addXP) {
+  if (!email || !addXP) return;
+  const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
+  const user = safeJson(raw) || {};
+  if (!user || user.email !== email) return;
+  user.xp = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
+  if (localStorage.getItem("netology_user")) localStorage.setItem("netology_user", JSON.stringify(user));
+  if (localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify(user));
+}
+
+function logProgressEvent(email, payload) {
+  if (!email) return;
+  const entry = {
+    type: payload.type,
+    course_id: payload.course_id,
+    lesson_number: payload.lesson_number,
+    xp: Number(payload.xp || 0),
+    ts: Date.now(),
+    date: new Date().toISOString().slice(0, 10)
+  };
+  const key = `netology_progress_log:${email}`;
+  const list = safeJson(localStorage.getItem(key)) || [];
+  list.push(entry);
+  localStorage.setItem(key, JSON.stringify(list));
+}
+
+function trackCourseStart(email, courseId, lessonNumber) {
+  if (!email || !courseId) return;
+  const key = `netology_started_courses:${email}`;
+  const list = safeJson(localStorage.getItem(key)) || [];
+  const existing = list.find((c) => String(c.id) === String(courseId));
+  const payload = {
+    id: String(courseId),
+    lastViewed: Date.now(),
+    lastLesson: Number(lessonNumber || 0) || undefined
+  };
+  if (existing) {
+    existing.lastViewed = payload.lastViewed;
+    if (payload.lastLesson) existing.lastLesson = payload.lastLesson;
+  } else {
+    list.push(payload);
+  }
+  localStorage.setItem(key, JSON.stringify(list));
+}
+
+function markQuizCompletion(state, payload) {
+  const passed = Number(payload.percentage || 0) >= QUIZ_PASS_PCT;
+  if (!passed) return;
+
+  const key = `netology_completions:${state.email}:${state.courseId}`;
+  const data = safeJson(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
+  const quizArr = data.quiz || data.quizzes || [];
+  if (quizArr.includes(Number(state.lessonNumber))) return;
+
+  quizArr.push(Number(state.lessonNumber));
+  data.quiz = quizArr;
+  localStorage.setItem(key, JSON.stringify(data));
+
+  trackCourseStart(state.email, state.courseId, state.lessonNumber);
+  logProgressEvent(state.email, {
+    type: "quiz",
+    course_id: state.courseId,
+    lesson_number: state.lessonNumber,
+    xp: Number(payload.earnedXP || 0)
+  });
+  bumpUserXP(state.email, Number(payload.earnedXP || 0));
+}
+
 /* ----------------------------
    Quiz Model Helpers
 ---------------------------- */
@@ -321,6 +395,7 @@ function finishQuiz(state) {
     answers: state.answers
   };
   writeAttempt(state, payload);
+  markQuizCompletion(state, payload);
 
   // Best-effort backend award (once)
   awardQuizXpOnce(state, earnedXP).finally(() => {

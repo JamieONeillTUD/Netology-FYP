@@ -31,13 +31,18 @@ Works with:
   // Helpers
   // -----------------------------
   const $ = (id) => document.getElementById(id);
+  const XP_PER_LEVEL = 100;
 
   function safeJSONParse(str, fallback) {
     try { return JSON.parse(str); } catch { return fallback; }
   }
 
   function getCurrentUser() {
-    return safeJSONParse(localStorage.getItem("netology_user"), null);
+    return (
+      safeJSONParse(localStorage.getItem("netology_user"), null) ||
+      safeJSONParse(localStorage.getItem("user"), null) ||
+      null
+    );
   }
 
   function isLoggedIn() {
@@ -45,23 +50,30 @@ Works with:
     return !!(u && (u.email || u.username || u.name));
   }
 
-  function userNumericLevel(user) {
-    const n = Number(user?.numeric_level);
-    if (Number.isFinite(n) && n > 0) return n;
+  function levelFromXP(totalXP) {
+    const xp = Math.max(0, Number(totalXP) || 0);
+    return Math.max(1, Math.floor(xp / XP_PER_LEVEL) + 1);
+  }
 
-    const lvl = (user?.level || "").toLowerCase();
-    if (lvl.includes("advanced")) return 5;
-    if (lvl.includes("intermediate")) return 3;
-    if (lvl.includes("novice")) return 1;
-    return 1;
+  function userNumericLevel(user) {
+    const totalXP = Number(user?.xp) || 0;
+    return levelFromXP(totalXP);
+  }
+
+  function getUserRank(user) {
+    const raw = String(user?.unlock_tier || user?.rank || user?.level_name || user?.level || "novice").toLowerCase();
+    if (raw.includes("advanced")) return "Advanced";
+    if (raw.includes("intermediate")) return "Intermediate";
+    return "Novice";
   }
 
   function computeXP(user) {
     const totalXP = Number(user?.xp) || 0;
-    const currentLevelXP = ((totalXP % 250) + 250) % 250; // safe mod
-    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / 250) * 100));
-    const toNext = 250 - currentLevelXP;
-    return { totalXP, currentLevelXP, progressPct, toNext };
+    const currentLevelXP = ((totalXP % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL; // safe mod
+    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / XP_PER_LEVEL) * 100));
+    const toNext = XP_PER_LEVEL - currentLevelXP;
+    const level = levelFromXP(totalXP);
+    return { totalXP, currentLevelXP, progressPct, toNext, level };
   }
 
   function difficultyRequiredLevel(diff) {
@@ -184,6 +196,7 @@ Works with:
 
     function doLogout() {
       localStorage.removeItem("netology_user");
+      localStorage.removeItem("user");
       localStorage.removeItem("netology_token");
       window.location.href = "index.html";
     }
@@ -209,13 +222,7 @@ Works with:
       const difficulty = (c.difficulty || "novice").toLowerCase();
       const required_level = Number(c.required_level) || difficultyRequiredLevel(difficulty);
 
-      // Estimate items count from units/sections
-      let items = 0;
-      if (Array.isArray(c.units)) {
-        for (const u of c.units) {
-          if (Array.isArray(u?.sections)) items += u.sections.length;
-        }
-      }
+      const items = countRequiredItems(c);
 
       const xpReward = Number(c.xpReward || c.xp_reward || 500) || 500;
       const category = c.category || "Core";
@@ -238,6 +245,107 @@ Works with:
     const rank = { novice: 1, intermediate: 2, advanced: 3 };
     list.sort((a, b) => (rank[a.difficulty] - rank[b.difficulty]) || a.title.localeCompare(b.title));
     return list;
+  }
+
+  /* -----------------------------
+     Progress + Completions (local)
+  ----------------------------- */
+  function mapItemType(sectionType, item) {
+    const st = String(sectionType || "").toLowerCase();
+    if (st.includes("quiz")) return "quiz";
+    if (st.includes("challenge")) return "challenge";
+    if (st.includes("practice") || st.includes("sandbox") || st.includes("hands-on")) return "sandbox";
+
+    const t = String(item?.type || "").toLowerCase();
+    if (t === "quiz") return "quiz";
+    if (t === "challenge") return "challenge";
+    if (t === "sandbox" || t === "practice") return "sandbox";
+    return "learn";
+  }
+
+  function countRequiredItems(course) {
+    if (!course) return 0;
+    const units = course.units || course.modules || [];
+    let required = 0;
+
+    units.forEach((u) => {
+      if (Array.isArray(u?.sections)) {
+        u.sections.forEach((s) => {
+          const st = String(s?.type || s?.kind || s?.title || "").toLowerCase();
+          const items = s?.items || s?.lessons || [];
+          if (!Array.isArray(items)) return;
+          items.forEach((it) => {
+            const t = mapItemType(st, it);
+            if (t === "learn" || t === "quiz" || t === "challenge") required += 1;
+          });
+        });
+      } else if (u?.sections && typeof u.sections === "object") {
+        const obj = u.sections;
+        const learnArr = obj.learn || obj.lesson || obj.lessons || [];
+        const quizArr = obj.quiz || obj.quizzes || [];
+        const challengeArr = obj.challenge || obj.challenges || [];
+        required += (learnArr.length || 0);
+        required += (quizArr.length || 0);
+        required += (challengeArr.length || 0);
+      } else if (Array.isArray(u?.lessons)) {
+        u.lessons.forEach((it) => {
+          const t = mapItemType("", it);
+          if (t === "learn" || t === "quiz" || t === "challenge") required += 1;
+        });
+      }
+    });
+
+    return required;
+  }
+
+  function getCourseCompletions(email, courseId) {
+    if (!email || !courseId) {
+      return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
+    }
+    const raw = localStorage.getItem(`netology_completions:${email}:${courseId}`);
+    const payload = safeJSONParse(raw, {}) || {};
+    const lessonArr = payload.lesson || payload.lessons || payload.learn || [];
+    const quizArr = payload.quiz || payload.quizzes || [];
+    const chArr = payload.challenge || payload.challenges || [];
+
+    return {
+      lesson: new Set((lessonArr || []).map(Number)),
+      quiz: new Set((quizArr || []).map(Number)),
+      challenge: new Set((chArr || []).map(Number))
+    };
+  }
+
+  function getProgressLog(email) {
+    if (!email) return [];
+    return safeJSONParse(localStorage.getItem(`netology_progress_log:${email}`), []) || [];
+  }
+
+  function getStartedCourses(email) {
+    if (!email) return [];
+    const raw = localStorage.getItem(`netology_started_courses:${email}`);
+    const list = safeJSONParse(raw, []) || [];
+    return Array.isArray(list) ? list : [];
+  }
+
+  function computeStreak(log) {
+    if (!log.length) return 0;
+    const days = new Set(log.map(e => e.date).filter(Boolean));
+    let streak = 0;
+    const d = new Date();
+    for (;;) {
+      const key = d.toISOString().slice(0, 10);
+      if (!days.has(key)) break;
+      streak += 1;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
+  }
+
+  function countInLastDays(log, days, type) {
+    if (!log.length) return 0;
+    const now = Date.now();
+    const windowMs = days * 24 * 60 * 60 * 1000;
+    return log.filter(e => e?.type === type && (now - Number(e.ts || 0)) <= windowMs).length;
   }
 
   // -----------------------------
@@ -401,41 +509,65 @@ Works with:
     if (!box) return;
 
     const user = getCurrentUser();
-    const uLevel = userNumericLevel(user);
+    const email = user?.email;
 
-    const courses = getCoursesFromContent();
-    const unlocked = courses.filter(c => uLevel >= c.required_level);
-
-    if (unlocked.length === 0) {
-      box.className = "";
-      box.innerHTML = `<div class="text-muted small">No unlocked courses yet. Earn XP to unlock content.</div>`;
+    if (!email) {
+      box.className = "dash-continue-list";
+      box.innerHTML = `<div class="text-muted small">Sign in to track your learning progress.</div>`;
       return;
     }
 
-    // simple “best” pick: first unlocked (sorted novice->adv, title)
-    const pick = unlocked[0];
+    const started = getStartedCourses(email)
+      .sort((a, b) => Number(b.lastViewed || 0) - Number(a.lastViewed || 0));
 
-    box.className = "net-continue-card";
-    box.innerHTML = `
-      <div class="d-flex align-items-center justify-content-between">
-        <div>
-          <div class="fw-bold">${pick.title}</div>
-          <div class="text-muted small">${pick.category} • ${prettyDiff(pick.difficulty)}</div>
-        </div>
-        <div class="text-end">
-          <div class="small text-muted">Suggested</div>
-          <div class="fw-bold" style="color:#0f766e;">
-            <i class="bi bi-lightning-charge-fill me-1"></i>${pick.xpReward}
+    if (!started.length) {
+      box.className = "dash-continue-list";
+      box.innerHTML = `<div class="text-muted small">No started courses yet. Pick a course to begin.</div>`;
+      return;
+    }
+
+    const content = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
+
+    box.className = "dash-continue-list";
+    box.innerHTML = started.map((entry) => {
+      const course = content[String(entry.id)] || {};
+      const title = course.title || "Course";
+      const diff = String(course.difficulty || "novice");
+      const category = course.category || "Core";
+      const xpReward = Number(course.xpReward || course.xp_reward || course.totalXP || 0);
+
+      const required = countRequiredItems(course);
+      const completions = getCourseCompletions(email, entry.id);
+      const done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
+      const pct = required ? Math.round((done / required) * 100) : 0;
+
+      return `
+        <div class="dash-continue-item" data-course-id="${entry.id}">
+          <div class="flex-grow-1">
+            <div class="fw-semibold">${title}</div>
+            <div class="dash-continue-meta">${category} • ${prettyDiff(diff)}</div>
+            <div class="net-meter mt-2" aria-label="Course progress">
+              <div class="net-meter-fill" style="width:${pct}%"></div>
+            </div>
+            <div class="small text-muted mt-1">${done}/${required || 0} items</div>
+          </div>
+          <div class="text-end">
+            <div class="small text-muted">Suggested</div>
+            <div class="fw-semibold net-xp-accent">
+              <i class="bi bi-lightning-charge-fill me-1"></i>${xpReward || 0}
+            </div>
+            <button class="btn btn-teal btn-sm mt-2" type="button">Continue</button>
           </div>
         </div>
-      </div>
-      <div class="mt-3">
-        <button class="btn btn-teal btn-sm w-100" type="button">Continue</button>
-      </div>
-    `;
+      `;
+    }).join("");
 
-    box.addEventListener("click", () => {
-      window.location.href = `course.html?id=${encodeURIComponent(pick.key)}`;
+    box.querySelectorAll("[data-course-id]").forEach((item) => {
+      item.addEventListener("click", () => {
+        const id = item.getAttribute("data-course-id");
+        if (!id) return;
+        window.location.href = `course.html?id=${encodeURIComponent(id)}`;
+      });
     });
   }
 
@@ -486,6 +618,116 @@ Works with:
   }
 
   // -----------------------------
+  // Progress widgets (streak, goals, achievements)
+  // -----------------------------
+  function renderProgressWidgets() {
+    const user = getCurrentUser();
+    const email = user?.email;
+    if (!email) return;
+
+    const content = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
+    const courseIds = Object.keys(content);
+
+    let lessonsDone = 0;
+    let quizzesDone = 0;
+    let challengesDone = 0;
+    let inProgress = 0;
+    let completed = 0;
+
+    courseIds.forEach((id) => {
+      const completions = getCourseCompletions(email, id);
+      lessonsDone += completions.lesson.size;
+      quizzesDone += completions.quiz.size;
+      challengesDone += completions.challenge.size;
+
+      const required = countRequiredItems(content[id]);
+      const done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
+      if (required > 0) {
+        if (done >= required) completed += 1;
+        else if (done > 0) inProgress += 1;
+      }
+    });
+
+    if ($("statInProgress")) $("statInProgress").textContent = String(inProgress);
+    if ($("statCompleted")) $("statCompleted").textContent = String(completed);
+
+    // Streak + weekly goals
+    const log = getProgressLog(email);
+    const streak = computeStreak(log);
+    if ($("streakText")) $("streakText").textContent = `Streak: ${streak} day${streak === 1 ? "" : "s"}`;
+
+    const weeklyTargets = { lessons: 5, quizzes: 3, sandbox: 2 };
+    const weeklyLessons = countInLastDays(log, 7, "learn");
+    const weeklyQuizzes = countInLastDays(log, 7, "quiz");
+    const weeklySandbox = countInLastDays(log, 7, "challenge");
+
+    const weeklyLessonsPct = Math.min(100, Math.round((weeklyLessons / weeklyTargets.lessons) * 100));
+    const weeklyQuizzesPct = Math.min(100, Math.round((weeklyQuizzes / weeklyTargets.quizzes) * 100));
+    const weeklySandboxPct = Math.min(100, Math.round((weeklySandbox / weeklyTargets.sandbox) * 100));
+
+    if ($("weeklyLessonsText")) $("weeklyLessonsText").textContent = `${weeklyLessons}/${weeklyTargets.lessons}`;
+    if ($("weeklyQuizzesText")) $("weeklyQuizzesText").textContent = `${weeklyQuizzes}/${weeklyTargets.quizzes}`;
+    if ($("weeklySandboxText")) $("weeklySandboxText").textContent = `${weeklySandbox}/${weeklyTargets.sandbox}`;
+
+    if ($("weeklyLessonsBar")) $("weeklyLessonsBar").style.width = `${weeklyLessonsPct}%`;
+    if ($("weeklyQuizzesBar")) $("weeklyQuizzesBar").style.width = `${weeklyQuizzesPct}%`;
+    if ($("weeklySandboxBar")) $("weeklySandboxBar").style.width = `${weeklySandboxPct}%`;
+
+    const lessonsLeft = Math.max(0, weeklyTargets.lessons - weeklyLessons);
+    if ($("weeklyGoalText")) {
+      $("weeklyGoalText").textContent = lessonsLeft === 0 ? "Weekly goal complete" : `${lessonsLeft} lessons left`;
+    }
+
+    // Achievements (show only incomplete)
+    const achievements = [
+      { id: "fast-learner", title: "Fast Learner", desc: "Complete 5 lessons", icon: "bi-lightning-charge-fill", type: "lessons", target: 5 },
+      { id: "sandbox-builder", title: "Sandbox Builder", desc: "Build 2 topologies", icon: "bi-diagram-3", type: "challenges", target: 2 },
+      { id: "quiz-master", title: "Quiz Master", desc: "Pass 3 quizzes", icon: "bi-patch-check", type: "quizzes", target: 3 }
+    ];
+
+    const counts = { lessons: lessonsDone, quizzes: quizzesDone, challenges: challengesDone };
+    const pending = achievements.filter(a => (counts[a.type] || 0) < a.target);
+
+    if ($("nextBadgeText")) {
+      if (pending.length) {
+        const next = pending[0];
+        const remaining = Math.max(0, next.target - (counts[next.type] || 0));
+        const label = next.type === "quizzes" ? "quizzes" : next.type === "challenges" ? "topologies" : "lessons";
+        $("nextBadgeText").textContent = `Complete ${remaining} ${label}`;
+      } else {
+        $("nextBadgeText").textContent = "All badges earned";
+      }
+    }
+
+    const list = $("achievementsList");
+    if (list) {
+      if (!pending.length) {
+        list.innerHTML = `<div class="small text-muted">All achievements completed. Great work.</div>`;
+      } else {
+        list.innerHTML = pending.map((a) => {
+          const current = counts[a.type] || 0;
+          return `
+            <div class="dash-badge">
+              <span class="dash-badge-ico"><i class="bi ${a.icon}"></i></span>
+              <div>
+                <div class="fw-semibold">${a.title}</div>
+                <div class="small text-muted">${a.desc} (${current}/${a.target})</div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    if ($("focusText")) {
+      $("focusText").textContent = streak > 0
+        ? "Complete 1 lesson to keep your streak"
+        : "Complete 1 lesson to start your streak";
+    }
+    if ($("focusXp")) $("focusXp").textContent = "XP varies";
+  }
+
+  // -----------------------------
   // User UI fill
   // -----------------------------
   function fillUserUI() {
@@ -496,6 +738,7 @@ Works with:
       : (user?.name || user?.username || "Student");
 
     const email = user?.email || "Not logged in";
+    const rank = getUserRank(user);
 
     // avatar = first letter of name/username
     const initial = (name || "S").trim().charAt(0).toUpperCase();
@@ -513,6 +756,9 @@ Works with:
     // Dropdown
     if ($("ddName")) $("ddName").textContent = name;
     if ($("ddEmail")) $("ddEmail").textContent = email;
+    if ($("ddAvatar")) $("ddAvatar").textContent = initial;
+    if ($("ddLevel")) $("ddLevel").textContent = `Level ${lvl}`;
+    if ($("ddRank")) $("ddRank").textContent = rank;
 
     // Sidebar user
     if ($("sideUserName")) $("sideUserName").textContent = name;
@@ -520,7 +766,7 @@ Works with:
     if ($("sideAvatar")) $("sideAvatar").textContent = initial;
 
     if ($("sideLevelBadge")) $("sideLevelBadge").textContent = `Lv ${lvl}`;
-    if ($("sideXpText")) $("sideXpText").textContent = `${currentLevelXP}/250`;
+    if ($("sideXpText")) $("sideXpText").textContent = `${currentLevelXP}/${XP_PER_LEVEL}`;
     if ($("sideXpBar")) $("sideXpBar").style.width = `${progressPct}%`;
     if ($("sideXpHint")) $("sideXpHint").textContent = `${toNext} XP to next level`;
 
@@ -531,7 +777,8 @@ Works with:
 
     // Welcome ring block
     if ($("welcomeLevel")) $("welcomeLevel").textContent = String(lvl);
-    if ($("welcomeXpText")) $("welcomeXpText").textContent = `${currentLevelXP}/250 XP`;
+    if ($("welcomeRank")) $("welcomeRank").textContent = rank;
+    if ($("welcomeXpText")) $("welcomeXpText").textContent = `${currentLevelXP}/${XP_PER_LEVEL} XP`;
     if ($("welcomeLevelHint")) $("welcomeLevelHint").textContent = `${toNext} XP to next level`;
 
     setWelcomeRing(progressPct);
@@ -549,6 +796,7 @@ Works with:
     setupCourseSearchAndChips();
     renderCourses();
     renderContinueLearning();
+    renderProgressWidgets();
   }
 
   document.addEventListener("DOMContentLoaded", init);

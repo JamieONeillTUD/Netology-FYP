@@ -21,21 +21,17 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  function userNumericLevel(user) {
-    const n = Number(user?.numeric_level);
-    if (Number.isFinite(n) && n > 0) return n;
+  const XP_PER_LEVEL = 100;
 
-    const lvl = String(user?.level || user?.unlock_tier || "").toLowerCase();
-    if (lvl.includes("advanced")) return 5;
-    if (lvl.includes("intermediate")) return 3;
-    if (lvl.includes("novice")) return 1;
-    return 1;
+  function userNumericLevel(user) {
+    const xp = Number(user?.xp) || 0;
+    return Math.max(1, Math.floor(xp / XP_PER_LEVEL) + 1);
   }
 
   function computeXP(user) {
     const totalXP = Number(user?.xp) || 0;
-    const currentLevelXP = ((totalXP % 250) + 250) % 250;
-    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / 250) * 100));
+    const currentLevelXP = ((totalXP % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL;
+    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / XP_PER_LEVEL) * 100));
     return { totalXP, currentLevelXP, progressPct };
   }
 
@@ -271,7 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const { totalXP, currentLevelXP, progressPct } = computeXP(user);
 
     if (heroLevel) heroLevel.textContent = `Level ${lvl}`;
-    if (heroXpText) heroXpText.textContent = `${currentLevelXP} / 250`;
+    if (heroXpText) heroXpText.textContent = `${currentLevelXP} / ${XP_PER_LEVEL}`;
     if (heroXpBar) heroXpBar.style.width = `${progressPct}%`;
     if (heroTotalXp) heroTotalXp.textContent = String(totalXP);
 

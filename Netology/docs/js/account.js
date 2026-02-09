@@ -33,14 +33,15 @@ async function loadStats(email) {
     const data = await res.json();
     if (!data.success) return;
 
-    const xp = Number(data.xp || 0);
-    const level = Number(data.level || 1);
-    const next = Number(data.next_level_xp || 100);
-    const pct = Math.max(0, Math.min(100, Math.round((xp / Math.max(next, 1)) * 100)));
+    const XP_PER_LEVEL = 100;
+    const xp = Number(data.xp || data.total_xp || 0);
+    const level = Math.max(1, Math.floor(xp / XP_PER_LEVEL) + 1);
+    const currentLevelXP = ((xp % XP_PER_LEVEL) + XP_PER_LEVEL) % XP_PER_LEVEL;
+    const pct = Math.max(0, Math.min(100, Math.round((currentLevelXP / XP_PER_LEVEL) * 100)));
 
     document.getElementById("levelText").textContent = level;
     document.getElementById("xpText").textContent = xp;
-    document.getElementById("nextText").textContent = `${xp} / ${next}`;
+    document.getElementById("nextText").textContent = `${currentLevelXP} / ${XP_PER_LEVEL}`;
     document.getElementById("xpBar").style.width = `${pct}%`;
 
   } catch (e) {
