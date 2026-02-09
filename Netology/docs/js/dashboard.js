@@ -45,6 +45,20 @@ Works with:
       .replaceAll("\"", "&quot;");
   }
 
+  function onReady(fn) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", fn);
+    } else {
+      fn();
+    }
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
   function getCurrentUser() {
     return (
       safeJSONParse(localStorage.getItem("netology_user"), null) ||
@@ -335,10 +349,48 @@ Works with:
   // -----------------------------
   // Courses data (from course_content.js)
   // -----------------------------
-  function getCoursesFromContent() {
+  function getCourseIndex() {
     const cc = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT)
       ? COURSE_CONTENT
       : (window.COURSE_CONTENT || {});
+    if (cc && Object.keys(cc).length) return cc;
+    return window.__dashCourseIndex || {};
+  }
+
+  async function fetchCoursesFromApi() {
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (!base) return [];
+
+    try {
+      const data = await fetchJson(`${base}/courses`);
+      if (!data || !data.success || !Array.isArray(data.courses)) return [];
+
+      const index = {};
+      data.courses.forEach((c) => {
+        const id = String(c.id || "");
+        if (!id) return;
+        index[id] = {
+          id,
+          title: c.title || "Untitled Course",
+          description: c.description || "Learn networking skills.",
+          difficulty: (c.difficulty || "novice").toLowerCase(),
+          category: c.category || "Core",
+          xpReward: Number(c.xp_reward || c.xpReward || 0) || 0,
+          total_lessons: Number(c.total_lessons || c.totalLessons || 0) || 0,
+          required_level: Number(c.required_level || 0) || 0,
+          estimatedTime: c.estimated_time || c.estimatedTime || "—"
+        };
+      });
+
+      window.__dashCourseIndex = index;
+      return Object.keys(index).map((k) => index[k]);
+    } catch {
+      return [];
+    }
+  }
+
+  function getCoursesFromContent() {
+    const cc = getCourseIndex();
     const list = [];
 
     for (const key of Object.keys(cc)) {
@@ -392,6 +444,8 @@ Works with:
 
   function countRequiredItems(course) {
     if (!course) return 0;
+    const total = Number(course.total_lessons || course.totalLessons || course.items || 0) || 0;
+    if (total > 0) return total;
     const units = course.units || course.modules || [];
     let required = 0;
 
@@ -683,7 +737,7 @@ Works with:
       return;
     }
 
-    const content = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
+    const content = getCourseIndex();
 
     box.className = "dash-continue-list";
     box.innerHTML = started.map((entry) => {
@@ -731,7 +785,7 @@ Works with:
   // -----------------------------
   // Render courses
   // -----------------------------
-  function renderCourses() {
+  async function renderCourses() {
     const grid = $("coursesGrid");
     if (!grid) return;
     const banner = $("courseErrorBanner");
@@ -739,7 +793,24 @@ Works with:
     const user = getCurrentUser();
     const uLevel = userNumericLevel(user);
 
-    const courses = getCoursesFromContent();
+    let courses = getCoursesFromContent();
+    if (!courses.length) {
+      const apiCourses = await fetchCoursesFromApi();
+      if (apiCourses.length) {
+        courses = apiCourses.map((c) => ({
+          key: String(c.id),
+          id: String(c.id),
+          title: c.title,
+          description: c.description,
+          difficulty: (c.difficulty || "novice").toLowerCase(),
+          required_level: Number(c.required_level) || difficultyRequiredLevel((c.difficulty || "novice").toLowerCase()),
+          xpReward: Number(c.xpReward || 0) || 0,
+          items: Number(c.total_lessons || 0) || countRequiredItems(c),
+          category: c.category || "Core",
+          estimatedTime: c.estimatedTime || "—"
+        }));
+      }
+    }
     if (!courses.length) {
       grid.innerHTML = `
         <div class="net-empty">
@@ -1036,38 +1107,82 @@ Works with:
     setWelcomeRing(progressPct);
   }
 
+  async function refreshUserFromApi() {
+    const user = getCurrentUser();
+    const email = user?.email || localStorage.getItem("netology_last_email") || "";
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (!email || !base) return user;
+
+    try {
+      const data = await fetchJson(`${base}/user-info?email=${encodeURIComponent(email)}`);
+      if (!data || !data.success) return user;
+
+      const unlockTier = String(data.start_level || user?.unlock_tier || user?.unlock_level || user?.unlockTier || "novice")
+        .trim()
+        .toLowerCase();
+
+      const merged = {
+        ...(user || {}),
+        email,
+        first_name: data.first_name || user?.first_name,
+        username: data.username || user?.username,
+        xp: Number(data.xp || user?.xp || 0),
+        unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
+      };
+
+      localStorage.setItem("user", JSON.stringify(merged));
+      localStorage.setItem("netology_user", JSON.stringify(merged));
+      return merged;
+    } catch {
+      return user;
+    }
+  }
+
   // -----------------------------
   // Init
   // -----------------------------
-  function init() {
-    wireBrandRouting();
-    setupSidebar();
-    setupUserDropdown();
-    setupLogout();
-    setupGoalToggle();
-    const user = getCurrentUser();
-    if (user?.email) {
-      const loginInfo = recordLoginDay(user.email);
-      const streak = computeLoginStreak(loginInfo.log);
-      awardLoginStreakBadges(user.email, streak);
+  async function init() {
+    try {
+      wireBrandRouting();
+      setupSidebar();
+      setupUserDropdown();
+      setupLogout();
+      setupGoalToggle();
 
-      if (loginInfo.isNew) {
-        const pill = $("topStreakPill");
-        if (pill) {
-          pill.classList.remove("is-animate");
-          requestAnimationFrame(() => {
-            pill.classList.add("is-animate");
-            window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
-          });
+      const user = await refreshUserFromApi();
+      if (user?.email) {
+        const loginInfo = recordLoginDay(user.email);
+        const streak = computeLoginStreak(loginInfo.log);
+        awardLoginStreakBadges(user.email, streak);
+
+        if (loginInfo.isNew) {
+          const pill = $("topStreakPill");
+          if (pill) {
+            pill.classList.remove("is-animate");
+            requestAnimationFrame(() => {
+              pill.classList.add("is-animate");
+              window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
+            });
+          }
         }
       }
+
+      fillUserUI();
+      setupCourseSearchAndChips();
+      await renderCourses();
+      renderContinueLearning();
+      renderProgressWidgets();
+    } catch (err) {
+      const box = $("continueBox");
+      if (box) {
+        box.className = "dash-continue-list";
+        box.innerHTML = `<div class="text-danger small">Dashboard failed to load. Please refresh and try again.</div>`;
+      }
+      const banner = $("courseErrorBanner");
+      if (banner) banner.classList.remove("d-none");
+      console.error("Dashboard init failed:", err);
     }
-    fillUserUI();
-    setupCourseSearchAndChips();
-    renderCourses();
-    renderContinueLearning();
-    renderProgressWidgets();
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  onReady(init);
 })();

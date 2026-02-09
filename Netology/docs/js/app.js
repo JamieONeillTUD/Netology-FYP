@@ -215,6 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // NEW: dashboard uses this to unlock content tiers
             unlock_tier: unlockTier
           }));
+          localStorage.setItem("netology_last_email", email);
 
           // Login streak tracking + badge awards
           recordLoginDay(email);

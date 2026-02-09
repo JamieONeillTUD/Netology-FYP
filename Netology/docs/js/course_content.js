@@ -1137,3 +1137,7 @@ const COURSE_CONTENT = {
     ]
   }
 };
+
+if (typeof window !== "undefined") {
+  window.COURSE_CONTENT = COURSE_CONTENT;
+}
