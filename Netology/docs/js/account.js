@@ -2,7 +2,7 @@
 Account page logic (simple)
 - Shows localStorage user details
 - Loads XP/Level from backend
-- Logout
+- Logou
 */
 
 document.addEventListener("DOMContentLoaded", async () => {
