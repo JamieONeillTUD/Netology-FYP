@@ -203,12 +203,15 @@ document.addEventListener("DOMContentLoaded", () => {
             .trim()
             .toLowerCase();
 
-          let unlockTier = existingTier || pendingTier || "novice";
+          const serverTier = String(data.start_level || "").trim().toLowerCase();
+          let unlockTier = serverTier || existingTier || pendingTier || "novice";
           if (!["novice", "intermediate", "advanced"].includes(unlockTier)) unlockTier = "novice";
 
           localStorage.setItem("user", JSON.stringify({
             email: email,
             first_name: data.first_name,
+            last_name: data.last_name,
+            username: data.username,
             level: data.level,     // keep existing field (backwards compatible)
             xp: data.xp,
 
@@ -598,6 +601,16 @@ function recordLoginDay(email) {
     log.sort();
     saveLoginLog(email, log);
   }
+  try {
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (base) {
+      fetch(`${base}/record-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      }).catch(() => {});
+    }
+  } catch {}
   return log;
 }
 

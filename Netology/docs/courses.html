@@ -82,25 +82,20 @@ Locks courses until user level requirement is met.
 
         <!-- Left -->
         <div class="net-topnav-left">
-          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
+          <button class="net-hambtn"
                   id="openSidebarBtn"
                   type="button"
                   aria-label="Open menu">
-            <i class="bi bi-list me-2" aria-hidden="true"></i>
-            Menu
+            <i class="bi bi-list" aria-hidden="true"></i>
+            <span class="visually-hidden">Open menu</span>
           </button>
-
-          <div class="d-none d-lg-flex align-items-center gap-2 text-white-75 small">
-            <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
-            Courses
-          </div>
         </div>
 
         <!-- Center brand -->
         <div class="net-topnav-center">
           <a href="dashboard.html" class="net-topnav-brand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
-            <span class="net-brand-text">Netology</span>
+            <h2 class="net-brand-text">Netology</h2>
           </a>
         </div>
 
@@ -108,9 +103,8 @@ Locks courses until user level requirement is met.
         <div class="net-topnav-right position-relative">
           <!-- User dropdown -->
           <div class="position-relative">
-            <button class="net-userbtn" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
+            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
-              <span class="net-user-name d-none d-sm-inline" id="topUserName">Student</span>
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
@@ -135,38 +129,33 @@ Locks courses until user level requirement is met.
 
     <!-- Hero -->
     <section class="net-card net-courses-hero p-4 p-lg-5 mb-4" aria-label="Course library overview">
-      <div class="net-courses-hero-grid">
+      <div class="net-courses-hero-grid text-center">
         <div>
-          <div class="net-pill mb-3">
-            <span class="net-dot" aria-hidden="true"></span>
-            <span class="small fw-semibold">Course Library</span>
-            <span class="small text-muted">Pick your next path</span>
+          <div class="dash-pill mb-3 justify-content-center">
+            <span class="dash-pill-dot" aria-hidden="true"></span>
+            <span class="small fw-semibold">System online</span>
           </div>
           <h1 class="display-6 fw-bold mb-2">Explore Networking Courses</h1>
           <p class="text-muted mb-0">
-            Follow guided tracks, earn XP, and unlock advanced challenges as you level up.
+            Build real skills with focused pathways, practical labs, and clear milestones.
           </p>
-          <div class="d-flex flex-wrap gap-2 mt-4">
-            <span class="badge text-bg-light border">
-              Level <span class="fw-semibold" id="levelText">1</span>
-            </span>
-            <span class="badge text-bg-light border">
-              Rank <span class="fw-semibold" id="rankText">Novice</span>
-            </span>
-          </div>
         </div>
+      </div>
+    </section>
 
-        <div class="net-courses-hero-search">
-          <div class="net-search net-course-search w-100">
-            <i class="bi bi-search" aria-hidden="true"></i>
-            <input id="topSearch"
-                   class="form-control form-control-sm"
-                   type="search"
-                   placeholder="Search courses…"
-                   aria-label="Search courses">
-          </div>
-          <div class="small text-muted mt-2">Try: routing, subnetting, firewalls</div>
+    <!-- Search -->
+    <section class="net-card net-courses-search p-4 mb-4" aria-label="Search courses">
+      <div class="net-courses-search-inner">
+        <div class="fw-semibold">Find a course</div>
+        <div class="net-search net-course-search w-100 mt-2">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input id="topSearch"
+                 class="form-control form-control-sm"
+                 type="search"
+                 placeholder="Search courses…"
+                 aria-label="Search courses">
         </div>
+        <div class="small text-muted mt-2">Try: routing, subnetting, firewalls</div>
       </div>
     </section>
 

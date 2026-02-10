@@ -44,7 +44,7 @@ What this file does:
 
     // Best-guess completion endpoints (optional)
     getCompletions: (email, courseId) =>
-      `${API()}/completions?email=${encodeURIComponent(email)}&course_id=${encodeURIComponent(courseId)}`,
+      `${API()}/user-course-status?email=${encodeURIComponent(email)}&course_id=${encodeURIComponent(courseId)}`,
 
     completeLesson: `${API()}/complete-lesson`,
     completeQuiz: `${API()}/complete-quiz`,
@@ -88,6 +88,13 @@ What this file does:
   function xpForNextLevel(level) {
     const lvl = Math.max(1, Number(level) || 1);
     return BASE_XP * lvl;
+  }
+
+  function unlockLevelFromTier(tier) {
+    const t = String(tier || "").toLowerCase();
+    if (t.includes("advanced")) return 5;
+    if (t.includes("intermediate")) return 3;
+    return 1;
   }
 
   function computeXPFromTotal(totalXP) {
@@ -231,6 +238,7 @@ What this file does:
       xp: 0,
       currentLevelXP: 0,
       xpProgressPct: 0,
+      accessLevel: 1,
     },
 
     courseLocked: false,
@@ -463,14 +471,22 @@ What this file does:
       const xp = Number(data.xp || data.total_xp || 0) || 0;
       const { level, currentLevelXP, xpNext, xpProgressPct } = computeXPFromTotal(xp);
       const rank = String(data.rank || data.level_name || data.level || "Novice");
+      const unlockTier = String(data.start_level || state.user?.unlock_tier || "novice").toLowerCase();
 
       state.stats.level = level;
       state.stats.xp = xp;
       state.stats.rank = rank;
+      state.stats.accessLevel = Math.max(level, unlockLevelFromTier(unlockTier));
 
       state.stats.currentLevelXP = currentLevelXP;
       state.stats.xpProgressPct = xpProgressPct;
       state.stats.xpNext = xpNext;
+
+      if (state.user) {
+        state.user.unlock_tier = ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice";
+        localStorage.setItem("user", JSON.stringify(state.user));
+        localStorage.setItem("netology_user", JSON.stringify(state.user));
+      }
 
       // Sidebar stats
       setText("sideLevelBadge", `Lv ${level}`);
@@ -488,6 +504,7 @@ What this file does:
       state.stats.currentLevelXP = fallback.currentLevelXP;
       state.stats.xpProgressPct = fallback.xpProgressPct;
       state.stats.xpNext = fallback.xpNext;
+      state.stats.accessLevel = Math.max(state.stats.level, unlockLevelFromTier(state.user?.unlock_tier));
 
       setText("sideLevelBadge", `Lv ${state.stats.level}`);
       setText("sideXPText", `${state.stats.currentLevelXP}/${state.stats.xpNext}`);
@@ -503,10 +520,21 @@ What this file does:
         const res = await fetch(ENDPOINTS.getCompletions(email, courseId));
         if (res.ok) {
           const data = await res.json().catch(() => null);
-          if (data && data.success !== false && data.completions) {
-            applyCompletionsPayload(data.completions);
-            cacheCompletionsToLS(email, courseId);
-            return;
+          if (data && data.success !== false) {
+            if (data.completions) {
+              applyCompletionsPayload(data.completions);
+              cacheCompletionsToLS(email, courseId);
+              return;
+            }
+            if (data.lessons || data.quizzes || data.challenges) {
+              applyCompletionsPayload({
+                lessons: data.lessons || [],
+                quizzes: data.quizzes || [],
+                challenges: data.challenges || []
+              });
+              cacheCompletionsToLS(email, courseId);
+              return;
+            }
           }
         }
       }
@@ -719,7 +747,7 @@ What this file does:
   ========================================================= */
 
   function computeLockState() {
-    const userLevel = state.user ? Number(state.stats.level || 1) : 0;
+    const userLevel = state.user ? Number(state.stats.accessLevel || state.stats.level || 1) : 0;
     state.courseLocked = userLevel < Number(state.course.required_level || 1);
   }
 

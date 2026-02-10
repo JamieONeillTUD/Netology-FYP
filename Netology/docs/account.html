@@ -10,101 +10,334 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="net-bg net-landing">
+<body class="net-bg net-landing net-account-page">
 
-  <header class="net-figma-nav sticky-top" role="banner">
-    <div class="net-figma-container nav-inner">
-      <a href="dashboard.html" class="net-figma-brand" aria-label="Netology home">
-        <span class="net-figma-logo"><i class="bi bi-mortarboard-fill"></i></span>
-        <span class="net-figma-title">Netology</span>
-      </a>
-      <nav class="net-figma-actions" aria-label="Primary actions">
-        <a href="dashboard.html" class="net-figma-link">Dashboard</a>
-        <button class="btn btn-outline-danger btn-sm" id="logoutBtn">Logout</button>
-      </nav>
+  <!-- Slide Sidebar Backdrop -->
+  <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
+
+  <!-- Slide Sidebar -->
+  <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
+    <div class="net-sidehead">
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <a href="dashboard.html" class="net-brandchip" aria-label="Netology home">
+          <div class="net-logo" aria-hidden="true"></div>
+          <div class="net-brandname">Netology</div>
+        </a>
+
+        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+
+    <nav class="net-sidenav" aria-label="Sidebar navigation">
+      <a class="net-sidelink" href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
+      <a class="net-sidelink is-active" href="account.html"><i class="bi bi-person-circle"></i> My Profile</a>
+      <a class="net-sidelink" href="courses.html"><i class="bi bi-journal-bookmark"></i> Courses</a>
+      <a class="net-sidelink" href="sandbox.html"><i class="bi bi-diagram-3"></i> Network Sandbox</a>
+      <a class="net-sidelink" href="account.html"><i class="bi bi-gear"></i> Settings</a>
+    </nav>
+
+    <div class="net-sidefoot">
+      <div class="net-userbox">
+        <div class="d-flex align-items-center gap-3">
+          <div class="net-avatar-sm" id="sideAvatar">S</div>
+          <div class="flex-grow-1 min-width-0">
+            <div class="fw-semibold text-truncate" id="sideUserName">Student</div>
+            <div class="small text-muted text-truncate" id="sideUserEmail">email@example.com</div>
+          </div>
+          <span class="badge text-bg-light border" id="sideLevelBadge">Lv 1</span>
+        </div>
+      </div>
+      <div class="d-grid mt-3">
+        <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
+          <i class="bi bi-box-arrow-right me-2"></i>Logout
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- TOP NAV -->
+  <header class="net-topnav sticky-top" role="banner">
+    <div class="container-fluid">
+      <div class="net-topnav-inner">
+
+        <div class="net-topnav-left">
+          <button class="net-hambtn" id="openSidebarBtn" type="button" aria-label="Open menu">
+            <i class="bi bi-list" aria-hidden="true"></i>
+            <span class="visually-hidden">Open menu</span>
+          </button>
+        </div>
+
+        <div class="net-topnav-center">
+          <a href="dashboard.html" class="net-topnav-brand" aria-label="Netology home">
+            <span class="net-logo net-logo-sm" aria-hidden="true"></span>
+            <h2 class="net-brand-text">Netology</h2>
+          </a>
+        </div>
+
+        <div class="net-topnav-right position-relative">
+          <div class="position-relative">
+            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
+              <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
+              <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
+            </button>
+
+            <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
+              <div class="net-ddhead">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="net-avatar-sm" id="ddAvatar" aria-hidden="true">S</div>
+                  <div class="min-width-0">
+                    <div class="fw-semibold text-truncate" id="ddName">Student</div>
+                    <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  <span class="badge text-bg-light border" id="ddLevel">Level 1</span>
+                  <span class="badge text-bg-light border" id="ddRank">Novice</span>
+                </div>
+              </div>
+              <a href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
+              <a href="courses.html"><i class="bi bi-journal-bookmark"></i> Courses</a>
+              <a href="sandbox.html"><i class="bi bi-diagram-3"></i> Sandbox</a>
+              <div class="net-ddsep"></div>
+              <button class="danger" id="topLogoutBtn" type="button">
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   </header>
 
-  <main class="container my-4">
-    <div class="row g-3">
-      <div class="col-lg-4">
-        <div class="net-card p-4">
-          <div class="fw-semibold mb-2">Profile</div>
-          <div class="text-muted small">Your account details</div>
-          <hr>
-          <div class="small"><span class="text-muted">Name:</span> <span class="fw-semibold" id="nameText">-</span></div>
-          <div class="small"><span class="text-muted">Username:</span> <span class="fw-semibold" id="userText">-</span></div>
-          <div class="small"><span class="text-muted">Email:</span> <span class="fw-semibold" id="emailText">-</span></div>
+  <main class="container my-4 net-account-shell">
+    <!-- Hero -->
+    <section class="net-card net-account-hero p-4 p-lg-5 mb-4">
+      <div class="net-account-hero-grid">
+        <div class="net-profile-card">
+          <div class="dash-pill mb-3">
+            <span class="dash-pill-dot" aria-hidden="true"></span>
+            <span class="small fw-semibold">System online</span>
+          </div>
 
-          <!-- NEW (added only): rank box -->
-          <hr class="my-3">
-          <div class="fw-semibold mb-2">Learning tier</div>
-          <div class="d-flex flex-wrap gap-2 align-items-center">
+          <div class="net-profile-head">
+            <div class="net-profile-avatar" id="profileAvatar">S</div>
+            <div>
+              <h1 class="net-profile-name" id="profileName">Student</h1>
+              <div class="small text-muted" id="profileEmail">email@example.com</div>
+              <div class="small text-muted">@<span id="profileUser">student</span></div>
+            </div>
+          </div>
+
+          <div class="net-profile-badges">
             <span class="badge text-bg-light border" id="rankBadge">Novice</span>
-            <span class="small text-muted" id="rankHint">Unlock courses by leveling up.</span>
+            <span class="badge text-bg-light border" id="badgePill">0 badges</span>
+          </div>
+
+          <div class="net-profile-actions">
+            <a href="dashboard.html" class="btn btn-teal btn-sm dash-action-btn" data-tip="Back to your dashboard">Dashboard</a>
+            <a href="courses.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--blue" data-tip="Browse all courses">Courses</a>
+            <a href="sandbox.html" class="btn btn-soft btn-sm dash-action-btn" data-tip="Open the sandbox">Sandbox</a>
           </div>
         </div>
-      </div>
 
-      <div class="col-lg-8">
-        <div class="net-card p-4">
-          <div class="fw-semibold mb-2">Progress</div>
-          <div class="text-muted small mb-3">XP and level</div>
-
-          <div class="row g-3">
-            <div class="col-md-3">
-              <div class="net-mini-media p-3">
-                <div class="small text-muted">Level</div>
-                <div class="h4 mb-0" id="levelText">1</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="net-mini-media p-3">
-                <div class="small text-muted">XP</div>
-                <div class="h4 mb-0" id="xpText">0</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="net-mini-media p-3">
-                <div class="small text-muted">Next level</div>
-                <div class="h6 mb-0" id="nextText">0 / 100</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="net-mini-media p-3">
-                <div class="small text-muted">Login streak</div>
-                <div class="h4 mb-0" id="streakCount">0</div>
-              </div>
-            </div>
+        <div class="net-account-progress">
+          <div class="dash-progress-head">
+            <div class="fw-semibold">Level progress</div>
+            <div class="small text-muted" id="accountLevelHint">100 XP to next level</div>
           </div>
 
-          <div class="mt-3">
-            <div class="small text-muted mb-1">XP Progress</div>
-            <div class="progress" style="height:10px;">
+          <div class="dash-progress-box dash-progress-ringbox">
+            <div class="net-ring net-ring--arc" aria-label="Level progress ring">
+              <svg viewBox="0 0 140 140" aria-hidden="true">
+                <defs>
+                  <linearGradient id="netAccountGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#14b8a6"></stop>
+                    <stop offset="100%" stop-color="#06b6d4"></stop>
+                  </linearGradient>
+                </defs>
+
+                <circle class="net-ring-track" cx="70" cy="70" r="58" stroke-width="10" fill="none"></circle>
+                <circle id="accountRing"
+                        class="net-ring-fill"
+                        cx="70" cy="70" r="58"
+                        stroke="url(#netAccountGrad)"
+                        stroke-width="10"
+                        stroke-linecap="round"
+                        fill="none"
+                        stroke-dasharray="364.42"
+                        stroke-dashoffset="364.42"></circle>
+              </svg>
+              <div class="net-ring-center">
+                <div class="net-ring-pct net-gradient-text" id="accountLevel">1</div>
+              </div>
+            </div>
+
+            <div class="small text-muted" id="accountXpText">0/100 XP</div>
+            <div class="progress mt-2" style="height:10px;">
               <div class="progress-bar bg-teal" id="xpBar" style="width:0%"></div>
             </div>
-            <div class="small text-muted mt-2" id="streakHint">Log in today to start a streak.</div>
           </div>
-
-          <!-- NEW (added only): course access explanation -->
-          <div class="small text-muted mt-3" id="accessHint">
-            Novice courses are available at Level 1. Intermediate unlocks at Level 3. Advanced unlocks at Level 5.
-          </div>
-
-          <hr class="my-4">
-
-          <div class="fw-semibold mb-2">Quick links</div>
-          <div class="d-flex flex-wrap gap-2">
-            <a href="courses.html" class="btn btn-teal btn-sm">Browse Courses</a>
-            <a href="sandbox.html" class="btn btn-outline-secondary btn-sm">Open Sandbox</a>
-            <a href="forgot.html" class="btn btn-outline-secondary btn-sm">Reset Password</a>
-          </div>
-
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="row g-3 mt-1">
+    <!-- Stats -->
+    <section class="net-card p-4 mb-4">
+      <div class="fw-semibold mb-3">Your stats</div>
+      <div class="dash-statgrid net-account-stats">
+        <div class="dash-stat dash-stat--teal">
+          <div class="dash-stat-ico"><i class="bi bi-bullseye"></i></div>
+          <div>
+            <div class="text-muted small">Level</div>
+            <div class="fw-bold fs-4" id="levelText">1</div>
+            <div class="small text-muted" id="rankText"></div>
+            <div class="small text-muted" id="nextText">0 / 100</div>
+          </div>
+        </div>
+
+        <div class="dash-stat dash-stat--green">
+          <div class="dash-stat-ico"><i class="bi bi-lightning-charge-fill"></i></div>
+          <div>
+            <div class="text-muted small">Total XP</div>
+            <div class="fw-bold fs-4" id="xpText">0</div>
+            <div class="small text-muted">Earned overall</div>
+          </div>
+        </div>
+
+        <div class="dash-stat dash-stat--amber">
+          <div class="dash-stat-ico"><i class="bi bi-fire"></i></div>
+          <div>
+            <div class="text-muted small">Login streak</div>
+            <div class="fw-bold fs-4" id="streakCount">0</div>
+            <div class="small text-muted" id="streakHint">Log in today to start a streak.</div>
+          </div>
+        </div>
+
+        <div class="dash-stat dash-stat--blue">
+          <div class="dash-stat-ico"><i class="bi bi-journal-text"></i></div>
+          <div>
+            <div class="text-muted small">Lessons done</div>
+            <div class="fw-bold fs-4" id="statLessons">0</div>
+            <div class="small text-muted">Keep momentum</div>
+          </div>
+        </div>
+
+        <div class="dash-stat dash-stat--teal">
+          <div class="dash-stat-ico"><i class="bi bi-patch-check"></i></div>
+          <div>
+            <div class="text-muted small">Quizzes passed</div>
+            <div class="fw-bold fs-4" id="statQuizzes">0</div>
+            <div class="small text-muted">Build confidence</div>
+          </div>
+        </div>
+
+        <div class="dash-stat dash-stat--green">
+          <div class="dash-stat-ico"><i class="bi bi-diagram-3"></i></div>
+          <div>
+            <div class="text-muted small">Challenges</div>
+            <div class="fw-bold fs-4" id="statChallenges">0</div>
+            <div class="small text-muted">Sandbox builds</div>
+          </div>
+        </div>
+
+        <div class="dash-stat dash-stat--amber">
+          <div class="dash-stat-ico"><i class="bi bi-award"></i></div>
+          <div>
+            <div class="text-muted small">Courses completed</div>
+            <div class="fw-bold fs-4" id="statCourses">0</div>
+            <div class="small text-muted">Keep finishing</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Activity + Topologies + Quiz History -->
+    <section class="net-account-insights mb-4">
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="net-card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div class="fw-semibold d-flex align-items-center gap-2">
+                <i class="bi bi-activity text-teal" aria-hidden="true"></i>
+                Recent Activity
+              </div>
+              <span class="small text-muted">Last 7 days</span>
+            </div>
+            <div class="net-activity-list" id="recentActivityList">
+              <div class="small text-muted">No activity yet.</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="net-card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div class="fw-semibold d-flex align-items-center gap-2">
+                <i class="bi bi-diagram-3 text-teal" aria-hidden="true"></i>
+                Saved Topologies
+              </div>
+              <a href="sandbox.html" class="btn btn-soft btn-sm">Open Sandbox</a>
+            </div>
+            <div class="net-topology-list" id="topologyList">
+              <div class="small text-muted">No saved topologies yet.</div>
+            </div>
+            <div class="small text-muted mt-2">Load saved topologies from the Sandbox.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-lg-12">
+          <div class="net-card p-4">
+            <div class="fw-semibold d-flex align-items-center gap-2 mb-3">
+              <i class="bi bi-patch-check text-teal" aria-hidden="true"></i>
+              Quiz History
+            </div>
+            <div class="net-quiz-list" id="quizHistoryList">
+              <div class="small text-muted">No quizzes completed yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Preferences + Security -->
+    <section class="net-account-grid mb-4">
+      <div class="net-card p-4">
+        <div class="fw-semibold mb-2">Preferences</div>
+        <div class="small text-muted mb-3">Personalise your experience</div>
+        <div class="net-toggle-list">
+          <label class="net-toggle">
+            <input type="checkbox" id="prefWeekly">
+            <span>Weekly summary emails</span>
+          </label>
+          <label class="net-toggle">
+            <input type="checkbox" id="prefStreak">
+            <span>Streak reminders</span>
+          </label>
+          <label class="net-toggle">
+            <input type="checkbox" id="prefNewCourses">
+            <span>New course alerts</span>
+          </label>
+          <div class="small text-muted" id="prefSaved">Changes save automatically.</div>
+        </div>
+      </div>
+
+      <div class="net-card p-4">
+        <div class="fw-semibold mb-2">Security</div>
+        <div class="small text-muted mb-3">Keep your account safe</div>
+        <div class="small text-muted mb-3">Last login: <span id="lastLoginText">—</span></div>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="forgot.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--gray" data-tip="Update your password">Change password</a>
+          <button class="btn btn-outline-danger btn-sm dash-action-btn" data-tip="Sign out of Netology" id="logoutBtn" type="button">Log out</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Activity + Achievements -->
+    <div class="row g-3">
       <div class="col-lg-6">
         <div class="net-card p-4">
           <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
@@ -143,11 +376,10 @@
   <footer class="text-center border-top py-3 bg-white">
     <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
   </footer>
-  
+
   <script src="js/config.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/account.js"></script>
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

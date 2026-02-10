@@ -27,7 +27,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   wireChrome(user);
 
   const stats = await loadUserStats(user.email);
-  await loadAllCourses(user.email, stats.level);
+  const accessLevel = stats.accessLevel || stats.level || 1;
+  await loadAllCourses(user.email, accessLevel);
 });
 
 function totalXpForLevel(level) {
@@ -45,6 +46,13 @@ function levelFromXP(totalXP) {
 function xpForNextLevel(level) {
   const lvl = Math.max(1, Number(level) || 1);
   return BASE_XP * lvl;
+}
+
+function unlockLevelFromTier(tier) {
+  const t = String(tier || "").toLowerCase();
+  if (t.includes("advanced")) return 5;
+  if (t.includes("intermediate")) return 3;
+  return 1;
 }
 
 function getCurrentUser() {
@@ -176,15 +184,29 @@ async function loadUserStats(email) {
     const level = levelFromXP(totalXP);
     const fallbackUser = getCurrentUser();
     const fallbackRank = String(fallbackUser?.unlock_tier || fallbackUser?.rank || fallbackUser?.level || "Novice");
-    const rankRaw = String(data.rank || fallbackRank || "Novice");
+    const rankRaw = String(data.start_level || fallbackRank || data.rank || "Novice");
     const rank = rankRaw.charAt(0).toUpperCase() + rankRaw.slice(1);
+    const unlockTier = String(data.start_level || fallbackUser?.unlock_tier || fallbackUser?.unlock_level || "novice").toLowerCase();
+    const accessLevel = Math.max(level, unlockLevelFromTier(unlockTier));
+
+    const mergedUser = {
+      ...(fallbackUser || {}),
+      email,
+      first_name: data.first_name || fallbackUser?.first_name,
+      last_name: data.last_name || fallbackUser?.last_name,
+      username: data.username || fallbackUser?.username,
+      xp: totalXP,
+      unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
+    };
+    localStorage.setItem("user", JSON.stringify(mergedUser));
+    localStorage.setItem("netology_user", JSON.stringify(mergedUser));
 
     const levelEl = document.getElementById("levelText");
     const rankEl = document.getElementById("rankText");
     if (levelEl) levelEl.textContent = level;
     if (rankEl) rankEl.textContent = rank;
 
-    return { level, rank };
+    return { level, rank, accessLevel };
   } catch (e) {
     console.error("loadUserStats error:", e);
     const fallbackUser = getCurrentUser();
@@ -192,7 +214,8 @@ async function loadUserStats(email) {
     const level = levelFromXP(totalXP);
     const rankRaw = String(fallbackUser?.unlock_tier || fallbackUser?.rank || fallbackUser?.level || "Novice");
     const rank = rankRaw.charAt(0).toUpperCase() + rankRaw.slice(1);
-    return { level, rank };
+    const accessLevel = Math.max(level, unlockLevelFromTier(fallbackUser?.unlock_tier));
+    return { level, rank, accessLevel };
   }
 }
 
@@ -315,6 +338,10 @@ function courseCardHtml(course, lock) {
 
   const cardAction = lock.locked ? "" : `onclick="window.location.href='course.html?id=${encodeURIComponent(course.id)}'"`;
   const sandboxLink = `sandbox.html?course_id=${encodeURIComponent(course.id)}`;
+  const diffIcon =
+    diffLabel.toLowerCase() === "advanced" ? "bi-shield-lock-fill"
+    : diffLabel.toLowerCase() === "intermediate" ? "bi-lightning-charge-fill"
+    : "bi-leaf-fill";
 
   return `
     <article class="net-coursecard net-coursecard--library ${lock.locked ? "is-locked" : ""}" tabindex="0" role="button" aria-label="Open course ${escapeHtml(course.title)}" ${cardAction}>
@@ -323,15 +350,21 @@ function courseCardHtml(course, lock) {
       <div class="p-4">
         <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
           <div>
-            <div class="net-eyebrow">${escapeHtml(course.category || "Core")}</div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="net-cat-chip">${escapeHtml(course.category || "Core")}</span>
+              ${lock.locked ? `<span class="net-lock-badge"><i class="bi bi-lock-fill"></i>Locked</span>` : ``}
+            </div>
             <div class="fw-semibold fs-5">${escapeHtml(course.title)}</div>
           </div>
-          <span class="net-diffbadge ${diffBadgeClass}">${diffLabel}</span>
+          <span class="net-diffbadge ${diffBadgeClass}">
+            <i class="bi ${diffIcon}"></i>
+            ${diffLabel}
+          </span>
         </div>
 
         <div class="text-muted small mb-3">${escapeHtml(course.description || "")}</div>
 
-        <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3">
+        <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta">
           <span class="d-inline-flex align-items-center gap-1">
             <i class="bi bi-collection" aria-hidden="true"></i> ${modules || 0} modules
           </span>
@@ -345,9 +378,11 @@ function courseCardHtml(course, lock) {
 
         ${lock.locked ? `<div class="net-lockline mb-3"><i class="bi bi-lock me-2"></i>${escapeHtml(lockedText)}</div>` : ""}
 
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap course-cta">
           <button class="${btnClass} btn-sm" type="button" ${btnAttr}>${escapeHtml(btnLabel)}</button>
-          <a class="btn btn-outline-secondary btn-sm" href="${sandboxLink}"><i class="bi bi-diagram-3 me-1"></i>Sandbox</a>
+          <a class="btn btn-soft btn-sm net-btn-icon" href="${sandboxLink}">
+            <i class="bi bi-diagram-3 me-1"></i>Sandbox
+          </a>
         </div>
       </div>
     </article>

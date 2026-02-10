@@ -135,6 +135,13 @@ Works with:
     return 1;
   }
 
+  function unlockLevelFromTier(tier) {
+    const t = String(tier || "").toLowerCase();
+    if (t.includes("advanced")) return 5;
+    if (t.includes("intermediate")) return 3;
+    return 1;
+  }
+
   function prettyDiff(diff) {
     if (!diff) return "Novice";
     return diff.charAt(0).toUpperCase() + diff.slice(1);
@@ -173,6 +180,24 @@ Works with:
     return { log, isNew };
   }
 
+  async function syncLoginLog(email) {
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (!email || !base) return null;
+    try {
+      const res = await fetch(`${base}/record-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (!data || !data.success || !Array.isArray(data.log)) return null;
+      saveLoginLog(email, data.log);
+      return { log: data.log, isNew: !!data.is_new };
+    } catch {
+      return null;
+    }
+  }
+
   function computeLoginStreak(log) {
     if (!Array.isArray(log) || !log.length) return 0;
     const set = new Set(log);
@@ -186,12 +211,61 @@ Works with:
   }
 
   function getBadges(email) {
+    if (Array.isArray(window.__dashAchievements)) return window.__dashAchievements;
     const raw = safeJSONParse(localStorage.getItem(`netology_badges:${email}`), []);
     return Array.isArray(raw) ? raw : [];
   }
 
-  function saveBadges(email, badges) {
-    localStorage.setItem(`netology_badges:${email}`, JSON.stringify(badges));
+  function setBadgesCache(list) {
+    window.__dashAchievements = Array.isArray(list) ? list : [];
+  }
+
+  async function fetchAchievements(email) {
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (!email || !base) return [];
+    try {
+      const data = await fetchJson(`${base}/user-achievements?email=${encodeURIComponent(email)}`);
+      if (!data || !data.success) return getBadges(email);
+      setBadgesCache(data.achievements || []);
+      return getBadges(email);
+    } catch {
+      return getBadges(email);
+    }
+  }
+
+  async function awardAchievementRemote(email, def) {
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (!email || !base) return { awarded: false };
+    try {
+      const res = await fetch(`${base}/award-achievement`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          achievement_id: def.id,
+          name: def.title,
+          description: def.desc,
+          tier: def.tier || "bronze",
+          xp: def.xp || 0
+        })
+      });
+      const data = await res.json();
+      if (data && data.success && data.awarded) {
+        const updated = getBadges(email).slice();
+        updated.push({
+          id: def.id,
+          name: def.title,
+          description: def.desc,
+          tier: def.tier || "bronze",
+          xp: def.xp || 0,
+          earned_at: new Date().toISOString()
+        });
+        setBadgesCache(updated);
+      }
+      return data || { awarded: false };
+    } catch {
+      return { awarded: false };
+    }
   }
 
   function bumpUserXP(email, delta) {
@@ -210,31 +284,34 @@ Works with:
 
   function loginBadgeDefs() {
     return [
-      { id: "login-streak-3", title: "3-Day Streak", desc: "Log in 3 days in a row", icon: "bi-fire", type: "login", target: 3, xp: 50 },
-      { id: "login-streak-5", title: "5-Day Streak", desc: "Log in 5 days in a row", icon: "bi-fire", type: "login", target: 5, xp: 75 },
-      { id: "login-streak-7", title: "7-Day Streak", desc: "Log in 7 days in a row", icon: "bi-fire", type: "login", target: 7, xp: 100 },
-      { id: "login-streak-10", title: "10-Day Streak", desc: "Log in 10 days in a row", icon: "bi-fire", type: "login", target: 10, xp: 150 }
+      { id: "login-streak-3", title: "3-Day Streak", desc: "Log in 3 days in a row", icon: "bi-fire", type: "login", target: 3, xp: 50, tier: "bronze" },
+      { id: "login-streak-5", title: "5-Day Streak", desc: "Log in 5 days in a row", icon: "bi-fire", type: "login", target: 5, xp: 75, tier: "silver" },
+      { id: "login-streak-7", title: "7-Day Streak", desc: "Log in 7 days in a row", icon: "bi-fire", type: "login", target: 7, xp: 100, tier: "gold" },
+      { id: "login-streak-10", title: "10-Day Streak", desc: "Log in 10 days in a row", icon: "bi-fire", type: "login", target: 10, xp: 150, tier: "gold" }
     ];
   }
 
-  function awardLoginStreakBadges(email, streak) {
+  async function awardLoginStreakBadges(email, streak) {
     if (!email) return;
     const defs = loginBadgeDefs();
-    let badges = getBadges(email);
-    if (!Array.isArray(badges)) badges = [];
+    const badges = getBadges(email);
     const earned = new Set(badges.map((b) => b.id));
-    let changed = false;
 
-    defs.forEach((def) => {
+    for (const def of defs) {
       if (streak >= def.target && !earned.has(def.id)) {
-        badges.push({ ...def, earnedAt: dateKey() });
-        earned.add(def.id);
-        bumpUserXP(email, def.xp);
-        changed = true;
+        const result = await awardAchievementRemote(email, {
+          id: def.id,
+          title: def.title,
+          desc: def.desc,
+          tier: def.tier || "bronze",
+          xp: def.xp
+        });
+        if (result?.awarded) {
+          earned.add(def.id);
+          bumpUserXP(email, def.xp);
+        }
       }
-    });
-
-    if (changed) saveBadges(email, badges);
+    }
   }
 
   // Welcome ring
@@ -417,6 +494,40 @@ Works with:
     }
   }
 
+  async function fetchContinueCourses(email) {
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (!base || !email) return null;
+    try {
+      const data = await fetchJson(`${base}/user-courses?email=${encodeURIComponent(email)}`);
+      if (!data || !data.success || !Array.isArray(data.courses)) return null;
+      return data.courses.filter((c) => c.status === "in-progress");
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchProgressSummary(email) {
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (!base || !email) return null;
+    try {
+      const data = await fetchJson(`${base}/user-progress-summary?email=${encodeURIComponent(email)}`);
+      if (!data || !data.success) return null;
+      const summary = {
+        email,
+        lessonsDone: Number(data.lessons_done || 0),
+        quizzesDone: Number(data.quizzes_done || 0),
+        challengesDone: Number(data.challenges_done || 0),
+        coursesDone: Number(data.courses_done || 0),
+        inProgress: Number(data.in_progress || 0),
+        totalCourses: Number(data.total_courses || 0)
+      };
+      window.__dashProgressSummary = summary;
+      return summary;
+    } catch {
+      return null;
+    }
+  }
+
   function getCoursesFromContent() {
     const cc = getCourseIndex();
     const list = [];
@@ -591,54 +702,47 @@ Works with:
     const user = getCurrentUser();
     const email = user?.email;
     if (!email) {
-      list.innerHTML = `<div class="small text-muted">Sign in to see recent activity.</div>`;
+      list.innerHTML = `<div class="small text-muted">Sign in to see your streak.</div>`;
       return;
     }
 
-    const raw = getProgressLog(email);
-    const now = Date.now();
-    const windowMs = 7 * 24 * 60 * 60 * 1000;
-    const recent = raw
-      .filter(e => (now - Number(e.ts || 0)) <= windowMs)
-      .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
-      .slice(0, 6);
-
-    if (!recent.length) {
-      list.innerHTML = `<div class="small text-muted">No recent activity yet.</div>`;
-      return;
+    const log = getLoginLog(email);
+    const streak = computeLoginStreak(log);
+    const days = [];
+    const cursor = new Date();
+    for (let i = 0; i < 7; i += 1) {
+      const key = dateKey(cursor);
+      days.push({
+        key,
+        label: cursor.toLocaleDateString(undefined, { weekday: "short" }),
+        active: log.includes(key)
+      });
+      cursor.setDate(cursor.getDate() - 1);
     }
 
-    const content = getCourseIndex();
-    list.innerHTML = recent.map((e) => {
-      const type = String(e?.type || "").toLowerCase();
-      const label =
-        type === "quiz" ? "Quiz passed" :
-        type === "challenge" ? "Challenge completed" :
-        type === "sandbox" ? "Sandbox build" :
-        "Lesson completed";
-      const course = content[String(e.course_id)] || {};
-      const courseTitle = course.title || "Course";
-      const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
-      const xp = Number(e.xp || 0);
-      const time = formatRelative(e.ts);
-
-      return `
-        <div class="dash-activity-item">
-          <div>
-            <div class="fw-semibold">${escapeHtml(label)}</div>
-            <small>${escapeHtml(courseTitle)}${escapeHtml(lessonPart)}${time ? ` • ${escapeHtml(time)}` : ""}</small>
-          </div>
-          <div class="dash-activity-xp">${xp ? `+${xp} XP` : ""}</div>
+    list.innerHTML = `
+      <div class="dash-activity-item">
+        <div>
+          <div class="fw-semibold">Current streak</div>
+          <small>${streak} day${streak === 1 ? "" : "s"} in a row</small>
         </div>
-      `;
-    }).join("");
+        <div class="dash-activity-xp">${streak ? "Active" : "Start today"}</div>
+      </div>
+      <div class="dash-streak-row">
+        ${days.map((d) => `
+          <span class="dash-streak-day ${d.active ? "is-active" : ""}" title="${d.key}">
+            ${d.label}
+          </span>
+        `).join("")}
+      </div>
+    `;
   }
 
   // -----------------------------
   // Render course cards
   // -----------------------------
-  function buildCourseCard(course, userLevel) {
-    const locked = userLevel < course.required_level;
+  function buildCourseCard(course, accessLevel) {
+    const locked = accessLevel < course.required_level;
     const diff = course.difficulty;
 
     const gradClass =
@@ -656,8 +760,14 @@ Works with:
       : diff === "intermediate" ? "bi-lightning-charge-fill"
       : "bi-leaf-fill";
 
+    const lockedOverlay = locked
+      ? `<div class="net-course-lock" aria-hidden="true">
+           <div class="net-course-lock-inner"><i class="bi bi-lock-fill me-1"></i> Level ${course.required_level}+ to unlock</div>
+         </div>`
+      : "";
+
     const card = document.createElement("div");
-    card.className = "net-coursecard";
+    card.className = "net-coursecard net-coursecard--library";
     if (locked) card.classList.add("is-locked");
     card.setAttribute("data-diff", diff);
     card.setAttribute("data-title", (course.title || "").toLowerCase());
@@ -667,17 +777,16 @@ Works with:
     card.setAttribute("aria-label", locked ? `${course.title} locked` : `${course.title} open course`);
 
     card.innerHTML = `
+      ${lockedOverlay}
       <div class="net-coursebar ${gradClass}"></div>
       <div class="p-4">
-        <div class="d-flex align-items-start justify-content-between gap-2">
-          <div class="flex-grow-1">
+        <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+          <div>
             <div class="d-flex align-items-center gap-2 mb-2">
               <span class="net-cat-chip">${course.category}</span>
-              ${locked ? `<span class="net-lock-badge" title="Locked"><i class="bi bi-lock-fill"></i>Locked</span>` : ``}
+              ${locked ? `<span class="net-lock-badge"><i class="bi bi-lock-fill"></i>Locked</span>` : ``}
             </div>
-            <div class="fw-bold fs-6 d-flex align-items-center gap-2">
-              ${course.title}
-            </div>
+            <div class="fw-semibold fs-5">${course.title}</div>
           </div>
           <span class="net-diffbadge ${badgeClass}">
             <i class="bi ${diffIcon}"></i>
@@ -685,23 +794,29 @@ Works with:
           </span>
         </div>
 
-        <div class="text-muted small mt-2" style="min-height:44px;">
-          ${course.description}
+        <div class="text-muted small mb-3">${course.description}</div>
+
+        <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta">
+          <span class="d-inline-flex align-items-center gap-1">
+            <i class="bi bi-collection" aria-hidden="true"></i> ${course.items || 0} modules
+          </span>
+          <span class="d-inline-flex align-items-center gap-1">
+            <i class="bi bi-clock" aria-hidden="true"></i> ${course.estimatedTime}
+          </span>
+          <span class="d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold">
+            <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> ${course.xpReward}
+          </span>
         </div>
 
-        <div class="d-flex align-items-center justify-content-between mt-3 small course-meta">
-          <div class="text-muted">
-            ${course.items ? `${course.items} items` : `Course`} • ${course.estimatedTime}
-          </div>
-          <div class="fw-bold" style="color:#0f766e;">
-            <i class="bi bi-lightning-charge-fill me-1"></i>${course.xpReward}
-          </div>
-        </div>
+        ${locked ? `<div class="net-lockline mb-3"><i class="bi bi-lock me-2"></i>Level ${course.required_level}+ to unlock</div>` : ""}
 
-        <div class="mt-3 course-cta">
-          <button class="btn ${locked ? "btn-outline-secondary" : "btn-teal"} btn-sm w-100" ${locked ? "disabled" : ""}>
-            ${locked ? `Unlock at Level ${course.required_level}` : "Open Course"}
+        <div class="d-flex gap-2 flex-wrap course-cta">
+          <button class="btn ${locked ? "btn-outline-secondary" : "btn-teal"} btn-sm" ${locked ? "disabled" : ""}>
+            ${locked ? `Level ${course.required_level} required` : "Open"}
           </button>
+          <a class="btn btn-soft btn-sm net-btn-icon" href="sandbox.html?course_id=${encodeURIComponent(course.key)}">
+            <i class="bi bi-diagram-3 me-1"></i>Sandbox
+          </a>
         </div>
       </div>
     `;
@@ -831,7 +946,7 @@ Works with:
   // -----------------------------
   // Continue learning
   // -----------------------------
-  function renderContinueLearning() {
+  async function renderContinueLearning() {
     const box = $("continueBox");
     if (!box) return;
 
@@ -844,6 +959,52 @@ Works with:
       return;
     }
 
+    const content = getCourseIndex();
+    const apiCourses = await fetchContinueCourses(email);
+    if (Array.isArray(apiCourses) && apiCourses.length) {
+      box.className = "dash-continue-list";
+      box.innerHTML = apiCourses.map((entry) => {
+        const course = content[String(entry.id)] || {};
+        const title = entry.title || course.title || "Course";
+        const diff = String(course.difficulty || "novice");
+        const category = course.category || "Core";
+        const xpReward = Number(entry.xp_reward || course.xpReward || course.totalXP || 0);
+
+        const required = Number(entry.total_lessons || course.total_lessons || course.items || countRequiredItems(course) || 0);
+        const pct = Math.max(0, Math.min(100, Number(entry.progress_pct || 0)));
+        const done = required ? Math.round((pct / 100) * required) : 0;
+
+        return `
+          <div class="dash-continue-item" data-course-id="${entry.id}">
+            <div class="flex-grow-1">
+              <div class="fw-semibold">${title}</div>
+              <div class="dash-continue-meta">${category} • ${prettyDiff(diff)}</div>
+              <div class="net-meter mt-2" aria-label="Course progress">
+                <div class="net-meter-fill" style="width:${pct}%"></div>
+              </div>
+              <div class="small text-muted mt-1">${done}/${required || 0} items</div>
+            </div>
+            <div class="text-end">
+              <div class="small text-muted">Suggested</div>
+              <div class="fw-semibold net-xp-accent">
+                <i class="bi bi-lightning-charge-fill me-1"></i>${xpReward || 0}
+              </div>
+              <button class="btn btn-teal btn-sm mt-2" type="button">Continue</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      box.querySelectorAll("[data-course-id]").forEach((item) => {
+        item.addEventListener("click", () => {
+          const id = item.getAttribute("data-course-id");
+          if (!id) return;
+          window.location.href = `course.html?id=${encodeURIComponent(id)}`;
+        });
+      });
+      return;
+    }
+
     const started = getStartedCourses(email)
       .sort((a, b) => Number(b.lastViewed || 0) - Number(a.lastViewed || 0));
 
@@ -852,8 +1013,6 @@ Works with:
       box.innerHTML = `<div class="text-muted small">No started courses yet. Pick a course to begin.</div>`;
       return;
     }
-
-    const content = getCourseIndex();
 
     box.className = "dash-continue-list";
     box.innerHTML = started.map((entry) => {
@@ -908,6 +1067,8 @@ Works with:
 
     const user = getCurrentUser();
     const uLevel = userNumericLevel(user);
+    const unlockLevel = unlockLevelFromTier(user?.unlock_tier);
+    const accessLevel = Math.max(uLevel, unlockLevel);
 
     let courses = getCoursesFromContent();
     if (!courses.length) {
@@ -946,7 +1107,7 @@ Works with:
     let anyLocked = false;
 
     courses.forEach((c) => {
-      const { card, locked } = buildCourseCard(c, uLevel);
+      const { card, locked } = buildCourseCard(c, accessLevel);
       if (locked) anyLocked = true;
       grid.appendChild(card);
     });
@@ -980,7 +1141,14 @@ Works with:
     let inProgress = 0;
     let completed = 0;
 
-    if (email) {
+    const summary = window.__dashProgressSummary;
+    if (summary && summary.email === email) {
+      lessonsDone = summary.lessonsDone || 0;
+      quizzesDone = summary.quizzesDone || 0;
+      challengesDone = summary.challengesDone || 0;
+      inProgress = summary.inProgress || 0;
+      completed = summary.coursesDone || 0;
+    } else if (email) {
       courseIds.forEach((id) => {
         const completions = getCourseCompletions(email, id);
         lessonsDone += completions.lesson.size;
@@ -998,12 +1166,22 @@ Works with:
 
     if ($("statInProgress")) $("statInProgress").textContent = String(inProgress);
     if ($("statCompleted")) $("statCompleted").textContent = String(completed);
+    if ($("statLessons")) $("statLessons").textContent = String(lessonsDone);
+    if ($("statQuizzes")) $("statQuizzes").textContent = String(quizzesDone);
 
     // Login streak + streak badge progress
     const loginLog = email ? getLoginLog(email) : [];
     const loginStreak = computeLoginStreak(loginLog);
     const topStreak = $("topStreakDays");
-    if (topStreak) topStreak.textContent = `${loginStreak} day${loginStreak === 1 ? "" : "s"}`;
+    const topStreakPill = $("topStreakPill");
+    if (topStreak) {
+      topStreak.textContent = loginStreak > 0
+        ? `${loginStreak} day${loginStreak === 1 ? "" : "s"}`
+        : "";
+    }
+    if (topStreakPill) {
+      topStreakPill.style.display = loginStreak > 0 ? "" : "none";
+    }
 
     const earnedBadgeIds = new Set(getBadges(email).map((b) => b.id));
     const streakDefs = loginBadgeDefs();
@@ -1154,6 +1332,27 @@ Works with:
       }
     }
 
+    const scroller = $("achieveScroller");
+    if (scroller) {
+      if (!pending.length) {
+        scroller.innerHTML = `<div class="small text-muted">All achievements completed. Great work.</div>`;
+      } else {
+        scroller.innerHTML = pending.map((a) => {
+          const current = a.type === "login" ? Math.min(loginStreak, a.target) : (counts[a.type] || 0);
+          return `
+            <div class="dash-achieve-card">
+              <div class="dash-achieve-ico"><i class="bi ${a.icon}"></i></div>
+              <div>
+                <div class="fw-semibold">${a.title}</div>
+                <div class="small text-muted">${a.desc}</div>
+                <div class="small text-muted">${current}/${a.target}</div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
     if ($("focusText")) {
       $("focusText").textContent = loginStreak > 0
         ? "Log in tomorrow to keep your streak"
@@ -1211,11 +1410,6 @@ Works with:
     if ($("sideXpBar")) $("sideXpBar").style.width = `${progressPct}%`;
     if ($("sideXpHint")) $("sideXpHint").textContent = `${toNext} XP to next level`;
 
-    // Stats tiles
-    if ($("statLevel")) $("statLevel").textContent = String(lvl);
-    if ($("statXp")) $("statXp").textContent = String(totalXP);
-    if ($("statLevelHint")) $("statLevelHint").textContent = `${toNext} XP to next level`;
-
     // Welcome ring block
     if ($("welcomeLevel")) $("welcomeLevel").textContent = String(lvl);
     if ($("welcomeRank")) $("welcomeRank").textContent = rank;
@@ -1243,6 +1437,7 @@ Works with:
         ...(user || {}),
         email,
         first_name: data.first_name || user?.first_name,
+        last_name: data.last_name || user?.last_name,
         username: data.username || user?.username,
         xp: Number(data.xp || user?.xp || 0),
         unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
@@ -1268,9 +1463,12 @@ Works with:
 
     const user = await safeStepAsync("refreshUserFromApi", refreshUserFromApi) || getCurrentUser();
     if (user?.email) {
-      const loginInfo = safeStep("recordLoginDay", () => recordLoginDay(user.email)) || { log: [] };
+      await safeStepAsync("fetchAchievements", () => fetchAchievements(user.email));
+      let loginInfo = safeStep("recordLoginDay", () => recordLoginDay(user.email)) || { log: [] };
+      const remoteLogin = await safeStepAsync("syncLoginLog", () => syncLoginLog(user.email));
+      if (remoteLogin && Array.isArray(remoteLogin.log)) loginInfo = remoteLogin;
       const streak = safeStep("computeLoginStreak", () => computeLoginStreak(loginInfo.log)) || 0;
-      safeStep("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
+      await safeStepAsync("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
 
       if (loginInfo.isNew) {
         const pill = $("topStreakPill");
@@ -1287,7 +1485,10 @@ Works with:
     safeStep("fillUserUI", fillUserUI);
     safeStep("setupCourseSearchAndChips", setupCourseSearchAndChips);
     await safeStepAsync("renderCourses", renderCourses);
-    safeStep("renderContinueLearning", renderContinueLearning);
+    await safeStepAsync("renderContinueLearning", renderContinueLearning);
+    if (user?.email) {
+      await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
+    }
     safeStep("renderProgressWidgets", renderProgressWidgets);
   }
 

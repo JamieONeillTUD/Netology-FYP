@@ -47,6 +47,7 @@ def ensure_user_lessons_table():
             user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
             course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
             lesson_number INTEGER NOT NULL,
+            xp_awarded INTEGER DEFAULT 0,
             completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_email, course_id, lesson_number)
         );
@@ -65,6 +66,7 @@ def ensure_user_quizzes_table():
             user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
             course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
             lesson_number INTEGER NOT NULL,
+            xp_awarded INTEGER DEFAULT 0,
             completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_email, course_id, lesson_number)
         );
@@ -83,6 +85,7 @@ def ensure_user_challenges_table():
             user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
             course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
             lesson_number INTEGER NOT NULL,
+            xp_awarded INTEGER DEFAULT 0,
             completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_email, course_id, lesson_number)
         );
@@ -345,10 +348,10 @@ def complete_lesson():
 
             # Try insert (only once)
             cur.execute("""
-                INSERT INTO user_lessons (user_email, course_id, lesson_number)
-                VALUES (%s, %s, %s)
+                INSERT INTO user_lessons (user_email, course_id, lesson_number, xp_awarded)
+                VALUES (%s, %s, %s, %s)
                 ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING;
-            """, (email, course_id, int(lesson_number)))
+            """, (email, course_id, int(lesson_number), int(xp_per_lesson)))
 
             newly_added = (cur.rowcount == 1)
 
@@ -445,10 +448,10 @@ def complete_quiz():
 
         # Insert once
         cur.execute("""
-            INSERT INTO user_quizzes (user_email, course_id, lesson_number)
-            VALUES (%s, %s, %s)
+            INSERT INTO user_quizzes (user_email, course_id, lesson_number, xp_awarded)
+            VALUES (%s, %s, %s, %s)
             ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING;
-        """, (email, course_id, int(lesson_number)))
+        """, (email, course_id, int(lesson_number), 5))
 
         newly_added = (cur.rowcount == 1)
 
@@ -500,10 +503,10 @@ def complete_challenge():
 
         # Insert once
         cur.execute("""
-            INSERT INTO user_challenges (user_email, course_id, lesson_number)
-            VALUES (%s, %s, %s)
+            INSERT INTO user_challenges (user_email, course_id, lesson_number, xp_awarded)
+            VALUES (%s, %s, %s, %s)
             ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING;
-        """, (email, course_id, int(lesson_number)))
+        """, (email, course_id, int(lesson_number), 15))
 
         newly_added = (cur.rowcount == 1)
 
@@ -658,3 +661,170 @@ def user_course_status():
     except Exception as e:
         print("User course status error:", e)
         return jsonify({"success": False, "message": "Could not load course status."}), 500
+
+
+"""
+Recent Activity
+---
+GET /recent-activity?email=...&limit=...
+Returns recent lesson/quiz/challenge completions with course info.
+"""
+@courses.route("/recent-activity", methods=["GET"])
+def recent_activity():
+    email = request.args.get("email")
+    limit = int(request.args.get("limit") or 8)
+    if not email:
+        return jsonify({"success": False, "message": "Email required."}), 400
+
+    try:
+        ensure_user_lessons_table()
+        ensure_user_quizzes_table()
+        ensure_user_challenges_table()
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT 'lesson' AS kind, ul.course_id, c.title, ul.lesson_number, ul.completed_at, ul.xp_awarded
+            FROM user_lessons ul
+            JOIN courses c ON c.id = ul.course_id
+            WHERE ul.user_email = %s
+            UNION ALL
+            SELECT 'quiz' AS kind, uq.course_id, c.title, uq.lesson_number, uq.completed_at, uq.xp_awarded
+            FROM user_quizzes uq
+            JOIN courses c ON c.id = uq.course_id
+            WHERE uq.user_email = %s
+            UNION ALL
+            SELECT 'challenge' AS kind, uc.course_id, c.title, uc.lesson_number, uc.completed_at, uc.xp_awarded
+            FROM user_challenges uc
+            JOIN courses c ON c.id = uc.course_id
+            WHERE uc.user_email = %s
+            ORDER BY completed_at DESC
+            LIMIT %s;
+        """, (email, email, email, limit))
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        activity = []
+        for r in rows:
+            kind, course_id, title, lesson_number, completed_at, xp_awarded = r
+            item_type = kind or "lesson"
+            xp = int(xp_awarded or 0)
+
+            activity.append({
+                "type": item_type,
+                "course_id": course_id,
+                "course_title": title,
+                "lesson_number": lesson_number,
+                "xp": int(xp),
+                "completed_at": completed_at.isoformat() if completed_at else None
+            })
+
+        return jsonify({"success": True, "activity": activity})
+
+    except Exception as e:
+        print("Recent activity error:", e)
+        return jsonify({"success": False, "message": "Could not load recent activity."}), 500
+
+
+"""
+Quiz History
+---
+GET /quiz-history?email=...&limit=...
+Returns recent quiz completions with course info.
+"""
+@courses.route("/quiz-history", methods=["GET"])
+def quiz_history():
+    email = request.args.get("email")
+    limit = int(request.args.get("limit") or 10)
+    if not email:
+        return jsonify({"success": False, "message": "Email required."}), 400
+
+    try:
+        ensure_user_quizzes_table()
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT uq.course_id, c.title, uq.lesson_number, uq.completed_at
+            FROM user_quizzes uq
+            JOIN courses c ON c.id = uq.course_id
+            WHERE uq.user_email = %s
+            ORDER BY uq.completed_at DESC
+            LIMIT %s;
+        """, (email, limit))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        history = []
+        for r in rows:
+            course_id, title, lesson_number, completed_at = r
+            history.append({
+                "course_id": course_id,
+                "course_title": title,
+                "lesson_number": lesson_number,
+                "completed_at": completed_at.isoformat() if completed_at else None
+            })
+
+        return jsonify({"success": True, "history": history})
+    except Exception as e:
+        print("Quiz history error:", e)
+        return jsonify({"success": False, "message": "Could not load quiz history."}), 500
+
+"""
+User Progress Summary
+---
+GET /user-progress-summary?email=...
+Returns total counts for lessons/quizzes/challenges and completed/in-progress courses.
+Used by dashboard/account for real progress from DB.
+"""
+@courses.route("/user-progress-summary", methods=["GET"])
+def user_progress_summary():
+    email = request.args.get("email")
+    if not email:
+        return jsonify({"success": False, "message": "Email required."}), 400
+
+    try:
+        ensure_user_lessons_table()
+        ensure_user_quizzes_table()
+        ensure_user_challenges_table()
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute("SELECT COUNT(*) FROM user_lessons WHERE user_email = %s", (email,))
+        lessons_done = cur.fetchone()[0] or 0
+
+        cur.execute("SELECT COUNT(*) FROM user_quizzes WHERE user_email = %s", (email,))
+        quizzes_done = cur.fetchone()[0] or 0
+
+        cur.execute("SELECT COUNT(*) FROM user_challenges WHERE user_email = %s", (email,))
+        challenges_done = cur.fetchone()[0] or 0
+
+        cur.execute("SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = TRUE", (email,))
+        courses_done = cur.fetchone()[0] or 0
+
+        cur.execute("SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = FALSE AND progress > 0", (email,))
+        in_progress = cur.fetchone()[0] or 0
+
+        cur.execute("SELECT COUNT(*) FROM courses WHERE is_active = TRUE")
+        total_courses = cur.fetchone()[0] or 0
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "lessons_done": int(lessons_done),
+            "quizzes_done": int(quizzes_done),
+            "challenges_done": int(challenges_done),
+            "courses_done": int(courses_done),
+            "in_progress": int(in_progress),
+            "total_courses": int(total_courses)
+        })
+
+    except Exception as e:
+        print("User progress summary error:", e)
+        return jsonify({"success": False, "message": "Could not load progress summary."}), 500

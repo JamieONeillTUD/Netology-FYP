@@ -37,10 +37,10 @@ Updates requested:
 
   <!-- Tiny topbar-size reduction (kept here so you don't have to touch CSS yet) -->
   <style>
-    .net-topnav .container-fluid{ padding-top:.45rem; padding-bottom:.45rem; }
-    .net-topnav-inner{ min-height: 42px; }
-    .net-logo-sm{ width: 34px; height: 34px; }
-    .net-brand-text{ font-size: 1.02rem; }
+    .net-topnav .container-fluid{ padding-top:.55rem; padding-bottom:.55rem; }
+    .net-topnav-inner{ min-height: 54px; }
+    .net-logo-sm{ width: 56px; height: 56px; }
+    .net-brand-text{ font-size: 1.7rem; }
     .net-userbtn{ padding: 7px 9px; }
   </style>
 </head>
@@ -134,7 +134,7 @@ Updates requested:
         <div class="net-topnav-center">
           <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
-            <span class="net-brand-text">Netology</span>
+            <h2 class="net-brand-text">Netology</h2>
           </a>
         </div>
 
@@ -144,7 +144,7 @@ Updates requested:
           <!-- Streak pill (above account button) -->
           <div class="net-streak-pill" id="topStreakPill" aria-label="Login streak">
             <i class="bi bi-crown-fill" aria-hidden="true"></i>
-            <span class="net-streak-text" id="topStreakDays">0 days</span>
+            <span class="net-streak-text" id="topStreakDays">—</span>
           </div>
 
           <!-- User dropdown -->
@@ -201,8 +201,7 @@ Updates requested:
             <div class="dash-intro">
               <div class="dash-pill">
                 <span class="dash-pill-dot" aria-hidden="true"></span>
-                <span class="small fw-semibold">Your Dashboard</span>
-                <span class="small text-muted">Personalised learning</span>
+                <span class="small fw-semibold">System online</span>
               </div>
 
               <div class="dash-welcome">
@@ -212,54 +211,44 @@ Updates requested:
                 </h1>
 
                 <p class="dash-welcome-sub">
-                  Pick up where you left off, level up your skills, and unlock new networking challenges.
+                  Continue your journey with clear goals, steady progress, and new network challenges.
                 </p>
               </div>
             </div>
 
-            <div class="dash-actions mt-4">
-              <a href="courses.html" class="btn btn-teal btn-sm">
+            <div class="dash-actions mt-3">
+              <a href="courses.html" class="btn btn-teal btn-sm dash-action-btn" data-tip="Browse the full course catalog">
                 <i class="bi bi-journal-bookmark me-2"></i>Browse Courses
               </a>
-              <a href="sandbox.html" class="btn btn-soft btn-sm">
+              <a href="sandbox.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--blue" data-tip="Build and test topologies">
                 <i class="bi bi-diagram-3 me-2"></i>Open Sandbox
               </a>
-              <a href="account.html" class="btn btn-soft btn-sm">
+              <a href="account.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--gray" data-tip="View your profile and badges">
                 <i class="bi bi-person-circle me-2"></i>View Profile
               </a>
             </div>
 
-            <div class="dash-focus net-card mt-4 p-3">
-              <div class="d-flex align-items-center justify-content-between">
-                <div>
-                  <div class="small text-muted">Today’s focus</div>
-                  <div class="fw-semibold" id="focusText">Complete 1 lesson to keep your streak</div>
-                </div>
-                <span class="badge text-bg-light border" id="focusXp">+0 XP</span>
-              </div>
-            </div>
-
             <!-- Stats (dashboard.js fills IDs) -->
-            <div class="dash-statgrid mt-4" id="progress">
-              <div class="dash-stat">
-                <div class="dash-stat-ico"><i class="bi bi-bullseye"></i></div>
+            <div class="dash-statgrid mt-3" id="progress">
+              <div class="dash-stat dash-stat--green">
+                <div class="dash-stat-ico"><i class="bi bi-check2-circle"></i></div>
                 <div>
-                  <div class="text-muted small">Level</div>
-                  <div class="fw-bold fs-4" id="statLevel">1</div>
-                  <div class="small text-muted" id="statLevelHint">100 XP to next level</div>
+                  <div class="text-muted small">Lessons completed</div>
+                  <div class="fw-bold fs-4" id="statLessons">0</div>
+                  <div class="small text-muted">Keep your streak going</div>
                 </div>
               </div>
 
-              <div class="dash-stat">
-                <div class="dash-stat-ico"><i class="bi bi-lightning-charge-fill"></i></div>
+              <div class="dash-stat dash-stat--blue">
+                <div class="dash-stat-ico"><i class="bi bi-patch-check"></i></div>
                 <div>
-                  <div class="text-muted small">Total XP</div>
-                  <div class="fw-bold fs-4" id="statXp">0</div>
-                  <div class="small text-muted">Earn XP from lessons & quizzes</div>
+                  <div class="text-muted small">Quizzes passed</div>
+                  <div class="fw-bold fs-4" id="statQuizzes">0</div>
+                  <div class="small text-muted">Boost confidence fast</div>
                 </div>
               </div>
 
-              <div class="dash-stat">
+              <div class="dash-stat dash-stat--amber">
                 <div class="dash-stat-ico"><i class="bi bi-journal-text"></i></div>
                 <div>
                   <div class="text-muted small">In progress</div>
@@ -268,13 +257,20 @@ Updates requested:
                 </div>
               </div>
 
-              <div class="dash-stat">
-                <div class="dash-stat-ico"><i class="bi bi-check2-circle"></i></div>
+              <div class="dash-stat dash-stat--teal">
+                <div class="dash-stat-ico"><i class="bi bi-award"></i></div>
                 <div>
-                  <div class="text-muted small">Completed</div>
+                  <div class="text-muted small">Completed courses</div>
                   <div class="fw-bold fs-4" id="statCompleted">0</div>
                   <div class="small text-muted">Review anytime</div>
                 </div>
+              </div>
+            </div>
+
+            <div class="dash-achieve mt-3">
+              <div class="fw-semibold mb-2">Achievement targets</div>
+              <div class="dash-achieve-scroll" id="achieveScroller">
+                <div class="small text-muted">Loading achievements…</div>
               </div>
             </div>
           </div>
@@ -284,7 +280,7 @@ Updates requested:
         <div class="col-12 col-lg-5 d-flex">
           <div class="dash-progress net-card w-100 p-4">
             <div class="dash-progress-head">
-              <div class="fw-semibold">Your level</div>
+              <div class="fw-semibold net-green-text">Your level</div>
               <div class="small text-muted" id="welcomeLevelHint">100 XP to next level</div>
             </div>
 
@@ -313,8 +309,6 @@ Updates requested:
 
                   <div class="net-ring-center">
                     <div class="net-ring-pct net-gradient-text" id="welcomeLevel">1</div>
-                    <div class="net-ring-sub">Level</div>
-                    <div class="net-ring-rank" id="welcomeRank">Novice</div>
                   </div>
                 </div>
 
@@ -334,22 +328,6 @@ Updates requested:
               </div>
             </div>
 
-            <div class="dash-mini-grid mt-3">
-              <div class="dash-mini">
-                <div class="dash-mini-ico"><i class="bi bi-trophy"></i></div>
-                <div>
-                  <div class="fw-semibold">Next badge</div>
-                  <div class="small text-muted" id="nextBadgeText">Log in 3 days in a row</div>
-                </div>
-              </div>
-              <div class="dash-mini">
-                <div class="dash-mini-ico"><i class="bi bi-stars"></i></div>
-                <div>
-                  <div class="fw-semibold">Streak goal</div>
-                  <div class="small text-muted" id="weeklyGoalText">3 days to next badge</div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -384,31 +362,38 @@ Updates requested:
           <div class="d-flex align-items-center justify-content-between mb-3">
             <div class="fw-semibold d-flex align-items-center gap-2">
               <i class="bi bi-bullseye text-teal" aria-hidden="true"></i>
-              Weekly Focus
+              Focus
             </div>
             <div class="dash-toggle" role="tablist" aria-label="Weekly goals and achievements">
-              <button class="dash-toggle-btn is-active" type="button" data-panel="weeklyPanel">
+              <button class="dash-toggle-btn is-active" type="button" data-panel="dailyPanel">
                 <span class="dash-toggle-dot"></span>
-                Goals
+                Daily
               </button>
-              <button class="dash-toggle-btn" type="button" data-panel="achievementsPanel">
+              <button class="dash-toggle-btn" type="button" data-panel="weeklyPanel">
                 <span class="dash-toggle-dot"></span>
-                Achievements
+                Weekly
               </button>
             </div>
           </div>
 
-          <div id="weeklyPanel" class="dash-panel is-active">
+          <div id="dailyPanel" class="dash-panel is-active">
+            <div class="dash-focus net-card p-3">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <div class="small text-muted">Today’s focus</div>
+                  <div class="fw-semibold" id="focusText">Log in today to start a streak</div>
+                </div>
+                <span class="badge text-bg-light border" id="focusXp">+50 XP</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="weeklyPanel" class="dash-panel" hidden>
             <div class="dash-tasklist" id="weeklyTasks">
               <div class="small text-muted">Loading weekly challenges…</div>
             </div>
           </div>
 
-          <div id="achievementsPanel" class="dash-panel" hidden>
-            <div class="dash-badges" id="achievementsList">
-              <div class="small text-muted">No achievements in progress yet.</div>
-            </div>
-          </div>
         </section>
       </aside>
     </section>
