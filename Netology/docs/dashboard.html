@@ -198,21 +198,23 @@ Updates requested:
         <div class="col-12 col-lg-7 d-flex">
           <div class="w-100 d-flex flex-column justify-content-between">
 
-            <div>
+            <div class="dash-intro">
               <div class="dash-pill">
                 <span class="dash-pill-dot" aria-hidden="true"></span>
                 <span class="small fw-semibold">Your Dashboard</span>
                 <span class="small text-muted">Personalised learning</span>
               </div>
 
-              <div class="small text-muted dash-welcome-text">Welcome back</div>
-              <h1 class="display-6 fw-bold mb-2 dash-welcome-title">
-                <span id="welcomeName" class="net-gradient-text">Student</span> 👋
-              </h1>
+              <div class="dash-welcome">
+                <div class="small text-muted dash-welcome-text">Welcome back</div>
+                <h1 class="display-6 fw-bold dash-welcome-title">
+                  <span id="welcomeName" class="net-gradient-text">Student</span> 👋
+                </h1>
 
-              <p class="text-muted mb-0">
-                Pick up where you left off, level up your skills, and unlock new networking challenges.
-              </p>
+                <p class="dash-welcome-sub">
+                  Pick up where you left off, level up your skills, and unlock new networking challenges.
+                </p>
+              </div>
             </div>
 
             <div class="dash-actions mt-4">
@@ -281,62 +283,74 @@ Updates requested:
         <!-- Right: XP ring + progress summary -->
         <div class="col-12 col-lg-5 d-flex">
           <div class="dash-progress net-card w-100 p-4">
-            <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-              <div>
-                <div class="fw-semibold mb-1">Your level</div>
-                <div class="small text-muted" id="welcomeLevelHint">100 XP to next level</div>
-              </div>
-
-              <div class="net-ring net-ring--arc" aria-label="Level progress ring">
-                <svg viewBox="0 0 140 140" aria-hidden="true">
-                  <defs>
-                    <linearGradient id="netDashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stop-color="#14b8a6"></stop>
-                      <stop offset="100%" stop-color="#06b6d4"></stop>
-                    </linearGradient>
-                  </defs>
-
-                  <circle class="net-ring-track" cx="70" cy="70" r="58" stroke-width="10" fill="none"></circle>
-                  <circle id="welcomeRing"
-                          class="net-ring-fill"
-                          cx="70" cy="70" r="58"
-                          stroke="url(#netDashGrad)"
-                          stroke-width="10"
-                          stroke-linecap="round"
-                          fill="none"
-                          stroke-dasharray="364.42"
-                          stroke-dashoffset="364.42"></circle>
-                </svg>
-
-                <div class="net-ring-center">
-                  <div class="net-ring-pct net-gradient-text" id="welcomeLevel">1</div>
-                  <div class="net-ring-sub">Level</div>
-                  <div class="net-ring-rank" id="welcomeRank">Novice</div>
-                </div>
-              </div>
+            <div class="dash-progress-head">
+              <div class="fw-semibold">Your level</div>
+              <div class="small text-muted" id="welcomeLevelHint">100 XP to next level</div>
             </div>
 
-            <div class="dash-xp-row">
-              <div class="small text-muted" id="welcomeXpText">0/100 XP</div>
+            <div class="dash-progress-grid">
+              <div class="dash-progress-box dash-progress-ringbox">
+                <div class="net-ring net-ring--arc" aria-label="Level progress ring">
+                  <svg viewBox="0 0 140 140" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="netDashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#14b8a6"></stop>
+                        <stop offset="100%" stop-color="#06b6d4"></stop>
+                      </linearGradient>
+                    </defs>
+
+                    <circle class="net-ring-track" cx="70" cy="70" r="58" stroke-width="10" fill="none"></circle>
+                    <circle id="welcomeRing"
+                            class="net-ring-fill"
+                            cx="70" cy="70" r="58"
+                            stroke="url(#netDashGrad)"
+                            stroke-width="10"
+                            stroke-linecap="round"
+                            fill="none"
+                            stroke-dasharray="364.42"
+                            stroke-dashoffset="364.42"></circle>
+                  </svg>
+
+                  <div class="net-ring-center">
+                    <div class="net-ring-pct net-gradient-text" id="welcomeLevel">1</div>
+                    <div class="net-ring-sub">Level</div>
+                    <div class="net-ring-rank" id="welcomeRank">Novice</div>
+                  </div>
+                </div>
+
+                <div class="dash-xp-row">
+                  <div class="small text-muted" id="welcomeXpText">0/100 XP</div>
+                </div>
+              </div>
+
+              <div class="dash-progress-box dash-progress-activity">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <div class="fw-semibold">Recent activity</div>
+                  <span class="small text-muted">Last 7 days</span>
+                </div>
+                <div class="dash-activity-list" id="recentActivityList">
+                  <div class="small text-muted">No recent activity yet.</div>
+                </div>
+              </div>
             </div>
 
             <div class="dash-mini-grid mt-3">
-                <div class="dash-mini">
-                  <div class="dash-mini-ico"><i class="bi bi-trophy"></i></div>
-                  <div>
-                    <div class="fw-semibold">Next badge</div>
-                    <div class="small text-muted" id="nextBadgeText">Log in 3 days in a row</div>
-                  </div>
+              <div class="dash-mini">
+                <div class="dash-mini-ico"><i class="bi bi-trophy"></i></div>
+                <div>
+                  <div class="fw-semibold">Next badge</div>
+                  <div class="small text-muted" id="nextBadgeText">Log in 3 days in a row</div>
                 </div>
-                <div class="dash-mini">
-                  <div class="dash-mini-ico"><i class="bi bi-stars"></i></div>
-                  <div>
-                    <div class="fw-semibold">Streak goal</div>
-                    <div class="small text-muted" id="weeklyGoalText">3 days to next badge</div>
-                  </div>
+              </div>
+              <div class="dash-mini">
+                <div class="dash-mini-ico"><i class="bi bi-stars"></i></div>
+                <div>
+                  <div class="fw-semibold">Streak goal</div>
+                  <div class="small text-muted" id="weeklyGoalText">3 days to next badge</div>
                 </div>
               </div>
             </div>
+          </div>
         </div>
       </div>
     </section>

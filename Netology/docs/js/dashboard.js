@@ -557,6 +557,67 @@ Works with:
     return log.filter(e => e?.type === type && (now - Number(e.ts || 0)) <= windowMs).length;
   }
 
+  function formatRelative(ts) {
+    const diff = Date.now() - Number(ts || 0);
+    if (!Number.isFinite(diff) || diff < 0) return "";
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return "Just now";
+    if (min < 60) return `${min} min ago`;
+    const hrs = Math.floor(min / 60);
+    if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+  }
+
+  function renderRecentActivity() {
+    const list = $("recentActivityList");
+    if (!list) return;
+    const user = getCurrentUser();
+    const email = user?.email;
+    if (!email) {
+      list.innerHTML = `<div class="small text-muted">Sign in to see recent activity.</div>`;
+      return;
+    }
+
+    const raw = getProgressLog(email);
+    const now = Date.now();
+    const windowMs = 7 * 24 * 60 * 60 * 1000;
+    const recent = raw
+      .filter(e => (now - Number(e.ts || 0)) <= windowMs)
+      .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
+      .slice(0, 6);
+
+    if (!recent.length) {
+      list.innerHTML = `<div class="small text-muted">No recent activity yet.</div>`;
+      return;
+    }
+
+    const content = getCourseIndex();
+    list.innerHTML = recent.map((e) => {
+      const type = String(e?.type || "").toLowerCase();
+      const label =
+        type === "quiz" ? "Quiz passed" :
+        type === "challenge" ? "Challenge completed" :
+        type === "sandbox" ? "Sandbox build" :
+        "Lesson completed";
+      const course = content[String(e.course_id)] || {};
+      const courseTitle = course.title || "Course";
+      const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
+      const xp = Number(e.xp || 0);
+      const time = formatRelative(e.ts);
+
+      return `
+        <div class="dash-activity-item">
+          <div>
+            <div class="fw-semibold">${escapeHtml(label)}</div>
+            <small>${escapeHtml(courseTitle)}${escapeHtml(lessonPart)}${time ? ` • ${escapeHtml(time)}` : ""}</small>
+          </div>
+          <div class="dash-activity-xp">${xp ? `+${xp} XP` : ""}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
   // -----------------------------
   // Render course cards
   // -----------------------------
@@ -1074,6 +1135,8 @@ Works with:
     if ($("focusXp")) {
       $("focusXp").textContent = nextLoginBadge ? `+${nextLoginBadge.xp} XP` : "XP varies";
     }
+
+    renderRecentActivity();
   }
 
   // -----------------------------
