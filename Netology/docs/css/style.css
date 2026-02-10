@@ -2966,6 +2966,46 @@ body.net-auth-v2.net-landing::before{
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   cursor: pointer;
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.net-coursecard::before{
+  content:"";
+  position:absolute;
+  inset:-40% -30% auto auto;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(20,184,166,.18), transparent 65%);
+  opacity: .55;
+  filter: blur(2px);
+  animation: netCourseGlow 10s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.net-coursecard.is-locked::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: rgba(255,255,255,.45);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  opacity: .6;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+.net-coursecard.is-locked:hover::after{
+  opacity: .45;
+}
+.net-coursecard > .p-4{
+  display:flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+}
+.net-coursecard .course-meta{
+  margin-top: auto;
+}
+.net-coursecard .course-cta{
+  margin-top: .75rem;
 }
 @media (min-width: 768px){
   .net-coursecard{ grid-column: span 6; }
@@ -2984,12 +3024,14 @@ body.net-auth-v2.net-landing::before{
 .net-coursebar{
   height: 7px;
   width: 100%;
+  background-size: 200% 200%;
+  animation: netCourseBarShift 8s ease-in-out infinite;
 }
 
 /* Gradients (used by dashboard.js) */
-.net-grad-nov{ background: linear-gradient(90deg, #10b981, #14b8a6); }
-.net-grad-int{ background: linear-gradient(90deg, #14b8a6, #22d3ee); }
-.net-grad-adv{ background: linear-gradient(90deg, #22d3ee, #3b82f6); }
+.net-grad-nov{ background: linear-gradient(90deg, #22c55e, #16a34a); }
+.net-grad-int{ background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.net-grad-adv{ background: linear-gradient(90deg, #ef4444, #f97316); }
 
 /* Difficulty badges */
 .net-diffbadge{
@@ -2999,22 +3041,55 @@ body.net-auth-v2.net-landing::before{
   border-radius: 999px;
   border: 1px solid rgba(15, 23, 42, .10);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
+.net-diffbadge i{ font-size: .8rem; }
+
+.net-cat-chip{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  background: rgba(15,185,177,.10);
+  color: rgba(15, 23, 42, .75);
+  border: 1px solid rgba(6,182,212,.2);
+}
+.net-lock-badge{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 800;
+  background: rgba(148,163,184,.16);
+  color: rgba(15, 23, 42, .7);
+  border: 1px solid rgba(148,163,184,.35);
+  animation: netLockPulse 2.4s ease-in-out infinite;
+}
+.net-lock-badge i{ font-size: .75rem; }
 
 .net-badge-nov{
-  background: rgba(16,185,129,.12);
-  color: #0f766e;
-  border-color: rgba(16,185,129,.22);
+  background: rgba(34,197,94,.14);
+  color: #15803d;
+  border-color: rgba(34,197,94,.28);
 }
 .net-badge-int{
-  background: rgba(20,184,166,.12);
-  color: #0f766e;
-  border-color: rgba(20,184,166,.22);
+  background: rgba(245,158,11,.16);
+  color: #92400e;
+  border-color: rgba(245,158,11,.28);
 }
 .net-badge-adv{
-  background: rgba(59,130,246,.10);
-  color: #1d4ed8;
-  border-color: rgba(59,130,246,.18);
+  background: rgba(239,68,68,.14);
+  color: #b91c1c;
+  border-color: rgba(239,68,68,.26);
 }
 
 /* Eyebrow text */
@@ -3038,6 +3113,7 @@ body.net-auth-v2.net-landing::before{
 .net-meter-fill{
   height: 100%;
   border-radius: 999px;
+  background: linear-gradient(90deg, rgba(15,185,177,.95), rgba(6,182,212,.95));
   transition: width .55s cubic-bezier(.2,.9,.2,1);
   position: relative;
 }
@@ -3055,6 +3131,20 @@ body.net-auth-v2.net-landing::before{
   0%   { transform: translateX(-120%); }
   55%  { transform: translateX(120%); }
   100% { transform: translateX(120%); }
+}
+
+@keyframes netCourseGlow{
+  from{ transform: translate3d(0, 0, 0) scale(1); opacity: .45; }
+  to{ transform: translate3d(-20px, 12px, 0) scale(1.08); opacity: .7; }
+}
+@keyframes netCourseBarShift{
+  0%{ background-position: 0% 50%; }
+  50%{ background-position: 100% 50%; }
+  100%{ background-position: 0% 50%; }
+}
+@keyframes netLockPulse{
+  0%, 100%{ transform: scale(1); box-shadow: 0 0 0 rgba(15,23,42,0); }
+  50%{ transform: scale(1.05); box-shadow: 0 12px 24px rgba(15,23,42,.12); }
 }
 @media (prefers-reduced-motion: reduce){
   .net-meter-fill::after{ animation: none !important; opacity: 0 !important; }

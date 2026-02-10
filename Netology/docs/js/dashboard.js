@@ -517,11 +517,27 @@ Works with:
     const quizArr = payload.quiz || payload.quizzes || [];
     const chArr = payload.challenge || payload.challenges || [];
 
-    return {
+    const base = {
       lesson: new Set((lessonArr || []).map(Number)),
       quiz: new Set((quizArr || []).map(Number)),
       challenge: new Set((chArr || []).map(Number))
     };
+
+    // Fallback: merge from progress log if completion sets are empty
+    const log = getProgressLog(email);
+    if (Array.isArray(log) && log.length) {
+      log.forEach((e) => {
+        if (String(e?.course_id) !== String(courseId)) return;
+        const t = String(e?.type || "").toLowerCase();
+        const n = Number(e?.lesson_number);
+        if (!Number.isFinite(n)) return;
+        if (t === "learn" || t === "lesson") base.lesson.add(n);
+        else if (t === "quiz") base.quiz.add(n);
+        else if (t === "challenge") base.challenge.add(n);
+      });
+    }
+
+    return base;
   }
 
   function getProgressLog(email) {
@@ -635,8 +651,14 @@ Works with:
       : diff === "intermediate" ? "net-badge-int"
       : "net-badge-nov";
 
+    const diffIcon =
+      diff === "advanced" ? "bi-shield-lock-fill"
+      : diff === "intermediate" ? "bi-lightning-charge-fill"
+      : "bi-leaf-fill";
+
     const card = document.createElement("div");
     card.className = "net-coursecard";
+    if (locked) card.classList.add("is-locked");
     card.setAttribute("data-diff", diff);
     card.setAttribute("data-title", (course.title || "").toLowerCase());
     card.setAttribute("data-category", (course.category || "").toLowerCase());
@@ -649,20 +671,25 @@ Works with:
       <div class="p-4">
         <div class="d-flex align-items-start justify-content-between gap-2">
           <div class="flex-grow-1">
-            <div class="net-eyebrow">${course.category}</div>
-            <div class="fw-bold fs-6 mt-1 d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="net-cat-chip">${course.category}</span>
+              ${locked ? `<span class="net-lock-badge" title="Locked"><i class="bi bi-lock-fill"></i>Locked</span>` : ``}
+            </div>
+            <div class="fw-bold fs-6 d-flex align-items-center gap-2">
               ${course.title}
-              ${locked ? `<span class="badge bg-light text-dark border" title="Locked"><i class="bi bi-lock-fill me-1"></i>Locked</span>` : ``}
             </div>
           </div>
-          <span class="net-diffbadge ${badgeClass}">${prettyDiff(diff)}</span>
+          <span class="net-diffbadge ${badgeClass}">
+            <i class="bi ${diffIcon}"></i>
+            ${prettyDiff(diff)}
+          </span>
         </div>
 
         <div class="text-muted small mt-2" style="min-height:44px;">
           ${course.description}
         </div>
 
-        <div class="d-flex align-items-center justify-content-between mt-3 small">
+        <div class="d-flex align-items-center justify-content-between mt-3 small course-meta">
           <div class="text-muted">
             ${course.items ? `${course.items} items` : `Course`} • ${course.estimatedTime}
           </div>
@@ -671,7 +698,7 @@ Works with:
           </div>
         </div>
 
-        <div class="mt-3">
+        <div class="mt-3 course-cta">
           <button class="btn ${locked ? "btn-outline-secondary" : "btn-teal"} btn-sm w-100" ${locked ? "disabled" : ""}>
             ${locked ? `Unlock at Level ${course.required_level}` : "Open Course"}
           </button>
