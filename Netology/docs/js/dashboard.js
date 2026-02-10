@@ -739,13 +739,32 @@ Works with:
     return `${days} day${days === 1 ? "" : "s"} ago`;
   }
 
-  function renderRecentActivity() {
+  async function fetchRecentActivity(email) {
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (!email || !base) return null;
+    try {
+      const data = await fetchJson(`${base}/recent-activity?email=${encodeURIComponent(email)}&limit=8`);
+      if (!data || !data.success) return null;
+      return Array.isArray(data.activity) ? data.activity : [];
+    } catch {
+      return null;
+    }
+  }
+
+  function getCourseTitleById(courseId) {
+    const fromIndex = getCourseIndex();
+    const fromContent = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
+    const match = fromIndex[String(courseId)] || fromContent[String(courseId)] || {};
+    return match.title || "Course";
+  }
+
+  async function renderRecentActivity() {
     const list = getById("recentActivityList");
     if (!list) return;
     const user = getCurrentUser();
     const email = user?.email;
     if (!email) {
-      list.innerHTML = `<div class="small text-muted">Sign in to see your streak.</div>`;
+      list.innerHTML = `<div class="small text-muted">Sign in to see your recent activity.</div>`;
       return;
     }
 
@@ -753,6 +772,7 @@ Works with:
     const streak = computeLoginStreak(log);
     const days = [];
     const cursor = new Date();
+    cursor.setDate(cursor.getDate() - 6);
     for (let i = 0; i < 7; i += 1) {
       const key = dateKey(cursor);
       days.push({
@@ -760,7 +780,69 @@ Works with:
         label: cursor.toLocaleDateString(undefined, { weekday: "short" }),
         active: log.includes(key)
       });
-      cursor.setDate(cursor.getDate() - 1);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    let activityHtml = "";
+    const apiRecent = await fetchRecentActivity(email);
+
+    if (Array.isArray(apiRecent) && apiRecent.length) {
+      activityHtml = apiRecent.map((e) => {
+        const type = String(e?.type || "").toLowerCase();
+        const label =
+          type === "quiz" ? "Quiz passed" :
+          type === "challenge" ? "Challenge completed" :
+          "Lesson completed";
+        const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
+        const time = e.completed_at ? formatRelative(new Date(e.completed_at).getTime()) : "";
+        const xp = Number(e.xp || 0);
+        const courseTitle = e.course_title || "Course";
+
+        return `
+          <div class="dash-activity-item">
+            <div>
+              <div class="fw-semibold">${label}</div>
+              <small>${courseTitle}${lessonPart}${time ? ` • ${time}` : ""}</small>
+            </div>
+            <div class="dash-activity-xp">${xp ? `+${xp} XP` : ""}</div>
+          </div>
+        `;
+      }).join("");
+    } else {
+      const progressLog = getProgressLog(email);
+      const now = Date.now();
+      const windowMs = 7 * 24 * 60 * 60 * 1000;
+      const recent = progressLog
+        .filter((e) => (now - Number(e.ts || 0)) <= windowMs)
+        .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
+        .slice(0, 8);
+
+      if (!recent.length) {
+        activityHtml = `<div class="small text-muted">No recent activity yet.</div>`;
+      } else {
+        activityHtml = recent.map((e) => {
+          const type = String(e?.type || "").toLowerCase();
+          const label =
+            type === "quiz" ? "Quiz passed" :
+            type === "challenge" ? "Challenge completed" :
+            type === "sandbox" ? "Sandbox build" :
+            "Lesson completed";
+          const courseTitle = getCourseTitleById(e.course_id);
+          const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
+          const time = formatRelative(e.ts);
+          const xp = Number(e.xp || 0);
+
+          return `
+            <div class="dash-activity-item">
+              <div>
+                <div class="fw-semibold">${label}</div>
+                <small>${courseTitle}${lessonPart}${time ? ` • ${time}` : ""}</small>
+              </div>
+              <div class="dash-activity-xp">${xp ? `+${xp} XP` : ""}</div>
+            </div>
+          `;
+        }).join("");
+      }
     }
 
     list.innerHTML = `
@@ -778,6 +860,8 @@ Works with:
           </span>
         `).join("")}
       </div>
+      <div class="small text-muted mt-2">Recent activity</div>
+      ${activityHtml}
     `;
   }
 
