@@ -1,7 +1,7 @@
 Flask
 Flask-Bcrypt
 psycopg[binary]
+psycopg_pool
 Flask-cors
 gunicorn
 python-dotenv
-

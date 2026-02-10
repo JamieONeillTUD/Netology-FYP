@@ -1,0 +1,298 @@
+<!--
+Student Number: C22320301
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 10/02/2026
+
+lesson.html – Netology Lesson Page
+- Full lesson view (new page per lesson)
+- Matches course/dashboard chrome
+- Actions: quiz, practice, challenge
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Netology – Lesson</title>
+
+  <!-- API base -->
+  <script>
+    window.API_BASE = "https://netology-fyp.onrender.com";
+  </script>
+
+  <!-- Vendor -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="net-bg net-landing net-lesson-page">
+
+  <!-- Slide Sidebar Backdrop -->
+  <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
+
+  <!-- Slide Sidebar -->
+  <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
+    <div class="net-sidehead">
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <a href="dashboard.html" class="net-brandchip" id="sideBrandHome" aria-label="Netology home">
+          <div class="net-logo" aria-hidden="true"></div>
+          <div class="net-brandname">Netology</div>
+        </a>
+
+        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu" type="button">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+
+    <nav class="net-sidenav" aria-label="Sidebar navigation">
+      <a class="net-sidelink" href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
+      <a class="net-sidelink" href="account.html"><i class="bi bi-person-circle"></i> My Profile</a>
+      <a class="net-sidelink" href="courses.html"><i class="bi bi-journal-bookmark"></i> My Courses</a>
+      <a class="net-sidelink" href="sandbox.html"><i class="bi bi-diagram-3"></i> Network Sandbox</a>
+      <a class="net-sidelink" href="account.html"><i class="bi bi-gear"></i> Settings</a>
+    </nav>
+
+    <div class="net-sidefoot">
+      <div class="net-userbox">
+        <div class="d-flex align-items-center gap-3">
+          <div class="net-avatar-sm" id="sideAvatar">S</div>
+          <div class="flex-grow-1 min-width-0">
+            <div class="fw-semibold text-truncate" id="sideUserName">Student</div>
+            <div class="small text-muted text-truncate" id="sideUserEmail">email@example.com</div>
+          </div>
+          <span class="badge text-bg-light border" id="sideLevelBadge">Lv 1</span>
+        </div>
+
+        <div class="mt-3">
+          <div class="d-flex justify-content-between align-items-center small mb-1">
+            <span class="text-muted">XP</span>
+            <span class="fw-semibold" id="sideXPText">0/100</span>
+          </div>
+          <div class="progress" style="height: 8px;">
+            <div class="progress-bar net-progress" id="sideXPBar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-grid mt-3">
+        <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
+          <i class="bi bi-box-arrow-right me-2"></i>Logout
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Top Nav -->
+  <header class="net-topnav sticky-top" role="banner">
+    <div class="container-fluid">
+      <div class="net-topnav-inner">
+
+        <!-- Left -->
+        <div class="net-topnav-left">
+          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
+                  id="openSidebarBtn"
+                  type="button"
+                  aria-label="Open menu">
+            <i class="bi bi-list me-2" aria-hidden="true"></i>
+            Menu
+          </button>
+
+          <div class="d-none d-lg-flex align-items-center gap-2 text-white-75 small">
+            <i class="bi bi-journal-text" aria-hidden="true"></i>
+            Lesson
+          </div>
+        </div>
+
+        <!-- Center brand -->
+        <div class="net-topnav-center">
+          <a href="dashboard.html" id="brandHome" class="net-topnav-brand" aria-label="Netology home">
+            <span class="net-logo net-logo-sm" aria-hidden="true"></span>
+            <h2 class="net-brand-text">Netology</h2>
+          </a>
+        </div>
+
+        <!-- Right -->
+        <div class="net-topnav-right position-relative">
+          <div class="d-none d-md-flex align-items-center gap-2">
+            <a class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
+               id="topSandboxLink"
+               href="sandbox.html"
+               aria-label="Open sandbox">
+              <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i> Sandbox
+            </a>
+          </div>
+
+          <!-- User dropdown -->
+          <div class="position-relative">
+            <button class="net-userbtn" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
+              <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
+              <span class="net-user-name d-none d-sm-inline" id="topUserName">Student</span>
+              <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
+            </button>
+
+            <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
+              <div class="net-ddhead">
+                <div class="fw-semibold text-truncate" id="ddName">Student</div>
+                <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
+              </div>
+              <a href="account.html"><i class="bi bi-person-circle"></i> My Account</a>
+              <a href="account.html"><i class="bi bi-gear"></i> Settings</a>
+              <div class="net-ddsep"></div>
+              <button class="danger" id="topLogoutBtn" type="button">
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="container my-4 net-lesson-shell" role="main">
+    <div class="mb-3">
+      <a href="course.html" class="link-teal d-inline-flex align-items-center gap-2 fw-semibold" id="backToCourse">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        Back to Course
+      </a>
+    </div>
+
+    <!-- Lesson Hero -->
+    <section class="net-card net-lesson-hero p-4 p-lg-4 mb-4" aria-label="Lesson overview">
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <div class="net-lesson-kicker" id="lessonCourseTitle">Course</div>
+        <span class="net-pill-badge badge text-bg-light border px-3 py-2" id="lessonDifficulty">Difficulty</span>
+        <span class="badge text-bg-light border" id="lessonUnitTitle">Unit</span>
+      </div>
+      <h1 class="net-course-title mb-2" id="lessonTitle">Lesson title</h1>
+      <p class="text-muted mb-3" id="lessonSubtitle">Lesson summary</p>
+
+      <div class="net-lesson-meta d-flex flex-wrap gap-3">
+        <span class="d-inline-flex align-items-center gap-1">
+          <i class="bi bi-clock" aria-hidden="true"></i>
+          <span id="lessonMetaTime">—</span>
+        </span>
+        <span class="text-muted">•</span>
+        <span class="d-inline-flex align-items-center gap-1 fw-semibold net-xp-accent">
+          <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
+          <span id="lessonMetaXP">0</span> XP
+        </span>
+      </div>
+    </section>
+
+    <section class="net-card net-lesson-progress p-3 p-lg-4 mb-4" aria-label="Lesson progress">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+          <div class="fw-semibold">Lesson progress</div>
+          <div class="small text-muted" id="lessonProgressText">0/0 lessons completed</div>
+        </div>
+        <div class="net-lesson-progress-pct" id="lessonProgressPct">0%</div>
+      </div>
+      <div class="progress" style="height: 10px;">
+        <div class="progress-bar net-progress net-progress-fill" id="lessonProgressBar" style="width:0%"></div>
+      </div>
+      <div class="net-lesson-unlock d-none" id="lessonUnlockBanner">
+        <i class="bi bi-unlock me-2" aria-hidden="true"></i>
+        Next lesson unlocked: <span class="fw-semibold" id="lessonUnlockTitle">Lesson</span>
+      </div>
+    </section>
+
+    <div class="row g-4">
+      <!-- Content -->
+      <div class="col-lg-8">
+        <section class="net-card p-4 net-lesson-body">
+          <div id="lessonObjectivesWrap" class="mb-4 d-none">
+            <div class="fw-semibold mb-2">What you’ll learn</div>
+            <ul class="net-lesson-objectives" id="lessonObjectives"></ul>
+          </div>
+
+          <article id="lessonContent" class="net-lesson-content">Loading lesson content…</article>
+
+          <div id="lessonSummaryWrap" class="net-lesson-summary d-none">
+            <div class="fw-semibold mb-1">Key takeaway</div>
+            <p class="mb-0" id="lessonSummary"></p>
+          </div>
+        </section>
+
+        <!-- Practice Card -->
+        <section class="net-card p-4 mt-4 d-none" id="lessonPracticeCard">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <div class="fw-semibold mb-1"><i class="bi bi-diagram-3 me-2"></i>Practice</div>
+              <div class="small text-muted" id="lessonPracticeMeta">Try this in the sandbox</div>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" id="lessonPracticeBtn" type="button">
+              Open Sandbox
+            </button>
+          </div>
+        </section>
+
+        <!-- Challenge Card -->
+        <section class="net-card p-4 mt-4 d-none" id="lessonChallengeCard">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <div class="fw-semibold mb-1"><i class="bi bi-flag me-2"></i>Challenge</div>
+              <div class="small text-muted" id="lessonChallengeMeta">Validate your topology</div>
+            </div>
+            <button class="btn btn-teal btn-sm" id="lessonChallengeBtn" type="button">
+              Start Challenge
+            </button>
+          </div>
+          <div class="small text-muted mt-2" id="lessonChallengeSteps"></div>
+        </section>
+
+        <!-- Resources Card -->
+        <section class="net-card p-4 mt-4" id="lessonResourcesCard">
+          <div class="fw-semibold mb-2"><i class="bi bi-link-45deg me-2"></i>Resources</div>
+          <div class="small text-muted mb-2">Use these references to deepen your understanding.</div>
+          <div id="lessonResources" class="net-resource-list"></div>
+        </section>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <section class="net-card p-4 mb-4">
+          <div class="fw-semibold mb-3">Lesson Progress</div>
+          <div class="d-flex align-items-center justify-content-between small mb-2">
+            <span class="text-muted">Status</span>
+            <span id="lessonStatus">Not started</span>
+          </div>
+          <div class="d-grid gap-2">
+            <button class="btn btn-teal" id="lessonCompleteBtn" type="button">
+              <i class="bi bi-check2-circle me-1"></i> Mark Complete
+            </button>
+          </div>
+        </section>
+
+        <section class="net-card p-4">
+          <div class="fw-semibold mb-3">Next up</div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-secondary btn-sm" id="prevLessonLink" href="#">Previous lesson</a>
+            <a class="btn btn-outline-secondary btn-sm" id="nextLessonLink" href="#">Next lesson</a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center border-top py-3 bg-white">
+    <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
+  </footer>
+
+  <!-- Vendor -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- App scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/course_content.js"></script>
+  <script src="js/lesson.js"></script>
+</body>
+</html>

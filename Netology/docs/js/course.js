@@ -169,6 +169,27 @@ What this file does:
       list.push(payload);
     }
     localStorage.setItem(STARTED_KEY(email), JSON.stringify(list));
+    startCourseBackend(email, courseId);
+  }
+
+  function getStartedLessonNumber(email, courseId) {
+    if (!email || !courseId) return null;
+    const list = safeJson(localStorage.getItem(STARTED_KEY(email))) || [];
+    const entry = list.find((c) => String(c.id) === String(courseId));
+    return entry ? Number(entry.lastLesson || 0) : null;
+  }
+
+  async function startCourseBackend(email, courseId) {
+    if (!email || !courseId) return;
+    try {
+      await fetch(`${API()}/start-course`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, course_id: Number(courseId) })
+      });
+    } catch {
+      // best effort
+    }
   }
 
   function bumpUserXP(email, addXP) {
@@ -273,9 +294,6 @@ What this file does:
 
     // load course structure (from COURSE_CONTENT)
     hydrateCourseFromContent(state.courseId);
-
-    // expand first module by default
-    if (state.course.modules[0]) state.expandedModules.add(state.course.modules[0].id);
 
     // load user stats + completions (if logged in)
     if (state.user?.email) {
@@ -643,6 +661,11 @@ What this file does:
         duration: data.duration || data.time || "—",
         xp: Number(data.xp || data.xpReward || data.xp_reward || 0),
         lesson_number: Number(data.lesson_number || data.lessonNumber || 0),
+        unit_title: unit.title || "",
+        unit_about: unit.about || "",
+        challenge: data.challenge || data.rules || null,
+        steps: data.steps || [],
+        tips: data.tips || "",
         assigned: false,
       });
     };
@@ -884,6 +907,17 @@ What this file does:
     const bar = el("progressBar");
     if (bar) bar.style.width = `${clamp(prog.pct, 0, 100)}%`;
 
+    // preview drawer ring
+    const previewRing = el("previewRing");
+    const previewPct = el("previewRingPct");
+    if (previewPct) previewPct.textContent = `${prog.pct}%`;
+    if (previewRing) {
+      const CIRC = 2 * Math.PI * 26; // r=26 (matches HTML)
+      const offset = CIRC * (1 - prog.pct / 100);
+      previewRing.style.strokeDasharray = `${CIRC.toFixed(2)}`;
+      previewRing.style.strokeDashoffset = `${offset.toFixed(2)}`;
+    }
+
     // sandbox buttons carry course context
     const q = `course_id=${encodeURIComponent(state.courseId)}`;
     const topSandbox = el("topSandboxLink");
@@ -994,6 +1028,11 @@ What this file does:
 
         const lockedClass = locked ? "is-locked" : "";
         const completedClass = completed ? "is-complete" : "";
+        const previewBtn = it.type === "learn"
+          ? `<span class="net-preview-btn" role="button" tabindex="0" data-action="preview-lesson" data-lesson="${Number(it.lesson_number)}" title="Quick preview">
+               <i class="bi bi-eye" aria-hidden="true"></i>
+             </span>`
+          : "";
 
         html += `
           <button class="net-lesson-row px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${lockedClass} ${completedClass}"
@@ -1021,6 +1060,7 @@ What this file does:
               </div>
             </div>
             <div class="d-flex align-items-center gap-2">
+              ${previewBtn}
               ${right}
             </div>
           </button>
@@ -1145,6 +1185,29 @@ What this file does:
         openItem(type, lesson);
       });
     });
+
+    document.querySelectorAll('[data-action="preview-lesson"]').forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (state.courseLocked) return;
+        const lesson = Number(btn.getAttribute("data-lesson") || "0");
+        if (!lesson) return;
+        openLearnModalByLessonNumber(lesson);
+      });
+      btn.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (state.courseLocked) return;
+        const lesson = Number(btn.getAttribute("data-lesson") || "0");
+        if (!lesson) return;
+        openLearnModalByLessonNumber(lesson);
+      });
+      btn.addEventListener("mouseenter", () => schedulePreviewTooltip(btn));
+      btn.addEventListener("mouseleave", () => hidePreviewTooltip(btn));
+      btn.addEventListener("focus", () => schedulePreviewTooltip(btn));
+      btn.addEventListener("blur", () => hidePreviewTooltip(btn));
+    });
   }
 
   function openItem(type, lessonNumber) {
@@ -1154,13 +1217,14 @@ What this file does:
     }
 
     if (t === "learn") {
-      openLearnModalByLessonNumber(lessonNumber);
+      window.location.href =
+        `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
       return;
     }
 
     if (t === "quiz") {
       window.location.href =
-        `quiz.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
+        `quiz.html?course=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
       return;
     }
 
@@ -1171,10 +1235,38 @@ What this file does:
     }
 
     if (t === "challenge") {
+      const item = findItem(t, lessonNumber);
+      if (item) {
+        const payload = {
+          courseId: state.courseId,
+          courseTitle: state.course.title,
+          unitTitle: item.unit_title || "",
+          lesson: lessonNumber,
+          lessonTitle: item.title || "",
+          challenge: {
+            rules: (item.challenge && item.challenge.rules) || item.rules || item.challenge || null,
+            steps: (item.challenge && item.challenge.steps) || item.steps || [],
+            tips: (item.challenge && item.challenge.tips) || item.tips || ""
+          }
+        };
+        localStorage.setItem("netology_active_challenge", JSON.stringify(payload));
+      }
       window.location.href =
-        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}&mode=challenge`;
+        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}&mode=challenge&challenge=1`;
       return;
     }
+  }
+
+  function findItem(type, lessonNumber) {
+    const t = String(type).toLowerCase();
+    for (const m of (state.course.modules || [])) {
+      for (const it of (m.items || [])) {
+        if (String(it.type) === t && Number(it.lesson_number) === Number(lessonNumber)) {
+          return it;
+        }
+      }
+    }
+    return null;
   }
 
   /* =========================================================
@@ -1212,26 +1304,32 @@ What this file does:
 
     fillLessonModal(state.activeLearn);
 
-    const modalEl = el("lessonModal");
-    if (!modalEl) return;
+    const drawerEl = el("lessonPreviewDrawer");
+    if (!drawerEl) return;
 
-    // Bootstrap 5 Modal
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
+    // Bootstrap 5 Offcanvas
+    const drawer = bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
+    drawer.show();
+    animatePreviewRing();
   }
 
   function fillLessonModal(item) {
-    setText("lessonModalLabel", item.title);
+    setText("lessonPreviewLabel", item.title);
     setText("lessonMetaTime", item.duration || "—");
     setText("lessonMetaXP", Number(item.xp || 0));
 
-    const body = el("lessonModalBody");
+    const body = el("lessonPreviewBody");
     if (body) {
       const c = item.content;
       if (Array.isArray(c)) {
-        body.innerHTML = c.map((p) => `<p>${escapeHtml(p)}</p>`).join("");
+        const preview = c.slice(0, 2);
+        body.innerHTML = preview.map((p) => `<p>${escapeHtml(p)}</p>`).join("");
+        if (c.length > 2) {
+          body.innerHTML += `<p class="text-muted small mb-0">Open the full lesson to continue.</p>`;
+        }
       } else if (typeof c === "string" && c.trim()) {
-        body.innerHTML = escapeHtml(c).replace(/\n/g, "<br>");
+        const trimmed = c.split("\n").slice(0, 3).join("\n");
+        body.innerHTML = escapeHtml(trimmed).replace(/\n/g, "<br>");
       } else {
         body.innerHTML = `
           <p class="text-muted mb-2">Lesson content not added yet.</p>
@@ -1240,7 +1338,143 @@ What this file does:
       }
     }
 
+    const resEl = el("lessonPreviewResources");
+    if (resEl) {
+      const resources = Array.isArray(item.resources) && item.resources.length
+        ? item.resources
+        : buildDefaultResources(item.title || "", state.course.title || "");
+      const previewRes = resources.slice(0, 2);
+      resEl.innerHTML = previewRes.map((r) => `
+        <a class="net-resource-item" href="${escapeHtml(r.url)}" target="_blank" rel="noopener">
+          <span class="net-resource-ico"><i class="bi bi-book"></i></span>
+          <span>${escapeHtml(r.label)}</span>
+          <i class="bi bi-box-arrow-up-right ms-auto text-muted"></i>
+        </a>
+      `).join("");
+    }
+
+    const openBtn = el("lessonOpenBtn");
+    if (openBtn) {
+      openBtn.setAttribute(
+        "href",
+        `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(item.lesson_number)}`
+      );
+      const started = getStartedLessonNumber(state.user?.email, state.courseId);
+      const done = state.completed.lesson.has(Number(item.lesson_number));
+      if (started && Number(started) === Number(item.lesson_number) && !done) {
+        openBtn.textContent = "Continue lesson";
+        openBtn.classList.remove("btn-outline-secondary");
+        openBtn.classList.add("btn-teal");
+      } else {
+        openBtn.textContent = "Open lesson";
+        openBtn.classList.remove("btn-teal");
+        openBtn.classList.add("btn-outline-secondary");
+      }
+    }
+
     updateLessonModalButtons();
+  }
+
+  function buildDefaultResources(title, courseTitle) {
+    const t = `${title || ""} ${courseTitle || ""}`.toLowerCase();
+    const list = [];
+    const add = (label, url) => {
+      if (!list.find((r) => r.url === url)) list.push({ label, url });
+    };
+
+    if (t.includes("network")) add("Computer network overview", "https://en.wikipedia.org/wiki/Computer_network");
+    if (t.includes("lan")) add("Local area network", "https://en.wikipedia.org/wiki/Local_area_network");
+    if (t.includes("wan")) add("Wide area network", "https://en.wikipedia.org/wiki/Wide_area_network");
+    if (t.includes("ethernet")) add("Ethernet basics", "https://en.wikipedia.org/wiki/Ethernet");
+    if (t.includes("mac")) add("MAC address", "https://en.wikipedia.org/wiki/MAC_address");
+    if (t.includes("ip")) add("IP address", "https://en.wikipedia.org/wiki/IP_address");
+    if (t.includes("subnet")) add("Subnetting", "https://en.wikipedia.org/wiki/Subnetting");
+    if (t.includes("gateway")) add("Default gateway", "https://en.wikipedia.org/wiki/Default_gateway");
+    if (t.includes("vlan")) add("Virtual LAN", "https://en.wikipedia.org/wiki/Virtual_LAN");
+    if (t.includes("trunk")) add("IEEE 802.1Q", "https://en.wikipedia.org/wiki/IEEE_802.1Q");
+    if (t.includes("routing") || t.includes("ospf")) add("Routing (overview)", "https://en.wikipedia.org/wiki/Routing");
+    if (t.includes("firewall")) add("Firewall", "https://en.wikipedia.org/wiki/Firewall_(computing)");
+    if (t.includes("acl")) add("Access control list", "https://en.wikipedia.org/wiki/Access_control_list");
+    if (t.includes("siem") || t.includes("logging")) add("SIEM", "https://en.wikipedia.org/wiki/Security_information_and_event_management");
+    if (t.includes("bgp")) add("BGP", "https://en.wikipedia.org/wiki/Border_Gateway_Protocol");
+    if (t.includes("automation")) add("Network automation", "https://en.wikipedia.org/wiki/Network_automation");
+    if (t.includes("snmp")) add("SNMP", "https://en.wikipedia.org/wiki/Simple_Network_Management_Protocol");
+
+    if (list.length < 3) {
+      add("Internet protocol suite", "https://en.wikipedia.org/wiki/Internet_protocol_suite");
+      add("OSI model", "https://en.wikipedia.org/wiki/OSI_model");
+      add("Computer network topologies", "https://en.wikipedia.org/wiki/Network_topology");
+    }
+
+    return list.slice(0, 4);
+  }
+
+  function animatePreviewRing() {
+    const ring = el("previewRing");
+    if (!ring) return;
+    const prog = computeProgress();
+    const CIRC = 2 * Math.PI * 26;
+    ring.style.transition = "none";
+    ring.style.strokeDasharray = `${CIRC.toFixed(2)}`;
+    ring.style.strokeDashoffset = `${CIRC.toFixed(2)}`;
+    requestAnimationFrame(() => {
+      ring.style.transition = "stroke-dashoffset .6s ease";
+      ring.style.strokeDashoffset = `${(CIRC * (1 - prog.pct / 100)).toFixed(2)}`;
+    });
+  }
+
+  /* =========================================================
+     Preview tooltip (1s delay)
+  ========================================================= */
+
+  let __previewTooltip = null;
+
+  function ensurePreviewTooltip() {
+    if (__previewTooltip) return __previewTooltip;
+    const tip = document.createElement("div");
+    tip.className = "net-tooltip";
+    tip.textContent = "Preview";
+    document.body.appendChild(tip);
+    __previewTooltip = tip;
+    return tip;
+  }
+
+  function schedulePreviewTooltip(target) {
+    if (!target) return;
+    clearPreviewTooltipTimer(target);
+    const t = setTimeout(() => showPreviewTooltip(target), 1000);
+    target.dataset.previewTipTimer = String(t);
+  }
+
+  function clearPreviewTooltipTimer(target) {
+    const handle = Number(target?.dataset?.previewTipTimer || 0);
+    if (handle) clearTimeout(handle);
+    if (target?.dataset) delete target.dataset.previewTipTimer;
+  }
+
+  function showPreviewTooltip(target) {
+    const tip = ensurePreviewTooltip();
+    const lesson = target?.getAttribute("data-lesson");
+    const base = target?.getAttribute("title") || "Preview";
+    tip.textContent = lesson ? `${base} lesson ${lesson}` : base;
+    tip.classList.add("is-open");
+
+    const rect = target.getBoundingClientRect();
+    const pad = 8;
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    let left = rect.left + rect.width / 2 - w / 2;
+    let top = rect.top - h - 10;
+    left = Math.max(pad, Math.min(left, window.innerWidth - w - pad));
+    if (top < pad) top = rect.bottom + 10;
+
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+  }
+
+  function hidePreviewTooltip(target) {
+    clearPreviewTooltipTimer(target);
+    if (__previewTooltip) __previewTooltip.classList.remove("is-open");
   }
 
   function moveLearn(dir) {

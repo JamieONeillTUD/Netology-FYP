@@ -32,6 +32,7 @@ Works with:
   // -----------------------------
   const $ = (id) => document.getElementById(id);
   const BASE_XP = 100;
+  const COURSE_CACHE_TTL = 5 * 60 * 1000;
 
   function safeJSONParse(str, fallback) {
     try { return JSON.parse(str); } catch { return fallback; }
@@ -73,6 +74,26 @@ Works with:
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
+  }
+
+  function getCachedCourseIndex() {
+    try {
+      const raw = localStorage.getItem("netology_courses_cache");
+      const ts = Number(localStorage.getItem("netology_courses_cache_ts") || 0);
+      const index = raw ? JSON.parse(raw) : null;
+      if (!index || typeof index !== "object") return { index: null, fresh: false };
+      const fresh = ts && (Date.now() - ts < COURSE_CACHE_TTL);
+      return { index, fresh };
+    } catch {
+      return { index: null, fresh: false };
+    }
+  }
+
+  function setCachedCourseIndex(index) {
+    try {
+      localStorage.setItem("netology_courses_cache", JSON.stringify(index));
+      localStorage.setItem("netology_courses_cache_ts", String(Date.now()));
+    } catch {}
   }
 
   function getCurrentUser() {
@@ -445,18 +466,46 @@ Works with:
   // Courses data (from course_content.js)
   // -----------------------------
   function getCourseIndex() {
+    if (window.__dashCourseIndex && Object.keys(window.__dashCourseIndex).length) {
+      return window.__dashCourseIndex;
+    }
+    const cached = getCachedCourseIndex();
+    if (cached.index) return cached.index;
     const cc = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT)
       ? COURSE_CONTENT
       : (window.COURSE_CONTENT || {});
     if (cc && Object.keys(cc).length) return cc;
-    if (window.__dashCourseIndex && Object.keys(window.__dashCourseIndex).length) {
-      return window.__dashCourseIndex;
-    }
-    try {
-      const cached = JSON.parse(localStorage.getItem("netology_courses_cache") || "null");
-      if (cached && typeof cached === "object") return cached;
-    } catch {}
     return {};
+  }
+
+  function getCourseContentIndex() {
+    const cc = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT)
+      ? COURSE_CONTENT
+      : (window.COURSE_CONTENT || {});
+    return cc && typeof cc === "object" ? cc : {};
+  }
+
+  function mergeCourseWithContent(apiCourse, contentIndex) {
+    const id = String(apiCourse.id || "");
+    const local = contentIndex[id] || {};
+    const difficulty = (apiCourse.difficulty || local.difficulty || "novice").toLowerCase();
+    const required_level = Number(apiCourse.required_level || local.required_level || 0) || difficultyRequiredLevel(difficulty);
+
+    const merged = {
+      key: id,
+      id,
+      title: apiCourse.title || local.title || "Course",
+      description: apiCourse.description || local.description || local.about || "",
+      difficulty,
+      required_level,
+      xpReward: Number(apiCourse.xpReward || apiCourse.xp_reward || local.xpReward || local.totalXP || 0) || 0,
+      items: Number(apiCourse.total_lessons || apiCourse.totalLessons || 0) || countRequiredItems(local),
+      category: apiCourse.category || local.category || "",
+      estimatedTime: apiCourse.estimatedTime || apiCourse.estimated_time || local.estimatedTime || "—",
+      total_lessons: Number(apiCourse.total_lessons || apiCourse.totalLessons || 0) || 0
+    };
+
+    return merged;
   }
 
   async function fetchCoursesFromApi() {
@@ -473,10 +522,10 @@ Works with:
         if (!id) return;
         index[id] = {
           id,
-          title: c.title || "Untitled Course",
-          description: c.description || "Learn networking skills.",
+          title: c.title || "",
+          description: c.description || "",
           difficulty: (c.difficulty || "novice").toLowerCase(),
-          category: c.category || "Core",
+          category: c.category || "",
           xpReward: Number(c.xp_reward || c.xpReward || 0) || 0,
           total_lessons: Number(c.total_lessons || c.totalLessons || 0) || 0,
           required_level: Number(c.required_level || 0) || 0,
@@ -485,9 +534,7 @@ Works with:
       });
 
       window.__dashCourseIndex = index;
-      try {
-        localStorage.setItem("netology_courses_cache", JSON.stringify(index));
-      } catch {}
+      setCachedCourseIndex(index);
       return Object.keys(index).map((k) => index[k]);
     } catch {
       return [];
@@ -535,15 +582,15 @@ Works with:
     for (const key of Object.keys(cc)) {
       const c = cc[key] || {};
       const id = c.id || key;
-      const title = c.title || "Untitled Course";
-      const description = c.description || c.about || "Learn networking skills.";
+      const title = c.title || "Course";
+      const description = c.description || c.about || "";
       const difficulty = (c.difficulty || "novice").toLowerCase();
       const required_level = Number(c.required_level) || difficultyRequiredLevel(difficulty);
 
       const items = countRequiredItems(c);
 
-      const xpReward = Number(c.xpReward || c.xp_reward || 500) || 500;
-      const category = c.category || "Core";
+      const xpReward = Number(c.xpReward || c.xp_reward || c.totalXP || 0) || 0;
+      const category = c.category || "";
       const estimatedTime = c.estimatedTime || "—";
 
       list.push({
@@ -776,6 +823,10 @@ Works with:
     card.setAttribute("tabindex", "0");
     card.setAttribute("aria-label", locked ? `${course.title} locked` : `${course.title} open course`);
 
+    const descHtml = course.description
+      ? `<div class="text-muted small mb-3">${course.description}</div>`
+      : "";
+
     card.innerHTML = `
       ${lockedOverlay}
       <div class="net-coursebar ${gradClass}"></div>
@@ -783,7 +834,7 @@ Works with:
         <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
           <div>
             <div class="d-flex align-items-center gap-2 mb-2">
-              <span class="net-cat-chip">${course.category}</span>
+              ${course.category ? `<span class="net-cat-chip">${course.category}</span>` : ``}
               ${locked ? `<span class="net-lock-badge"><i class="bi bi-lock-fill"></i>Locked</span>` : ``}
             </div>
             <div class="fw-semibold fs-5">${course.title}</div>
@@ -794,7 +845,7 @@ Works with:
           </span>
         </div>
 
-        <div class="text-muted small mb-3">${course.description}</div>
+        ${descHtml}
 
         <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta">
           <span class="d-inline-flex align-items-center gap-1">
@@ -1070,22 +1121,30 @@ Works with:
     const unlockLevel = unlockLevelFromTier(user?.unlock_tier);
     const accessLevel = Math.max(uLevel, unlockLevel);
 
-    let courses = getCoursesFromContent();
-    if (!courses.length) {
+    const contentIndex = getCourseContentIndex();
+    let courses = [];
+
+    const cached = getCachedCourseIndex();
+    if (cached.index && cached.fresh) {
+      courses = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k], contentIndex));
+      window.__dashCourseIndex = cached.index;
+    } else {
       const apiCourses = await fetchCoursesFromApi();
       if (apiCourses.length) {
-        courses = apiCourses.map((c) => ({
-          key: String(c.id),
-          id: String(c.id),
-          title: c.title,
-          description: c.description,
-          difficulty: (c.difficulty || "novice").toLowerCase(),
-          required_level: Number(c.required_level) || difficultyRequiredLevel((c.difficulty || "novice").toLowerCase()),
-          xpReward: Number(c.xpReward || 0) || 0,
-          items: Number(c.total_lessons || 0) || countRequiredItems(c),
-          category: c.category || "Core",
-          estimatedTime: c.estimatedTime || "—"
-        }));
+        courses = apiCourses.map((c) => mergeCourseWithContent(c, contentIndex));
+
+        const index = {};
+        courses.forEach((c) => {
+          const local = contentIndex[String(c.id)] || {};
+          index[String(c.id)] = { ...local, ...c };
+        });
+        window.__dashCourseIndex = index;
+        setCachedCourseIndex(index);
+      } else if (cached.index) {
+        courses = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k], contentIndex));
+        window.__dashCourseIndex = cached.index;
+      } else {
+        courses = getCoursesFromContent();
       }
     }
     if (!courses.length) {
@@ -1461,35 +1520,45 @@ Works with:
     safeStep("setupLogout", setupLogout);
     safeStep("setupGoalToggle", setupGoalToggle);
 
-    const user = await safeStepAsync("refreshUserFromApi", refreshUserFromApi) || getCurrentUser();
-    if (user?.email) {
-      await safeStepAsync("fetchAchievements", () => fetchAchievements(user.email));
-      let loginInfo = safeStep("recordLoginDay", () => recordLoginDay(user.email)) || { log: [] };
-      const remoteLogin = await safeStepAsync("syncLoginLog", () => syncLoginLog(user.email));
-      if (remoteLogin && Array.isArray(remoteLogin.log)) loginInfo = remoteLogin;
-      const streak = safeStep("computeLoginStreak", () => computeLoginStreak(loginInfo.log)) || 0;
-      await safeStepAsync("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
-
-      if (loginInfo.isNew) {
-        const pill = $("topStreakPill");
-        if (pill) {
-          pill.classList.remove("is-animate");
-          requestAnimationFrame(() => {
-            pill.classList.add("is-animate");
-            window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
-          });
-        }
-      }
-    }
-
+    // Fast first paint using cached user data
+    const cachedUser = getCurrentUser();
     safeStep("fillUserUI", fillUserUI);
     safeStep("setupCourseSearchAndChips", setupCourseSearchAndChips);
     await safeStepAsync("renderCourses", renderCourses);
     await safeStepAsync("renderContinueLearning", renderContinueLearning);
-    if (user?.email) {
-      await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
-    }
     safeStep("renderProgressWidgets", renderProgressWidgets);
+
+    // Defer heavier calls slightly to reduce initial lag
+    window.setTimeout(async () => {
+      const user = await safeStepAsync("refreshUserFromApi", refreshUserFromApi) || cachedUser;
+      if (user?.email) {
+        await safeStepAsync("fetchAchievements", () => fetchAchievements(user.email));
+        let loginInfo = safeStep("recordLoginDay", () => recordLoginDay(user.email)) || { log: [] };
+        const remoteLogin = await safeStepAsync("syncLoginLog", () => syncLoginLog(user.email));
+        if (remoteLogin && Array.isArray(remoteLogin.log)) loginInfo = remoteLogin;
+        const streak = safeStep("computeLoginStreak", () => computeLoginStreak(loginInfo.log)) || 0;
+        await safeStepAsync("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
+
+        if (loginInfo.isNew) {
+          const pill = $("topStreakPill");
+          if (pill) {
+            pill.classList.remove("is-animate");
+            requestAnimationFrame(() => {
+              pill.classList.add("is-animate");
+              window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
+            });
+          }
+        }
+      }
+
+      safeStep("fillUserUI", fillUserUI);
+      await safeStepAsync("renderCourses", renderCourses);
+      await safeStepAsync("renderContinueLearning", renderContinueLearning);
+      if (user?.email) {
+        await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
+      }
+      safeStep("renderProgressWidgets", renderProgressWidgets);
+    }, 350);
   }
 
   onReady(init);

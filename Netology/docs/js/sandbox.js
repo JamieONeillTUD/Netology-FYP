@@ -225,7 +225,7 @@ Clear the entire canvas
 
   const scheduleAutoSave = debounce(async () => {
     await saveLessonSessionToDb();
-  }, 550);
+  }, 1200);
 
   function markDirtyAndSaveSoon() {
     if (!lessonSessionReady()) return;
@@ -1114,7 +1114,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // NEW (Part 3): load saved lesson session from DB before validating
   await loadLessonSessionFromDb();
 
-  const rules = data.challenge.rules;
+  const rules = (data.challenge && data.challenge.rules) ? data.challenge.rules : {};
+  const steps = (data.challenge && data.challenge.steps) || [];
+  const tips = (data.challenge && data.challenge.tips) || "";
 
   const panel = document.createElement("div");
   panel.className = "card shadow-sm";
@@ -1124,6 +1126,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   panel.style.width = "320px";
   panel.style.zIndex = "9999";
 
+  const stepsHtml = steps.length
+    ? `<div class="small text-muted mt-2">
+         ${steps.map((s) => `• ${escapeHtml(s)}`).join("<br>")}
+       </div>`
+    : "";
+
+  const tipsHtml = tips
+    ? `<div class="small text-muted mt-2"><em>${escapeHtml(tips)}</em></div>`
+    : "";
+
   panel.innerHTML = `
     <div class="p-3">
       <strong>Challenge</strong>
@@ -1132,27 +1144,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         Course: ${escapeHtml(data.courseTitle || "")}<br>
         Lesson: ${escapeHtml(String(data.lesson || ""))} — ${escapeHtml(data.lessonTitle || "")}
       </div>
+      ${stepsHtml}
+      ${tipsHtml}
 
       <button id="validateBtn" class="btn btn-teal btn-sm w-100 mt-2">Validate</button>
-      <button id="saveLessonBtn" class="btn btn-outline-secondary btn-sm w-100 mt-2">Save lesson</button>
+      <div class="small text-muted mt-2">Progress saves automatically.</div>
 
       <div id="resultBox" class="small mt-2"></div>
       <div id="returnBox" class="mt-2"></div>
     </div>`;
 
   document.body.appendChild(panel);
-
-  // NEW (Part 3): manual save button (DB)
-  document.getElementById("saveLessonBtn").onclick = async () => {
-    markDirtyAndSaveSoon();
-    setTimeout(() => {
-      const box = document.getElementById("resultBox");
-      if (box) {
-        box.className = "small mt-2 text-muted";
-        box.textContent = "Saved to database.";
-      }
-    }, 300);
-  };
 
   document.getElementById("validateBtn").onclick = async () => {
     const res = validate(rules);
@@ -1213,7 +1215,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           returnBox.innerHTML = `
             <a class="btn btn-outline-secondary btn-sm w-100"
-               href="course.html?id=${courseId}&lesson=${lessonNum}">
+               href="lesson.html?course_id=${courseId}&lesson=${lessonNum}">
                Return to lesson
             </a>
           `;

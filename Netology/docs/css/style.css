@@ -239,6 +239,65 @@ footer{
   opacity: .85;
 }
 
+/* =========================================================
+   PERFORMANCE OPTIMIZATIONS
+========================================================= */
+
+/* Large sections only render when needed (smoother scrolling) */
+main > section,
+.net-shell > section,
+.net-account-shell > section,
+.net-coursegrid,
+.net-account-insights,
+.net-account-grid{
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 600px;
+}
+
+/* Reduce heavy effects on smaller screens */
+@media (max-width: 768px){
+  .net-bg::after{
+    opacity: .12;
+    background-size: 32px 32px, 28px 28px, 26px 26px, 24px 24px, 30px 30px, 24px 24px, 22px 22px, 26px 26px, 24px 24px;
+  }
+  .net-landing::before,
+  .net-landing::after{
+    filter: none;
+    animation-duration: 26s;
+  }
+  .net-courses-search-inner,
+  .net-card,
+  .net-coursecard,
+  .net-stat-card,
+  .net-cta{
+    box-shadow: 0 10px 24px rgba(2, 6, 23, .06);
+  }
+  .net-topnav,
+  .net-landing-v2 .net-landing-nav{
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(255,255,255,.95);
+  }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .net-landing::before,
+  .net-landing::after,
+  .net-bg::after,
+  .net-landing-v2 .net-blob,
+  .net-landing-v2 .net-float-icon,
+  .net-landing-v2 .net-hero-mark{
+    animation: none !important;
+  }
+}
+
 @keyframes netBgDrift{
   from { transform: translate3d(-18px, -10px, 0) scale(1.02); }
   to   { transform: translate3d(18px, 10px, 0) scale(1.06); }
@@ -4094,9 +4153,21 @@ body.net-auth-v2.net-landing::before{
   /* lets course hero breathe under the nav */
   --net-course-gap: 22px;
 }
+/* Keep course page background stable (no drift on scroll) */
+body.net-course-page.net-bg::after,
+body.net-course-page.net-landing::before,
+body.net-course-page.net-landing::after{
+  animation: none !important;
+}
 
 .net-course-shell{
   max-width: 1180px;
+}
+.net-module-head{
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(15,185,177,.08), rgba(56,189,248,.08));
+  border: 1px solid rgba(6,182,212,.16);
 }
 
 /* Course hero */
@@ -4389,6 +4460,181 @@ body.net-auth-v2.net-landing::before{
   margin-bottom: .85rem;
 }
 
+/* Lesson quick preview drawer */
+.net-lesson-drawer{
+  width: min(520px, 92vw);
+  border-left: 1px solid rgba(6,182,212,.16);
+  box-shadow: -18px 0 70px rgba(2, 6, 23, .16);
+  background: rgba(255,255,255,.98);
+}
+.net-lesson-drawer .offcanvas-header{
+  background: linear-gradient(135deg, rgba(15,185,177,.08), rgba(56,189,248,.06));
+}
+.net-lesson-drawer .offcanvas-body{
+  padding-bottom: 1.5rem;
+}
+.net-lesson-drawer .offcanvas-footer{
+  border-top: 1px solid rgba(6,182,212,.12);
+  background: rgba(255,255,255,.92);
+}
+.net-preview-ring{
+  width: 62px;
+  height: 62px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-right: 6px;
+}
+.net-preview-ring svg{
+  width: 62px;
+  height: 62px;
+}
+.net-preview-ring-center{
+  position: absolute;
+  font-size: .78rem;
+  font-weight: 900;
+  color: #0f766e;
+}
+.net-preview-btn{
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(6,182,212,.2);
+  background: rgba(255,255,255,.9);
+  display: grid;
+  place-items: center;
+  color: #0f766e;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.net-preview-btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
+  background: rgba(6,182,212,.08);
+}
+
+/* Lesson page (lesson.html) */
+.net-lesson-shell{
+  max-width: 1180px;
+}
+.net-lesson-hero{
+  position: relative;
+  overflow: hidden;
+}
+.net-lesson-hero::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  pointer-events:none;
+  background:
+    radial-gradient(700px 280px at 10% 20%, rgba(15,185,177,.14), transparent 60%),
+    radial-gradient(640px 260px at 85% 25%, rgba(6,182,212,.12), transparent 60%);
+}
+.net-lesson-hero > *{ position: relative; }
+.net-lesson-kicker{
+  font-size: .85rem;
+  font-weight: 800;
+  color: rgba(15, 23, 42, .75);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.net-lesson-meta{
+  color: rgba(15, 23, 42, .7);
+  font-weight: 600;
+}
+.net-lesson-content p{
+  line-height: 1.6;
+  color: rgba(15, 23, 42, .86);
+}
+.net-lesson-objectives{
+  margin: 0;
+  padding-left: 1.2rem;
+  color: rgba(15, 23, 42, .82);
+}
+.net-lesson-summary{
+  margin-top: 1.25rem;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(6,182,212,.16);
+  background: rgba(6,182,212,.06);
+  color: rgba(15, 23, 42, .8);
+}
+.net-resource-list{
+  display: grid;
+  gap: 8px;
+}
+.net-resource-item{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(6,182,212,.16);
+  background: rgba(255,255,255,.9);
+  color: rgba(15, 23, 42, .84);
+  text-decoration: none;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.net-resource-item:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(2, 6, 23, .10);
+  border-color: rgba(6,182,212,.28);
+}
+.net-resource-ico{
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(15,185,177,.12);
+  color: #0f766e;
+}
+.net-resource-item:focus-visible{
+  outline: 2px solid rgba(6,182,212,.5);
+  outline-offset: 2px;
+}
+.net-tooltip{
+  position: fixed;
+  z-index: 2000;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, .92);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity .15s ease, transform .2s ease;
+  pointer-events: none;
+}
+.net-tooltip.is-open{
+  opacity: 1;
+  transform: translateY(0) scale(1.02);
+}
+.net-lesson-progress{
+  border: 1px solid rgba(6,182,212,.16);
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 16px 48px rgba(2, 6, 23, .08);
+}
+.net-lesson-progress-pct{
+  font-weight: 900;
+  color: #0f766e;
+}
+.net-lesson-unlock{
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(16,185,129,.08);
+  border: 1px solid rgba(16,185,129,.22);
+  color: #0f766e;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
 /* Quick check block inside modal */
 .net-quickcheck{
   border-radius: 18px;
@@ -4422,4 +4668,67 @@ body.net-auth-v2.net-landing::before{
   color: #fff;
   background: linear-gradient(135deg, #10b981, #14b8a6);
   box-shadow: 0 22px 46px rgba(16,185,129,.35);
+}
+
+/* Low motion / low effects mode */
+.net-lowfx{
+  --net-shadow: 0 6px 16px rgba(2, 6, 23, .08);
+  --net-shadow-2: 0 10px 22px rgba(2, 6, 23, .10);
+  --net-shadow-soft: 0 8px 18px rgba(2, 6, 23, .08);
+}
+.net-lowfx *{
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+.net-lowfx .net-bg::before,
+.net-lowfx .net-bg::after,
+.net-lowfx .net-landing::before,
+.net-lowfx .net-landing::after,
+.net-lowfx .net-landing-v2::before,
+.net-lowfx .net-landing-v2::after,
+.net-lowfx .net-figma-bg::before,
+.net-lowfx .net-figma-bg::after,
+.net-lowfx .net-cta-icons i,
+.net-lowfx .net-figma-icon{
+  animation: none !important;
+  filter: none !important;
+  opacity: .22 !important;
+}
+.net-lowfx .net-topnav,
+.net-lowfx .net-dd,
+.net-lowfx .net-card,
+.net-lowfx .net-pop,
+.net-lowfx .net-cta,
+.net-lowfx .net-stat-card,
+.net-lowfx .net-course-card,
+.net-lowfx .dash-card,
+.net-lowfx .dash-panel,
+.net-lowfx .net-lesson-progress,
+.net-lowfx .net-success-panel,
+.net-lowfx .net-toast,
+.net-lowfx .net-slideside{
+  box-shadow: var(--net-shadow) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.net-lowfx .net-sidebackdrop{
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(15, 23, 42, .35) !important;
+}
+.net-lowfx .net-glass,
+.net-lowfx .net-ddhead,
+.net-lowfx .net-dd,
+.net-lowfx .net-course-hero,
+.net-lowfx .net-lesson-drawer{
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.net-lowfx .net-figma-card,
+.net-lowfx .net-figma-step,
+.net-lowfx .net-figma-cta,
+.net-lowfx .net-figma-feature{
+  box-shadow: var(--net-shadow-2) !important;
 }

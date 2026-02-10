@@ -98,18 +98,13 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
 
         <!-- Left -->
         <div class="net-topnav-left">
-          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
+          <button class="net-hambtn"
                   id="openSidebarBtn"
                   type="button"
                   aria-label="Open menu">
-            <i class="bi bi-list me-2" aria-hidden="true"></i>
-            Menu
+            <i class="bi bi-list" aria-hidden="true"></i>
+            <span class="visually-hidden">Open menu</span>
           </button>
-
-          <div class="d-none d-lg-flex align-items-center gap-2 text-white-75 small">
-            <i class="bi bi-mortarboard" aria-hidden="true"></i>
-            Course
-          </div>
         </div>
 
         <!-- Center brand: JS will route dashboard if logged in else index -->
@@ -122,21 +117,10 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
 
         <!-- Right -->
         <div class="net-topnav-right position-relative">
-
-          <div class="d-none d-md-flex align-items-center gap-2">
-            <a class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
-               id="topSandboxLink"
-               href="sandbox.html"
-               aria-label="Open sandbox">
-              <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i> Sandbox
-            </a>
-          </div>
-
           <!-- User dropdown -->
           <div class="position-relative">
-            <button class="net-userbtn" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
+            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
-              <span class="net-user-name d-none d-sm-inline" id="topUserName">Student</span>
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
@@ -299,15 +283,15 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
       <!-- LEFT: Modules -->
       <section aria-label="Modules list">
 
-        <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3">
+        <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 net-module-head">
           <h2 class="h4 mb-0">Course Modules</h2>
 
           <div class="d-flex gap-2 flex-wrap">
             <button class="btn btn-outline-secondary btn-sm" id="collapseAllBtn" type="button">
-              <i class="bi bi-arrows-collapse me-1" aria-hidden="true"></i> Collapse
+              <i class="bi bi-arrows-collapse me-1" aria-hidden="true"></i> Collapse all
             </button>
             <button class="btn btn-outline-secondary btn-sm" id="expandAllBtn" type="button">
-              <i class="bi bi-arrows-expand me-1" aria-hidden="true"></i> Expand
+              <i class="bi bi-arrows-expand me-1" aria-hidden="true"></i> Expand all
             </button>
           </div>
         </div>
@@ -418,61 +402,85 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
   </main>
 
   <!-- =======================================================
-       LESSON MODAL (Learn lesson)
+       LESSON QUICK PREVIEW DRAWER
   ======================================================== -->
-  <div class="modal fade" id="lessonModal" tabindex="-1" aria-labelledby="lessonModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-      <div class="modal-content net-lesson-modal">
-        <div class="modal-header net-lesson-modal-head">
-          <div>
-            <h5 class="modal-title mb-1" id="lessonModalLabel">Lesson</h5>
-            <div class="small text-muted d-flex flex-wrap gap-2">
-              <span class="d-inline-flex align-items-center gap-1">
-                <i class="bi bi-clock" aria-hidden="true"></i>
-                <span id="lessonMetaTime">—</span>
-              </span>
-              <span class="text-muted">•</span>
-              <span class="d-inline-flex align-items-center gap-1 fw-semibold net-xp-accent">
-                <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
-                <span id="lessonMetaXP">0</span> XP
-              </span>
-            </div>
+  <div class="offcanvas offcanvas-end net-lesson-drawer" tabindex="-1" id="lessonPreviewDrawer" aria-labelledby="lessonPreviewLabel">
+    <div class="offcanvas-header net-lesson-modal-head">
+      <div class="d-flex align-items-center gap-3 w-100">
+        <div class="flex-grow-1">
+          <h5 class="offcanvas-title mb-1" id="lessonPreviewLabel">Lesson</h5>
+          <div class="small text-muted d-flex flex-wrap gap-2">
+            <span class="d-inline-flex align-items-center gap-1">
+              <i class="bi bi-clock" aria-hidden="true"></i>
+              <span id="lessonMetaTime">—</span>
+            </span>
+            <span class="text-muted">•</span>
+            <span class="d-inline-flex align-items-center gap-1 fw-semibold net-xp-accent">
+              <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
+              <span id="lessonMetaXP">0</span> XP
+            </span>
           </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
 
-        <div class="modal-body">
-          <article id="lessonModalBody" class="net-lesson-body">
-            Loading lesson content…
-          </article>
-
-          <section class="net-quickcheck mt-4" aria-label="Quick check">
-            <div class="fw-semibold mb-1">
-              <i class="bi bi-question-circle me-2" aria-hidden="true"></i>
-              Quick check
-            </div>
-            <div class="small text-muted">
-              We’ll keep this optional. Quizzes are the main assessment.
-            </div>
-          </section>
+        <div class="net-preview-ring" aria-label="Course progress">
+          <svg viewBox="0 0 70 70" aria-hidden="true">
+            <circle class="net-ring-track" cx="35" cy="35" r="26" stroke-width="7" fill="none"></circle>
+            <circle id="previewRing"
+                    class="net-ring-fill"
+                    cx="35" cy="35" r="26"
+                    stroke="url(#netPreviewGrad)"
+                    stroke-width="7"
+                    stroke-linecap="round"
+                    fill="none"
+                    stroke-dasharray="163.36"
+                    stroke-dashoffset="163.36"></circle>
+            <defs>
+              <linearGradient id="netPreviewGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#14b8a6"></stop>
+                <stop offset="100%" stop-color="#06b6d4"></stop>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="net-preview-ring-center" id="previewRingPct">0%</div>
         </div>
 
-        <div class="modal-footer net-lesson-modal-foot">
-          <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" id="lessonPrevBtn" type="button">
-              <i class="bi bi-chevron-left me-1" aria-hidden="true"></i> Prev
-            </button>
-            <button class="btn btn-outline-secondary" id="lessonNextBtn" type="button">
-              Next <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
-            </button>
-          </div>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+    </div>
 
-          <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Close</button>
-            <button class="btn btn-teal" id="lessonCompleteBtn" type="button">
-              <i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Mark Complete
-            </button>
-          </div>
+    <div class="offcanvas-body">
+      <article id="lessonPreviewBody" class="net-lesson-body">
+        Loading lesson content…
+      </article>
+
+      <section class="net-quickcheck mt-4" aria-label="Resources">
+        <div class="fw-semibold mb-1">
+          <i class="bi bi-link-45deg me-2" aria-hidden="true"></i>
+          Resources
+        </div>
+        <div class="small text-muted mb-2">
+          This is a preview. Open the full lesson for the complete walkthrough.
+        </div>
+        <div id="lessonPreviewResources" class="net-resource-list"></div>
+      </section>
+    </div>
+
+    <div class="offcanvas-footer net-lesson-modal-foot">
+      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between p-3">
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary" id="lessonPrevBtn" type="button">
+            <i class="bi bi-chevron-left me-1" aria-hidden="true"></i> Prev
+          </button>
+          <button class="btn btn-outline-secondary" id="lessonNextBtn" type="button">
+            Next <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary" id="lessonOpenBtn" href="#">Open lesson</a>
+          <button class="btn btn-teal" id="lessonCompleteBtn" type="button">
+            <i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Mark Complete
+          </button>
         </div>
       </div>
     </div>

@@ -34,3 +34,31 @@ window.API_BASE = window.API_BASE || "https://netology-fyp.onrender.com";
   } catch {}
 })();
 
+// Low motion / low effects mode (global)
+// - Enable via ?lowfx=1 or localStorage netology_lowfx=1
+// - Disable via ?lowfx=0 or localStorage netology_lowfx=0
+// - Auto-enables on prefers-reduced-motion or Save-Data unless explicitly disabled
+(function () {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const key = "netology_lowfx";
+
+    if (params.get("lowfx") === "1") localStorage.setItem(key, "1");
+    if (params.get("lowfx") === "0") localStorage.setItem(key, "0");
+
+    const stored = localStorage.getItem(key);
+    const prefersReduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const saveData = navigator.connection && navigator.connection.saveData;
+    const lowFx = stored === "1" || (stored !== "0" && (prefersReduce || saveData));
+
+    if (lowFx) {
+      document.documentElement.classList.add("net-lowfx");
+      document.documentElement.setAttribute("data-lowfx", "1");
+      if (document.body) {
+        document.body.classList.add("net-lowfx");
+      } else {
+        document.addEventListener("DOMContentLoaded", () => document.body?.classList.add("net-lowfx"));
+      }
+    }
+  } catch {}
+})();

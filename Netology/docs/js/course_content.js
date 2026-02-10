@@ -75,7 +75,20 @@ const COURSE_CONTENT = {
                 type: "Challenge",
                 title: "Map a home network",
                 duration: "12 min",
-                xp: 80
+                xp: 80,
+                challenge: {
+                  rules: {
+                    minDevices: 3,
+                    minConnections: 2,
+                    requiredTypes: { pc: 2, router: 1 }
+                  },
+                  steps: [
+                    "Add 1 router and at least 2 PCs.",
+                    "Connect each PC to the router (or via a switch).",
+                    "Verify you have at least 2 connections."
+                  ],
+                  tips: "If you add a switch, connect the router to the switch first."
+                }
               }
             ]
           }
@@ -86,13 +99,32 @@ const COURSE_CONTENT = {
             learn:
               "A network connects devices so they can communicate and share data. " +
               "Common examples include home Wi‑Fi, office LANs, and the Internet. " +
-              "Key benefits: resource sharing, communication, and scalability."
+              "Key benefits: resource sharing, communication, and scalability.",
+            content: [
+              "A network is any group of devices that can exchange data. This includes phones, laptops, servers, printers, and even IoT devices.",
+              "Networks exist so devices can share resources (files, printers, internet access) and communicate in real time.",
+              "Protocols like Ethernet, Wi‑Fi, and TCP/IP define how data moves so it arrives reliably."
+            ],
+            objectives: [
+              "Define what a network is",
+              "Identify common networked devices",
+              "Explain why protocols are important"
+            ]
           },
           {
             title: "LAN vs WAN vs Internet",
             learn:
               "LANs are local, WANs connect distant locations, and the Internet connects everything. " +
               "A small business might use a LAN in the office and a WAN link to connect to a remote branch.",
+            content: [
+              "A LAN (Local Area Network) covers a small area like a home or office. Speeds are high and latency is low.",
+              "A WAN (Wide Area Network) connects LANs across cities or countries, usually via ISPs or leased lines.",
+              "The Internet is the largest WAN — a global network of networks using shared standards."
+            ],
+            objectives: [
+              "Compare LANs and WANs",
+              "Recognize why the Internet is a network of networks"
+            ],
             quiz: {
               title: "Network types",
               xp: 60,
@@ -117,6 +149,20 @@ const COURSE_CONTENT = {
                   options: ["One giant LAN", "A single ISP", "A global network of networks"],
                   correctAnswer: 2,
                   explanation: "The Internet is made of many interconnected networks."
+                },
+                {
+                  id: "q4",
+                  question: "Which network type is most likely used inside a single home?",
+                  options: ["LAN", "WAN", "MAN"],
+                  correctAnswer: 0,
+                  explanation: "Home networks are LANs."
+                },
+                {
+                  id: "q5",
+                  question: "A WAN usually connects:",
+                  options: ["Two routers in one room", "LANs across long distances", "Only wireless devices"],
+                  correctAnswer: 1,
+                  explanation: "WANs connect networks over long distances."
                 }
               ]
             }
@@ -170,7 +216,20 @@ const COURSE_CONTENT = {
                 type: "Challenge",
                 title: "Build a small LAN",
                 duration: "12 min",
-                xp: 80
+                xp: 80,
+                challenge: {
+                  rules: {
+                    minDevices: 3,
+                    minConnections: 2,
+                    requiredTypes: { pc: 2, switch: 1 }
+                  },
+                  steps: [
+                    "Add 1 switch and at least 2 PCs.",
+                    "Connect each PC to the switch.",
+                    "Make sure the LAN has at least 2 links."
+                  ],
+                  tips: "Any PC icon works for endpoints."
+                }
               }
             ]
           }
@@ -181,13 +240,32 @@ const COURSE_CONTENT = {
             learn:
               "Switches operate at Layer 2 and forward frames by MAC address. " +
               "Routers operate at Layer 3 and forward packets between networks. " +
-              "Endpoints generate and consume data on the network."
+              "Endpoints generate and consume data on the network.",
+            content: [
+              "Switches keep traffic inside a LAN by forwarding frames only to the correct port.",
+              "Routers connect different networks and choose the best path for packets using IP routing.",
+              "Endpoints (PCs, phones, servers) are the devices that actually create or consume data."
+            ],
+            objectives: [
+              "Identify the role of switches and routers",
+              "Explain what an endpoint is",
+              "Differentiate Layer 2 vs Layer 3 devices"
+            ]
           },
           {
             title: "Frames and MAC addresses",
             learn:
               "Ethernet frames include source and destination MAC addresses. " +
               "Switches learn MAC addresses by inspecting incoming frames and building a MAC table.",
+            content: [
+              "A MAC address is a unique hardware identifier assigned to a network interface.",
+              "Ethernet frames carry data within a LAN and include source/destination MACs.",
+              "Switches learn MAC addresses by watching incoming frames and storing them in a MAC table."
+            ],
+            objectives: [
+              "Define MAC address and frame",
+              "Describe how a switch builds a MAC table"
+            ],
             quiz: {
               title: "Ethernet basics",
               xp: 60,
@@ -212,6 +290,13 @@ const COURSE_CONTENT = {
                   options: ["Layer 1 only", "Layer 2", "Layer 3"],
                   correctAnswer: 1,
                   explanation: "Ethernet is a Layer 2 technology."
+                },
+                {
+                  id: "q4",
+                  question: "A switch learns MAC addresses by:",
+                  options: ["Broadcasting to all ports", "Inspecting source MACs", "Querying DNS"],
+                  correctAnswer: 1,
+                  explanation: "Switches learn MAC addresses from incoming frames."
                 }
               ]
             }
@@ -264,7 +349,20 @@ const COURSE_CONTENT = {
                 type: "Challenge",
                 title: "Design a simple IP plan",
                 duration: "14 min",
-                xp: 80
+                xp: 80,
+                challenge: {
+                  rules: {
+                    minDevices: 3,
+                    minConnections: 2,
+                    requiredTypes: { pc: 2, router: 1 }
+                  },
+                  steps: [
+                    "Add 1 router and 2 PCs.",
+                    "Connect both PCs to the router.",
+                    "Assign IPs in the same subnet (e.g., 192.168.1.0/24)."
+                  ],
+                  tips: "Use the device config panel to set IP addresses."
+                }
               }
             ]
           }
@@ -275,13 +373,32 @@ const COURSE_CONTENT = {
             learn:
               "IPv4 uses 32 bits to identify devices. " +
               "Addresses are written as four octets (e.g., 192.168.1.10). " +
-              "The network ID groups devices into a subnet."
+              "The network ID groups devices into a subnet.",
+            content: [
+              "IPv4 addresses are 32-bit values split into four 8-bit octets.",
+              "Devices in the same subnet share a network ID and can communicate directly.",
+              "Public IPs are routable on the Internet; private IPs are used inside networks."
+            ],
+            objectives: [
+              "Read an IPv4 address",
+              "Identify network vs host portions",
+              "Recognize private vs public ranges"
+            ]
           },
           {
             title: "Subnet masks and gateways",
             learn:
               "The subnet mask tells devices which addresses are local. " +
               "If a destination is not local, traffic goes to the default gateway.",
+            content: [
+              "A subnet mask defines how many bits are network bits vs host bits (e.g., 255.255.255.0 = /24).",
+              "Devices check the destination IP; if it's not in the local subnet, they send traffic to the default gateway.",
+              "The default gateway is usually a router interface on that subnet."
+            ],
+            objectives: [
+              "Explain what a subnet mask does",
+              "Describe the role of a default gateway"
+            ],
             quiz: {
               title: "IP basics",
               xp: 60,
@@ -306,6 +423,13 @@ const COURSE_CONTENT = {
                   options: ["16", "32", "64"],
                   correctAnswer: 1,
                   explanation: "IPv4 addresses use 32 bits."
+                },
+                {
+                  id: "q4",
+                  question: "Which address is a private IP?",
+                  options: ["172.16.5.10", "8.8.8.8", "1.1.1.1"],
+                  correctAnswer: 0,
+                  explanation: "172.16.0.0/12 is private."
                 }
               ]
             }
@@ -515,11 +639,29 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "Why subnet?",
-            learn: "Subnetting improves performance and security by limiting broadcasts."
+            learn: "Subnetting improves performance and security by limiting broadcasts.",
+            content: [
+              "Subnetting splits a large network into smaller broadcast domains.",
+              "Smaller networks reduce broadcast traffic and simplify troubleshooting.",
+              "It also helps enforce security boundaries between departments or services."
+            ],
+            objectives: [
+              "Explain why subnetting is used",
+              "Describe how broadcasts are reduced"
+            ]
           },
           {
             title: "CIDR and prefix lengths",
             learn: "Prefix length determines how many addresses are in a subnet.",
+            content: [
+              "CIDR uses prefix notation (like /24) to define network size.",
+              "The shorter the prefix, the larger the subnet (more hosts).",
+              "Prefix length controls how many addresses are available per subnet."
+            ],
+            objectives: [
+              "Read a CIDR prefix",
+              "Relate prefix length to subnet size"
+            ],
             quiz: {
               title: "Subnetting quick check",
               xp: 70,
@@ -537,6 +679,13 @@ const COURSE_CONTENT = {
                   options: ["Increasing broadcast traffic", "Reducing broadcast domains", "Eliminating routers"],
                   correctAnswer: 1,
                   explanation: "Subnetting reduces broadcast domains."
+                },
+                {
+                  id: "q3",
+                  question: "A /26 subnet has how many usable hosts?",
+                  options: ["62", "126", "254"],
+                  correctAnswer: 0,
+                  explanation: "A /26 has 64 addresses, 62 usable."
                 }
               ]
             }
@@ -580,7 +729,20 @@ const COURSE_CONTENT = {
                 type: "Challenge",
                 title: "Build a VLAN campus",
                 duration: "15 min",
-                xp: 90
+                xp: 90,
+                challenge: {
+                  rules: {
+                    minDevices: 5,
+                    minConnections: 4,
+                    requiredTypes: { switch: 2, pc: 3 }
+                  },
+                  steps: [
+                    "Add 2 switches and at least 3 PCs.",
+                    "Connect PCs to switches and link the switches together.",
+                    "Label VLANs conceptually (VLAN 10/20) in your notes."
+                  ],
+                  tips: "Use two groups of PCs to represent two VLANs."
+                }
               }
             ]
           }
@@ -588,11 +750,29 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "VLAN concepts",
-            learn: "VLANs separate traffic and improve security and performance."
+            learn: "VLANs separate traffic and improve security and performance.",
+            content: [
+              "VLANs create logical segments on the same physical switch.",
+              "Devices in different VLANs cannot communicate without routing.",
+              "VLANs reduce broadcast scope and improve security."
+            ],
+            objectives: [
+              "Define a VLAN",
+              "Explain why VLANs improve segmentation"
+            ]
           },
           {
             title: "802.1Q trunking",
             learn: "Trunk links tag frames so multiple VLANs can share the same link.",
+            content: [
+              "802.1Q adds a VLAN tag to Ethernet frames.",
+              "Trunks carry traffic for multiple VLANs between switches or to routers.",
+              "Access ports carry a single VLAN and do not tag frames."
+            ],
+            objectives: [
+              "Describe what trunking does",
+              "Identify access vs trunk ports"
+            ],
             quiz: {
               title: "VLANs quick check",
               xp: 70,
@@ -610,6 +790,13 @@ const COURSE_CONTENT = {
                   options: ["Increase broadcasts", "Segment networks", "Remove IP addressing"],
                   correctAnswer: 1,
                   explanation: "VLANs segment a network into smaller broadcast domains."
+                },
+                {
+                  id: "q3",
+                  question: "Which port type carries multiple VLANs?",
+                  options: ["Access port", "Trunk port", "Console port"],
+                  correctAnswer: 1,
+                  explanation: "Trunk ports carry multiple VLANs."
                 }
               ]
             }
@@ -648,6 +835,25 @@ const COURSE_CONTENT = {
                 title: "Configure inter-VLAN routing",
                 duration: "14 min",
                 xp: 40
+              },
+              {
+                type: "Challenge",
+                title: "Route between two VLANs",
+                duration: "15 min",
+                xp: 90,
+                challenge: {
+                  rules: {
+                    minDevices: 4,
+                    minConnections: 3,
+                    requiredTypes: { router: 1, switch: 1, pc: 2 }
+                  },
+                  steps: [
+                    "Add a switch, a router, and two PCs.",
+                    "Connect PCs to the switch and the switch to the router.",
+                    "Treat each PC as a different VLAN in your design."
+                  ],
+                  tips: "You’re modeling the topology here; VLAN configs are conceptual."
+                }
               }
             ]
           }
@@ -655,11 +861,29 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "Router-on-a-stick",
-            learn: "Subinterfaces on one router port can route between VLANs."
+            learn: "Subinterfaces on one router port can route between VLANs.",
+            content: [
+              "Router-on-a-stick uses a single router interface with multiple subinterfaces.",
+              "Each subinterface is assigned to a VLAN and acts as that VLAN’s gateway.",
+              "This is common in smaller networks without L3 switches."
+            ],
+            objectives: [
+              "Explain router-on-a-stick",
+              "Identify when it’s used"
+            ]
           },
           {
             title: "SVI on Layer 3 switches",
             learn: "Layer 3 switches route between VLANs using SVI interfaces.",
+            content: [
+              "An SVI (Switch Virtual Interface) provides a Layer 3 interface for a VLAN.",
+              "SVIs allow a multilayer switch to route internally without a router.",
+              "This improves performance in larger campus networks."
+            ],
+            objectives: [
+              "Define an SVI",
+              "Compare SVIs to router-on-a-stick"
+            ],
             quiz: {
               title: "Inter-VLAN quick check",
               xp: 70,
@@ -670,6 +894,13 @@ const COURSE_CONTENT = {
                   options: ["Layer 2 hub", "Layer 3 switch", "Wireless AP"],
                   correctAnswer: 1,
                   explanation: "SVIs are used on multilayer (Layer 3) switches."
+                },
+                {
+                  id: "q2",
+                  question: "Inter‑VLAN routing is required because:",
+                  options: ["VLANs are already routed", "VLANs are separate broadcast domains", "Switches block all traffic"],
+                  correctAnswer: 1,
+                  explanation: "Different VLANs need routing to communicate."
                 }
               ]
             }
@@ -859,11 +1090,30 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "Attack surface",
-            learn: "Reducing the attack surface limits exposure and risk."
+            learn: "Reducing the attack surface limits exposure and risk.",
+            content: [
+              "Every open service, port, and misconfiguration is part of the attack surface.",
+              "Reducing exposure lowers the chance of compromise and limits blast radius.",
+              "Focus on least privilege, minimal services, and strong identity controls."
+            ],
+            objectives: [
+              "Define attack surface",
+              "List common exposure points",
+              "Explain why reduction matters"
+            ]
           },
           {
             title: "Hardening checklist",
             learn: "Harden devices by removing defaults, patching, and restricting access.",
+            content: [
+              "Disable unused services, close unused ports, and remove default credentials.",
+              "Patch operating systems and network devices regularly.",
+              "Enforce strong authentication and log important events."
+            ],
+            objectives: [
+              "Describe key hardening actions",
+              "Explain why patching is critical"
+            ],
             quiz: {
               title: "Security quick check",
               xp: 80,
@@ -874,6 +1124,20 @@ const COURSE_CONTENT = {
                   options: ["Enable unused services", "Disable unused services", "Use default passwords"],
                   correctAnswer: 1,
                   explanation: "Disable unused services to reduce exposure."
+                },
+                {
+                  id: "q2",
+                  question: "Which is a strong hardening practice?",
+                  options: ["Use default admin accounts", "Patch regularly", "Open all ports"],
+                  correctAnswer: 1,
+                  explanation: "Patching removes known vulnerabilities."
+                },
+                {
+                  id: "q3",
+                  question: "Least privilege means:",
+                  options: ["Everyone has admin access", "Access is only what’s needed", "No authentication required"],
+                  correctAnswer: 1,
+                  explanation: "Least privilege limits access to only what is required."
                 }
               ]
             }
@@ -911,7 +1175,20 @@ const COURSE_CONTENT = {
                 type: "Challenge",
                 title: "Build an ACL policy",
                 duration: "14 min",
-                xp: 90
+                xp: 90,
+                challenge: {
+                  rules: {
+                    minDevices: 4,
+                    minConnections: 3,
+                    requiredTypes: { router: 1, switch: 1, pc: 2 }
+                  },
+                  steps: [
+                    "Add a router, a switch, and two PCs.",
+                    "Connect PCs to the switch, then connect the switch to the router.",
+                    "Imagine the router enforcing ACL rules between the PCs."
+                  ],
+                  tips: "You’re validating topology and segmentation awareness."
+                }
               }
             ]
           }
@@ -919,11 +1196,29 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "Stateless vs stateful",
-            learn: "Stateful firewalls allow return traffic automatically and reduce rule complexity."
+            learn: "Stateful firewalls allow return traffic automatically and reduce rule complexity.",
+            content: [
+              "Stateless firewalls filter each packet in isolation.",
+              "Stateful firewalls track connection state and allow return traffic automatically.",
+              "Stateful rules are typically simpler and safer for most networks."
+            ],
+            objectives: [
+              "Compare stateless vs stateful behavior",
+              "Explain why statefulness reduces rule count"
+            ]
           },
           {
             title: "ACL design",
             learn: "Order matters. Place specific rules before general ones.",
+            content: [
+              "ACLs are evaluated top‑down: the first match wins.",
+              "Put specific allow/deny rules before general rules.",
+              "Always include a default deny at the end when appropriate."
+            ],
+            objectives: [
+              "Explain ACL order of operations",
+              "Apply least privilege to rule design"
+            ],
             quiz: {
               title: "ACL quick check",
               xp: 80,
@@ -934,6 +1229,13 @@ const COURSE_CONTENT = {
                   options: ["Permit all by default", "Least privilege", "Random ordering"],
                   correctAnswer: 1,
                   explanation: "Least privilege reduces risk."
+                },
+                {
+                  id: "q2",
+                  question: "ACLs are evaluated:",
+                  options: ["Bottom‑up", "Top‑down", "Randomly"],
+                  correctAnswer: 1,
+                  explanation: "ACLs are processed from top to bottom."
                 }
               ]
             }
@@ -979,11 +1281,29 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "Logging and SIEM basics",
-            learn: "Good logs enable faster incident response and better forensic analysis."
+            learn: "Good logs enable faster incident response and better forensic analysis.",
+            content: [
+              "Centralized logging aggregates events from firewalls, routers, and servers.",
+              "SIEM tools correlate events to detect suspicious behavior faster.",
+              "Good logs improve forensic analysis after an incident."
+            ],
+            objectives: [
+              "Define SIEM at a high level",
+              "Explain why log centralization matters"
+            ]
           },
           {
             title: "Incident response workflow",
             learn: "Follow a consistent IR process to reduce downtime and impact.",
+            content: [
+              "IR phases: Prepare → Detect → Contain → Eradicate → Recover.",
+              "Preparation and detection reduce mean time to respond.",
+              "Document everything to improve future defenses."
+            ],
+            objectives: [
+              "List the IR phases",
+              "Explain why documentation matters"
+            ],
             quiz: {
               title: "Monitoring quick check",
               xp: 80,
@@ -994,6 +1314,13 @@ const COURSE_CONTENT = {
                   options: ["Contain", "Prepare", "Recover"],
                   correctAnswer: 1,
                   explanation: "Preparation ensures your team and tools are ready."
+                },
+                {
+                  id: "q2",
+                  question: "A SIEM is used to:",
+                  options: ["Block all traffic", "Correlate and analyze logs", "Assign IP addresses"],
+                  correctAnswer: 1,
+                  explanation: "SIEM systems aggregate and analyze logs for security insights."
                 }
               ]
             }

@@ -16,6 +16,7 @@ courses.js – All courses page grouped by difficulty.
 */
 
 const BASE_XP = 100;
+const COURSE_CACHE_TTL = 5 * 60 * 1000;
 
 document.addEventListener("DOMContentLoaded", async () => {
   const user = getCurrentUser();
@@ -55,6 +56,33 @@ function unlockLevelFromTier(tier) {
   return 1;
 }
 
+function getCourseContentIndex() {
+  if (typeof COURSE_CONTENT === "undefined") return {};
+  const index = {};
+  Object.values(COURSE_CONTENT).forEach((c) => {
+    if (c && c.id) index[String(c.id)] = c;
+  });
+  return index;
+}
+
+function mergeCourseWithContent(apiCourse, contentIndex) {
+  const id = String(apiCourse.id || "");
+  const local = contentIndex[id] || {};
+  const difficulty = String(apiCourse.difficulty || local.difficulty || "novice").toLowerCase();
+
+  return {
+    id,
+    title: apiCourse.title || local.title || "Course",
+    description: apiCourse.description || local.description || local.about || "",
+    category: apiCourse.category || local.category || "",
+    difficulty,
+    required_level: Number(apiCourse.required_level || local.required_level || 0) || unlockLevelFromTier(difficulty),
+    estimatedTime: apiCourse.estimated_time || apiCourse.estimatedTime || local.estimatedTime || "—",
+    totalXP: Number(apiCourse.xp_reward || apiCourse.xpReward || local.xpReward || local.totalXP || calcCourseXP(local) || 0) || 0,
+    moduleCount: Array.isArray(local.units) ? local.units.length : (local.modules?.length || 0) || Number(apiCourse.total_lessons || 0)
+  };
+}
+
 function getCurrentUser() {
   try {
     return (
@@ -65,6 +93,26 @@ function getCurrentUser() {
   } catch {
     return {};
   }
+}
+
+function getCachedCourseIndex() {
+  try {
+    const raw = localStorage.getItem("netology_courses_cache");
+    const ts = Number(localStorage.getItem("netology_courses_cache_ts") || 0);
+    const index = raw ? JSON.parse(raw) : null;
+    if (!index || typeof index !== "object") return { index: null, fresh: false };
+    const fresh = ts && (Date.now() - ts < COURSE_CACHE_TTL);
+    return { index, fresh };
+  } catch {
+    return { index: null, fresh: false };
+  }
+}
+
+function setCachedCourseIndex(index) {
+  try {
+    localStorage.setItem("netology_courses_cache", JSON.stringify(index));
+    localStorage.setItem("netology_courses_cache_ts", String(Date.now()));
+  } catch {}
 }
 
 function wireChrome(user) {
@@ -239,14 +287,29 @@ async function loadAllCourses(email, userLevel) {
   const advancedRow = document.getElementById("advancedRow");
   if (!noviceRow || !intermediateRow || !advancedRow) return;
 
+  const cached = getCachedCourseIndex();
+  if (cached.index && cached.fresh) {
+    const contentIndex = getCourseContentIndex();
+    const list = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k], contentIndex));
+    window.__coursesCache = list;
+    window.__coursesUserLevel = userLevel;
+    renderCourses(list, userLevel);
+    return;
+  }
+
   try {
     const res = await fetch(`${window.API_BASE}/courses`);
     const data = await res.json();
     const courses = data.success ? (data.courses || []) : [];
     if (courses.length) {
-      window.__coursesCache = courses;
+      const contentIndex = getCourseContentIndex();
+      const merged = courses.map((c) => mergeCourseWithContent(c, contentIndex));
+      const index = {};
+      merged.forEach((c) => { index[String(c.id)] = c; });
+      setCachedCourseIndex(index);
+      window.__coursesCache = merged;
       window.__coursesUserLevel = userLevel;
-      renderCourses(courses, userLevel);
+      renderCourses(merged, userLevel);
       return;
     }
     // fallback to local content if API empty
@@ -256,10 +319,18 @@ async function loadAllCourses(email, userLevel) {
     renderCourses(fallback, userLevel);
   } catch (e) {
     console.error("loadAllCourses error:", e);
-    const fallback = buildCoursesFromContent();
-    window.__coursesCache = fallback;
-    window.__coursesUserLevel = userLevel;
-    renderCourses(fallback, userLevel);
+    if (cached.index) {
+      const contentIndex = getCourseContentIndex();
+      const list = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k], contentIndex));
+      window.__coursesCache = list;
+      window.__coursesUserLevel = userLevel;
+      renderCourses(list, userLevel);
+    } else {
+      const fallback = buildCoursesFromContent();
+      window.__coursesCache = fallback;
+      window.__coursesUserLevel = userLevel;
+      renderCourses(fallback, userLevel);
+    }
   }
 }
 
@@ -351,7 +422,7 @@ function courseCardHtml(course, lock) {
         <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
           <div>
             <div class="d-flex align-items-center gap-2 mb-2">
-              <span class="net-cat-chip">${escapeHtml(course.category || "Core")}</span>
+              ${course.category ? `<span class="net-cat-chip">${escapeHtml(course.category)}</span>` : ``}
               ${lock.locked ? `<span class="net-lock-badge"><i class="bi bi-lock-fill"></i>Locked</span>` : ``}
             </div>
             <div class="fw-semibold fs-5">${escapeHtml(course.title)}</div>
@@ -362,7 +433,7 @@ function courseCardHtml(course, lock) {
           </span>
         </div>
 
-        <div class="text-muted small mb-3">${escapeHtml(course.description || "")}</div>
+        ${course.description ? `<div class="text-muted small mb-3">${escapeHtml(course.description)}</div>` : ""}
 
         <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta">
           <span class="d-inline-flex align-items-center gap-1">
@@ -414,8 +485,8 @@ function buildCoursesFromContent() {
   return Object.values(COURSE_CONTENT).map((course) => ({
     id: course.id,
     title: course.title,
-    description: course.description,
-    category: course.category || "Core",
+    description: course.description || course.about || "",
+    category: course.category || "",
     difficulty: course.difficulty,
     required_level: course.required_level,
     estimatedTime: course.estimatedTime || course.estimated_time || "—",

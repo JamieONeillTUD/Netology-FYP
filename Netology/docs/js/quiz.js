@@ -22,7 +22,7 @@ NOTE:
 
 document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
-  const courseId = params.get("course");
+  const courseId = params.get("course") || params.get("course_id");
   const lessonNumber = Number(params.get("lesson") || 0);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Wire back links
-  const backUrl = `course.html?id=${encodeURIComponent(courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
+  const backUrl = `lesson.html?course_id=${encodeURIComponent(courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
   const backTop = document.getElementById("backToCourseTop");
   const backBtn = document.getElementById("backToCourseBtn");
   if (backTop) backTop.href = backUrl;
