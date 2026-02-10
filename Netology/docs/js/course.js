@@ -135,6 +135,19 @@ What this file does:
     if (aria) aria.textContent = String(text || "");
   }
 
+  async function fetchCourseMeta(courseId) {
+    const base = API();
+    if (!base || !courseId) return null;
+    try {
+      const res = await fetch(`${base}/course?id=${encodeURIComponent(courseId)}`);
+      const data = await res.json();
+      if (!data || !data.success) return null;
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
   function logProgressEvent(email, payload) {
     if (!email) return;
     const entry = {
@@ -237,6 +250,7 @@ What this file does:
       required_level: 1,
       estimatedTime: "—",
       totalXP: 0,
+      total_lessons: 0,
       modules: [],           // [{ id, title, description, items:[...] }]
     },
 
@@ -292,8 +306,9 @@ What this file does:
       trackCourseStart(state.user.email, state.courseId, lessonParam);
     }
 
-    // load course structure (from COURSE_CONTENT)
-    hydrateCourseFromContent(state.courseId);
+    // load course meta (from DB) + structure (from COURSE_CONTENT)
+    const apiMeta = await fetchCourseMeta(state.courseId);
+    hydrateCourseFromContent(state.courseId, apiMeta);
 
     // load user stats + completions (if logged in)
     if (state.user?.email) {
@@ -595,20 +610,59 @@ What this file does:
     return 1;
   }
 
-  function hydrateCourseFromContent(courseId) {
-    const raw = (typeof window.COURSE_CONTENT !== "undefined")
+  function hydrateCourseFromContent(courseId, apiMeta) {
+    let raw = (typeof window.COURSE_CONTENT !== "undefined")
       ? window.COURSE_CONTENT[String(courseId)]
       : null;
 
-    if (!raw) {
+    if (!raw && apiMeta?.title && typeof window.COURSE_CONTENT !== "undefined") {
+      const target = String(apiMeta.title || "").trim().toLowerCase();
+      const list = Object.values(window.COURSE_CONTENT || {});
+      raw = list.find((c) => String(c?.title || "").trim().toLowerCase() === target) || null;
+    }
+
+    if (!apiMeta) {
       state.course = {
         id: courseId,
-        title: "Course",
-        description: "No content found for this course yet.",
+        title: "Course unavailable",
+        description: "We couldn’t load this course from the database. Please try again.",
         difficulty: "novice",
         required_level: 1,
         estimatedTime: "—",
         totalXP: 0,
+        total_lessons: 0,
+        modules: [],
+      };
+      return;
+    }
+
+    const applyApiMeta = (meta) => {
+      if (!meta) return;
+      if (meta.title) state.course.title = meta.title;
+      if (meta.description) state.course.description = meta.description;
+      if (meta.difficulty) state.course.difficulty = String(meta.difficulty).toLowerCase();
+      if (meta.estimated_time || meta.estimatedTime) {
+        state.course.estimatedTime = meta.estimated_time || meta.estimatedTime;
+      }
+      state.course.required_level = Number(meta.required_level || state.course.required_level || 0)
+        || difficultyRequiredLevel(state.course.difficulty);
+      if (typeof meta.total_lessons !== "undefined") {
+        state.course.total_lessons = Number(meta.total_lessons || 0);
+      }
+      const apiXP = Number(meta.xp_reward ?? meta.totalXP ?? meta.xpReward);
+      if (!Number.isNaN(apiXP) && apiXP > 0) state.course.totalXP = apiXP;
+    };
+
+    if (!raw) {
+      state.course = {
+        id: courseId,
+        title: apiMeta?.title || "Course",
+        description: apiMeta?.description || "No content found for this course yet.",
+        difficulty: String(apiMeta?.difficulty || "novice").toLowerCase(),
+        required_level: Number(apiMeta?.required_level || difficultyRequiredLevel(String(apiMeta?.difficulty || "novice").toLowerCase())) || 1,
+        estimatedTime: "—",
+        totalXP: Number(apiMeta?.xp_reward || 0),
+        total_lessons: Number(apiMeta?.total_lessons || 0),
         modules: [],
       };
       return;
@@ -647,6 +701,10 @@ What this file does:
 
     state.course.modules = modules;
     state.course.totalXP = totalXP;
+    state.course.total_lessons = Number(state.course.total_lessons || 0) || modules.length;
+
+    // DB meta wins for title/desc/difficulty/xp if provided
+    applyApiMeta(apiMeta);
   }
 
   function normalizeUnitItems(unit, startingLessonNumber) {
@@ -835,7 +893,8 @@ What this file does:
     setText("courseTitle", state.course.title);
     setText("courseDescription", state.course.description);
 
-    setText("metaModules", `${state.course.modules.length} modules`);
+    const moduleCount = state.course.modules.length || state.course.total_lessons || 0;
+    setText("metaModules", `${moduleCount} lessons`);
     setText("metaTime", state.course.estimatedTime || "—");
     setText("metaXP", `${state.course.totalXP} XP Total`);
 
@@ -1078,7 +1137,8 @@ What this file does:
 
     let modulesDone = 0;
     state.course.modules.forEach((m) => { if (computeModuleCompletion(m).completed) modulesDone++; });
-    setText("sideModules", `${modulesDone}/${state.course.modules.length}`);
+    const totalModules = state.course.modules.length || state.course.total_lessons || 0;
+    setText("sideModules", `${modulesDone}/${totalModules}`);
 
     let xpEarned = 0;
     getRequiredItems().forEach((it) => { if (isItemCompleted(it)) xpEarned += Number(it.xp || 0); });

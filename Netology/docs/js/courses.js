@@ -17,6 +17,7 @@ courses.js – All courses page grouped by difficulty.
 
 const BASE_XP = 100;
 const COURSE_CACHE_TTL = 5 * 60 * 1000;
+const COURSE_CACHE_VERSION = "db-only-v1";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const user = getCurrentUser();
@@ -56,30 +57,19 @@ function unlockLevelFromTier(tier) {
   return 1;
 }
 
-function getCourseContentIndex() {
-  if (typeof COURSE_CONTENT === "undefined") return {};
-  const index = {};
-  Object.values(COURSE_CONTENT).forEach((c) => {
-    if (c && c.id) index[String(c.id)] = c;
-  });
-  return index;
-}
-
-function mergeCourseWithContent(apiCourse, contentIndex) {
-  const id = String(apiCourse.id || "");
-  const local = contentIndex[id] || {};
-  const difficulty = String(apiCourse.difficulty || local.difficulty || "novice").toLowerCase();
-
+function normalizeApiCourse(apiCourse) {
+  const difficulty = String(apiCourse.difficulty || "novice").toLowerCase();
   return {
-    id,
-    title: apiCourse.title || local.title || "Course",
-    description: apiCourse.description || local.description || local.about || "",
-    category: apiCourse.category || local.category || "",
+    id: String(apiCourse.id || ""),
+    title: apiCourse.title || "Course",
+    description: apiCourse.description || "",
+    category: apiCourse.category || "Core",
     difficulty,
-    required_level: Number(apiCourse.required_level || local.required_level || 0) || unlockLevelFromTier(difficulty),
-    estimatedTime: apiCourse.estimated_time || apiCourse.estimatedTime || local.estimatedTime || "—",
-    totalXP: Number(apiCourse.xp_reward || apiCourse.xpReward || local.xpReward || local.totalXP || calcCourseXP(local) || 0) || 0,
-    moduleCount: Array.isArray(local.units) ? local.units.length : (local.modules?.length || 0) || Number(apiCourse.total_lessons || 0)
+    required_level: Number(apiCourse.required_level || 0) || unlockLevelFromTier(difficulty),
+    total_lessons: Number(apiCourse.total_lessons || 0),
+    module_count: Number(apiCourse.module_count || 0),
+    estimated_time: apiCourse.estimated_time || apiCourse.estimatedTime || "",
+    totalXP: Number(apiCourse.xp_reward || apiCourse.xpReward || 0) || 0
   };
 }
 
@@ -97,6 +87,8 @@ function getCurrentUser() {
 
 function getCachedCourseIndex() {
   try {
+    const ver = localStorage.getItem("netology_courses_cache_v");
+    if (ver !== COURSE_CACHE_VERSION) return { index: null, fresh: false };
     const raw = localStorage.getItem("netology_courses_cache");
     const ts = Number(localStorage.getItem("netology_courses_cache_ts") || 0);
     const index = raw ? JSON.parse(raw) : null;
@@ -112,6 +104,7 @@ function setCachedCourseIndex(index) {
   try {
     localStorage.setItem("netology_courses_cache", JSON.stringify(index));
     localStorage.setItem("netology_courses_cache_ts", String(Date.now()));
+    localStorage.setItem("netology_courses_cache_v", COURSE_CACHE_VERSION);
   } catch {}
 }
 
@@ -267,17 +260,10 @@ async function loadUserStats(email) {
   }
 }
 
-function getCourseMeta(courseId) {
-  if (typeof COURSE_CONTENT === "undefined") return null;
-  return COURSE_CONTENT[String(courseId)] || null;
-}
-
-function isLocked(courseId, userLevel) {
-  const meta = getCourseMeta(courseId);
-  if (!meta) return { locked: false, required: 1, difficulty: "Novice" };
-
-  const required = Number(meta.required_level || 1);
-  const difficulty = String(meta.difficulty || "Novice");
+function isLocked(course, userLevel) {
+  if (!course) return { locked: false, required: 1, difficulty: "Novice" };
+  const difficulty = String(course.difficulty || "novice");
+  const required = Number(course.required_level || 0) || unlockLevelFromTier(difficulty);
   return { locked: userLevel < required, required, difficulty };
 }
 
@@ -289,8 +275,7 @@ async function loadAllCourses(email, userLevel) {
 
   const cached = getCachedCourseIndex();
   if (cached.index && cached.fresh) {
-    const contentIndex = getCourseContentIndex();
-    const list = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k], contentIndex));
+    const list = Object.keys(cached.index).map((k) => cached.index[k]).filter(Boolean);
     window.__coursesCache = list;
     window.__coursesUserLevel = userLevel;
     renderCourses(list, userLevel);
@@ -302,8 +287,7 @@ async function loadAllCourses(email, userLevel) {
     const data = await res.json();
     const courses = data.success ? (data.courses || []) : [];
     if (courses.length) {
-      const contentIndex = getCourseContentIndex();
-      const merged = courses.map((c) => mergeCourseWithContent(c, contentIndex));
+      const merged = courses.map((c) => normalizeApiCourse(c));
       const index = {};
       merged.forEach((c) => { index[String(c.id)] = c; });
       setCachedCourseIndex(index);
@@ -312,24 +296,20 @@ async function loadAllCourses(email, userLevel) {
       renderCourses(merged, userLevel);
       return;
     }
-    // fallback to local content if API empty
-    const fallback = buildCoursesFromContent();
-    window.__coursesCache = fallback;
+    window.__coursesCache = [];
     window.__coursesUserLevel = userLevel;
-    renderCourses(fallback, userLevel);
+    renderCourses([], userLevel);
   } catch (e) {
     console.error("loadAllCourses error:", e);
     if (cached.index) {
-      const contentIndex = getCourseContentIndex();
-      const list = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k], contentIndex));
+      const list = Object.keys(cached.index).map((k) => cached.index[k]).filter(Boolean);
       window.__coursesCache = list;
       window.__coursesUserLevel = userLevel;
       renderCourses(list, userLevel);
     } else {
-      const fallback = buildCoursesFromContent();
-      window.__coursesCache = fallback;
+      window.__coursesCache = [];
       window.__coursesUserLevel = userLevel;
-      renderCourses(fallback, userLevel);
+      renderCourses([], userLevel);
     }
   }
 }
@@ -349,8 +329,8 @@ function renderCourses(courses, userLevel) {
   const counts = { novice: 0, intermediate: 0, advanced: 0 };
 
   (courses || []).forEach((c) => {
-    const lock = isLocked(c.id, userLevel);
-    const diff = String(lock.difficulty || "Novice").toLowerCase();
+    const lock = isLocked(c, userLevel);
+    const diff = String(lock.difficulty || c.difficulty || "Novice").toLowerCase();
 
     // Search filter
     if (q) {
@@ -392,9 +372,8 @@ function courseCardHtml(course, lock) {
 
   const diffLabel = diff === "advanced" ? "Advanced" : diff === "intermediate" ? "Intermediate" : "Novice";
 
-  const modules =
-    Number(course.moduleCount || course.modules_count || course.modules?.length || course.units?.length || 0);
-  const time = course.estimatedTime || course.estimated_time || course.time || "—";
+  const lessons = Number(course.total_lessons || course.totalLessons || 0);
+  const time = course.estimated_time || course.estimatedTime || "—";
   const totalXP = Number(course.totalXP || course.total_xp || course.xpReward || course.xp_reward || 0);
 
   const btnLabel = lock.locked ? `Level ${lock.required} required` : "Open";
@@ -437,10 +416,10 @@ function courseCardHtml(course, lock) {
 
         <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta">
           <span class="d-inline-flex align-items-center gap-1">
-            <i class="bi bi-collection" aria-hidden="true"></i> ${modules || 0} modules
+            <i class="bi bi-collection" aria-hidden="true"></i> ${lessons || 0} lessons
           </span>
           <span class="d-inline-flex align-items-center gap-1">
-            <i class="bi bi-clock" aria-hidden="true"></i> ${escapeHtml(time)}
+            <i class="bi bi-clock" aria-hidden="true"></i> ${escapeHtml(time || "—")}
           </span>
           <span class="d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold">
             <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> ${totalXP || 0} XP
@@ -478,34 +457,4 @@ function renderTrackEmpty(row, count, message) {
       <div class="small text-muted">${escapeHtml(message)}</div>
     </div>
   `;
-}
-
-function buildCoursesFromContent() {
-  if (typeof COURSE_CONTENT === "undefined") return [];
-  return Object.values(COURSE_CONTENT).map((course) => ({
-    id: course.id,
-    title: course.title,
-    description: course.description || course.about || "",
-    category: course.category || "",
-    difficulty: course.difficulty,
-    required_level: course.required_level,
-    estimatedTime: course.estimatedTime || course.estimated_time || "—",
-    totalXP: calcCourseXP(course),
-    moduleCount: Array.isArray(course.units) ? course.units.length : (course.modules?.length || 0),
-  }));
-}
-
-function calcCourseXP(course) {
-  let total = 0;
-  const units = course.units || course.modules || [];
-  units.forEach((unit) => {
-    const sections = Array.isArray(unit.sections) ? unit.sections : [];
-    sections.forEach((sec) => {
-      (sec.items || sec.lessons || []).forEach((it) => {
-        total += Number(it.xp || it.xpReward || 0);
-      });
-    });
-  });
-  if (!total) total = Number(course.xpReward || course.totalXP || 0);
-  return total || 0;
 }

@@ -33,6 +33,7 @@ Works with:
   const $ = (id) => document.getElementById(id);
   const BASE_XP = 100;
   const COURSE_CACHE_TTL = 5 * 60 * 1000;
+  const COURSE_CACHE_VERSION = "db-only-v1";
 
   function safeJSONParse(str, fallback) {
     try { return JSON.parse(str); } catch { return fallback; }
@@ -78,6 +79,8 @@ Works with:
 
   function getCachedCourseIndex() {
     try {
+      const ver = localStorage.getItem("netology_courses_cache_v");
+      if (ver !== COURSE_CACHE_VERSION) return { index: null, fresh: false };
       const raw = localStorage.getItem("netology_courses_cache");
       const ts = Number(localStorage.getItem("netology_courses_cache_ts") || 0);
       const index = raw ? JSON.parse(raw) : null;
@@ -93,6 +96,7 @@ Works with:
     try {
       localStorage.setItem("netology_courses_cache", JSON.stringify(index));
       localStorage.setItem("netology_courses_cache_ts", String(Date.now()));
+      localStorage.setItem("netology_courses_cache_v", COURSE_CACHE_VERSION);
     } catch {}
   }
 
@@ -463,7 +467,7 @@ Works with:
   }
 
   // -----------------------------
-  // Courses data (from course_content.js)
+  // Courses data (from API / cache)
   // -----------------------------
   function getCourseIndex() {
     if (window.__dashCourseIndex && Object.keys(window.__dashCourseIndex).length) {
@@ -471,41 +475,27 @@ Works with:
     }
     const cached = getCachedCourseIndex();
     if (cached.index) return cached.index;
-    const cc = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT)
-      ? COURSE_CONTENT
-      : (window.COURSE_CONTENT || {});
-    if (cc && Object.keys(cc).length) return cc;
     return {};
   }
 
-  function getCourseContentIndex() {
-    const cc = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT)
-      ? COURSE_CONTENT
-      : (window.COURSE_CONTENT || {});
-    return cc && typeof cc === "object" ? cc : {};
-  }
-
-  function mergeCourseWithContent(apiCourse, contentIndex) {
+  function mergeCourseWithContent(apiCourse) {
     const id = String(apiCourse.id || "");
-    const local = contentIndex[id] || {};
-    const difficulty = (apiCourse.difficulty || local.difficulty || "novice").toLowerCase();
-    const required_level = Number(apiCourse.required_level || local.required_level || 0) || difficultyRequiredLevel(difficulty);
+    const difficulty = (apiCourse.difficulty || "novice").toLowerCase();
+    const required_level = Number(apiCourse.required_level || 0) || difficultyRequiredLevel(difficulty);
 
-    const merged = {
+    return {
       key: id,
       id,
-      title: apiCourse.title || local.title || "Course",
-      description: apiCourse.description || local.description || local.about || "",
+      title: apiCourse.title || "Course",
+      description: apiCourse.description || "",
       difficulty,
       required_level,
-      xpReward: Number(apiCourse.xpReward || apiCourse.xp_reward || local.xpReward || local.totalXP || 0) || 0,
-      items: Number(apiCourse.total_lessons || apiCourse.totalLessons || 0) || countRequiredItems(local),
-      category: apiCourse.category || local.category || "",
-      estimatedTime: apiCourse.estimatedTime || apiCourse.estimated_time || local.estimatedTime || "—",
+      xpReward: Number(apiCourse.xpReward || apiCourse.xp_reward || 0) || 0,
+      items: Number(apiCourse.total_lessons || apiCourse.totalLessons || 0) || 0,
+      category: apiCourse.category || "Core",
+      estimated_time: apiCourse.estimatedTime || apiCourse.estimated_time || "—",
       total_lessons: Number(apiCourse.total_lessons || apiCourse.totalLessons || 0) || 0
     };
-
-    return merged;
   }
 
   async function fetchCoursesFromApi() {
@@ -529,7 +519,7 @@ Works with:
           xpReward: Number(c.xp_reward || c.xpReward || 0) || 0,
           total_lessons: Number(c.total_lessons || c.totalLessons || 0) || 0,
           required_level: Number(c.required_level || 0) || 0,
-          estimatedTime: c.estimated_time || c.estimatedTime || "—"
+          estimated_time: c.estimated_time || c.estimatedTime || "—"
         };
       });
 
@@ -849,10 +839,10 @@ Works with:
 
         <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta">
           <span class="d-inline-flex align-items-center gap-1">
-            <i class="bi bi-collection" aria-hidden="true"></i> ${course.items || 0} modules
+            <i class="bi bi-collection" aria-hidden="true"></i> ${course.total_lessons || course.items || 0} lessons
           </span>
           <span class="d-inline-flex align-items-center gap-1">
-            <i class="bi bi-clock" aria-hidden="true"></i> ${course.estimatedTime}
+            <i class="bi bi-clock" aria-hidden="true"></i> ${course.estimated_time || "—"}
           </span>
           <span class="d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold">
             <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> ${course.xpReward}
@@ -1017,11 +1007,11 @@ Works with:
       box.innerHTML = apiCourses.map((entry) => {
         const course = content[String(entry.id)] || {};
         const title = entry.title || course.title || "Course";
-        const diff = String(course.difficulty || "novice");
-        const category = course.category || "Core";
+        const diff = String(entry.difficulty || course.difficulty || "novice");
+        const category = entry.category || course.category || "Core";
         const xpReward = Number(entry.xp_reward || course.xpReward || course.totalXP || 0);
 
-        const required = Number(entry.total_lessons || course.total_lessons || course.items || countRequiredItems(course) || 0);
+        const required = Number(entry.total_lessons || course.total_lessons || course.items || 0);
         const pct = Math.max(0, Math.min(100, Number(entry.progress_pct || 0)));
         const done = required ? Math.round((pct / 100) * required) : 0;
 
@@ -1055,57 +1045,8 @@ Works with:
       });
       return;
     }
-
-    const started = getStartedCourses(email)
-      .sort((a, b) => Number(b.lastViewed || 0) - Number(a.lastViewed || 0));
-
-    if (!started.length) {
-      box.className = "dash-continue-list";
-      box.innerHTML = `<div class="text-muted small">No started courses yet. Pick a course to begin.</div>`;
-      return;
-    }
-
     box.className = "dash-continue-list";
-    box.innerHTML = started.map((entry) => {
-      const course = content[String(entry.id)] || {};
-      const title = course.title || "Course";
-      const diff = String(course.difficulty || "novice");
-      const category = course.category || "Core";
-      const xpReward = Number(course.xpReward || course.xp_reward || course.totalXP || 0);
-
-      const required = countRequiredItems(course);
-      const completions = getCourseCompletions(email, entry.id);
-      const done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
-      const pct = required ? Math.round((done / required) * 100) : 0;
-
-      return `
-        <div class="dash-continue-item" data-course-id="${entry.id}">
-          <div class="flex-grow-1">
-            <div class="fw-semibold">${title}</div>
-            <div class="dash-continue-meta">${category} • ${prettyDiff(diff)}</div>
-            <div class="net-meter mt-2" aria-label="Course progress">
-              <div class="net-meter-fill" style="width:${pct}%"></div>
-            </div>
-            <div class="small text-muted mt-1">${done}/${required || 0} items</div>
-          </div>
-          <div class="text-end">
-            <div class="small text-muted">Suggested</div>
-            <div class="fw-semibold net-xp-accent">
-              <i class="bi bi-lightning-charge-fill me-1"></i>${xpReward || 0}
-            </div>
-            <button class="btn btn-teal btn-sm mt-2" type="button">Continue</button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    box.querySelectorAll("[data-course-id]").forEach((item) => {
-      item.addEventListener("click", () => {
-        const id = item.getAttribute("data-course-id");
-        if (!id) return;
-        window.location.href = `course.html?id=${encodeURIComponent(id)}`;
-      });
-    });
+    box.innerHTML = `<div class="text-muted small">No started courses yet. Pick a course to begin.</div>`;
   }
 
   // -----------------------------
@@ -1121,30 +1062,28 @@ Works with:
     const unlockLevel = unlockLevelFromTier(user?.unlock_tier);
     const accessLevel = Math.max(uLevel, unlockLevel);
 
-    const contentIndex = getCourseContentIndex();
     let courses = [];
 
     const cached = getCachedCourseIndex();
     if (cached.index && cached.fresh) {
-      courses = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k], contentIndex));
+      courses = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k]));
       window.__dashCourseIndex = cached.index;
     } else {
       const apiCourses = await fetchCoursesFromApi();
       if (apiCourses.length) {
-        courses = apiCourses.map((c) => mergeCourseWithContent(c, contentIndex));
+        courses = apiCourses.map((c) => mergeCourseWithContent(c));
 
         const index = {};
         courses.forEach((c) => {
-          const local = contentIndex[String(c.id)] || {};
-          index[String(c.id)] = { ...local, ...c };
+          index[String(c.id)] = { ...c };
         });
         window.__dashCourseIndex = index;
         setCachedCourseIndex(index);
       } else if (cached.index) {
-        courses = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k], contentIndex));
+        courses = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k]));
         window.__dashCourseIndex = cached.index;
       } else {
-        courses = getCoursesFromContent();
+        courses = [];
       }
     }
     if (!courses.length) {
@@ -1191,9 +1130,6 @@ Works with:
     const user = getCurrentUser();
     const email = user?.email || "";
 
-    const content = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
-    const courseIds = Object.keys(content);
-
     let lessonsDone = 0;
     let quizzesDone = 0;
     let challengesDone = 0;
@@ -1207,20 +1143,6 @@ Works with:
       challengesDone = summary.challengesDone || 0;
       inProgress = summary.inProgress || 0;
       completed = summary.coursesDone || 0;
-    } else if (email) {
-      courseIds.forEach((id) => {
-        const completions = getCourseCompletions(email, id);
-        lessonsDone += completions.lesson.size;
-        quizzesDone += completions.quiz.size;
-        challengesDone += completions.challenge.size;
-
-        const required = countRequiredItems(content[id]);
-        const done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
-        if (required > 0) {
-          if (done >= required) completed += 1;
-          else if (done > 0) inProgress += 1;
-        }
-      });
     }
 
     if ($("statInProgress")) $("statInProgress").textContent = String(inProgress);
@@ -1528,37 +1450,34 @@ Works with:
     await safeStepAsync("renderContinueLearning", renderContinueLearning);
     safeStep("renderProgressWidgets", renderProgressWidgets);
 
-    // Defer heavier calls slightly to reduce initial lag
-    window.setTimeout(async () => {
-      const user = await safeStepAsync("refreshUserFromApi", refreshUserFromApi) || cachedUser;
-      if (user?.email) {
-        await safeStepAsync("fetchAchievements", () => fetchAchievements(user.email));
-        let loginInfo = safeStep("recordLoginDay", () => recordLoginDay(user.email)) || { log: [] };
-        const remoteLogin = await safeStepAsync("syncLoginLog", () => syncLoginLog(user.email));
-        if (remoteLogin && Array.isArray(remoteLogin.log)) loginInfo = remoteLogin;
-        const streak = safeStep("computeLoginStreak", () => computeLoginStreak(loginInfo.log)) || 0;
-        await safeStepAsync("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
+    const user = await safeStepAsync("refreshUserFromApi", refreshUserFromApi) || cachedUser;
+    if (user?.email) {
+      await safeStepAsync("fetchAchievements", () => fetchAchievements(user.email));
+      let loginInfo = safeStep("recordLoginDay", () => recordLoginDay(user.email)) || { log: [] };
+      const remoteLogin = await safeStepAsync("syncLoginLog", () => syncLoginLog(user.email));
+      if (remoteLogin && Array.isArray(remoteLogin.log)) loginInfo = remoteLogin;
+      const streak = safeStep("computeLoginStreak", () => computeLoginStreak(loginInfo.log)) || 0;
+      await safeStepAsync("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
 
-        if (loginInfo.isNew) {
-          const pill = $("topStreakPill");
-          if (pill) {
-            pill.classList.remove("is-animate");
-            requestAnimationFrame(() => {
-              pill.classList.add("is-animate");
-              window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
-            });
-          }
+      if (loginInfo.isNew) {
+        const pill = $("topStreakPill");
+        if (pill) {
+          pill.classList.remove("is-animate");
+          requestAnimationFrame(() => {
+            pill.classList.add("is-animate");
+            window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
+          });
         }
       }
+    }
 
-      safeStep("fillUserUI", fillUserUI);
-      await safeStepAsync("renderCourses", renderCourses);
-      await safeStepAsync("renderContinueLearning", renderContinueLearning);
-      if (user?.email) {
-        await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
-      }
-      safeStep("renderProgressWidgets", renderProgressWidgets);
-    }, 350);
+    safeStep("fillUserUI", fillUserUI);
+    await safeStepAsync("renderCourses", renderCourses);
+    await safeStepAsync("renderContinueLearning", renderContinueLearning);
+    if (user?.email) {
+      await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
+    }
+    safeStep("renderProgressWidgets", renderProgressWidgets);
   }
 
   onReady(init);

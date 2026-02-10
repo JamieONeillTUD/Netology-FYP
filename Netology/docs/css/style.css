@@ -243,17 +243,6 @@ footer{
    PERFORMANCE OPTIMIZATIONS
 ========================================================= */
 
-/* Large sections only render when needed (smoother scrolling) */
-main > section,
-.net-shell > section,
-.net-account-shell > section,
-.net-coursegrid,
-.net-account-insights,
-.net-account-grid{
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 600px;
-}
-
 /* Reduce heavy effects on smaller screens */
 @media (max-width: 768px){
   .net-bg::after{
@@ -4668,67 +4657,4 @@ body.net-course-page.net-landing::after{
   color: #fff;
   background: linear-gradient(135deg, #10b981, #14b8a6);
   box-shadow: 0 22px 46px rgba(16,185,129,.35);
-}
-
-/* Low motion / low effects mode */
-.net-lowfx{
-  --net-shadow: 0 6px 16px rgba(2, 6, 23, .08);
-  --net-shadow-2: 0 10px 22px rgba(2, 6, 23, .10);
-  --net-shadow-soft: 0 8px 18px rgba(2, 6, 23, .08);
-}
-.net-lowfx *{
-  animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
-  scroll-behavior: auto !important;
-}
-.net-lowfx .net-bg::before,
-.net-lowfx .net-bg::after,
-.net-lowfx .net-landing::before,
-.net-lowfx .net-landing::after,
-.net-lowfx .net-landing-v2::before,
-.net-lowfx .net-landing-v2::after,
-.net-lowfx .net-figma-bg::before,
-.net-lowfx .net-figma-bg::after,
-.net-lowfx .net-cta-icons i,
-.net-lowfx .net-figma-icon{
-  animation: none !important;
-  filter: none !important;
-  opacity: .22 !important;
-}
-.net-lowfx .net-topnav,
-.net-lowfx .net-dd,
-.net-lowfx .net-card,
-.net-lowfx .net-pop,
-.net-lowfx .net-cta,
-.net-lowfx .net-stat-card,
-.net-lowfx .net-course-card,
-.net-lowfx .dash-card,
-.net-lowfx .dash-panel,
-.net-lowfx .net-lesson-progress,
-.net-lowfx .net-success-panel,
-.net-lowfx .net-toast,
-.net-lowfx .net-slideside{
-  box-shadow: var(--net-shadow) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-.net-lowfx .net-sidebackdrop{
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  background: rgba(15, 23, 42, .35) !important;
-}
-.net-lowfx .net-glass,
-.net-lowfx .net-ddhead,
-.net-lowfx .net-dd,
-.net-lowfx .net-course-hero,
-.net-lowfx .net-lesson-drawer{
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-.net-lowfx .net-figma-card,
-.net-lowfx .net-figma-step,
-.net-lowfx .net-figma-cta,
-.net-lowfx .net-figma-feature{
-  box-shadow: var(--net-shadow-2) !important;
 }

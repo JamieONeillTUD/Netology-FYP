@@ -110,7 +110,7 @@ def list_courses():
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT id, title, description, total_lessons, xp_reward, difficulty, category
+            SELECT id, title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time
             FROM courses
             WHERE is_active = TRUE
             ORDER BY id;
@@ -126,9 +126,12 @@ def list_courses():
                 "title": r[1],
                 "description": r[2],
                 "total_lessons": r[3],
-                "xp_reward": r[4],
-                "difficulty": r[5],
-                "category": r[6],
+                "module_count": r[4],
+                "xp_reward": r[5],
+                "difficulty": r[6],
+                "category": r[7],
+                "required_level": r[8],
+                "estimated_time": r[9],
             }
             for r in rows
         ]
@@ -159,7 +162,7 @@ def get_course():
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT id, title, description, total_lessons, xp_reward, difficulty, category
+            SELECT id, title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time
             FROM courses
             WHERE id = %s AND is_active = TRUE;
         """, (course_id,))
@@ -176,9 +179,12 @@ def get_course():
             "title": row[1],
             "description": row[2],
             "total_lessons": row[3],
-            "xp_reward": row[4],
-            "difficulty": row[5],
-            "category": row[6],
+            "module_count": row[4],
+            "xp_reward": row[5],
+            "difficulty": row[6],
+            "category": row[7],
+            "required_level": row[8],
+            "estimated_time": row[9],
         })
 
     except Exception as e:
@@ -206,7 +212,8 @@ def user_courses():
 
         cur.execute("""
             SELECT
-                c.id, c.title, c.description, c.total_lessons, c.xp_reward,
+                c.id, c.title, c.description, c.total_lessons, c.module_count, c.xp_reward,
+                c.difficulty, c.category, c.required_level, c.estimated_time,
                 COALESCE(uc.progress, 0),
                 COALESCE(uc.completed, FALSE)
             FROM courses c
@@ -222,7 +229,7 @@ def user_courses():
         # Convert rows to  JSON objects
         course_list = []
         for r in rows:
-            course_id, title, desc, lessons, xp_reward, progress, completed = r
+            course_id, title, desc, lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time, progress, completed = r
 
             if completed:
                 status = "completed"
@@ -236,7 +243,12 @@ def user_courses():
                 "title": title,
                 "description": desc,
                 "total_lessons": lessons,
+                "module_count": module_count,
                 "xp_reward": xp_reward,
+                "difficulty": difficulty,
+                "category": category,
+                "required_level": required_level,
+                "estimated_time": estimated_time,
                 "progress_pct": int(progress),
                 "status": status,
             })
