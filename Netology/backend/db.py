@@ -1,7 +1,6 @@
 # db.py
 import os
 import psycopg
-from psycopg_pool import ConnectionPool
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -18,14 +17,5 @@ if not DATABASE_URL:
         f"port={port} sslmode={sslmode}"
     )
 
-# Connection pool (cuts latency on Render)
-pool = ConnectionPool(
-    DATABASE_URL,
-    min_size=1,
-    max_size=5,
-    timeout=10,
-)
-
 def get_db_connection():
-    # Returns a pooled connection; close() returns it to the pool
-    return pool.connection()
+    return psycopg.connect(DATABASE_URL)
