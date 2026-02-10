@@ -10,75 +10,10 @@ lesson.js – Lesson page
 - Persists completion using backend when available
 */
 
-(function () {
-  const API_BASE = () => window.API_BASE || "";
+(() => {
+  "use strict";
 
-  function safeJson(str) {
-    try { return JSON.parse(str); } catch { return null; }
-  }
-
-  function el(id) {
-    return document.getElementById(id);
-  }
-
-  function setText(id, value) {
-    const node = el(id);
-    if (node) node.textContent = value;
-  }
-
-  function getCurrentUser() {
-    return (
-      safeJson(localStorage.getItem("netology_user")) ||
-      safeJson(localStorage.getItem("user")) ||
-      null
-    );
-  }
-
-  function isLoggedIn(user) {
-    return !!(user && (user.email || user.username));
-  }
-
-  function cap(str) {
-    if (!str) return "";
-    return str.charAt(0).toUpperCase() + str.slice(1);
-  }
-
-  function xpForNextLevel(level) {
-    return Number(level || 1) * 100;
-  }
-
-  function trackCourseStart(email, courseId, lessonNumber) {
-    if (!email || !courseId) return;
-    const key = `netology_started_courses:${email}`;
-    const list = safeJson(localStorage.getItem(key)) || [];
-    const existing = list.find((c) => String(c.id) === String(courseId));
-    const payload = {
-      id: String(courseId),
-      lastViewed: Date.now(),
-      lastLesson: Number(lessonNumber || 0) || undefined
-    };
-    if (existing) {
-      existing.lastViewed = payload.lastViewed;
-      if (payload.lastLesson) existing.lastLesson = payload.lastLesson;
-    } else {
-      list.push(payload);
-    }
-    localStorage.setItem(key, JSON.stringify(list));
-    startCourseBackend(email, courseId);
-  }
-
-  async function startCourseBackend(email, courseId) {
-    if (!email || !courseId) return;
-    try {
-      await fetch(`${API_BASE()}/start-course`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, course_id: Number(courseId) })
-      });
-    } catch {
-      // best effort
-    }
-  }
+  const getApiBase = () => window.API_BASE || "";
 
   const state = {
     user: null,
@@ -92,6 +27,92 @@ lesson.js – Lesson page
     quizItem: null,
     completedLessons: new Set(),
   };
+
+  /* =========================================================
+     Core helpers
+  ========================================================= */
+
+  function parseJsonSafe(raw) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  function getById(id) {
+    return document.getElementById(id);
+  }
+
+  function setText(id, value) {
+    const node = getById(id);
+    if (node) node.textContent = value;
+  }
+
+  function getCurrentUser() {
+    return (
+      parseJsonSafe(localStorage.getItem("netology_user")) ||
+      parseJsonSafe(localStorage.getItem("user")) ||
+      null
+    );
+  }
+
+  function isLoggedIn(user) {
+    return !!(user && (user.email || user.username));
+  }
+
+  function capitalize(text) {
+    if (!text) return "";
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  function xpForNextLevel(level) {
+    return Number(level || 1) * 100;
+  }
+
+  /* =========================================================
+     Progress tracking (local + backend)
+  ========================================================= */
+
+  function trackCourseStart(email, courseId, lessonNumber) {
+    if (!email || !courseId) return;
+    const key = `netology_started_courses:${email}`;
+    const list = parseJsonSafe(localStorage.getItem(key)) || [];
+    const existing = list.find((c) => String(c.id) === String(courseId));
+
+    const payload = {
+      id: String(courseId),
+      lastViewed: Date.now(),
+      lastLesson: Number(lessonNumber || 0) || undefined
+    };
+
+    if (existing) {
+      existing.lastViewed = payload.lastViewed;
+      if (payload.lastLesson) existing.lastLesson = payload.lastLesson;
+    } else {
+      list.push(payload);
+    }
+
+    localStorage.setItem(key, JSON.stringify(list));
+    startCourseBackend(email, courseId);
+  }
+
+  async function startCourseBackend(email, courseId) {
+    if (!email || !courseId) return;
+    try {
+      await fetch(`${getApiBase()}/start-course`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, course_id: Number(courseId) })
+      });
+    } catch {
+      // best effort
+    }
+  }
+
+  /* =========================================================
+     Default resources (fallback links)
+  ========================================================= */
 
   function buildDefaultResources(title, courseTitle) {
     const t = `${title || ""} ${courseTitle || ""}`.toLowerCase();
@@ -127,21 +148,31 @@ lesson.js – Lesson page
     return list.slice(0, 4);
   }
 
-  document.addEventListener("DOMContentLoaded", async () => {
+  /* =========================================================
+     Init
+  ========================================================= */
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initLessonPage().catch((err) => {
+      console.error("Lesson init failed:", err);
+    });
+  });
+
+  async function initLessonPage() {
     const params = new URLSearchParams(window.location.search);
     state.courseId = params.get("course_id") || params.get("course") || "1";
     state.lessonNumber = Number(params.get("lesson") || "1");
 
-    // user
-    const u = getCurrentUser();
-    state.user = isLoggedIn(u) ? u : null;
+    // User
+    const user = getCurrentUser();
+    state.user = isLoggedIn(user) ? user : null;
 
-    // chrome
+    // Chrome
     wireBrandRouting();
     if (!state.user) wireChromeGuest();
     else wireChrome(state.user);
 
-    // load course content
+    // Course content
     if (typeof COURSE_CONTENT === "undefined") {
       setText("lessonTitle", "Course content unavailable");
       return;
@@ -156,7 +187,7 @@ lesson.js – Lesson page
       trackCourseStart(state.user.email, state.courseId, state.lessonNumber);
     }
 
-    // flatten lessons and items
+    // Flatten lessons and items
     const flatLessons = flattenLessons(state.course);
     state.lessonEntry = flatLessons.find((l) => l.lessonNumber === state.lessonNumber) || flatLessons[0];
 
@@ -166,23 +197,23 @@ lesson.js – Lesson page
     state.practiceItem = state.itemsForLesson.find((it) => it.type === "sandbox" || it.type === "practice") || null;
     state.challengeItem = state.itemsForLesson.find((it) => it.type === "challenge") || null;
 
-    // load completion (best effort)
+    // Load completion (best effort)
     if (state.user?.email) {
       await loadCompletions(state.user.email, state.courseId);
     }
 
     renderLesson();
     wireActions();
-  });
+  }
 
   /* =========================================================
      Chrome (sidebar + user dropdown)
   ========================================================= */
 
   function wireBrandRouting() {
-    const brand = el("brandHome");
-    const sideBrand = el("sideBrandHome");
-    const back = el("backToCourse");
+    const brand = getById("brandHome");
+    const sideBrand = getById("sideBrandHome");
+    const back = getById("backToCourse");
 
     const loggedIn = !!(state.user && state.user.email);
     const href = loggedIn ? "dashboard.html" : "index.html";
@@ -203,11 +234,11 @@ lesson.js – Lesson page
     setText("sideUserEmail", "Sign in to save progress");
     setText("sideLevelBadge", "Lv —");
     setText("sideXPText", "—");
-    const bar = el("sideXPBar");
+    const bar = getById("sideXPBar");
     if (bar) bar.style.width = "0%";
 
-    const topLogout = el("topLogoutBtn");
-    const sideLogout = el("sideLogoutBtn");
+    const topLogout = getById("topLogoutBtn");
+    const sideLogout = getById("sideLogoutBtn");
     if (topLogout) topLogout.style.display = "none";
     if (sideLogout) sideLogout.style.display = "none";
 
@@ -220,17 +251,17 @@ lesson.js – Lesson page
     wireUserDropdown();
     fillIdentity(user);
 
-    const topLogout = el("topLogoutBtn");
-    const sideLogout = el("sideLogoutBtn");
+    const topLogout = getById("topLogoutBtn");
+    const sideLogout = getById("sideLogoutBtn");
     if (topLogout) topLogout.addEventListener("click", logout);
     if (sideLogout) sideLogout.addEventListener("click", logout);
   }
 
   function wireSidebar() {
-    const openBtn = el("openSidebarBtn");
-    const closeBtn = el("closeSidebarBtn");
-    const sidebar = el("slideSidebar");
-    const backdrop = el("sideBackdrop");
+    const openBtn = getById("openSidebarBtn");
+    const closeBtn = getById("closeSidebarBtn");
+    const sidebar = getById("slideSidebar");
+    const backdrop = getById("sideBackdrop");
 
     const open = () => {
       if (!sidebar || !backdrop) return;
@@ -263,8 +294,8 @@ lesson.js – Lesson page
   }
 
   function wireUserDropdown() {
-    const userBtn = el("userBtn");
-    const dd = el("userDropdown");
+    const userBtn = getById("userBtn");
+    const dd = getById("userDropdown");
 
     userBtn?.addEventListener("click", () => {
       const expanded = userBtn.getAttribute("aria-expanded") === "true";
@@ -279,8 +310,8 @@ lesson.js – Lesson page
   }
 
   function toggleDropdown(open) {
-    const userBtn = el("userBtn");
-    const dd = el("userDropdown");
+    const userBtn = getById("userBtn");
+    const dd = getById("userDropdown");
     if (!userBtn || !dd) return;
     dd.classList.toggle("is-open", !!open);
     userBtn.setAttribute("aria-expanded", open ? "true" : "false");
@@ -304,7 +335,7 @@ lesson.js – Lesson page
     setText("sideUserEmail", email || "email@example.com");
     setText("sideLevelBadge", `Lv ${level}`);
     setText("sideXPText", `${xp}/${xpNext}`);
-    const bar = el("sideXPBar");
+    const bar = getById("sideXPBar");
     if (bar) bar.style.width = `${Math.min(100, pct)}%`;
   }
 
@@ -315,12 +346,13 @@ lesson.js – Lesson page
   }
 
   /* =========================================================
-     Data Helpers
+     Data helpers
   ========================================================= */
 
   function flattenLessons(course) {
     const flat = [];
     let idx = 1;
+
     (course.units || []).forEach((unit) => {
       (unit.lessons || []).forEach((lesson) => {
         flat.push({
@@ -331,6 +363,7 @@ lesson.js – Lesson page
         idx += 1;
       });
     });
+
     return flat;
   }
 
@@ -344,6 +377,7 @@ lesson.js – Lesson page
       all.push(...normalized.items);
     });
 
+    // Sort items in learning flow order
     all.sort((a, b) => {
       if (a.lesson_number !== b.lesson_number) return a.lesson_number - b.lesson_number;
       const order = { learn: 1, quiz: 2, sandbox: 3, challenge: 4 };
@@ -372,7 +406,7 @@ lesson.js – Lesson page
     const pushItem = (type, data) => {
       items.push({
         type,
-        title: data.title || data.name || cap(type),
+        title: data.title || data.name || capitalize(type),
         content: data.content || data.learn || data.text || "",
         duration: data.duration || data.time || "—",
         xp: Number(data.xp || data.xpReward || data.xp_reward || 0),
@@ -415,7 +449,7 @@ lesson.js – Lesson page
 
   async function loadCompletions(email, courseId) {
     try {
-      const res = await fetch(`${API_BASE()}/user-course-status?email=${encodeURIComponent(email)}&course_id=${encodeURIComponent(courseId)}`);
+      const res = await fetch(`${getApiBase()}/user-course-status?email=${encodeURIComponent(email)}&course_id=${encodeURIComponent(courseId)}`);
       if (!res.ok) return;
       const data = await res.json();
       const lessons = data.lessons || data.lesson || [];
@@ -434,10 +468,10 @@ lesson.js – Lesson page
     const course = state.course;
 
     setText("lessonCourseTitle", course.title || "Course");
-    setText("lessonDifficulty", cap(course.difficulty || "novice"));
+    setText("lessonDifficulty", capitalize(course.difficulty || "novice"));
     setText("lessonUnitTitle", state.lessonEntry?.unitTitle || "Unit");
 
-    const difficultyPill = el("lessonDifficulty");
+    const difficultyPill = getById("lessonDifficulty");
     if (difficultyPill) {
       difficultyPill.className = "net-pill-badge badge text-bg-light border px-3 py-2";
       if (course.difficulty === "novice") difficultyPill.classList.add("net-diff-novice");
@@ -453,16 +487,16 @@ lesson.js – Lesson page
     setText("lessonMetaTime", metaTime);
     setText("lessonMetaXP", Number(metaXp || 0));
 
-    // objectives
-    const objWrap = el("lessonObjectivesWrap");
-    const objList = el("lessonObjectives");
+    // Objectives
+    const objWrap = getById("lessonObjectivesWrap");
+    const objList = getById("lessonObjectives");
     if (objWrap && objList && Array.isArray(lessonData.objectives) && lessonData.objectives.length) {
       objWrap.classList.remove("d-none");
       objList.innerHTML = lessonData.objectives.map((o) => `<li>${escapeHtml(o)}</li>`).join("");
     }
 
-    // content
-    const content = el("lessonContent");
+    // Content
+    const content = getById("lessonContent");
     const c = lessonData.content || lessonData.learn;
     if (content) {
       if (Array.isArray(c)) {
@@ -474,18 +508,18 @@ lesson.js – Lesson page
       }
     }
 
-    // summary
-    const summaryWrap = el("lessonSummaryWrap");
+    // Summary
+    const summaryWrap = getById("lessonSummaryWrap");
     if (summaryWrap && lessonData.summary) {
       summaryWrap.classList.remove("d-none");
       setText("lessonSummary", lessonData.summary);
     }
 
-    // resources
+    // Resources
     const resources = Array.isArray(lessonData.resources) && lessonData.resources.length
       ? lessonData.resources
       : buildDefaultResources(lessonData.title || "", course.title || "");
-    const resWrap = el("lessonResources");
+    const resWrap = getById("lessonResources");
     if (resWrap) {
       resWrap.innerHTML = resources.map((r) => `
         <a class="net-resource-item" href="${escapeHtml(r.url)}" target="_blank" rel="noopener">
@@ -496,8 +530,8 @@ lesson.js – Lesson page
       `).join("");
     }
 
-    // practice
-    const practiceCard = el("lessonPracticeCard");
+    // Practice
+    const practiceCard = getById("lessonPracticeCard");
     if (practiceCard) {
       if (state.practiceItem) {
         practiceCard.classList.remove("d-none");
@@ -507,13 +541,13 @@ lesson.js – Lesson page
       }
     }
 
-    // challenge
-    const challengeCard = el("lessonChallengeCard");
+    // Challenge
+    const challengeCard = getById("lessonChallengeCard");
     if (challengeCard) {
       if (state.challengeItem) {
         challengeCard.classList.remove("d-none");
         const steps = (state.challengeItem.challenge && state.challengeItem.challenge.steps) || state.challengeItem.steps || [];
-        const stepsEl = el("lessonChallengeSteps");
+        const stepsEl = getById("lessonChallengeSteps");
         if (stepsEl) {
           stepsEl.innerHTML = steps.length ? steps.map((s) => `• ${escapeHtml(s)}`).join("<br>") : "";
         }
@@ -522,12 +556,12 @@ lesson.js – Lesson page
       }
     }
 
-    // status
-    const status = el("lessonStatus");
+    // Status
+    const status = getById("lessonStatus");
     if (status) {
       const done = state.completedLessons.has(Number(state.lessonNumber));
       status.textContent = done ? "Completed" : "Not started";
-      const completeBtn = el("lessonCompleteBtn");
+      const completeBtn = getById("lessonCompleteBtn");
       if (completeBtn) {
         completeBtn.disabled = done;
         completeBtn.innerHTML = done
@@ -536,7 +570,7 @@ lesson.js – Lesson page
       }
     }
 
-    // progress + prev/next
+    // Progress + prev/next
     const flat = flattenLessons(state.course);
     const idx = flat.findIndex((f) => f.lessonNumber === Number(state.lessonNumber));
     const prev = flat[idx - 1];
@@ -547,11 +581,11 @@ lesson.js – Lesson page
     const pct = totalLessons ? Math.round((completedCount / totalLessons) * 100) : 0;
     setText("lessonProgressText", `${completedCount}/${totalLessons} lessons completed`);
     setText("lessonProgressPct", `${pct}%`);
-    const bar = el("lessonProgressBar");
+    const bar = getById("lessonProgressBar");
     if (bar) bar.style.width = `${pct}%`;
 
-    const unlockBanner = el("lessonUnlockBanner");
-    const unlockTitle = el("lessonUnlockTitle");
+    const unlockBanner = getById("lessonUnlockBanner");
+    const unlockTitle = getById("lessonUnlockTitle");
     const isDone = state.completedLessons.has(Number(state.lessonNumber));
     if (unlockBanner) {
       if (isDone && next) {
@@ -562,8 +596,8 @@ lesson.js – Lesson page
       }
     }
 
-    const prevLink = el("prevLessonLink");
-    const nextLink = el("nextLessonLink");
+    const prevLink = getById("prevLessonLink");
+    const nextLink = getById("nextLessonLink");
     if (prevLink) {
       if (prev) {
         prevLink.href = `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(prev.lessonNumber)}`;
@@ -589,9 +623,9 @@ lesson.js – Lesson page
   ========================================================= */
 
   function wireActions() {
-    const practiceBtn = el("lessonPracticeBtn");
-    const challengeBtn = el("lessonChallengeBtn");
-    const completeBtn = el("lessonCompleteBtn");
+    const practiceBtn = getById("lessonPracticeBtn");
+    const challengeBtn = getById("lessonChallengeBtn");
+    const completeBtn = getById("lessonCompleteBtn");
 
     practiceBtn?.addEventListener("click", () => {
       window.location.href = `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(state.lessonNumber)}&mode=practice`;
@@ -630,7 +664,7 @@ lesson.js – Lesson page
 
   async function completeLesson(email, courseId, lessonNumber, xp) {
     try {
-      await fetch(`${API_BASE()}/complete-lesson`, {
+      await fetch(`${getApiBase()}/complete-lesson`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

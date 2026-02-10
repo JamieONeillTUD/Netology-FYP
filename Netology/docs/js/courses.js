@@ -19,7 +19,25 @@ const BASE_XP = 100;
 const COURSE_CACHE_TTL = 5 * 60 * 1000;
 const COURSE_CACHE_VERSION = "db-only-v1";
 
-document.addEventListener("DOMContentLoaded", async () => {
+const getById = (id) => document.getElementById(id);
+
+function onReady(fn) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fn);
+  } else {
+    fn();
+  }
+}
+
+function parseJsonSafe(raw, fallback = null) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+onReady(async () => {
   const user = getCurrentUser();
   if (!user.email) {
     window.location.href = "login.html";
@@ -32,6 +50,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const accessLevel = stats.accessLevel || stats.level || 1;
   await loadAllCourses(user.email, accessLevel);
 });
+
+/* =========================================================
+   XP helpers
+========================================================= */
 
 function totalXpForLevel(level) {
   const lvl = Math.max(1, Number(level) || 1);
@@ -57,6 +79,10 @@ function unlockLevelFromTier(tier) {
   return 1;
 }
 
+/* =========================================================
+   Data normalization + cache
+========================================================= */
+
 function normalizeApiCourse(apiCourse) {
   const difficulty = String(apiCourse.difficulty || "novice").toLowerCase();
   return {
@@ -74,15 +100,11 @@ function normalizeApiCourse(apiCourse) {
 }
 
 function getCurrentUser() {
-  try {
-    return (
-      JSON.parse(localStorage.getItem("netology_user") || "null") ||
-      JSON.parse(localStorage.getItem("user") || "null") ||
-      {}
-    );
-  } catch {
-    return {};
-  }
+  return (
+    parseJsonSafe(localStorage.getItem("netology_user"), null) ||
+    parseJsonSafe(localStorage.getItem("user"), null) ||
+    {}
+  );
 }
 
 function getCachedCourseIndex() {
@@ -108,34 +130,33 @@ function setCachedCourseIndex(index) {
   } catch {}
 }
 
+/* =========================================================
+   Chrome (sidebar + dropdown + search)
+========================================================= */
+
 function wireChrome(user) {
   // Slide sidebar (same as dashboard)
-  const openBtn = document.getElementById("openSidebarBtn");
-  const closeBtn = document.getElementById("closeSidebarBtn");
-  const sidebar = document.getElementById("slideSidebar");
-  const backdrop = document.getElementById("sideBackdrop");
+  const openBtn = getById("openSidebarBtn");
+  const closeBtn = getById("closeSidebarBtn");
+  const sidebar = getById("slideSidebar");
+  const backdrop = getById("sideBackdrop");
 
   // User dropdown
-  const userBtn = document.getElementById("userBtn");
-  const dd = document.getElementById("userDropdown");
+  const userBtn = getById("userBtn");
+  const dd = getById("userDropdown");
 
   // Search
-  const topSearch = document.getElementById("topSearch");
-  const courseSearch = document.getElementById("courseSearch");
-  const mobileSearch = document.getElementById("mobileSearch");
+  const topSearch = getById("topSearch");
+  const courseSearch = getById("courseSearch");
+  const mobileSearch = getById("mobileSearch");
 
   // Logout buttons
-  const topLogout = document.getElementById("topLogoutBtn");
-  const sideLogout = document.getElementById("sideLogoutBtn");
+  const topLogout = getById("topLogoutBtn");
+  const sideLogout = getById("sideLogoutBtn");
 
   // Fill user identity
   const initial = (user.first_name || user.name || user.username || "S").trim().charAt(0).toUpperCase();
   const fullName = user.name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username || "Student";
-
-  const setText = (id, text) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
-  };
 
   setText("topAvatar", initial);
   setText("topUserName", fullName);
@@ -175,9 +196,9 @@ function wireChrome(user) {
     window.location.href = "login.html";
   }
 
-  if (openBtn) openBtn.addEventListener("click", openSidebar);
-  if (closeBtn) closeBtn.addEventListener("click", closeSidebar);
-  if (backdrop) backdrop.addEventListener("click", closeSidebar);
+  openBtn?.addEventListener("click", openSidebar);
+  closeBtn?.addEventListener("click", closeSidebar);
+  backdrop?.addEventListener("click", closeSidebar);
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -201,8 +222,8 @@ function wireChrome(user) {
     toggleDropdown(false);
   });
 
-  if (topLogout) topLogout.addEventListener("click", logout);
-  if (sideLogout) sideLogout.addEventListener("click", logout);
+  topLogout?.addEventListener("click", logout);
+  sideLogout?.addEventListener("click", logout);
 
   // Search filters live (client-side)
   const searchInputs = [topSearch, courseSearch, mobileSearch].filter(Boolean);
@@ -214,6 +235,15 @@ function wireChrome(user) {
   };
   searchInputs.forEach((input) => input.addEventListener("input", handleSearch));
 }
+
+function setText(id, text) {
+  const el = getById(id);
+  if (el) el.textContent = text;
+}
+
+/* =========================================================
+   User stats
+========================================================= */
 
 async function loadUserStats(email) {
   try {
@@ -242,8 +272,8 @@ async function loadUserStats(email) {
     localStorage.setItem("user", JSON.stringify(mergedUser));
     localStorage.setItem("netology_user", JSON.stringify(mergedUser));
 
-    const levelEl = document.getElementById("levelText");
-    const rankEl = document.getElementById("rankText");
+    const levelEl = getById("levelText");
+    const rankEl = getById("rankText");
     if (levelEl) levelEl.textContent = level;
     if (rankEl) rankEl.textContent = rank;
 
@@ -260,6 +290,10 @@ async function loadUserStats(email) {
   }
 }
 
+/* =========================================================
+   Courses loading + rendering
+========================================================= */
+
 function isLocked(course, userLevel) {
   if (!course) return { locked: false, required: 1, difficulty: "Novice" };
   const difficulty = String(course.difficulty || "novice");
@@ -268,9 +302,9 @@ function isLocked(course, userLevel) {
 }
 
 async function loadAllCourses(email, userLevel) {
-  const noviceRow = document.getElementById("noviceRow");
-  const intermediateRow = document.getElementById("intermediateRow");
-  const advancedRow = document.getElementById("advancedRow");
+  const noviceRow = getById("noviceRow");
+  const intermediateRow = getById("intermediateRow");
+  const advancedRow = getById("advancedRow");
   if (!noviceRow || !intermediateRow || !advancedRow) return;
 
   const cached = getCachedCourseIndex();
@@ -315,9 +349,9 @@ async function loadAllCourses(email, userLevel) {
 }
 
 function renderCourses(courses, userLevel) {
-  const noviceRow = document.getElementById("noviceRow");
-  const intermediateRow = document.getElementById("intermediateRow");
-  const advancedRow = document.getElementById("advancedRow");
+  const noviceRow = getById("noviceRow");
+  const intermediateRow = getById("intermediateRow");
+  const advancedRow = getById("advancedRow");
   if (!noviceRow || !intermediateRow || !advancedRow) return;
 
   const q = String(window.__coursesSearch || "").trim().toLowerCase();
@@ -340,8 +374,8 @@ function renderCourses(courses, userLevel) {
 
     const row =
       diff === "advanced" ? advancedRow :
-      diff === "intermediate" ? intermediateRow :
-      noviceRow;
+        diff === "intermediate" ? intermediateRow :
+          noviceRow;
 
     row.insertAdjacentHTML("beforeend", courseCardHtml(c, lock));
     if (diff === "advanced" || diff === "intermediate" || diff === "novice") {
@@ -362,13 +396,13 @@ function courseCardHtml(course, lock) {
   const diff = String(lock.difficulty || "Novice").toLowerCase();
   const gradClass =
     diff === "advanced" ? "net-grad-adv" :
-    diff === "intermediate" ? "net-grad-int" :
-    "net-grad-nov";
+      diff === "intermediate" ? "net-grad-int" :
+        "net-grad-nov";
 
   const diffBadgeClass =
     diff === "advanced" ? "net-badge-adv" :
-    diff === "intermediate" ? "net-badge-int" :
-    "net-badge-nov";
+      diff === "intermediate" ? "net-badge-int" :
+        "net-badge-nov";
 
   const diffLabel = diff === "advanced" ? "Advanced" : diff === "intermediate" ? "Intermediate" : "Novice";
 
@@ -390,8 +424,8 @@ function courseCardHtml(course, lock) {
   const sandboxLink = `sandbox.html?course_id=${encodeURIComponent(course.id)}`;
   const diffIcon =
     diffLabel.toLowerCase() === "advanced" ? "bi-shield-lock-fill"
-    : diffLabel.toLowerCase() === "intermediate" ? "bi-lightning-charge-fill"
-    : "bi-leaf-fill";
+      : diffLabel.toLowerCase() === "intermediate" ? "bi-lightning-charge-fill"
+        : "bi-leaf-fill";
 
   return `
     <article class="net-coursecard net-coursecard--library ${lock.locked ? "is-locked" : ""}" tabindex="0" role="button" aria-label="Open course ${escapeHtml(course.title)}" ${cardAction}>

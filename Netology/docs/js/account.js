@@ -8,6 +8,24 @@ Account page logic
 
 const BASE_XP = 100;
 
+const getById = (id) => document.getElementById(id);
+
+function onReady(fn) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fn);
+  } else {
+    fn();
+  }
+}
+
+function parseJsonSafe(raw, fallback = null) {
+  try { return JSON.parse(raw); } catch { return fallback; }
+}
+
+/* =========================================================
+   XP helpers
+========================================================= */
+
 function totalXpForLevel(level) {
   const lvl = Math.max(1, Number(level) || 1);
   return BASE_XP * (lvl - 1) * lvl / 2;
@@ -35,19 +53,19 @@ function computeXPFromTotal(totalXP) {
   return { level, currentLevelXP, xpNext, pct, toNext, totalXP };
 }
 
-function safeJson(str, fallback) {
-  try { return JSON.parse(str); } catch { return fallback; }
-}
+/* =========================================================
+   Core helpers
+========================================================= */
 
 function setText(id, text) {
-  const el = document.getElementById(id);
+  const el = getById(id);
   if (el) el.textContent = String(text ?? "");
 }
 
 function getCurrentUser() {
   return (
-    safeJson(localStorage.getItem("netology_user"), null) ||
-    safeJson(localStorage.getItem("user"), null) ||
+    parseJsonSafe(localStorage.getItem("netology_user"), null) ||
+    parseJsonSafe(localStorage.getItem("user"), null) ||
     {}
   );
 }
@@ -58,7 +76,7 @@ function getCourseIndex() {
 
 function getProgressLog(email) {
   if (!email) return [];
-  return safeJson(localStorage.getItem(`netology_progress_log:${email}`), []) || [];
+  return parseJsonSafe(localStorage.getItem(`netology_progress_log:${email}`), []) || [];
 }
 
 function dateKey(date = new Date()) {
@@ -68,8 +86,24 @@ function dateKey(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+function formatRelative(ts) {
+  const diff = Date.now() - Number(ts || 0);
+  if (!Number.isFinite(diff) || diff < 0) return "";
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "Just now";
+  if (min < 60) return `${min} min ago`;
+  const hrs = Math.floor(min / 60);
+  if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+/* =========================================================
+   Login streaks
+========================================================= */
+
 function getLoginLog(email) {
-  return safeJson(localStorage.getItem(`netology_login_log:${email}`), []) || [];
+  return parseJsonSafe(localStorage.getItem(`netology_login_log:${email}`), []) || [];
 }
 
 function saveLoginLog(email, log) {
@@ -118,17 +152,9 @@ function computeLoginStreak(log) {
   return streak;
 }
 
-function formatRelative(ts) {
-  const diff = Date.now() - Number(ts || 0);
-  if (!Number.isFinite(diff) || diff < 0) return "";
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return "Just now";
-  if (min < 60) return `${min} min ago`;
-  const hrs = Math.floor(min / 60);
-  if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
-}
+/* =========================================================
+   Achievements + XP
+========================================================= */
 
 function getBadgeCache() {
   return Array.isArray(window.__netBadges) ? window.__netBadges : [];
@@ -189,12 +215,12 @@ async function awardAchievementRemote(email, def) {
 
 function bumpUserXP(email, delta) {
   if (!delta) return;
-  const rawUser = safeJson(localStorage.getItem("user"), null);
+  const rawUser = parseJsonSafe(localStorage.getItem("user"), null);
   if (rawUser && rawUser.email === email) {
     rawUser.xp = Math.max(0, Number(rawUser.xp || 0) + delta);
     localStorage.setItem("user", JSON.stringify(rawUser));
   }
-  const rawNet = safeJson(localStorage.getItem("netology_user"), null);
+  const rawNet = parseJsonSafe(localStorage.getItem("netology_user"), null);
   if (rawNet && rawNet.email === email) {
     rawNet.xp = Math.max(0, Number(rawNet.xp || 0) + delta);
     localStorage.setItem("netology_user", JSON.stringify(rawNet));
@@ -259,12 +285,16 @@ async function awardAchievementBadges(email, loginStreak) {
   }
 }
 
+/* =========================================================
+   Preferences
+========================================================= */
+
 function preferenceKey(email) {
   return `netology_prefs:${email}`;
 }
 
 function loadPrefs(email) {
-  const raw = safeJson(localStorage.getItem(preferenceKey(email)), null);
+  const raw = parseJsonSafe(localStorage.getItem(preferenceKey(email)), null);
   if (raw && typeof raw === "object") return raw;
   return { weekly: true, streak: true, newCourses: false };
 }
@@ -307,10 +337,10 @@ async function savePrefsRemote(email, prefs) {
 }
 
 function wirePrefs(email, initialPrefs) {
-  const weekly = document.getElementById("prefWeekly");
-  const streak = document.getElementById("prefStreak");
-  const newCourses = document.getElementById("prefNewCourses");
-  const saved = document.getElementById("prefSaved");
+  const weekly = getById("prefWeekly");
+  const streak = getById("prefStreak");
+  const newCourses = getById("prefNewCourses");
+  const saved = getById("prefSaved");
   if (!weekly || !streak || !newCourses) return;
 
   const prefs = initialPrefs || loadPrefs(email);
@@ -338,6 +368,10 @@ function wirePrefs(email, initialPrefs) {
   streak.addEventListener("change", persist);
   newCourses.addEventListener("change", persist);
 }
+
+/* =========================================================
+   Progress counts
+========================================================= */
 
 async function loadProgressSummary(email) {
   const base = String(window.API_BASE || "").replace(/\/$/, "");
@@ -368,7 +402,7 @@ async function loadProgressSummary(email) {
 function getCourseCompletions(email, courseId) {
   if (!email || !courseId) return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
   const raw = localStorage.getItem(`netology_completions:${email}:${courseId}`);
-  const payload = safeJson(raw, {}) || {};
+  const payload = parseJsonSafe(raw, {}) || {};
   const lessonArr = payload.lesson || payload.lessons || payload.learn || [];
   const quizArr = payload.quiz || payload.quizzes || [];
   const chArr = payload.challenge || payload.challenges || [];
@@ -426,6 +460,10 @@ function getProgressCounts(email) {
   return calcProgressFromLocal(email);
 }
 
+/* =========================================================
+   Activity + history
+========================================================= */
+
 async function fetchRecentActivity(email) {
   const base = String(window.API_BASE || "").replace(/\/$/, "");
   if (!email || !base) return null;
@@ -440,7 +478,7 @@ async function fetchRecentActivity(email) {
 }
 
 async function renderRecentActivity(email) {
-  const wrap = document.getElementById("recentActivityList");
+  const wrap = getById("recentActivityList");
   if (!wrap) return;
 
   const apiRecent = await fetchRecentActivity(email);
@@ -449,8 +487,8 @@ async function renderRecentActivity(email) {
       const type = String(e?.type || "").toLowerCase();
       const label =
         type === "quiz" ? "Quiz passed" :
-        type === "challenge" ? "Challenge completed" :
-        "Lesson completed";
+          type === "challenge" ? "Challenge completed" :
+            "Lesson completed";
       const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
       const time = e.completed_at ? formatRelative(new Date(e.completed_at).getTime()) : "";
       const xp = Number(e.xp || 0);
@@ -473,7 +511,7 @@ async function renderRecentActivity(email) {
   const now = Date.now();
   const windowMs = 7 * 24 * 60 * 60 * 1000;
   const recent = log
-    .filter(e => (now - Number(e.ts || 0)) <= windowMs)
+    .filter((e) => (now - Number(e.ts || 0)) <= windowMs)
     .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
     .slice(0, 6);
 
@@ -487,9 +525,9 @@ async function renderRecentActivity(email) {
     const type = String(e?.type || "").toLowerCase();
     const label =
       type === "quiz" ? "Quiz passed" :
-      type === "challenge" ? "Challenge completed" :
-      type === "sandbox" ? "Sandbox build" :
-      "Lesson completed";
+        type === "challenge" ? "Challenge completed" :
+          type === "sandbox" ? "Sandbox build" :
+            "Lesson completed";
     const course = content[String(e.course_id)] || {};
     const courseTitle = course.title || "Course";
     const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
@@ -509,7 +547,7 @@ async function renderRecentActivity(email) {
 }
 
 async function renderTopologies(email) {
-  const wrap = document.getElementById("topologyList");
+  const wrap = getById("topologyList");
   if (!wrap) return;
   const base = String(window.API_BASE || "").replace(/\/$/, "");
   if (!base || !email) {
@@ -555,7 +593,7 @@ async function fetchQuizHistory(email) {
 }
 
 async function renderQuizHistory(email) {
-  const wrap = document.getElementById("quizHistoryList");
+  const wrap = getById("quizHistoryList");
   if (!wrap) return;
 
   const apiHistory = await fetchQuizHistory(email);
@@ -578,7 +616,7 @@ async function renderQuizHistory(email) {
 
   const log = getProgressLog(email);
   const quizzes = log
-    .filter(e => String(e?.type || "").toLowerCase() === "quiz")
+    .filter((e) => String(e?.type || "").toLowerCase() === "quiz")
     .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
     .slice(0, 8);
 
@@ -606,6 +644,10 @@ async function renderQuizHistory(email) {
   }).join("");
 }
 
+/* =========================================================
+   Rank + rings
+========================================================= */
+
 function rankFromUser(user, numericLevel) {
   const raw = String(user?.unlock_tier || user?.rank || user?.level_name || user?.level || "").toLowerCase();
   if (raw.includes("advanced")) return "Advanced";
@@ -620,10 +662,10 @@ function setRankDisplay(rank) {
   const r = String(rank || "").toLowerCase();
   const pretty = rank || "Novice";
 
-  const rankText = document.getElementById("rankText");
+  const rankText = getById("rankText");
   if (rankText) rankText.textContent = pretty;
 
-  const rankBadge = document.getElementById("rankBadge");
+  const rankBadge = getById("rankBadge");
   if (rankBadge) {
     rankBadge.textContent = pretty;
     rankBadge.className = "badge net-rank-pill";
@@ -632,7 +674,7 @@ function setRankDisplay(rank) {
     else rankBadge.classList.add("net-rank-nov");
   }
 
-  const ddRank = document.getElementById("ddRank");
+  const ddRank = getById("ddRank");
   if (ddRank) {
     ddRank.textContent = pretty;
     ddRank.className = "badge";
@@ -643,7 +685,7 @@ function setRankDisplay(rank) {
 }
 
 function setAccountRing(progressPct) {
-  const ring = document.getElementById("accountRing");
+  const ring = getById("accountRing");
   if (!ring) return;
   const track = ring.parentElement?.querySelector(".net-ring-track");
 
@@ -663,17 +705,21 @@ function setAccountRing(progressPct) {
   }
 }
 
-function wireChrome(user) {
-  const openBtn = document.getElementById("openSidebarBtn");
-  const closeBtn = document.getElementById("closeSidebarBtn");
-  const sidebar = document.getElementById("slideSidebar");
-  const backdrop = document.getElementById("sideBackdrop");
+/* =========================================================
+   Chrome
+========================================================= */
 
-  const userBtn = document.getElementById("userBtn");
-  const dd = document.getElementById("userDropdown");
-  const topLogout = document.getElementById("topLogoutBtn");
-  const sideLogout = document.getElementById("sideLogoutBtn");
-  const logoutBtn = document.getElementById("logoutBtn");
+function wireChrome(user) {
+  const openBtn = getById("openSidebarBtn");
+  const closeBtn = getById("closeSidebarBtn");
+  const sidebar = getById("slideSidebar");
+  const backdrop = getById("sideBackdrop");
+
+  const userBtn = getById("userBtn");
+  const dd = getById("userDropdown");
+  const topLogout = getById("topLogoutBtn");
+  const sideLogout = getById("sideLogoutBtn");
+  const logoutBtn = getById("logoutBtn");
 
   const initial = (user.first_name || user.name || user.username || "S").trim().charAt(0).toUpperCase();
   const fullName = user.name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username || "Student";
@@ -717,9 +763,9 @@ function wireChrome(user) {
     window.location.href = "login.html";
   }
 
-  if (openBtn) openBtn.addEventListener("click", openSidebar);
-  if (closeBtn) closeBtn.addEventListener("click", closeSidebar);
-  if (backdrop) backdrop.addEventListener("click", closeSidebar);
+  openBtn?.addEventListener("click", openSidebar);
+  closeBtn?.addEventListener("click", closeSidebar);
+  backdrop?.addEventListener("click", closeSidebar);
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -743,13 +789,17 @@ function wireChrome(user) {
     toggleDropdown(false);
   });
 
-  if (topLogout) topLogout.addEventListener("click", doLogout);
-  if (sideLogout) sideLogout.addEventListener("click", doLogout);
-  if (logoutBtn) logoutBtn.addEventListener("click", doLogout);
+  topLogout?.addEventListener("click", doLogout);
+  sideLogout?.addEventListener("click", doLogout);
+  logoutBtn?.addEventListener("click", doLogout);
 }
 
+/* =========================================================
+   Activity widgets
+========================================================= */
+
 function renderLoginActivity(email, loginStreak) {
-  const grid = document.getElementById("loginActivity");
+  const grid = getById("loginActivity");
   if (!grid) return;
 
   const log = getLoginLog(email);
@@ -772,9 +822,9 @@ function renderLoginActivity(email, loginStreak) {
 }
 
 function renderAchievements(email, loginStreak) {
-  const earnedWrap = document.getElementById("earnedBadges");
-  const lockedWrap = document.getElementById("lockedBadges");
-  const countEl = document.getElementById("badgeCount");
+  const earnedWrap = getById("earnedBadges");
+  const lockedWrap = getById("lockedBadges");
+  const countEl = getById("badgeCount");
   if (!earnedWrap || !lockedWrap) return;
 
   const progress = getProgressCounts(email);
@@ -821,9 +871,13 @@ function renderAchievements(email, loginStreak) {
   lockedWrap.innerHTML = locked.length ? locked.join("") : `<div class="small text-muted">All badges unlocked.</div>`;
 
   if (countEl) countEl.textContent = `${earned.length} earned`;
-  const badgePill = document.getElementById("badgePill");
+  const badgePill = getById("badgePill");
   if (badgePill) badgePill.textContent = `${earned.length} badges`;
 }
+
+/* =========================================================
+   Stats load
+========================================================= */
 
 async function loadStats(email, user) {
   try {
@@ -871,29 +925,33 @@ async function loadStats(email, user) {
 
     setRankDisplay(rank);
 
-    document.getElementById("levelText").textContent = stats.level;
-    document.getElementById("xpText").textContent = stats.totalXP;
-    document.getElementById("nextText").textContent = `${stats.currentLevelXP} / ${stats.xpNext}`;
-    document.getElementById("xpBar").style.width = `${stats.pct}%`;
+    getById("levelText").textContent = stats.level;
+    getById("xpText").textContent = stats.totalXP;
+    getById("nextText").textContent = `${stats.currentLevelXP} / ${stats.xpNext}`;
+    getById("xpBar").style.width = `${stats.pct}%`;
 
     return stats;
-  } catch (e) {
+  } catch {
     const totalXP = Number(user?.xp || 0);
     const stats = computeXPFromTotal(totalXP);
     const rank = rankFromUser(user, stats.level);
 
     setRankDisplay(rank);
 
-    document.getElementById("levelText").textContent = stats.level;
-    document.getElementById("xpText").textContent = stats.totalXP;
-    document.getElementById("nextText").textContent = `${stats.currentLevelXP} / ${stats.xpNext}`;
-    document.getElementById("xpBar").style.width = `${stats.pct}%`;
+    getById("levelText").textContent = stats.level;
+    getById("xpText").textContent = stats.totalXP;
+    getById("nextText").textContent = `${stats.currentLevelXP} / ${stats.xpNext}`;
+    getById("xpBar").style.width = `${stats.pct}%`;
 
     return stats;
   }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+/* =========================================================
+   Init
+========================================================= */
+
+onReady(async () => {
   let user = getCurrentUser();
   if (!user.email) {
     window.location.href = "login.html";
@@ -923,10 +981,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const remotePrefs = await fetchPrefs(user.email);
   wirePrefs(user.email, remotePrefs);
 
-  const streakEl = document.getElementById("streakCount");
+  const streakEl = getById("streakCount");
   if (streakEl) streakEl.textContent = String(loginStreak);
 
-  const streakHint = document.getElementById("streakHint");
+  const streakHint = getById("streakHint");
   if (streakHint) {
     streakHint.textContent = loginStreak > 0
       ? "Log in tomorrow to keep your streak going."

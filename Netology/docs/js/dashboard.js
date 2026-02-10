@@ -30,12 +30,13 @@ Works with:
   // -----------------------------
   // Helpers
   // -----------------------------
-  const $ = (id) => document.getElementById(id);
+  const getById = (id) => document.getElementById(id);
   const BASE_XP = 100;
   const COURSE_CACHE_TTL = 5 * 60 * 1000;
   const COURSE_CACHE_VERSION = "db-only-v1";
 
-  function safeJSONParse(str, fallback) {
+  function parseJsonSafe(str, fallback) {
+    // LocalStorage can contain invalid JSON; fail gracefully.
     try { return JSON.parse(str); } catch { return fallback; }
   }
 
@@ -72,12 +73,14 @@ Works with:
   }
 
   async function fetchJson(url) {
+    // Simple JSON fetch helper with no-store to avoid stale results.
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   }
 
   function getCachedCourseIndex() {
+    // Small, time-boxed cache to speed up dashboard first paint.
     try {
       const ver = localStorage.getItem("netology_courses_cache_v");
       if (ver !== COURSE_CACHE_VERSION) return { index: null, fresh: false };
@@ -102,8 +105,8 @@ Works with:
 
   function getCurrentUser() {
     return (
-      safeJSONParse(localStorage.getItem("netology_user"), null) ||
-      safeJSONParse(localStorage.getItem("user"), null) ||
+      parseJsonSafe(localStorage.getItem("netology_user"), null) ||
+      parseJsonSafe(localStorage.getItem("user"), null) ||
       null
     );
   }
@@ -143,6 +146,7 @@ Works with:
   }
 
   function computeXP(user) {
+    // Converts total XP into level + progress for UI display.
     const totalXP = Number(user?.xp) || 0;
     const level = levelFromXP(totalXP);
     const levelStart = totalXpForLevel(level);
@@ -184,7 +188,7 @@ Works with:
 
   function getLoginLog(email) {
     const raw = localStorage.getItem(`netology_login_log:${email}`);
-    return safeJSONParse(raw, []);
+    return parseJsonSafe(raw, []);
   }
 
   function saveLoginLog(email, log) {
@@ -237,7 +241,7 @@ Works with:
 
   function getBadges(email) {
     if (Array.isArray(window.__dashAchievements)) return window.__dashAchievements;
-    const raw = safeJSONParse(localStorage.getItem(`netology_badges:${email}`), []);
+    const raw = parseJsonSafe(localStorage.getItem(`netology_badges:${email}`), []);
     return Array.isArray(raw) ? raw : [];
   }
 
@@ -295,12 +299,12 @@ Works with:
 
   function bumpUserXP(email, delta) {
     if (!delta) return;
-    const rawUser = safeJSONParse(localStorage.getItem("user"), null);
+    const rawUser = parseJsonSafe(localStorage.getItem("user"), null);
     if (rawUser && rawUser.email === email) {
       rawUser.xp = Math.max(0, Number(rawUser.xp || 0) + delta);
       localStorage.setItem("user", JSON.stringify(rawUser));
     }
-    const rawNet = safeJSONParse(localStorage.getItem("netology_user"), null);
+    const rawNet = parseJsonSafe(localStorage.getItem("netology_user"), null);
     if (rawNet && rawNet.email === email) {
       rawNet.xp = Math.max(0, Number(rawNet.xp || 0) + delta);
       localStorage.setItem("netology_user", JSON.stringify(rawNet));
@@ -342,7 +346,7 @@ Works with:
   // Welcome ring
   // Your HTML uses the course-style ring (r=58, dasharray ~364.42)
   function setWelcomeRing(progressPct) {
-    const ring = $("welcomeRing");
+    const ring = getById("welcomeRing");
     if (!ring) return;
     const track = ring.parentElement?.querySelector(".net-ring-track");
 
@@ -367,8 +371,8 @@ Works with:
   // Brand routing (dashboard vs index)
   // -----------------------------
   function wireBrandRouting() {
-    const topBrand = $("topBrand");
-    const sideBrand = $("sideBrand");
+    const topBrand = getById("topBrand");
+    const sideBrand = getById("sideBrand");
     const target = isLoggedIn() ? "dashboard.html" : "index.html";
 
     if (topBrand) topBrand.setAttribute("href", target);
@@ -379,10 +383,11 @@ Works with:
   // Sidebar
   // -----------------------------
   function setupSidebar() {
-    const openBtn = $("openSidebarBtn");
-    const closeBtn = $("closeSidebarBtn");
-    const sidebar = $("slideSidebar");
-    const backdrop = $("sideBackdrop");
+    // Slide-in sidebar (backdrop + ESC to close).
+    const openBtn = getById("openSidebarBtn");
+    const closeBtn = getById("closeSidebarBtn");
+    const sidebar = getById("slideSidebar");
+    const backdrop = getById("sideBackdrop");
 
     function open() {
       if (!sidebar || !backdrop) return;
@@ -417,8 +422,9 @@ Works with:
   // User dropdown
   // -----------------------------
   function setupUserDropdown() {
-    const btn = $("userBtn");
-    const dd = $("userDropdown");
+    // User dropdown toggle with outside-click + ESC close.
+    const btn = getById("userBtn");
+    const dd = getById("userDropdown");
 
     function open() {
       if (!btn || !dd) return;
@@ -452,8 +458,8 @@ Works with:
   // Logout
   // -----------------------------
   function setupLogout() {
-    const topLogout = $("topLogoutBtn");
-    const sideLogout = $("sideLogoutBtn");
+    const topLogout = getById("topLogoutBtn");
+    const sideLogout = getById("sideLogoutBtn");
 
     function doLogout() {
       localStorage.removeItem("netology_user");
@@ -660,7 +666,7 @@ Works with:
       return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
     }
     const raw = localStorage.getItem(`netology_completions:${email}:${courseId}`);
-    const payload = safeJSONParse(raw, {}) || {};
+    const payload = parseJsonSafe(raw, {}) || {};
     const lessonArr = payload.lesson || payload.lessons || payload.learn || [];
     const quizArr = payload.quiz || payload.quizzes || [];
     const chArr = payload.challenge || payload.challenges || [];
@@ -690,13 +696,13 @@ Works with:
 
   function getProgressLog(email) {
     if (!email) return [];
-    return safeJSONParse(localStorage.getItem(`netology_progress_log:${email}`), []) || [];
+    return parseJsonSafe(localStorage.getItem(`netology_progress_log:${email}`), []) || [];
   }
 
   function getStartedCourses(email) {
     if (!email) return [];
     const raw = localStorage.getItem(`netology_started_courses:${email}`);
-    const list = safeJSONParse(raw, []) || [];
+    const list = parseJsonSafe(raw, []) || [];
     return Array.isArray(list) ? list : [];
   }
 
@@ -734,7 +740,7 @@ Works with:
   }
 
   function renderRecentActivity() {
-    const list = $("recentActivityList");
+    const list = getById("recentActivityList");
     if (!list) return;
     const user = getCurrentUser();
     const email = user?.email;
@@ -885,7 +891,7 @@ Works with:
     const q = (window.__dashQuery || "").trim().toLowerCase();
     const diff = window.__dashDiff || "all";
 
-    const grid = $("coursesGrid");
+    const grid = getById("coursesGrid");
     if (!grid) return;
 
     const cards = Array.from(grid.querySelectorAll(".net-coursecard"));
@@ -906,7 +912,7 @@ Works with:
 
     // If nothing matches, show empty-state (but DON'T permanently destroy the grid content)
     const emptyId = "dashEmptyState";
-    const existing = $(emptyId);
+    const existing = getById(emptyId);
     if (existing) existing.remove();
 
     if (shown === 0) {
@@ -923,8 +929,8 @@ Works with:
   }
 
   function setupCourseSearchAndChips() {
-    const desktop = $("courseSearch");
-    const mobile = $("mobileSearch");
+    const desktop = getById("courseSearch");
+    const mobile = getById("mobileSearch");
     const chips = Array.from(document.querySelectorAll(".net-chip[data-diff]"));
 
     window.__dashQuery = "";
@@ -988,7 +994,7 @@ Works with:
   // Continue learning
   // -----------------------------
   async function renderContinueLearning() {
-    const box = $("continueBox");
+    const box = getById("continueBox");
     if (!box) return;
 
     const user = getCurrentUser();
@@ -1053,9 +1059,9 @@ Works with:
   // Render courses
   // -----------------------------
   async function renderCourses() {
-    const grid = $("coursesGrid");
+    const grid = getById("coursesGrid");
     if (!grid) return;
-    const banner = $("courseErrorBanner");
+    const banner = getById("courseErrorBanner");
 
     const user = getCurrentUser();
     const uLevel = userNumericLevel(user);
@@ -1064,6 +1070,7 @@ Works with:
 
     let courses = [];
 
+    // Prefer fresh cache, then API, then stale cache.
     const cached = getCachedCourseIndex();
     if (cached.index && cached.fresh) {
       courses = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k]));
@@ -1094,7 +1101,7 @@ Works with:
           <div class="small text-muted">Please check back later.</div>
         </div>
       `;
-      const lockNote = $("lockNote");
+      const lockNote = getById("lockNote");
       if (lockNote) lockNote.style.display = "none";
       if (banner) banner.classList.remove("d-none");
       return;
@@ -1112,7 +1119,7 @@ Works with:
 
     applyCourseFilters();
 
-    const lockNote = $("lockNote");
+    const lockNote = getById("lockNote");
     if (lockNote) {
       if (anyLocked) {
         lockNote.style.display = "";
@@ -1145,16 +1152,16 @@ Works with:
       completed = summary.coursesDone || 0;
     }
 
-    if ($("statInProgress")) $("statInProgress").textContent = String(inProgress);
-    if ($("statCompleted")) $("statCompleted").textContent = String(completed);
-    if ($("statLessons")) $("statLessons").textContent = String(lessonsDone);
-    if ($("statQuizzes")) $("statQuizzes").textContent = String(quizzesDone);
+    if (getById("statInProgress")) getById("statInProgress").textContent = String(inProgress);
+    if (getById("statCompleted")) getById("statCompleted").textContent = String(completed);
+    if (getById("statLessons")) getById("statLessons").textContent = String(lessonsDone);
+    if (getById("statQuizzes")) getById("statQuizzes").textContent = String(quizzesDone);
 
     // Login streak + streak badge progress
     const loginLog = email ? getLoginLog(email) : [];
     const loginStreak = computeLoginStreak(loginLog);
-    const topStreak = $("topStreakDays");
-    const topStreakPill = $("topStreakPill");
+    const topStreak = getById("topStreakDays");
+    const topStreakPill = getById("topStreakPill");
     if (topStreak) {
       topStreak.textContent = loginStreak > 0
         ? `${loginStreak} day${loginStreak === 1 ? "" : "s"}`
@@ -1236,7 +1243,7 @@ Works with:
     };
     const shuffled = taskPool.sort(() => rng() - 0.5).slice(0, 3);
 
-    const taskWrap = $("weeklyTasks");
+    const taskWrap = getById("weeklyTasks");
     if (taskWrap) {
       taskWrap.innerHTML = shuffled.map((t) => `
         <div class="dash-task" data-tip="${escapeHtml(`${t.tip} (+${t.xp} XP)`) }">
@@ -1250,12 +1257,12 @@ Works with:
     }
 
     const nextLoginBadge = streakDefs.find((d) => !earnedBadgeIds.has(d.id));
-    if ($("weeklyGoalText")) {
+    if (getById("weeklyGoalText")) {
       if (!nextLoginBadge) {
-        $("weeklyGoalText").textContent = "All streak badges earned";
+        getById("weeklyGoalText").textContent = "All streak badges earned";
       } else {
         const remaining = Math.max(0, nextLoginBadge.target - loginStreak);
-        $("weeklyGoalText").textContent = remaining === 0
+        getById("weeklyGoalText").textContent = remaining === 0
           ? `Earned ${nextLoginBadge.target}-day badge`
           : `${remaining} days to ${nextLoginBadge.target}-day badge`;
       }
@@ -1275,7 +1282,7 @@ Works with:
       return (counts[a.type] || 0) < a.target;
     });
 
-    if ($("nextBadgeText")) {
+    if (getById("nextBadgeText")) {
       if (pending.length) {
         const next = pending[0];
         const current = next.type === "login" ? loginStreak : (counts[next.type] || 0);
@@ -1285,15 +1292,15 @@ Works with:
           next.type === "quizzes" ? "quizzes" :
           next.type === "challenges" ? "topologies" :
           "lessons";
-        $("nextBadgeText").textContent = remaining === 0
+        getById("nextBadgeText").textContent = remaining === 0
           ? `Badge ready: ${next.title}`
           : `Complete ${remaining} ${label}`;
       } else {
-        $("nextBadgeText").textContent = "All badges earned";
+        getById("nextBadgeText").textContent = "All badges earned";
       }
     }
 
-    const list = $("achievementsList");
+    const list = getById("achievementsList");
     if (list) {
       if (!pending.length) {
         list.innerHTML = `<div class="small text-muted">All achievements completed. Great work.</div>`;
@@ -1313,7 +1320,7 @@ Works with:
       }
     }
 
-    const scroller = $("achieveScroller");
+    const scroller = getById("achieveScroller");
     if (scroller) {
       if (!pending.length) {
         scroller.innerHTML = `<div class="small text-muted">All achievements completed. Great work.</div>`;
@@ -1334,13 +1341,13 @@ Works with:
       }
     }
 
-    if ($("focusText")) {
-      $("focusText").textContent = loginStreak > 0
+    if (getById("focusText")) {
+      getById("focusText").textContent = loginStreak > 0
         ? "Log in tomorrow to keep your streak"
         : "Log in today to start a streak";
     }
-    if ($("focusXp")) {
-      $("focusXp").textContent = nextLoginBadge ? `+${nextLoginBadge.xp} XP` : "XP varies";
+    if (getById("focusXp")) {
+      getById("focusXp").textContent = nextLoginBadge ? `+${nextLoginBadge.xp} XP` : "XP varies";
     }
 
     renderRecentActivity();
@@ -1361,41 +1368,41 @@ Works with:
 
     // avatar = first letter of name/username
     const initial = (name || "S").trim().charAt(0).toUpperCase();
-    const streakPill = $("topStreakPill");
+    const streakPill = getById("topStreakPill");
     if (streakPill) streakPill.style.display = user?.email ? "" : "none";
 
     const lvl = userNumericLevel(user);
     const { totalXP, currentLevelXP, xpNext, progressPct, toNext } = computeXP(user);
 
     // Welcome
-    if ($("welcomeName")) $("welcomeName").textContent = name;
+    if (getById("welcomeName")) getById("welcomeName").textContent = name;
 
     // Top user
-    if ($("topUserName")) $("topUserName").textContent = name;
-    if ($("topAvatar")) $("topAvatar").textContent = initial;
+    if (getById("topUserName")) getById("topUserName").textContent = name;
+    if (getById("topAvatar")) getById("topAvatar").textContent = initial;
 
     // Dropdown
-    if ($("ddName")) $("ddName").textContent = name;
-    if ($("ddEmail")) $("ddEmail").textContent = email;
-    if ($("ddAvatar")) $("ddAvatar").textContent = initial;
-    if ($("ddLevel")) $("ddLevel").textContent = `Level ${lvl}`;
-    if ($("ddRank")) $("ddRank").textContent = rank;
+    if (getById("ddName")) getById("ddName").textContent = name;
+    if (getById("ddEmail")) getById("ddEmail").textContent = email;
+    if (getById("ddAvatar")) getById("ddAvatar").textContent = initial;
+    if (getById("ddLevel")) getById("ddLevel").textContent = `Level ${lvl}`;
+    if (getById("ddRank")) getById("ddRank").textContent = rank;
 
     // Sidebar user
-    if ($("sideUserName")) $("sideUserName").textContent = name;
-    if ($("sideUserEmail")) $("sideUserEmail").textContent = email;
-    if ($("sideAvatar")) $("sideAvatar").textContent = initial;
+    if (getById("sideUserName")) getById("sideUserName").textContent = name;
+    if (getById("sideUserEmail")) getById("sideUserEmail").textContent = email;
+    if (getById("sideAvatar")) getById("sideAvatar").textContent = initial;
 
-    if ($("sideLevelBadge")) $("sideLevelBadge").textContent = `Lv ${lvl}`;
-    if ($("sideXpText")) $("sideXpText").textContent = `${currentLevelXP}/${xpNext}`;
-    if ($("sideXpBar")) $("sideXpBar").style.width = `${progressPct}%`;
-    if ($("sideXpHint")) $("sideXpHint").textContent = `${toNext} XP to next level`;
+    if (getById("sideLevelBadge")) getById("sideLevelBadge").textContent = `Lv ${lvl}`;
+    if (getById("sideXpText")) getById("sideXpText").textContent = `${currentLevelXP}/${xpNext}`;
+    if (getById("sideXpBar")) getById("sideXpBar").style.width = `${progressPct}%`;
+    if (getById("sideXpHint")) getById("sideXpHint").textContent = `${toNext} XP to next level`;
 
     // Welcome ring block
-    if ($("welcomeLevel")) $("welcomeLevel").textContent = String(lvl);
-    if ($("welcomeRank")) $("welcomeRank").textContent = rank;
-    if ($("welcomeXpText")) $("welcomeXpText").textContent = `${currentLevelXP}/${xpNext} XP`;
-    if ($("welcomeLevelHint")) $("welcomeLevelHint").textContent = `${toNext} XP to next level`;
+    if (getById("welcomeLevel")) getById("welcomeLevel").textContent = String(lvl);
+    if (getById("welcomeRank")) getById("welcomeRank").textContent = rank;
+    if (getById("welcomeXpText")) getById("welcomeXpText").textContent = `${currentLevelXP}/${xpNext} XP`;
+    if (getById("welcomeLevelHint")) getById("welcomeLevelHint").textContent = `${toNext} XP to next level`;
 
     setWelcomeRing(progressPct);
   }
@@ -1460,7 +1467,7 @@ Works with:
       await safeStepAsync("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
 
       if (loginInfo.isNew) {
-        const pill = $("topStreakPill");
+        const pill = getById("topStreakPill");
         if (pill) {
           pill.classList.remove("is-animate");
           requestAnimationFrame(() => {

@@ -15,6 +15,17 @@ Now includes:
 */
 
 const COURSE_CONTENT = {
+  // Data shape (high-level):
+  // COURSE_CONTENT[courseId] = {
+  //   title, description, difficulty, required_level, estimatedTime, xpReward, category,
+  //   units: [
+  //     {
+  //       title, about,
+  //       sections: [{ title, items: [{ type, title, content, duration, xp, challenge? }] }],
+  //       lessons: [{ title, learn, content, objectives, quiz? }]
+  //     }
+  //   ]
+  // }
   // ============================
   // NOVICE COURSES (Level 1+)
   // ============================

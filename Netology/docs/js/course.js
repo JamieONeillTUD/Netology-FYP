@@ -60,10 +60,10 @@ What this file does:
      HELPERS
   ========================================================= */
 
-  const el = (id) => document.getElementById(id);
+  const getById = (id) => document.getElementById(id);
 
   function setText(id, text) {
-    const n = el(id);
+    const n = getById(id);
     if (n) n.textContent = String(text ?? "");
   }
 
@@ -98,6 +98,7 @@ What this file does:
   }
 
   function computeXPFromTotal(totalXP) {
+    // Convert total XP into level + progress within the current level.
     const level = levelFromXP(totalXP);
     const levelStart = totalXpForLevel(level);
     const currentLevelXP = Math.max(0, totalXP - levelStart);
@@ -107,7 +108,8 @@ What this file does:
     return { level, currentLevelXP, xpNext, xpProgressPct, toNext };
   }
 
-  function safeJson(str) {
+  function parseJsonSafe(str) {
+    // Avoid crashing if localStorage contains invalid JSON.
     try { return JSON.parse(str); } catch { return null; }
   }
 
@@ -120,18 +122,18 @@ What this file does:
       .replaceAll("'", "&#039;");
   }
 
-  function cssEscape(str) {
+  function cssEscapeAttr(str) {
     // minimal escape for attribute selectors
     return String(str ?? "").replace(/"/g, '\\"');
   }
 
-  function cap(s) {
+  function capitalize(s) {
     const t = String(s || "");
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
   }
 
   function showAria(text) {
-    const aria = el("ariaStatus");
+    const aria = getById("ariaStatus");
     if (aria) aria.textContent = String(text || "");
   }
 
@@ -159,7 +161,7 @@ What this file does:
       date: new Date().toISOString().slice(0, 10)
     };
     const raw = localStorage.getItem(LOG_KEY(email));
-    const list = safeJson(raw) || [];
+    const list = parseJsonSafe(raw) || [];
     list.push(entry);
     localStorage.setItem(LOG_KEY(email), JSON.stringify(list));
   }
@@ -167,7 +169,7 @@ What this file does:
   function trackCourseStart(email, courseId, lessonNumber) {
     if (!email || !courseId) return;
     const raw = localStorage.getItem(STARTED_KEY(email));
-    const list = safeJson(raw) || [];
+    const list = parseJsonSafe(raw) || [];
     const existing = list.find((c) => String(c.id) === String(courseId));
     const payload = {
       id: String(courseId),
@@ -187,7 +189,7 @@ What this file does:
 
   function getStartedLessonNumber(email, courseId) {
     if (!email || !courseId) return null;
-    const list = safeJson(localStorage.getItem(STARTED_KEY(email))) || [];
+    const list = parseJsonSafe(localStorage.getItem(STARTED_KEY(email))) || [];
     const entry = list.find((c) => String(c.id) === String(courseId));
     return entry ? Number(entry.lastLesson || 0) : null;
   }
@@ -208,7 +210,7 @@ What this file does:
   function bumpUserXP(email, addXP) {
     if (!email || !addXP) return;
     const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
-    const user = safeJson(raw) || {};
+    const user = parseJsonSafe(raw) || {};
     if (!user || user.email !== email) return;
     const nextXP = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
     user.xp = nextXP;
@@ -223,8 +225,8 @@ What this file does:
   // Accept both keys (older + newer)
   function getCurrentUser() {
     return (
-      safeJson(localStorage.getItem("netology_user")) ||
-      safeJson(localStorage.getItem("user")) ||
+      parseJsonSafe(localStorage.getItem("netology_user")) ||
+      parseJsonSafe(localStorage.getItem("user")) ||
       null
     );
   }
@@ -344,9 +346,9 @@ What this file does:
   ========================================================= */
 
   function wireBrandRouting() {
-    const brand = el("brandHome");
-    const sideBrand = el("sideBrandHome");
-    const back = el("backLink");
+    const brand = getById("brandHome");
+    const sideBrand = getById("sideBrandHome");
+    const back = getById("backLink");
 
     const loggedIn = !!(state.user && state.user.email);
     const href = loggedIn ? "dashboard.html" : "index.html";
@@ -368,12 +370,12 @@ What this file does:
     setText("sideUserEmail", "Sign in to save progress");
     setText("sideLevelBadge", "Lv —");
     setText("sideXPText", "—");
-    const bar = el("sideXPBar");
+    const bar = getById("sideXPBar");
     if (bar) bar.style.width = "0%";
 
     // hide logout buttons
-    const topLogout = el("topLogoutBtn");
-    const sideLogout = el("sideLogoutBtn");
+    const topLogout = getById("topLogoutBtn");
+    const sideLogout = getById("sideLogoutBtn");
     if (topLogout) topLogout.style.display = "none";
     if (sideLogout) sideLogout.style.display = "none";
 
@@ -387,17 +389,17 @@ What this file does:
     fillIdentity(user);
 
     // logout
-    const topLogout = el("topLogoutBtn");
-    const sideLogout = el("sideLogoutBtn");
+    const topLogout = getById("topLogoutBtn");
+    const sideLogout = getById("sideLogoutBtn");
     if (topLogout) topLogout.addEventListener("click", logout);
     if (sideLogout) sideLogout.addEventListener("click", logout);
   }
 
   function wireSidebar() {
-    const openBtn = el("openSidebarBtn");
-    const closeBtn = el("closeSidebarBtn");
-    const sidebar = el("slideSidebar");
-    const backdrop = el("sideBackdrop");
+    const openBtn = getById("openSidebarBtn");
+    const closeBtn = getById("closeSidebarBtn");
+    const sidebar = getById("slideSidebar");
+    const backdrop = getById("sideBackdrop");
 
     const open = () => {
       if (!sidebar || !backdrop) return;
@@ -430,8 +432,8 @@ What this file does:
   }
 
   function wireUserDropdown() {
-    const userBtn = el("userBtn");
-    const dd = el("userDropdown");
+    const userBtn = getById("userBtn");
+    const dd = getById("userDropdown");
     if (!userBtn || !dd) return;
 
     userBtn.addEventListener("click", (e) => {
@@ -453,8 +455,8 @@ What this file does:
   }
 
   function toggleDropdown(force) {
-    const dd = el("userDropdown");
-    const userBtn = el("userBtn");
+    const dd = getById("userDropdown");
+    const userBtn = getById("userBtn");
     if (!dd) return;
 
     const open = typeof force === "boolean" ? force : !dd.classList.contains("is-open");
@@ -524,7 +526,7 @@ What this file does:
       // Sidebar stats
       setText("sideLevelBadge", `Lv ${level}`);
       setText("sideXPText", `${currentLevelXP}/${xpNext}`);
-      const sideXPBar = el("sideXPBar");
+      const sideXPBar = getById("sideXPBar");
       if (sideXPBar) sideXPBar.style.width = `${clamp(xpProgressPct, 0, 100)}%`;
 
     } catch (_) {
@@ -541,13 +543,13 @@ What this file does:
 
       setText("sideLevelBadge", `Lv ${state.stats.level}`);
       setText("sideXPText", `${state.stats.currentLevelXP}/${state.stats.xpNext}`);
-      const sideXPBar = el("sideXPBar");
+      const sideXPBar = getById("sideXPBar");
       if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
     }
   }
 
   async function loadCompletions(email, courseId) {
-    // 1) Try backend
+    // 1) Try backend (source of truth if available).
     try {
       if (API()) {
         const res = await fetch(ENDPOINTS.getCompletions(email, courseId));
@@ -575,8 +577,8 @@ What this file does:
       // ignore
     }
 
-    // 2) Fallback localStorage
-    const cached = safeJson(localStorage.getItem(LS_KEY(email, courseId)));
+    // 2) Fallback to localStorage for offline mode.
+    const cached = parseJsonSafe(localStorage.getItem(LS_KEY(email, courseId)));
     if (cached) applyCompletionsPayload(cached);
   }
 
@@ -708,13 +710,14 @@ What this file does:
   }
 
   function normalizeUnitItems(unit, startingLessonNumber) {
+    // Accept multiple content shapes (sections array, sections object, or lessons array).
     const items = [];
     let lessonCounter = startingLessonNumber;
 
     const pushItem = (type, data) => {
       items.push({
         type, // learn|quiz|sandbox|challenge
-        title: data.title || data.name || cap(type),
+        title: data.title || data.name || capitalize(type),
         content: data.content || data.learn || data.text || "",
         duration: data.duration || data.time || "—",
         xp: Number(data.xp || data.xpReward || data.xp_reward || 0),
@@ -765,7 +768,9 @@ What this file does:
       });
     }
 
-    // Assign lesson_number
+    // Assign lesson_number if missing:
+    // - learn items increment the lesson counter
+    // - quiz/practice/challenge attach to the most recent learn item
     let lastLearn = lessonCounter - 1;
 
     items.forEach((it) => {
@@ -899,17 +904,17 @@ What this file does:
     setText("metaXP", `${state.course.totalXP} XP Total`);
 
     // difficulty pill class
-    const pill = el("difficultyPill");
+    const pill = getById("difficultyPill");
     if (pill) {
-      pill.textContent = cap(state.course.difficulty);
+      pill.textContent = capitalize(state.course.difficulty);
       pill.classList.remove("net-diff-novice", "net-diff-intermediate", "net-diff-advanced");
       pill.classList.add(`net-diff-${state.course.difficulty}`);
     }
 
     // locked?
-    const lockedPill = el("courseLockedPill");
-    const lockedExplainer = el("lockedExplainer");
-    const lockedText = el("lockedText");
+    const lockedPill = getById("courseLockedPill");
+    const lockedExplainer = getById("lockedExplainer");
+    const lockedText = getById("lockedText");
 
     if (state.courseLocked) {
       lockedPill?.classList.remove("d-none");
@@ -917,24 +922,24 @@ What this file does:
       if (lockedText) lockedText.textContent = `Locked — requires Level ${state.course.required_level}.`;
 
       // disable primary actions
-      const continueBtn = el("continueBtn");
-      const openSandboxBtn = el("openSandboxBtn");
+      const continueBtn = getById("continueBtn");
+      const openSandboxBtn = getById("openSandboxBtn");
       continueBtn && (continueBtn.disabled = true);
       openSandboxBtn && (openSandboxBtn.disabled = true);
     } else {
       lockedPill?.classList.add("d-none");
       lockedExplainer?.classList.add("d-none");
 
-      const continueBtn = el("continueBtn");
-      const openSandboxBtn = el("openSandboxBtn");
+      const continueBtn = getById("continueBtn");
+      const openSandboxBtn = getById("openSandboxBtn");
       continueBtn && (continueBtn.disabled = false);
       openSandboxBtn && (openSandboxBtn.disabled = false);
     }
 
     // completed?
-    const completedPill = el("courseCompletedPill");
-    const reviewBtn = el("reviewBtn");
-    const continueBtn = el("continueBtn");
+    const completedPill = getById("courseCompletedPill");
+    const reviewBtn = getById("reviewBtn");
+    const continueBtn = getById("continueBtn");
 
     if (state.courseCompleted) {
       completedPill?.classList.remove("d-none");
@@ -955,7 +960,7 @@ What this file does:
     setText("progressText", `${prog.pct}%`);
     setText("progressCount", `${prog.done}/${prog.total}`);
 
-    const ring = el("progressRing");
+    const ring = getById("progressRing");
     if (ring) {
       const CIRC = 2 * Math.PI * 58; // r=58 (matches HTML)
       const offset = CIRC * (1 - prog.pct / 100);
@@ -963,12 +968,12 @@ What this file does:
       ring.style.strokeDashoffset = `${offset.toFixed(2)}`;
     }
 
-    const bar = el("progressBar");
+    const bar = getById("progressBar");
     if (bar) bar.style.width = `${clamp(prog.pct, 0, 100)}%`;
 
     // preview drawer ring
-    const previewRing = el("previewRing");
-    const previewPct = el("previewRingPct");
+    const previewRing = getById("previewRing");
+    const previewPct = getById("previewRingPct");
     if (previewPct) previewPct.textContent = `${prog.pct}%`;
     if (previewRing) {
       const CIRC = 2 * Math.PI * 26; // r=26 (matches HTML)
@@ -979,9 +984,9 @@ What this file does:
 
     // sandbox buttons carry course context
     const q = `course_id=${encodeURIComponent(state.courseId)}`;
-    const topSandbox = el("topSandboxLink");
-    const sidebarSandboxBtn = el("sidebarSandboxBtn");
-    const openSandboxBtn = el("openSandboxBtn");
+    const topSandbox = getById("topSandboxLink");
+    const sidebarSandboxBtn = getById("sidebarSandboxBtn");
+    const openSandboxBtn = getById("openSandboxBtn");
 
     if (topSandbox) topSandbox.setAttribute("href", `sandbox.html?${q}`);
     if (sidebarSandboxBtn) sidebarSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
@@ -989,8 +994,8 @@ What this file does:
   }
 
   function renderModules() {
-    const wrap = el("modulesWrap");
-    const empty = el("modulesEmpty");
+    const wrap = getById("modulesWrap");
+    const empty = getById("modulesEmpty");
     if (!wrap) return;
 
     if (!state.course.modules.length) {
@@ -1145,10 +1150,10 @@ What this file does:
     setText("sideXPEarned", xpEarned);
 
     const next = getRequiredItems().find((it) => !isItemCompleted(it));
-    setText("nextStepText", next ? `${cap(next.type)}: ${next.title}` : "All done 🎉");
+    setText("nextStepText", next ? `${capitalize(next.type)}: ${next.title}` : "All done 🎉");
 
-    const nextBtn = el("nextStepBtn");
-    const jumpBtn = el("jumpToFirstIncompleteBtn");
+    const nextBtn = getById("nextStepBtn");
+    const jumpBtn = getById("jumpToFirstIncompleteBtn");
 
     if (nextBtn) nextBtn.disabled = !next || state.courseLocked;
     if (jumpBtn) jumpBtn.disabled = !next || state.courseLocked;
@@ -1160,8 +1165,8 @@ What this file does:
 
   function wireCourseActions() {
     // expand / collapse
-    const expandAllBtn = el("expandAllBtn");
-    const collapseAllBtn = el("collapseAllBtn");
+    const expandAllBtn = getById("expandAllBtn");
+    const collapseAllBtn = getById("collapseAllBtn");
 
     expandAllBtn?.addEventListener("click", () => {
       state.course.modules.forEach((m) => state.expandedModules.add(m.id));
@@ -1176,7 +1181,7 @@ What this file does:
     });
 
     // continue button
-    const continueBtn = el("continueBtn");
+    const continueBtn = getById("continueBtn");
     continueBtn?.addEventListener("click", () => {
       if (state.courseLocked) return;
 
@@ -1190,14 +1195,14 @@ What this file does:
     });
 
     // review button
-    const reviewBtn = el("reviewBtn");
+    const reviewBtn = getById("reviewBtn");
     reviewBtn?.addEventListener("click", () => {
       if (state.learnItemsFlat[0]) openLearnModalByLessonNumber(state.learnItemsFlat[0].lesson_number);
     });
 
     // next step buttons
-    const nextStepBtn = el("nextStepBtn");
-    const jumpBtn = el("jumpToFirstIncompleteBtn");
+    const nextStepBtn = getById("nextStepBtn");
+    const jumpBtn = getById("jumpToFirstIncompleteBtn");
     const clickNext = () => {
       if (state.courseLocked) return;
       const next = getRequiredItems().find((it) => !isItemCompleted(it));
@@ -1222,7 +1227,7 @@ What this file does:
         if (state.expandedModules.has(id)) state.expandedModules.delete(id);
         else state.expandedModules.add(id);
 
-        const body = document.querySelector(`[data-module-body="${cssEscape(id)}"]`);
+        const body = document.querySelector(`[data-module-body="${cssEscapeAttr(id)}"]`);
         if (body) body.style.display = state.expandedModules.has(id) ? "" : "none";
 
         const icon = btn.querySelector("i.bi");
@@ -1334,9 +1339,9 @@ What this file does:
   ========================================================= */
 
   function wireLessonModalControls() {
-    const prevBtn = el("lessonPrevBtn");
-    const nextBtn = el("lessonNextBtn");
-    const completeBtn = el("lessonCompleteBtn");
+    const prevBtn = getById("lessonPrevBtn");
+    const nextBtn = getById("lessonNextBtn");
+    const completeBtn = getById("lessonCompleteBtn");
 
     prevBtn?.addEventListener("click", () => moveLearn(-1));
     nextBtn?.addEventListener("click", () => moveLearn(1));
@@ -1364,7 +1369,7 @@ What this file does:
 
     fillLessonModal(state.activeLearn);
 
-    const drawerEl = el("lessonPreviewDrawer");
+    const drawerEl = getById("lessonPreviewDrawer");
     if (!drawerEl) return;
 
     // Bootstrap 5 Offcanvas
@@ -1378,7 +1383,7 @@ What this file does:
     setText("lessonMetaTime", item.duration || "—");
     setText("lessonMetaXP", Number(item.xp || 0));
 
-    const body = el("lessonPreviewBody");
+    const body = getById("lessonPreviewBody");
     if (body) {
       const c = item.content;
       if (Array.isArray(c)) {
@@ -1398,7 +1403,7 @@ What this file does:
       }
     }
 
-    const resEl = el("lessonPreviewResources");
+    const resEl = getById("lessonPreviewResources");
     if (resEl) {
       const resources = Array.isArray(item.resources) && item.resources.length
         ? item.resources
@@ -1413,7 +1418,7 @@ What this file does:
       `).join("");
     }
 
-    const openBtn = el("lessonOpenBtn");
+    const openBtn = getById("lessonOpenBtn");
     if (openBtn) {
       openBtn.setAttribute(
         "href",
@@ -1470,7 +1475,7 @@ What this file does:
   }
 
   function animatePreviewRing() {
-    const ring = el("previewRing");
+    const ring = getById("previewRing");
     if (!ring) return;
     const prog = computeProgress();
     const CIRC = 2 * Math.PI * 26;
@@ -1550,9 +1555,9 @@ What this file does:
   }
 
   function updateLessonModalButtons() {
-    const prevBtn = el("lessonPrevBtn");
-    const nextBtn = el("lessonNextBtn");
-    const completeBtn = el("lessonCompleteBtn");
+    const prevBtn = getById("lessonPrevBtn");
+    const nextBtn = getById("lessonNextBtn");
+    const completeBtn = getById("lessonCompleteBtn");
 
     if (prevBtn) prevBtn.disabled = state.activeLearnIndex <= 0;
     if (nextBtn) nextBtn.disabled = state.activeLearnIndex >= state.learnItemsFlat.length - 1;
@@ -1579,11 +1584,11 @@ What this file does:
       (t === "challenge" && state.completed.challenge.has(n));
 
     if (already) {
-      showAria(`${cap(t)} already completed.`);
+      showAria(`${capitalize(t)} already completed.`);
       return;
     }
 
-    // Optimistic update
+    // Optimistic update so the UI updates immediately.
     if (t === "learn") state.completed.lesson.add(n);
     if (t === "quiz") state.completed.quiz.add(n);
     if (t === "challenge") state.completed.challenge.add(n);
@@ -1597,7 +1602,7 @@ What this file does:
     });
     bumpUserXP(state.user.email, Number(xp || 0));
 
-    showAria(`${cap(t)} completed. +${Number(xp || 0)} XP`);
+    showAria(`${capitalize(t)} completed. +${Number(xp || 0)} XP`);
 
     // Update local stats so UI reflects progress immediately
     state.stats.xp = Number(state.stats.xp || 0) + Number(xp || 0);
@@ -1609,7 +1614,7 @@ What this file does:
 
     setText("sideLevelBadge", `Lv ${state.stats.level}`);
     setText("sideXPText", `${state.stats.currentLevelXP}/${state.stats.xpNext}`);
-    const sideXPBar = el("sideXPBar");
+    const sideXPBar = getById("sideXPBar");
     if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
 
     computeLockState();

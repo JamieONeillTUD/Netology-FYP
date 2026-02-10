@@ -11,7 +11,7 @@ AI PROMPTED CODE BELOW:
 create a simple network topology on an empty space (canvas). The user interface should include a toolbar with options to add different network devices
 (routers, switches, PCs), connect them with lines (representing network cables), and a properties panel to edit device details (name, IP address).
 The canvas should support drag and drop functionality for moving devices around. Users should be able to update select and delete the devices they want
-and also see the Protype verison"
+and also see the Prototype version"
 
 sandbox.js – Interactive network sandbox.
 
@@ -24,14 +24,17 @@ Clear the entire canvas
 */
 
 (function () {
-  //Settining up the sandbox environment
+  // Basic DOM helper
+  const getById = (id) => document.getElementById(id);
+
+  // Setting up the sandbox environment
   // Canvas used for drawing the network
-  const canvas = document.getElementById("canvas");
+  const canvas = getById("canvas");
   const ctx = canvas.getContext("2d"); // 2D drawing context
 
   // UI elements
-  const tipsEl = document.getElementById("tips");   // Text info under canvas
-  const propsEl = document.getElementById("props"); // Right-side properties panel
+  const tipsEl = getById("tips");   // Text info under canvas
+  const propsEl = getById("props"); // Right-side properties panel
 
   // Tool modes user can select
   const TOOL = {
@@ -65,7 +68,7 @@ Clear the entire canvas
   // ---------------------------
   // The page layout was revamped and Ping moved into the header.
   // We keep the same IDs, but now we must update its visibility whenever selection changes.
-  const pingContainer = document.getElementById("pingContainer");
+  const pingContainer = getById("pingContainer");
   function updatePingVisibility() {
     if (!pingContainer) return;
     pingContainer.style.display = selectedDeviceId ? "block" : "none";
@@ -74,14 +77,14 @@ Clear the entire canvas
   // ---------------------------
   // Progress logging (local)
   // ---------------------------
-  function safeJson(str) {
+  function parseJsonSafe(str) {
     try { return JSON.parse(str); } catch { return null; }
   }
 
   function bumpUserXP(email, addXP) {
     if (!email || !addXP) return;
     const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
-    const user = safeJson(raw) || {};
+    const user = parseJsonSafe(raw) || {};
     if (!user || user.email !== email) return;
     user.xp = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
     if (localStorage.getItem("netology_user")) localStorage.setItem("netology_user", JSON.stringify(user));
@@ -99,7 +102,7 @@ Clear the entire canvas
       date: new Date().toISOString().slice(0, 10)
     };
     const key = `netology_progress_log:${email}`;
-    const list = safeJson(localStorage.getItem(key)) || [];
+    const list = parseJsonSafe(localStorage.getItem(key)) || [];
     list.push(entry);
     localStorage.setItem(key, JSON.stringify(list));
   }
@@ -107,7 +110,7 @@ Clear the entire canvas
   function trackCourseStart(email, courseId, lessonNumber) {
     if (!email || !courseId) return;
     const key = `netology_started_courses:${email}`;
-    const list = safeJson(localStorage.getItem(key)) || [];
+    const list = parseJsonSafe(localStorage.getItem(key)) || [];
     const existing = list.find((c) => String(c.id) === String(courseId));
     const payload = {
       id: String(courseId),
@@ -126,7 +129,7 @@ Clear the entire canvas
   function markChallengeCompletion(email, courseId, lessonNumber, xpAdded) {
     if (!email || !courseId) return;
     const key = `netology_completions:${email}:${courseId}`;
-    const data = safeJson(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
+    const data = parseJsonSafe(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
     const chArr = data.challenge || data.challenges || [];
     const isNew = !chArr.includes(Number(lessonNumber));
     if (isNew) {
@@ -297,7 +300,7 @@ Clear the entire canvas
 
   //Clear Canvas Button
   // When user clicks "Clear Canvas", remove all devices & connections.
-  document.getElementById("clearBtn").addEventListener("click", () => {
+  getById("clearBtn").addEventListener("click", () => {
     devices = [];
     connections = [];
     selectedDeviceId = null;
@@ -609,10 +612,10 @@ Clear the entire canvas
     `;
 
     // Get references to inputs + warning areas
-    const nameInput = document.getElementById("prop_name");
-    const ipInput   = document.getElementById("prop_ip");
-    const maskInput = document.getElementById("prop_mask");
-    const gwInput   = document.getElementById("prop_gw");
+    const nameInput = getById("prop_name");
+    const ipInput   = getById("prop_ip");
+    const maskInput = getById("prop_mask");
+    const gwInput   = getById("prop_gw");
 
     // When user types into "Device Name", update device and redraw
     nameInput.oninput = (e) => {
@@ -660,7 +663,7 @@ Clear the entire canvas
     };
 
     // When "Delete Device" is clicked, remove device and any connections
-    document.getElementById("deleteBtn").onclick = () => {
+    getById("deleteBtn").onclick = () => {
       if (confirm("Delete this device?")) {
         devices = devices.filter((x) => x.id !== id);
         connections = connections.filter(
@@ -823,7 +826,7 @@ Clear the entire canvas
     const gwIp = intToIp(gwInt);
 
     d.gateway = gwIp;
-    const gwInput = document.getElementById("prop_gw");
+    const gwInput = getById("prop_gw");
     if (gwInput) {
       gwInput.value = gwIp;
     }
@@ -831,9 +834,9 @@ Clear the entire canvas
 
   // Update colour-coded warnings for IP / mask / gateway
   function updateWarnings(d) {
-    const ipWarn   = document.getElementById("ip_warning");
-    const maskWarn = document.getElementById("mask_warning");
-    const gwWarn   = document.getElementById("gw_warning");
+    const ipWarn   = getById("ip_warning");
+    const maskWarn = getById("mask_warning");
+    const gwWarn   = getById("gw_warning");
 
     if (!ipWarn || !maskWarn || !gwWarn) return;
 
@@ -896,7 +899,7 @@ Clear the entire canvas
   // ---------------------------------------------------
   // SAVE NETWORK (kept 100% unchanged)
   // ---------------------------------------------------
-  document.getElementById("saveBtn").onclick = async () => {
+  getById("saveBtn").onclick = async () => {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user) return alert("You must be logged in.");
 
@@ -921,9 +924,9 @@ Clear the entire canvas
   // ---------------------------------------------------
   // NEW LOAD BUTTON USING MODAL UI
   // ---------------------------------------------------
-  document.getElementById("loadBtn").onclick = async () => {
+  getById("loadBtn").onclick = async () => {
       await refreshTopologyList();
-      const modal = new bootstrap.Modal(document.getElementById("topologyModal"));
+      const modal = new bootstrap.Modal(getById("topologyModal"));
       modal.show();
   };
 
@@ -935,7 +938,7 @@ Clear the entire canvas
       const res = await fetch(`${window.API_BASE}/load-topologies?email=${user.email}`);
       const data = await res.json();
 
-      const list = document.getElementById("topologyList");
+      const list = getById("topologyList");
       list.innerHTML = "";
 
       data.topologies.forEach(t => {
@@ -1009,25 +1012,25 @@ Clear the entire canvas
       markDirtyAndSaveSoon();
 
       // Close modal after loading
-      const modal = bootstrap.Modal.getInstance(document.getElementById("topologyModal"));
+      const modal = bootstrap.Modal.getInstance(getById("topologyModal"));
       if (modal) modal.hide();
   }
 
   // ---------------------------------------------------
   // NEW: Ping System — open modal
   // ---------------------------------------------------
-  document.getElementById("pingBtn").onclick = () => {
+  getById("pingBtn").onclick = () => {
       if (!selectedDeviceId) return;
 
       const source = getDevice(selectedDeviceId);
-      document.getElementById("pingSourceName").textContent = source.name;
+      getById("pingSourceName").textContent = source.name;
 
       // Populate dropdown with connected devices only
       const connected = connections
           .filter(c => c.a === source.id || c.b === source.id)
           .map(c => c.a === source.id ? getDevice(c.b) : getDevice(c.a));
 
-      const select = document.getElementById("pingTargetSelect");
+      const select = getById("pingTargetSelect");
       select.innerHTML = "";
 
       connected.forEach(dev => {
@@ -1037,19 +1040,19 @@ Clear the entire canvas
           select.appendChild(opt);
       });
 
-      const modal = new bootstrap.Modal(document.getElementById("pingModal"));
+      const modal = new bootstrap.Modal(getById("pingModal"));
       modal.show();
   };
 
   // ---------------------------------------------------
   // NEW: Run Ping Test
   // ---------------------------------------------------
-  document.getElementById("runPingBtn").onclick = () => {
-      const resultBox = document.getElementById("pingResult");
+  getById("runPingBtn").onclick = () => {
+      const resultBox = getById("pingResult");
       resultBox.innerHTML = "";
 
       const source = getDevice(selectedDeviceId);
-      const targetId = document.getElementById("pingTargetSelect").value;
+      const targetId = getById("pingTargetSelect").value;
       const target = getDevice(targetId);
 
       // Validation
@@ -1104,8 +1107,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   __lessonSession.lesson_number = Number(data.lesson);
 
   // NEW (Part 3): show challenge banner if present
-  const banner = document.getElementById("challengeBanner");
-  const bannerText = document.getElementById("challengeBannerText");
+  const banner = getById("challengeBanner");
+  const bannerText = getById("challengeBannerText");
   if (banner && bannerText) {
     banner.style.display = "block";
     bannerText.textContent = `${data.courseTitle || "Course"} • ${data.unitTitle || ""} • Lesson ${data.lesson}: ${data.lessonTitle || ""}`;
@@ -1156,10 +1159,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.body.appendChild(panel);
 
-  document.getElementById("validateBtn").onclick = async () => {
+  getById("validateBtn").onclick = async () => {
     const res = validate(rules);
-    const box = document.getElementById("resultBox");
-    const returnBox = document.getElementById("returnBox");
+    const box = getById("resultBox");
+    const returnBox = getById("returnBox");
 
     if (!box) return;
 

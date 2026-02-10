@@ -20,62 +20,87 @@ NOTE:
 - This file sends "earned_xp" too; backend can ignore it safely if not used.
 */
 
-document.addEventListener("DOMContentLoaded", async () => {
-  const params = new URLSearchParams(window.location.search);
-  const courseId = params.get("course") || params.get("course_id");
-  const lessonNumber = Number(params.get("lesson") || 0);
+const QUIZ_PASS_PCT = 60; // Used for completion tracking (local storage).
+const RESULTS_PASS_PCT = 70; // Used only for the results message/badge.
+const DEFAULT_QUIZ_XP = 40;
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+document.addEventListener("DOMContentLoaded", () => {
+  initQuizPage().catch((err) => {
+    console.error("Quiz init failed:", err);
+  });
+});
+
+async function initQuizPage() {
+  const { courseId, lessonNumber } = readQuizParams();
+  const user = readUserFromStorage();
+
   if (!user.email || !courseId || !lessonNumber) {
-    window.location.href = "login.html";
+    redirectToLogin();
     return;
   }
 
-  // Wire back links
-  const backUrl = `lesson.html?course_id=${encodeURIComponent(courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
-  const backTop = document.getElementById("backToCourseTop");
-  const backBtn = document.getElementById("backToCourseBtn");
-  if (backTop) backTop.href = backUrl;
-  if (backBtn) backBtn.href = backUrl;
+  const backUrl = buildLessonUrl(courseId, lessonNumber);
+  wireBackLinks(backUrl);
 
-  // Load quiz model from course_content.js
   const quizModel = getQuizModel(courseId, lessonNumber);
-
   if (!quizModel || !quizModel.questions || quizModel.questions.length === 0) {
-    // No quiz found - send user back
     alert("No quiz found for this lesson yet.");
     window.location.href = backUrl;
     return;
   }
 
-  // Init state
-  const state = {
+  const state = createQuizState({
     courseId,
     lessonNumber,
     email: user.email,
-    title: quizModel.title,
-    maxXp: quizModel.xp,
-    questions: quizModel.questions,
-    currentIndex: 0,
-    selected: null,
-    showFeedback: false,
-    answers: [], // boolean per question
-  };
+    model: quizModel
+  });
 
-  // Load existing attempt (if any)
-  const saved = readAttempt(state);
-  if (saved && saved.completed) {
-    // If they already completed, show results immediately
-    renderResultsFromSaved(state, saved, backUrl);
+  const savedAttempt = readAttempt(state);
+  if (savedAttempt && savedAttempt.completed) {
+    renderResultsFromSaved(state, savedAttempt, backUrl);
     return;
   }
 
-  // Render header
+  renderHeader(state);
+  wireActionButtons(state);
+  renderQuestion(state);
+}
+
+function readQuizParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    courseId: params.get("course") || params.get("course_id"),
+    lessonNumber: Number(params.get("lesson") || 0)
+  };
+}
+
+function readUserFromStorage() {
+  return parseJsonSafe(localStorage.getItem("user")) || {};
+}
+
+function redirectToLogin() {
+  window.location.href = "login.html";
+}
+
+function buildLessonUrl(courseId, lessonNumber) {
+  return `lesson.html?course_id=${encodeURIComponent(courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
+}
+
+function wireBackLinks(backUrl) {
+  const backTop = document.getElementById("backToCourseTop");
+  const backBtn = document.getElementById("backToCourseBtn");
+  if (backTop) backTop.href = backUrl;
+  if (backBtn) backBtn.href = backUrl;
+}
+
+function renderHeader(state) {
   setText("quizTitle", state.title);
   setText("quizMeta", `Lesson ${state.lessonNumber} • ${state.questions.length} questions`);
   setText("quizXpLabel", `${state.maxXp} XP`);
+}
 
-  // Buttons
+function wireActionButtons(state) {
   const submitBtn = document.getElementById("submitBtn");
   const nextBtn = document.getElementById("nextBtn");
   const retryBtn = document.getElementById("retryBtn");
@@ -83,29 +108,51 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (submitBtn) submitBtn.addEventListener("click", () => submitAnswer(state));
   if (nextBtn) nextBtn.addEventListener("click", () => nextQuestion(state));
   if (retryBtn) retryBtn.addEventListener("click", () => retryQuiz(state));
+}
 
-  // First render
-  renderQuestion(state);
-});
+function createQuizState({ courseId, lessonNumber, email, model }) {
+  return {
+    courseId,
+    lessonNumber,
+    email,
+    title: model.title,
+    maxXp: model.xp,
+    questions: model.questions,
+    currentIndex: 0,
+    selected: null,
+    showFeedback: false,
+    answers: [] // boolean per question
+  };
+}
 
-const QUIZ_PASS_PCT = 60;
-
-function safeJson(str) {
-  try { return JSON.parse(str); } catch { return null; }
+function parseJsonSafe(raw) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 function bumpUserXP(email, addXP) {
   if (!email || !addXP) return;
+
   const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
-  const user = safeJson(raw) || {};
+  const user = parseJsonSafe(raw) || {};
   if (!user || user.email !== email) return;
+
   user.xp = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
-  if (localStorage.getItem("netology_user")) localStorage.setItem("netology_user", JSON.stringify(user));
-  if (localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify(user));
+
+  if (localStorage.getItem("netology_user")) {
+    localStorage.setItem("netology_user", JSON.stringify(user));
+  }
+  if (localStorage.getItem("user")) {
+    localStorage.setItem("user", JSON.stringify(user));
+  }
 }
 
 function logProgressEvent(email, payload) {
   if (!email) return;
+
   const entry = {
     type: payload.type,
     course_id: payload.course_id,
@@ -114,28 +161,33 @@ function logProgressEvent(email, payload) {
     ts: Date.now(),
     date: new Date().toISOString().slice(0, 10)
   };
+
   const key = `netology_progress_log:${email}`;
-  const list = safeJson(localStorage.getItem(key)) || [];
+  const list = parseJsonSafe(localStorage.getItem(key)) || [];
   list.push(entry);
   localStorage.setItem(key, JSON.stringify(list));
 }
 
 function trackCourseStart(email, courseId, lessonNumber) {
   if (!email || !courseId) return;
+
   const key = `netology_started_courses:${email}`;
-  const list = safeJson(localStorage.getItem(key)) || [];
+  const list = parseJsonSafe(localStorage.getItem(key)) || [];
   const existing = list.find((c) => String(c.id) === String(courseId));
+
   const payload = {
     id: String(courseId),
     lastViewed: Date.now(),
     lastLesson: Number(lessonNumber || 0) || undefined
   };
+
   if (existing) {
     existing.lastViewed = payload.lastViewed;
     if (payload.lastLesson) existing.lastLesson = payload.lastLesson;
   } else {
     list.push(payload);
   }
+
   localStorage.setItem(key, JSON.stringify(list));
 }
 
@@ -144,8 +196,9 @@ function markQuizCompletion(state, payload) {
   if (!passed) return;
 
   const key = `netology_completions:${state.email}:${state.courseId}`;
-  const data = safeJson(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
+  const data = parseJsonSafe(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
   const quizArr = data.quiz || data.quizzes || [];
+
   if (quizArr.includes(Number(state.lessonNumber))) return;
 
   quizArr.push(Number(state.lessonNumber));
@@ -179,6 +232,7 @@ function getQuizModel(courseId, lessonNumber) {
   // Flatten lessons exactly like course.js does (unit lessons order)
   const flat = [];
   let idx = 1;
+
   (course.units || []).forEach((unit) => {
     (unit.lessons || []).forEach((lesson) => {
       flat.push({ index: idx, lesson });
@@ -186,7 +240,7 @@ function getQuizModel(courseId, lessonNumber) {
     });
   });
 
-  const entry = flat.find(x => Number(x.index) === Number(lessonNumber));
+  const entry = flat.find((x) => Number(x.index) === Number(lessonNumber));
   if (!entry || !entry.lesson) return null;
 
   const lesson = entry.lesson;
@@ -194,7 +248,7 @@ function getQuizModel(courseId, lessonNumber) {
 
   // Default title and XP if not set
   const baseTitle = `Lesson ${lessonNumber} Quiz`;
-  const baseXp = 40; // default max XP per quiz if you don’t specify yet
+  const baseXp = DEFAULT_QUIZ_XP; // default max XP per quiz if you don’t specify yet
 
   // New format (multi-question)
   if (q && Array.isArray(q.questions)) {
@@ -373,8 +427,6 @@ function nextQuestion(state) {
 function retryQuiz(state) {
   // Clear attempt + reload page fresh (simple + reliable)
   localStorage.removeItem(attemptKey(state));
-
-  // Keep URL params, just reload
   window.location.reload();
 }
 
@@ -382,7 +434,6 @@ function finishQuiz(state) {
   const total = state.questions.length;
   const correctCount = state.answers.filter(Boolean).length;
   const percentage = total ? (correctCount / total) * 100 : 0;
-
   const earnedXP = Math.round((percentage / 100) * state.maxXp);
 
   // Save attempt
@@ -394,6 +445,7 @@ function finishQuiz(state) {
     earnedXP,
     answers: state.answers
   };
+
   writeAttempt(state, payload);
   markQuizCompletion(state, payload);
 
@@ -404,18 +456,9 @@ function finishQuiz(state) {
 }
 
 function renderResultsFromSaved(state, saved, backUrl) {
-  // Render header
-  setText("quizTitle", state.title);
-  setText("quizMeta", `Lesson ${state.lessonNumber} • ${state.questions.length} questions`);
-  setText("quizXpLabel", `${state.maxXp} XP`);
-
+  renderHeader(state);
   renderResults(state, saved);
-
-  // Ensure back links correct
-  const backTop = document.getElementById("backToCourseTop");
-  const backBtn = document.getElementById("backToCourseBtn");
-  if (backTop) backTop.href = backUrl;
-  if (backBtn) backBtn.href = backUrl;
+  wireBackLinks(backUrl);
 }
 
 function renderResults(state, result) {
@@ -437,7 +480,7 @@ function renderResults(state, result) {
   setText("statXp", `${result.earnedXP}`);
 
   // Title/subtitle/badge based on result
-  const passed = result.percentage >= 70;
+  const passed = result.percentage >= RESULTS_PASS_PCT;
   const perfect = result.percentage === 100;
 
   const badge = document.getElementById("resultsBadge");
