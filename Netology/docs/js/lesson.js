@@ -75,6 +75,30 @@ lesson.js – Lesson page
     return `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
   }
 
+  function resolveCourseByParam(courseId) {
+    if (typeof COURSE_CONTENT === "undefined") return { course: null, id: null, fallback: false };
+    const content = COURSE_CONTENT || {};
+    let course = content[String(courseId)];
+    if (course) return { course, id: String(course.id || courseId), fallback: false };
+
+    const list = Object.values(content);
+    const byId = list.find((c) => String(c?.id || "") === String(courseId));
+    if (byId) return { course: byId, id: String(byId.id || courseId), fallback: false };
+
+    const target = String(courseId || "").trim().toLowerCase();
+    if (target) {
+      const byTitle = list.find((c) => String(c?.title || "").trim().toLowerCase() === target);
+      if (byTitle) return { course: byTitle, id: String(byTitle.id || courseId), fallback: false };
+    }
+
+    const firstKey = Object.keys(content)[0];
+    if (firstKey) {
+      return { course: content[firstKey], id: String(content[firstKey]?.id || firstKey), fallback: true };
+    }
+
+    return { course: null, id: null, fallback: false };
+  }
+
   function isLoggedIn(user) {
     return !!(user && (user.email || user.username));
   }
@@ -236,21 +260,30 @@ lesson.js – Lesson page
     const user = getCurrentUser();
     state.user = isLoggedIn(user) ? user : null;
 
-    // Chrome
-    wireBrandRouting();
-    if (!state.user) wireChromeGuest();
-    else wireChrome(state.user);
-
     // Course content
     if (typeof COURSE_CONTENT === "undefined") {
       setText("lessonTitle", "Course content unavailable");
       return;
     }
-    state.course = COURSE_CONTENT[String(state.courseId)];
+    const resolved = resolveCourseByParam(state.courseId);
+    state.course = resolved.course;
     if (!state.course) {
       setText("lessonTitle", "Course not found");
       return;
     }
+
+    if (resolved.id && String(resolved.id) !== String(state.courseId)) {
+      state.courseId = String(resolved.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set("course_id", String(state.courseId));
+      url.searchParams.delete("course");
+      history.replaceState(null, "", url.toString());
+    }
+
+    // Chrome (after course resolution so back link is correct)
+    wireBrandRouting();
+    if (!state.user) wireChromeGuest();
+    else wireChrome(state.user);
 
     if (state.user?.email) {
       trackCourseStart(state.user.email, state.courseId, state.lessonNumber);

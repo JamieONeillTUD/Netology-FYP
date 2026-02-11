@@ -352,7 +352,7 @@ Works with:
 
     const r = 58;
     const CIRC = 2 * Math.PI * r; // ~364.42
-    const arc = 0.78; // ~280deg arc
+    const arc = 0.5; // 180deg arc (clear rainbow-style arch)
     const dash = CIRC * arc;
     const gap = CIRC - dash;
     const offset = dash * (1 - (progressPct / 100));
@@ -975,7 +975,7 @@ Works with:
           </span>
         `).join("")}
       </div>
-      <div class="small text-muted mt-2">Recent activity</div>
+      <div class="fw-semibold net-green-text mt-2">Tasks done</div>
       ${activityHtml}
     `;
   }

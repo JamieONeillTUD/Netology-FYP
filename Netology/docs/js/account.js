@@ -691,7 +691,7 @@ function setAccountRing(progressPct) {
 
   const r = 58;
   const CIRC = 2 * Math.PI * r;
-  const arc = 0.78;
+  const arc = 0.5;
   const dash = CIRC * arc;
   const gap = CIRC - dash;
   const offset = dash * (1 - (Number(progressPct || 0) / 100));
