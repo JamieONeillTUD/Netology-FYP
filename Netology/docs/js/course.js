@@ -558,6 +558,7 @@ What this file does:
           if (data && data.success !== false) {
             if (data.completions) {
               applyCompletionsPayload(data.completions);
+              mergeLocalCompletions(email, courseId);
               cacheCompletionsToLS(email, courseId);
               return;
             }
@@ -567,6 +568,7 @@ What this file does:
                 quizzes: data.quizzes || [],
                 challenges: data.challenges || []
               });
+              mergeLocalCompletions(email, courseId);
               cacheCompletionsToLS(email, courseId);
               return;
             }
@@ -580,6 +582,7 @@ What this file does:
     // 2) Fallback to localStorage for offline mode.
     const cached = parseJsonSafe(localStorage.getItem(LS_KEY(email, courseId)));
     if (cached) applyCompletionsPayload(cached);
+    mergeLocalCompletions(email, courseId);
   }
 
   function applyCompletionsPayload(payload) {
@@ -599,6 +602,17 @@ What this file does:
       challenge: Array.from(state.completed.challenge),
     };
     localStorage.setItem(LS_KEY(email, courseId), JSON.stringify(payload));
+  }
+
+  function mergeLocalCompletions(email, courseId) {
+    const local = parseJsonSafe(localStorage.getItem(LS_KEY(email, courseId))) || {};
+    const lessonArr = local.lesson || local.lessons || local.learn || [];
+    const quizArr = local.quiz || local.quizzes || [];
+    const chArr = local.challenge || local.challenges || [];
+
+    lessonArr.forEach((n) => state.completed.lesson.add(Number(n)));
+    quizArr.forEach((n) => state.completed.quiz.add(Number(n)));
+    chArr.forEach((n) => state.completed.challenge.add(Number(n)));
   }
 
   /* =========================================================
@@ -988,9 +1002,18 @@ What this file does:
     const sidebarSandboxBtn = getById("sidebarSandboxBtn");
     const openSandboxBtn = getById("openSandboxBtn");
 
-    if (topSandbox) topSandbox.setAttribute("href", `sandbox.html?${q}`);
-    if (sidebarSandboxBtn) sidebarSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
-    if (openSandboxBtn) openSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
+    if (topSandbox) {
+      topSandbox.setAttribute("href", `sandbox.html?${q}`);
+      topSandbox.setAttribute("title", "Open the sandbox to build and test a network simulation");
+    }
+    if (sidebarSandboxBtn) {
+      sidebarSandboxBtn.setAttribute("title", "Open the sandbox to build and test a network simulation");
+      sidebarSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
+    }
+    if (openSandboxBtn) {
+      openSandboxBtn.setAttribute("title", "Open the sandbox to build and test a network simulation");
+      openSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
+    }
   }
 
   function renderModules() {
@@ -1026,7 +1049,8 @@ What this file does:
                     type="button"
                     data-action="toggle-module"
                     data-module="${escapeHtml(m.id)}"
-                    aria-expanded="${expanded ? "true" : "false"}">
+                    aria-expanded="${expanded ? "true" : "false"}"
+                    title="Open this module to view its lessons and activities">
 
               <div class="d-flex align-items-start gap-3">
                 <div class="net-module-ico">${iconHtml}</div>

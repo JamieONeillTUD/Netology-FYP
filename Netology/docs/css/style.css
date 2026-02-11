@@ -3254,6 +3254,12 @@ body.net-auth-v2.net-landing::before{
 .net-coursecard .course-cta{
   margin-top: .75rem;
 }
+.net-course-progress{
+  margin: .15rem 0 .85rem;
+}
+.net-course-progress .net-meter{
+  height: 8px;
+}
 @media (min-width: 768px){
   .net-coursecard{ grid-column: span 6; }
 }
@@ -3962,6 +3968,40 @@ body.net-auth-v2.net-landing::before{
   color: rgba(15, 23, 42, .9);
   line-height: 1.25;
   font-size: .95rem;
+}
+.net-toast-body{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.net-toast-title{
+  font-weight: 800;
+  color: rgba(15, 23, 42, .95);
+}
+.net-toast-sub{
+  font-size: .88rem;
+  color: rgba(15, 23, 42, .62);
+}
+.net-toast-countdown{
+  font-weight: 800;
+  color: rgba(15, 23, 42, .8);
+}
+.net-toast-timer{
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .08);
+  overflow: hidden;
+}
+.net-toast-timer-fill{
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #14b8a6, #06b6d4);
+  transition: width .1s linear;
+}
+.net-toast-actions{
+  display: flex;
+  justify-content: flex-start;
 }
 
 .net-toast-close{

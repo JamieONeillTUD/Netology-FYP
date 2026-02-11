@@ -661,6 +661,121 @@ Works with:
     return required;
   }
 
+  function getCourseContentById(courseId) {
+    if (typeof COURSE_CONTENT === "undefined") return null;
+    return COURSE_CONTENT[String(courseId)] || null;
+  }
+
+  function getCourseCompletionsLocal(email, courseId) {
+    if (!email || !courseId) {
+      return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
+    }
+    const raw = localStorage.getItem(`netology_completions:${email}:${courseId}`);
+    const payload = parseJsonSafe(raw, {}) || {};
+    const lessonArr = payload.lesson || payload.lessons || payload.learn || [];
+    const quizArr = payload.quiz || payload.quizzes || [];
+    const chArr = payload.challenge || payload.challenges || [];
+
+    const base = {
+      lesson: new Set((lessonArr || []).map(Number)),
+      quiz: new Set((quizArr || []).map(Number)),
+      challenge: new Set((chArr || []).map(Number))
+    };
+
+    // Fallback: merge from progress log if completion sets are empty
+    const log = getProgressLog(email);
+    if (Array.isArray(log) && log.length) {
+      log.forEach((e) => {
+        if (String(e?.course_id) !== String(courseId)) return;
+        const t = String(e?.type || "").toLowerCase();
+        const n = Number(e?.lesson_number);
+        if (!Number.isFinite(n)) return;
+        if (t === "learn" || t === "lesson") base.lesson.add(n);
+        else if (t === "quiz") base.quiz.add(n);
+        else if (t === "challenge") base.challenge.add(n);
+      });
+    }
+
+    return base;
+  }
+
+  function computeCourseProgress(course, email) {
+    if (!course || !email) return { done: 0, total: 0, pct: 0 };
+    const id = course.id || course.key;
+    const content = getCourseContentById(id);
+    const completions = getCourseCompletions(email, id);
+
+    let total = 0;
+    let done = 0;
+
+    if (content) {
+      total = countRequiredItems(content);
+      done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
+    } else {
+      total = Number(course.total_lessons || course.items || 0) || 0;
+      done = completions.lesson.size;
+    }
+
+    if (!total) return { done, total, pct: 0 };
+    done = Math.min(done, total);
+    const pct = Math.max(0, Math.min(100, Math.round((done / total) * 100)));
+    return { done, total, pct };
+  }
+
+  function renderCourseProgress(progress) {
+    const pct = Number(progress?.pct || 0);
+    return `
+      <div class="net-course-progress">
+        <div class="d-flex align-items-center justify-content-between small text-muted mb-2">
+          <span>Course progress</span>
+          <span class="fw-semibold">${pct}%</span>
+        </div>
+        <div class="net-meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+          <div class="net-meter-fill" style="width:${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function getLocalProgressSummary(email) {
+    const content = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
+    const courseIds = Object.keys(content);
+    const started = getStartedCourses(email);
+    const startedIds = new Set((started || []).map((c) => String(c.id)));
+
+    let lessonsDone = 0;
+    let quizzesDone = 0;
+    let challengesDone = 0;
+    let coursesDone = 0;
+    let inProgress = 0;
+
+    courseIds.forEach((id) => {
+      const course = content[id] || {};
+      const comps = getCourseCompletionsLocal(email, id);
+      const done = comps.lesson.size + comps.quiz.size + comps.challenge.size;
+      const required = countRequiredItems(course);
+
+      lessonsDone += comps.lesson.size;
+      quizzesDone += comps.quiz.size;
+      challengesDone += comps.challenge.size;
+
+      if (required > 0 && done >= required) {
+        coursesDone += 1;
+      } else if (startedIds.has(String(id)) || done > 0) {
+        inProgress += 1;
+      }
+    });
+
+    return {
+      lessonsDone,
+      quizzesDone,
+      challengesDone,
+      coursesDone,
+      inProgress,
+      totalCourses: courseIds.length
+    };
+  }
+
   function getCourseCompletions(email, courseId) {
     if (!email || !courseId) {
       return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
@@ -868,7 +983,7 @@ Works with:
   // -----------------------------
   // Render course cards
   // -----------------------------
-  function buildCourseCard(course, accessLevel) {
+  function buildCourseCard(course, accessLevel, email) {
     const locked = accessLevel < course.required_level;
     const diff = course.difficulty;
 
@@ -907,6 +1022,9 @@ Works with:
       ? `<div class="text-muted small mb-3">${course.description}</div>`
       : "";
 
+    const progress = computeCourseProgress(course, email);
+    const progressHtml = renderCourseProgress(progress);
+
     card.innerHTML = `
       ${lockedOverlay}
       <div class="net-coursebar ${gradClass}"></div>
@@ -927,6 +1045,8 @@ Works with:
 
         ${descHtml}
 
+        ${progressHtml}
+
         <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta">
           <span class="d-inline-flex align-items-center gap-1">
             <i class="bi bi-collection" aria-hidden="true"></i> ${course.total_lessons || course.items || 0} lessons
@@ -942,10 +1062,10 @@ Works with:
         ${locked ? `<div class="net-lockline mb-3"><i class="bi bi-lock me-2"></i>Level ${course.required_level}+ to unlock</div>` : ""}
 
         <div class="d-flex gap-2 flex-wrap course-cta">
-          <button class="btn ${locked ? "btn-outline-secondary" : "btn-teal"} btn-sm" ${locked ? "disabled" : ""}>
+          <button class="btn ${locked ? "btn-outline-secondary" : "btn-teal"} btn-sm" ${locked ? "disabled" : ""} title="Open this course to view modules and lessons">
             ${locked ? `Level ${course.required_level} required` : "Open"}
           </button>
-          <a class="btn btn-soft btn-sm net-btn-icon" href="sandbox.html?course_id=${encodeURIComponent(course.key)}">
+          <a class="btn btn-soft btn-sm net-btn-icon" href="sandbox.html?course_id=${encodeURIComponent(course.key)}" title="Open the sandbox for a network simulation challenge">
             <i class="bi bi-diagram-3 me-1"></i>Sandbox
           </a>
         </div>
@@ -1101,9 +1221,18 @@ Works with:
         const category = entry.category || course.category || "Core";
         const xpReward = Number(entry.xp_reward || course.xpReward || course.totalXP || 0);
 
-        const required = Number(entry.total_lessons || course.total_lessons || course.items || 0);
-        const pct = Math.max(0, Math.min(100, Number(entry.progress_pct || 0)));
-        const done = required ? Math.round((pct / 100) * required) : 0;
+        const requiredApi = Number(entry.total_lessons || course.total_lessons || course.items || 0);
+        const pctApi = Math.max(0, Math.min(100, Number(entry.progress_pct || 0)));
+        const doneApi = requiredApi ? Math.round((pctApi / 100) * requiredApi) : 0;
+
+        // Prefer local completion counts if they are higher (real-time UI updates).
+        const comps = getCourseCompletionsLocal(email, entry.id);
+        const requiredLocal = countRequiredItems(course);
+        const doneLocal = comps.lesson.size + comps.quiz.size + comps.challenge.size;
+
+        const required = requiredApi || requiredLocal;
+        const done = Math.max(doneApi, doneLocal);
+        const pct = required ? Math.round((done / required) * 100) : Math.max(pctApi, 0);
 
         return `
           <div class="dash-continue-item" data-course-id="${entry.id}">
@@ -1135,6 +1264,58 @@ Works with:
       });
       return;
     }
+
+    // Fallback: use local started courses
+    const started = getStartedCourses(email)
+      .filter((c) => c && c.id)
+      .sort((a, b) => Number(b.lastViewed || 0) - Number(a.lastViewed || 0))
+      .slice(0, 3);
+
+    if (started.length) {
+      box.className = "dash-continue-list";
+      box.innerHTML = started.map((entry) => {
+        const course = content[String(entry.id)] || (COURSE_CONTENT?.[String(entry.id)] || {});
+        const title = course.title || "Course";
+        const diff = String(course.difficulty || "novice");
+        const category = course.category || "Core";
+        const xpReward = Number(course.xpReward || course.totalXP || course.xp_reward || 0);
+
+        const comps = getCourseCompletionsLocal(email, entry.id);
+        const done = comps.lesson.size + comps.quiz.size + comps.challenge.size;
+        const required = countRequiredItems(course);
+        const pct = required ? Math.round((done / required) * 100) : 0;
+
+        return `
+          <div class="dash-continue-item" data-course-id="${entry.id}">
+            <div class="flex-grow-1">
+              <div class="fw-semibold">${title}</div>
+              <div class="dash-continue-meta">${category} • ${prettyDiff(diff)}</div>
+              <div class="net-meter mt-2" aria-label="Course progress">
+                <div class="net-meter-fill" style="width:${pct}%"></div>
+              </div>
+              <div class="small text-muted mt-1">${done}/${required || 0} items</div>
+            </div>
+            <div class="text-end">
+              <div class="small text-muted">Suggested</div>
+              <div class="fw-semibold net-xp-accent">
+                <i class="bi bi-lightning-charge-fill me-1"></i>${xpReward || 0}
+              </div>
+              <button class="btn btn-teal btn-sm mt-2" type="button">Continue</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      box.querySelectorAll("[data-course-id]").forEach((item) => {
+        item.addEventListener("click", () => {
+          const id = item.getAttribute("data-course-id");
+          if (!id) return;
+          window.location.href = `course.html?id=${encodeURIComponent(id)}`;
+        });
+      });
+      return;
+    }
+
     box.className = "dash-continue-list";
     box.innerHTML = `<div class="text-muted small">No started courses yet. Pick a course to begin.</div>`;
   }
@@ -1151,6 +1332,7 @@ Works with:
     const uLevel = userNumericLevel(user);
     const unlockLevel = unlockLevelFromTier(user?.unlock_tier);
     const accessLevel = Math.max(uLevel, unlockLevel);
+    const email = user?.email || "";
 
     let courses = [];
 
@@ -1196,7 +1378,7 @@ Works with:
     let anyLocked = false;
 
     courses.forEach((c) => {
-      const { card, locked } = buildCourseCard(c, accessLevel);
+      const { card, locked } = buildCourseCard(c, accessLevel, email);
       if (locked) anyLocked = true;
       grid.appendChild(card);
     });
@@ -1227,13 +1409,17 @@ Works with:
     let inProgress = 0;
     let completed = 0;
 
-    const summary = window.__dashProgressSummary;
-    if (summary && summary.email === email) {
-      lessonsDone = summary.lessonsDone || 0;
-      quizzesDone = summary.quizzesDone || 0;
-      challengesDone = summary.challengesDone || 0;
-      inProgress = summary.inProgress || 0;
-      completed = summary.coursesDone || 0;
+    const localSummary = email ? getLocalProgressSummary(email) : null;
+    const apiSummary = (window.__dashProgressSummary && window.__dashProgressSummary.email === email)
+      ? window.__dashProgressSummary
+      : null;
+
+    if (apiSummary || localSummary) {
+      lessonsDone = Math.max(apiSummary?.lessonsDone || 0, localSummary?.lessonsDone || 0);
+      quizzesDone = Math.max(apiSummary?.quizzesDone || 0, localSummary?.quizzesDone || 0);
+      challengesDone = Math.max(apiSummary?.challengesDone || 0, localSummary?.challengesDone || 0);
+      inProgress = Math.max(apiSummary?.inProgress || 0, localSummary?.inProgress || 0);
+      completed = Math.max(apiSummary?.coursesDone || 0, localSummary?.coursesDone || 0);
     }
 
     if (getById("statInProgress")) getById("statInProgress").textContent = String(inProgress);
@@ -1524,6 +1710,33 @@ Works with:
   }
 
   // -----------------------------
+  // Lightweight refresh (focus/visibility/storage)
+  // -----------------------------
+  let __dashRefreshTimer = null;
+
+  function scheduleDashboardRefresh() {
+    if (document.hidden) return;
+    if (__dashRefreshTimer) clearTimeout(__dashRefreshTimer);
+    __dashRefreshTimer = window.setTimeout(() => {
+      refreshDashboard();
+    }, 150);
+  }
+
+  async function refreshDashboard() {
+    const user = getCurrentUser();
+
+    safeStep("fillUserUI", fillUserUI);
+    await safeStepAsync("renderCourses", renderCourses);
+    await safeStepAsync("renderContinueLearning", renderContinueLearning);
+
+    if (user?.email) {
+      await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
+    }
+
+    safeStep("renderProgressWidgets", renderProgressWidgets);
+  }
+
+  // -----------------------------
   // Init
   // -----------------------------
   async function init() {
@@ -1569,6 +1782,16 @@ Works with:
       await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
     }
     safeStep("renderProgressWidgets", renderProgressWidgets);
+
+    // Auto-refresh when the tab regains focus or storage changes.
+    window.addEventListener("focus", scheduleDashboardRefresh);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) scheduleDashboardRefresh();
+    });
+    window.addEventListener("storage", (e) => {
+      if (!e.key) return;
+      if (e.key === "user" || e.key.startsWith("netology_")) scheduleDashboardRefresh();
+    });
   }
 
   onReady(init);

@@ -28,6 +28,9 @@ lesson.js – Lesson page
     completedLessons: new Set(),
   };
 
+  let completionTimer = null;
+  let completionInterval = null;
+
   /* =========================================================
      Core helpers
   ========================================================= */
@@ -57,6 +60,21 @@ lesson.js – Lesson page
     );
   }
 
+  function refreshUserFromStorage() {
+    const user = getCurrentUser();
+    if (!user) return;
+    state.user = user;
+    fillIdentity(user);
+  }
+
+  function coursePageUrl() {
+    return `course.html?id=${encodeURIComponent(state.courseId)}`;
+  }
+
+  function lessonUrl(lessonNumber) {
+    return `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
+  }
+
   function isLoggedIn(user) {
     return !!(user && (user.email || user.username));
   }
@@ -68,6 +86,57 @@ lesson.js – Lesson page
 
   function xpForNextLevel(level) {
     return Number(level || 1) * 100;
+  }
+
+  function bumpUserXP(email, addXP) {
+    if (!email || !addXP) return;
+    const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
+    const user = parseJsonSafe(raw) || {};
+    if (!user || user.email !== email) return;
+    user.xp = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
+    if (localStorage.getItem("netology_user")) localStorage.setItem("netology_user", JSON.stringify(user));
+    if (localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify(user));
+  }
+
+  function logProgressEvent(email, payload) {
+    if (!email) return;
+    const entry = {
+      type: payload.type,
+      course_id: payload.course_id,
+      lesson_number: payload.lesson_number,
+      xp: Number(payload.xp || 0),
+      ts: Date.now(),
+      date: new Date().toISOString().slice(0, 10)
+    };
+    const key = `netology_progress_log:${email}`;
+    const list = parseJsonSafe(localStorage.getItem(key)) || [];
+    list.push(entry);
+    localStorage.setItem(key, JSON.stringify(list));
+  }
+
+  function markLessonCompletionLocal(email, courseId, lessonNumber, xp) {
+    if (!email || !courseId || !lessonNumber) return;
+    const key = `netology_completions:${email}:${courseId}`;
+    const data = parseJsonSafe(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
+    const lessonArr = data.lesson || data.lessons || data.learn || [];
+    if (!lessonArr.includes(Number(lessonNumber))) {
+      lessonArr.push(Number(lessonNumber));
+      data.lesson = lessonArr;
+      localStorage.setItem(key, JSON.stringify(data));
+      logProgressEvent(email, {
+        type: "learn",
+        course_id: courseId,
+        lesson_number: lessonNumber,
+        xp: Number(xp || 0)
+      });
+      bumpUserXP(email, Number(xp || 0));
+    }
+  }
+
+  function getEarnedLessonXP() {
+    const learnItem = state.itemsForLesson.find((it) => it.type === "learn") || state.itemsForLesson[0];
+    const fallbackXp = state.lessonEntry?.lesson?.xp;
+    return Number(learnItem?.xp || fallbackXp || 40);
   }
 
   /* =========================================================
@@ -189,10 +258,36 @@ lesson.js – Lesson page
 
     // Flatten lessons and items
     const flatLessons = flattenLessons(state.course);
-    state.lessonEntry = flatLessons.find((l) => l.lessonNumber === state.lessonNumber) || flatLessons[0];
+    if (!flatLessons.length) {
+      setText("lessonTitle", "Lesson content unavailable");
+      return;
+    }
+
+    const matched = flatLessons.find((l) => l.lessonNumber === state.lessonNumber);
+    state.lessonEntry = matched || flatLessons[0];
+    if (!matched) {
+      state.lessonNumber = state.lessonEntry.lessonNumber;
+      const url = new URL(window.location.href);
+      url.searchParams.set("lesson", String(state.lessonNumber));
+      history.replaceState(null, "", url.toString());
+    }
 
     const allItems = flattenItems(state.course);
     state.itemsForLesson = allItems.filter((it) => Number(it.lesson_number) === Number(state.lessonNumber));
+    if (!state.itemsForLesson.length && state.lessonEntry?.lesson) {
+      const fallback = state.lessonEntry.lesson;
+      state.itemsForLesson = [
+        {
+          type: "learn",
+          title: fallback.title || "Lesson",
+          content: fallback.content || fallback.learn || "",
+          duration: fallback.duration || "8–12 min",
+          xp: Number(fallback.xp || 40),
+          lesson_number: Number(state.lessonNumber),
+          unit_title: state.lessonEntry.unitTitle || ""
+        }
+      ];
+    }
     state.quizItem = state.itemsForLesson.find((it) => it.type === "quiz") || null;
     state.practiceItem = state.itemsForLesson.find((it) => it.type === "sandbox" || it.type === "practice") || null;
     state.challengeItem = state.itemsForLesson.find((it) => it.type === "challenge") || null;
@@ -367,6 +462,25 @@ lesson.js – Lesson page
     return flat;
   }
 
+  function getLessonNeighbors() {
+    const flat = flattenLessons(state.course);
+    const idx = flat.findIndex((f) => f.lessonNumber === Number(state.lessonNumber));
+    const prev = idx > 0 ? flat[idx - 1] : null;
+    const next = idx >= 0 ? flat[idx + 1] : null;
+
+    let nextInUnit = null;
+    const currentUnit = flat[idx]?.unitTitle || "";
+    if (currentUnit) {
+      for (let i = idx + 1; i < flat.length; i += 1) {
+        if (flat[i].unitTitle !== currentUnit) break;
+        nextInUnit = flat[i];
+        break;
+      }
+    }
+
+    return { flat, idx, prev, next, nextInUnit };
+  }
+
   function flattenItems(course) {
     const all = [];
     let lessonCounter = 1;
@@ -447,15 +561,25 @@ lesson.js – Lesson page
     return { items, nextLessonCounter: lessonCounter };
   }
 
+  function readLocalCompletions(email, courseId) {
+    const key = `netology_completions:${email}:${courseId}`;
+    const data = parseJsonSafe(localStorage.getItem(key)) || {};
+    const lessonArr = data.lesson || data.lessons || data.learn || [];
+    return new Set((lessonArr || []).map(Number));
+  }
+
   async function loadCompletions(email, courseId) {
     try {
       const res = await fetch(`${getApiBase()}/user-course-status?email=${encodeURIComponent(email)}&course_id=${encodeURIComponent(courseId)}`);
       if (!res.ok) return;
       const data = await res.json();
       const lessons = data.lessons || data.lesson || [];
-      state.completedLessons = new Set((lessons || []).map(Number));
+      const fromApi = new Set((lessons || []).map(Number));
+      const fromLocal = readLocalCompletions(email, courseId);
+      state.completedLessons = new Set([...fromApi, ...fromLocal]);
     } catch {
-      // silent
+      // fallback to local storage
+      state.completedLessons = readLocalCompletions(email, courseId);
     }
   }
 
@@ -571,10 +695,7 @@ lesson.js – Lesson page
     }
 
     // Progress + prev/next
-    const flat = flattenLessons(state.course);
-    const idx = flat.findIndex((f) => f.lessonNumber === Number(state.lessonNumber));
-    const prev = flat[idx - 1];
-    const next = flat[idx + 1];
+    const { flat, idx, prev, next } = getLessonNeighbors();
 
     const totalLessons = flat.length || 0;
     const completedCount = state.completedLessons.size || 0;
@@ -656,9 +777,17 @@ lesson.js – Lesson page
         alert("Sign in to save progress.");
         return;
       }
-      await completeLesson(state.user.email, state.courseId, state.lessonNumber, state.itemsForLesson[0]?.xp || 0);
+      if (state.completedLessons.has(Number(state.lessonNumber))) return;
+
+      const earnedXp = getEarnedLessonXP();
+      await completeLesson(state.user.email, state.courseId, state.lessonNumber, earnedXp);
+      markLessonCompletionLocal(state.user.email, state.courseId, state.lessonNumber, earnedXp);
+      trackCourseStart(state.user.email, state.courseId, state.lessonNumber);
       state.completedLessons.add(Number(state.lessonNumber));
+      refreshUserFromStorage();
       renderLesson();
+      const { nextInUnit } = getLessonNeighbors();
+      showCompletionToast(nextInUnit);
     });
   }
 
@@ -686,5 +815,99 @@ lesson.js – Lesson page
       .replaceAll(">", "&gt;")
       .replaceAll("\"", "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function clearCompletionToastTimers() {
+    if (completionTimer) {
+      clearTimeout(completionTimer);
+      completionTimer = null;
+    }
+    if (completionInterval) {
+      clearInterval(completionInterval);
+      completionInterval = null;
+    }
+  }
+
+  function showCompletionToast(nextInUnit) {
+    clearCompletionToastTimers();
+
+    const existing = document.getElementById("lessonToast");
+    if (existing) existing.remove();
+
+    const popup = document.createElement("div");
+    popup.id = "lessonToast";
+    popup.className = "net-toast net-toast-enter";
+    popup.setAttribute("role", "status");
+    popup.setAttribute("aria-live", "polite");
+    popup.dataset.type = "success";
+
+    const countdownId = "lessonToastCountdown";
+    const barId = "lessonToastBar";
+
+    const subText = nextInUnit
+      ? `Continue to next lesson in <span id="${countdownId}" class="net-toast-countdown">5</span>s`
+      : "Lesson saved. Return to course page.";
+
+    const actionsHtml = nextInUnit
+      ? `<div class="net-toast-actions">
+           <button class="btn btn-teal btn-sm net-toast-continue" type="button">
+             Continue now
+           </button>
+         </div>`
+      : "";
+
+    const barHtml = nextInUnit
+      ? `<div class="net-toast-timer"><div class="net-toast-timer-fill" id="${barId}" style="width:0%"></div></div>`
+      : "";
+
+    popup.innerHTML = `
+      <div class="net-toast-inner">
+        <div class="net-toast-icon" aria-hidden="true"></div>
+        <div class="net-toast-body">
+          <div class="net-toast-title">Lesson saved</div>
+          <div class="net-toast-sub">${subText}</div>
+          ${barHtml}
+          ${actionsHtml}
+        </div>
+        <button class="net-toast-close" type="button" aria-label="Back to course">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(popup);
+
+    const closeBtn = popup.querySelector(".net-toast-close");
+    closeBtn?.addEventListener("click", () => {
+      clearCompletionToastTimers();
+      window.location.href = coursePageUrl();
+    });
+
+    if (nextInUnit) {
+      const continueBtn = popup.querySelector(".net-toast-continue");
+      continueBtn?.addEventListener("click", () => {
+        clearCompletionToastTimers();
+        window.location.href = lessonUrl(nextInUnit.lessonNumber);
+      });
+
+      const duration = 5000;
+      const start = Date.now();
+      const bar = document.getElementById(barId);
+      const counter = document.getElementById(countdownId);
+
+      completionInterval = setInterval(() => {
+        const elapsed = Date.now() - start;
+        const pct = Math.min(100, Math.max(0, (elapsed / duration) * 100));
+        if (bar) bar.style.width = `${pct}%`;
+        const remaining = Math.max(0, duration - elapsed);
+        const seconds = Math.max(1, Math.ceil(remaining / 1000));
+        if (counter) counter.textContent = String(seconds);
+      }, 100);
+
+      completionTimer = setTimeout(() => {
+        clearCompletionToastTimers();
+        window.location.href = lessonUrl(nextInUnit.lessonNumber);
+      }, duration);
+    }
   }
 })();
