@@ -29,186 +29,409 @@ sandbox.html – Interactive networking sandbox.
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="bg-light net-bg">
+<body class="net-bg net-landing net-sigma">
 
-  <!-- Topbar (revamped to match Netology pages) -->
-  <header class="net-topbar" role="banner">
-    <div class="container d-flex align-items-center justify-content-between gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="net-logo" aria-hidden="true"></div>
-        <div>
-          <div class="net-brand">Netology</div>
-          <div class="net-subtitle small">Network Sandbox</div>
+  <!-- Slide Sidebar Backdrop -->
+  <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
+
+  <!-- Slide Sidebar -->
+  <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
+    <div class="net-sidehead">
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <a href="dashboard.html" class="net-brandchip" id="sideBrand" aria-label="Netology home">
+          <div class="net-logo" aria-hidden="true"></div>
+          <div class="net-brandname">Netology</div>
+        </a>
+
+        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu" type="button">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+
+    <nav class="net-sidenav" aria-label="Sidebar navigation">
+      <a class="net-sidelink" href="dashboard.html">
+        <i class="bi bi-house-door"></i> Dashboard
+      </a>
+      <a class="net-sidelink" href="account.html">
+        <i class="bi bi-person-circle"></i> My Profile
+      </a>
+      <a class="net-sidelink" href="courses.html">
+        <i class="bi bi-journal-bookmark"></i> Courses
+      </a>
+      <a class="net-sidelink is-active" href="sandbox.html">
+        <i class="bi bi-diagram-3"></i> Network Sandbox
+      </a>
+      <a class="net-sidelink" href="account.html">
+        <i class="bi bi-gear"></i> Settings
+      </a>
+    </nav>
+
+    <div class="net-sidefoot">
+      <div class="net-userbox">
+        <div class="d-flex align-items-center gap-3">
+          <div class="net-avatar-sm" id="sideAvatar">S</div>
+          <div class="flex-grow-1 min-width-0">
+            <div class="fw-semibold text-truncate" id="sideUserName">Student</div>
+            <div class="small text-muted text-truncate" id="sideUserEmail">email@example.com</div>
+          </div>
+          <span class="badge text-bg-light border" id="sideLevelBadge">Lv 1</span>
+        </div>
+
+        <div class="mt-3">
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>XP</span>
+            <span class="fw-semibold" id="sideXpText">0/100</span>
+          </div>
+          <div class="progress" style="height: 10px;">
+            <div class="progress-bar net-progress net-progress-fill" id="sideXpBar" style="width:0%"></div>
+          </div>
+          <div class="small text-muted mt-2" id="sideXpHint">100 XP to next level</div>
+        </div>
+
+        <div class="d-grid gap-2 mt-3">
+          <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
+            <i class="bi bi-box-arrow-right me-2"></i>Logout
+          </button>
         </div>
       </div>
+    </div>
+  </aside>
 
-      <!-- Actions moved into header -->
-      <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-        <!-- IMPORTANT: IDs must stay for sandbox.js -->
-        <button id="saveBtn" class="btn btn-teal btn-sm">
-          <i class="bi bi-cloud-arrow-up me-1"></i> Save
-        </button>
+  <!-- TOP NAV -->
+  <header class="net-topnav sticky-top" role="banner">
+    <div class="container-fluid">
+      <div class="net-topnav-inner">
 
-        <button id="loadBtn" class="btn btn-outline-light btn-sm">
-          <i class="bi bi-folder2-open me-1"></i> Load
-        </button>
-
-        <button id="clearBtn" class="btn btn-outline-light btn-sm">
-          <i class="bi bi-trash3 me-1"></i> Clear
-        </button>
-
-        <!-- Ping stays controlled by JS, same IDs -->
-        <div id="pingContainer" style="display:none;">
-          <button id="pingBtn" class="btn btn-light btn-sm">
-            <i class="bi bi-wifi me-1"></i> Ping
+        <!-- Left -->
+        <div class="net-topnav-left">
+          <button class="net-hambtn"
+                  id="openSidebarBtn"
+                  type="button"
+                  aria-label="Open menu">
+            <i class="bi bi-list" aria-hidden="true"></i>
+            <span class="visually-hidden">Open menu</span>
           </button>
         </div>
 
-        <a href="dashboard.html" class="btn btn-outline-light btn-sm">
-          <i class="bi bi-arrow-left me-1"></i> Dashboard
-        </a>
+        <!-- Center brand -->
+        <div class="net-topnav-center">
+          <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
+            <span class="net-logo net-logo-sm" aria-hidden="true"></span>
+            <h2 class="net-brand-text">Netology</h2>
+          </a>
+        </div>
+
+        <!-- Right (dropdown only) -->
+        <div class="net-topnav-right position-relative">
+
+          <!-- User dropdown -->
+          <div class="position-relative">
+            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
+              <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
+              <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
+            </button>
+
+            <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
+              <div class="net-ddhead">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="net-avatar-sm" id="ddAvatar" aria-hidden="true">S</div>
+                  <div class="min-width-0">
+                    <div class="fw-semibold text-truncate" id="ddName">Student</div>
+                    <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  <span class="badge text-bg-light border" id="ddLevel">Level 1</span>
+                  <span class="badge text-bg-light border" id="ddRank">Novice</span>
+                </div>
+              </div>
+              <a href="account.html"><i class="bi bi-person-circle"></i> My Account</a>
+              <a href="account.html"><i class="bi bi-gear"></i> Settings</a>
+              <div class="net-ddsep"></div>
+              <button class="danger" id="topLogoutBtn" type="button">
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </button>
+            </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
   </header>
 
-  <!-- NEW (Part 3): Challenge banner (shows only when ?challenge=1) -->
-  <div class="container mt-3" id="challengeBanner" style="display:none;">
-    <div class="net-card p-3">
-      <div class="d-flex justify-content-between align-items-start gap-3">
-        <div>
-          <div class="fw-semibold">Lesson Challenge</div>
-          <div class="small text-muted" id="challengeBannerText">Loading challenge…</div>
-        </div>
-        <a class="btn btn-outline-secondary btn-sm" href="dashboard.html">Exit</a>
-      </div>
-    </div>
-  </div>
-
   <!-- Main -->
-  <main class="container my-4">
-    <div class="row sb-wrap">
-
-      <!-- LEFT: Canvas -->
-      <div class="col-lg-8 col-xl-9">
-        <div class="sb-surface mb-3">
-
-          <div class="sb-canvas-toolbar">
-            <div>
-              <div class="fw-semibold" style="color:#0b3b40;">Build your topology</div>
-              <div class="sb-hint">Pick a tool → click the canvas → connect devices → edit in Properties.</div>
-            </div>
-
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge text-bg-light border">
-                <i class="bi bi-cursor me-1"></i> Select & drag
-              </span>
-              <span class="badge text-bg-light border">
-                <i class="bi bi-link-45deg me-1"></i> Connect
-              </span>
-            </div>
-          </div>
-
-          <div class="sb-canvas-wrap">
-            <canvas id="canvas"
-                    width="900"
-                    height="520"
-                    aria-label="Network building canvas">
-            </canvas>
-          </div>
-
+  <main class="container my-4 net-sbx">
+    <!-- Sandbox Toolbar -->
+    <section class="net-card net-pop sbx-toolbar">
+      <div class="sbx-toolbar-row">
+        <div class="sbx-brand">
+          <div class="sbx-title">Network Sandbox Pro</div>
+          <div class="sbx-subtitle">Build, connect, and test realistic topologies.</div>
         </div>
 
-        <!-- Tips (kept for sandbox.js) -->
-        <div class="alert alert-info mt-3" id="tips" aria-live="polite">
-          Tip: Choose a device type, then click on the canvas to place it.
+        <div class="sbx-toolbar-actions">
+          <div class="sbx-group">
+            <button class="sbx-iconbtn is-active" id="toolSelectBtn" data-tool="select" type="button" title="Select tool">
+              <i class="bi bi-cursor"></i>
+            </button>
+            <button class="sbx-iconbtn" id="toolConnectBtn" data-tool="connect" type="button" title="Connection tool">
+              <i class="bi bi-link-45deg"></i>
+            </button>
+          </div>
+
+          <div class="sbx-group sbx-group--labels" id="connTypeGroup">
+            <button class="sbx-chip is-active" data-conn-type="ethernet" type="button">Ethernet</button>
+            <button class="sbx-chip" data-conn-type="fiber" type="button">Fiber</button>
+            <button class="sbx-chip" data-conn-type="serial" type="button">Serial</button>
+            <button class="sbx-chip" data-conn-type="wireless" type="button">Wireless</button>
+            <button class="sbx-chip" data-conn-type="console" type="button">Console</button>
+          </div>
+
+          <div class="sbx-group">
+            <button class="sbx-iconbtn is-active" id="toggleGridBtn" type="button" title="Toggle grid">
+              <i class="bi bi-grid-3x3-gap"></i>
+            </button>
+            <button class="sbx-iconbtn is-active" id="toggleSnapBtn" type="button" title="Snap to grid">
+              <i class="bi bi-border-all"></i>
+            </button>
+          </div>
+
+          <div class="sbx-group">
+            <button class="sbx-iconbtn" id="zoomOutBtn" type="button" title="Zoom out">
+              <i class="bi bi-zoom-out"></i>
+            </button>
+            <div class="sbx-zoom" id="zoomLabel">100%</div>
+            <button class="sbx-iconbtn" id="zoomInBtn" type="button" title="Zoom in">
+              <i class="bi bi-zoom-in"></i>
+            </button>
+          </div>
+
+          <div class="sbx-group">
+            <button class="sbx-iconbtn" id="undoBtn" type="button" title="Undo">
+              <i class="bi bi-arrow-counterclockwise"></i>
+            </button>
+            <button class="sbx-iconbtn" id="redoBtn" type="button" title="Redo">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+
+          <div class="sbx-group">
+            <button id="saveBtn" class="btn btn-teal btn-sm" type="button">
+              <i class="bi bi-cloud-arrow-up me-1"></i> Save
+            </button>
+            <button id="loadBtn" class="btn btn-outline-secondary btn-sm" type="button">
+              <i class="bi bi-folder2-open me-1"></i> Load
+            </button>
+            <button id="clearBtn" class="btn btn-outline-secondary btn-sm" type="button">
+              <i class="bi bi-trash3 me-1"></i> Clear
+            </button>
+          </div>
+
+          <div class="sbx-group">
+            <div id="pingContainer" style="display:none;">
+              <button id="pingBtn" class="btn btn-outline-secondary btn-sm" type="button">
+                <i class="bi bi-wifi me-1"></i> Ping
+              </button>
+            </div>
+            <a href="dashboard.html" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-arrow-left me-1"></i> Dashboard
+            </a>
+          </div>
         </div>
       </div>
+    </section>
 
-      <!-- RIGHT: Tools + Properties + Navigation -->
-      <aside class="col-lg-4 col-xl-3">
-        <div class="sb-side">
-
-          <!-- Tools -->
-          <section class="net-card p-3 mb-3">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <div class="fw-semibold text-teal">Tools</div>
-              <span class="small text-muted">Add & edit</span>
-            </div>
-
-            <!-- IMPORTANT: data-tool attributes must stay for sandbox.js -->
-            <div class="sb-tool-grid">
-              <button type="button" class="sb-tool" data-tool="router" aria-label="Router tool">
-                <div class="sb-ico"><i class="bi bi-diagram-3"></i></div>
-                <div>
-                  <div class="sb-label">Router</div>
-                  <div class="sb-sub">Place router</div>
-                </div>
+    <div class="sbx-workspace">
+      <!-- Left Panel -->
+      <aside class="sbx-panel sbx-panel-left" id="sbxLeftPanel">
+        <div class="sbx-panel-head">
+          <div>
+            <div class="sbx-panel-title">Device Library</div>
+            <div class="sbx-panel-sub">Drag or click to add devices</div>
+          </div>
+          <button class="sbx-iconbtn sbx-panel-toggle" id="leftPanelToggle" type="button">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+        </div>
+        <div class="sbx-panel-body" id="deviceLibrary">
+          <div class="sbx-device-group" data-category="End Devices">
+            <div class="sbx-device-group-title">End Devices</div>
+            <div class="sbx-device-grid">
+              <button class="sbx-device-card" data-device="pc" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-pc-display"></i></span>
+                <span class="sbx-device-label">PC</span>
               </button>
-
-              <button type="button" class="sb-tool" data-tool="switch" aria-label="Switch tool">
-                <div class="sb-ico"><i class="bi bi-hdd-network"></i></div>
-                <div>
-                  <div class="sb-label">Switch</div>
-                  <div class="sb-sub">Place switch</div>
-                </div>
+              <button class="sbx-device-card" data-device="laptop" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-laptop"></i></span>
+                <span class="sbx-device-label">Laptop</span>
               </button>
-
-              <button type="button" class="sb-tool" data-tool="pc" aria-label="PC tool">
-                <div class="sb-ico"><i class="bi bi-pc-display"></i></div>
-                <div>
-                  <div class="sb-label">PC</div>
-                  <div class="sb-sub">Place PC</div>
-                </div>
+              <button class="sbx-device-card" data-device="smartphone" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-phone"></i></span>
+                <span class="sbx-device-label">Smartphone</span>
               </button>
-
-              <button type="button" class="sb-tool" data-tool="connect" aria-label="Connect tool">
-                <div class="sb-ico"><i class="bi bi-link-45deg"></i></div>
-                <div>
-                  <div class="sb-label">Connect</div>
-                  <div class="sb-sub">Draw cable</div>
-                </div>
-              </button>
-
-              <button type="button" class="sb-tool" data-tool="select" aria-label="Select tool" style="grid-column: span 2;">
-                <div class="sb-ico"><i class="bi bi-cursor"></i></div>
-                <div>
-                  <div class="sb-label">Select</div>
-                  <div class="sb-sub">Move + edit properties</div>
-                </div>
+              <button class="sbx-device-card" data-device="printer" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-printer"></i></span>
+                <span class="sbx-device-label">Printer</span>
               </button>
             </div>
+          </div>
 
-            <div class="small text-muted mt-3">
-              Use <strong>Select</strong> to drag devices and edit IP/mask/gateway.
+          <div class="sbx-device-group" data-category="Network Devices">
+            <div class="sbx-device-group-title">Network Devices</div>
+            <div class="sbx-device-grid">
+              <button class="sbx-device-card" data-device="router" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-diagram-3"></i></span>
+                <span class="sbx-device-label">Router</span>
+              </button>
+              <button class="sbx-device-card" data-device="switch" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-hdd-network"></i></span>
+                <span class="sbx-device-label">Switch</span>
+              </button>
+              <button class="sbx-device-card" data-device="wireless-ap" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-wifi"></i></span>
+                <span class="sbx-device-label">Wireless AP</span>
+              </button>
+              <button class="sbx-device-card" data-device="firewall" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-shield-lock"></i></span>
+                <span class="sbx-device-label">Firewall</span>
+              </button>
             </div>
-          </section>
+          </div>
 
-          <!-- Properties -->
-          <section class="net-card p-3 mb-3">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <div class="fw-semibold text-teal">Properties</div>
-              <span class="small text-muted">Selected device</span>
+          <div class="sbx-device-group" data-category="Servers">
+            <div class="sbx-device-group-title">Servers</div>
+            <div class="sbx-device-grid">
+              <button class="sbx-device-card" data-device="server" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-server"></i></span>
+                <span class="sbx-device-label">Server</span>
+              </button>
+              <button class="sbx-device-card" data-device="cloud" type="button">
+                <span class="sbx-device-icon"><i class="bi bi-cloud"></i></span>
+                <span class="sbx-device-label">Internet</span>
+              </button>
             </div>
-            <div id="props" class="small text-muted">No selection</div>
-          </section>
-
-          <!-- Navigation -->
-          <section class="net-card p-3">
-            <div class="fw-semibold text-teal mb-2">Navigation</div>
-            <div class="d-grid gap-2">
-              <a href="dashboard.html" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
-              </a>
-              <a href="login.html" class="btn btn-outline-danger btn-sm">
-                <i class="bi bi-box-arrow-right me-1"></i> Logout
-              </a>
-            </div>
-          </section>
-
+          </div>
         </div>
       </aside>
 
+      <!-- Canvas -->
+      <section class="sbx-stage-wrap">
+        <div class="sbx-stage-head">
+          <div>
+            <div class="sbx-stage-title">Topology Workspace</div>
+            <div class="sbx-stage-sub">Place devices, connect them, and configure details.</div>
+          </div>
+          <div id="tips" class="sbx-tip" aria-live="polite">
+            Tip: Select a device to view and edit its settings.
+          </div>
+        </div>
+
+        <div class="sbx-stage" id="sandboxStage">
+          <svg class="sbx-connections" id="sbxConnections" aria-hidden="true"></svg>
+          <div class="sbx-devices" id="sbxDevices"></div>
+          <div class="sbx-empty" id="sbxEmptyState">
+            <div class="sbx-empty-icon"><i class="bi bi-diagram-3"></i></div>
+            <div class="sbx-empty-title">Empty Canvas</div>
+            <div class="sbx-empty-sub">Add devices from the left panel to begin.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel -->
+      <aside class="sbx-panel sbx-panel-right" id="sbxRightPanel">
+        <div class="sbx-panel-head">
+          <div class="sbx-tablist" id="sbxRightTabs">
+            <button class="sbx-tab is-active" data-tab="config" type="button">
+              <i class="bi bi-sliders2-vertical"></i> Config
+            </button>
+            <button class="sbx-tab" data-tab="inspector" type="button">
+              <i class="bi bi-activity"></i> Inspector
+            </button>
+            <button class="sbx-tab" data-tab="objectives" type="button">
+              <i class="bi bi-bullseye"></i> Objectives
+            </button>
+          </div>
+          <button class="sbx-iconbtn sbx-panel-toggle" id="rightPanelToggle" type="button">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+
+        <div class="sbx-panel-body">
+          <div class="sbx-tabpanel is-active" id="panelConfig">
+            <div class="sbx-subtabs" id="sbxConfigTabs">
+              <button class="sbx-subtab is-active" data-subtab="general" type="button">General</button>
+              <button class="sbx-subtab" data-subtab="interfaces" type="button">Interfaces</button>
+              <button class="sbx-subtab" data-subtab="routing" type="button">Routing</button>
+              <button class="sbx-subtab" data-subtab="dhcp" type="button">DHCP</button>
+              <button class="sbx-subtab" data-subtab="dns" type="button">DNS</button>
+              <button class="sbx-subtab" data-subtab="mac" type="button">MAC</button>
+            </div>
+            <div id="props" class="sbx-panel-content">Select a device to view properties.</div>
+          </div>
+
+          <div class="sbx-tabpanel" id="panelInspector">
+            <div class="sbx-panel-content" id="sbxInspectorBody">
+              Run a ping test to see detailed results.
+            </div>
+          </div>
+
+          <div class="sbx-tabpanel" id="panelObjectives">
+            <div class="sbx-panel-content">
+              <div class="sbx-challenge-banner" id="challengeBanner" style="display:none;">
+                <div class="sbx-challenge-title">Lesson Challenge</div>
+                <div class="sbx-challenge-sub" id="challengeBannerText">Loading challenge…</div>
+              </div>
+              <div id="sbxObjectivesBody">No active challenge.</div>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
+
+    <button class="sbx-float-toggle sbx-float-left" id="leftPanelOpenBtn" type="button" aria-label="Open device library">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+    <button class="sbx-float-toggle sbx-float-right" id="rightPanelOpenBtn" type="button" aria-label="Open inspector panel">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+
+    <!-- Bottom Console -->
+    <section class="sbx-bottom" id="sbxBottomPanel">
+      <div class="sbx-bottom-head">
+        <div class="sbx-tablist" id="sbxBottomTabs">
+          <button class="sbx-tab is-active" data-bottom-tab="console" type="button">
+            <i class="bi bi-terminal"></i> Console
+          </button>
+          <button class="sbx-tab" data-bottom-tab="logs" type="button">
+            <i class="bi bi-journal-text"></i> Logs
+          </button>
+          <button class="sbx-tab" data-bottom-tab="packets" type="button">
+            <i class="bi bi-lightning"></i> Packets
+          </button>
+        </div>
+        <button class="sbx-iconbtn sbx-panel-toggle" id="bottomPanelToggle" type="button">
+          <i class="bi bi-chevron-down"></i>
+        </button>
+      </div>
+
+      <div class="sbx-bottom-body">
+        <div class="sbx-bottom-panel is-active" id="sbxConsolePanel">
+          <div class="sbx-console-output" id="sbxConsoleOutput"></div>
+          <div class="sbx-console-input">
+            <input type="text" id="sbxConsoleInput" placeholder="Enter command..." autocomplete="off">
+            <button class="btn btn-teal btn-sm" id="sbxConsoleSend" type="button">Send</button>
+          </div>
+        </div>
+        <div class="sbx-bottom-panel" id="sbxLogsPanel">
+          <div class="sbx-logs" id="sbxActionLogs">No actions logged yet.</div>
+        </div>
+        <div class="sbx-bottom-panel" id="sbxPacketsPanel">
+          <div class="sbx-logs" id="sbxPacketLogs">No packet activity yet.</div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- Footer -->

@@ -4,83 +4,278 @@ Student Name: Jamie O’Neill
 Course Code: TU857/4
 Date: 10/11/2025
 
-JavaScript
----------------------------------------
-AI PROMPTED CODE BELOW:
-"Please write me a JavaScript file for an interactive network sandbox tool. This tool should allow users to 
-create a simple network topology on an empty space (canvas). The user interface should include a toolbar with options to add different network devices
-(routers, switches, PCs), connect them with lines (representing network cables), and a properties panel to edit device details (name, IP address).
-The canvas should support drag and drop functionality for moving devices around. Users should be able to update select and delete the devices they want
-and also see the Prototype version"
+sandbox.js – Network Sandbox Pro (Figma AI layout, vanilla JS)
 
-sandbox.js – Interactive network sandbox.
-
-Place devices like routers, switches, and PCs on a canvas
-Connect them with lines
-Drag devices around
-Edit device names and IP addresses
-Delete devices
-Clear the entire canvas
+Reworked to match the Figma AI version:
+- Full UI rebuild (left device library, center canvas, right panels, bottom console)
+- DOM/SVG rendering for devices + connections
+- Expanded device types and connection types
+- Properties + inspector + objectives tabs
+- Console, logs, packets
+- Keeps existing save/load/ping/challenge/DB session flows
 */
 
-(function () {
-  // Basic DOM helper
+(() => {
   const getById = (id) => document.getElementById(id);
+  const qs = (sel, root = document) => root.querySelector(sel);
+  const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  // Setting up the sandbox environment
-  // Canvas used for drawing the network
-  const canvas = getById("canvas");
-  const ctx = canvas.getContext("2d"); // 2D drawing context
+  const stage = getById("sandboxStage");
+  if (!stage) return;
 
-  // UI elements
-  const tipsEl = getById("tips");   // Text info under canvas
-  const propsEl = getById("props"); // Right-side properties panel
+  const deviceLayer = getById("sbxDevices");
+  const connectionLayer = getById("sbxConnections");
+  const emptyState = getById("sbxEmptyState");
+  const tipsEl = getById("tips");
+  const propsEl = getById("props");
+  const inspectorBody = getById("sbxInspectorBody");
+  const objectivesBody = getById("sbxObjectivesBody");
+  const consoleOutputEl = getById("sbxConsoleOutput");
+  const consoleInputEl = getById("sbxConsoleInput");
+  const consoleSendBtn = getById("sbxConsoleSend");
+  const logsEl = getById("sbxActionLogs");
+  const packetsEl = getById("sbxPacketLogs");
+  const zoomLabel = getById("zoomLabel");
+  const connTypeGroup = getById("connTypeGroup");
 
-  // Tool modes user can select
+  const workspace = qs(".sbx-workspace");
+  const leftPanel = getById("sbxLeftPanel");
+  const rightPanel = getById("sbxRightPanel");
+  const bottomPanel = getById("sbxBottomPanel");
+  const leftToggle = getById("leftPanelToggle");
+  const rightToggle = getById("rightPanelToggle");
+  const bottomToggle = getById("bottomPanelToggle");
+  const leftOpenBtn = getById("leftPanelOpenBtn");
+  const rightOpenBtn = getById("rightPanelOpenBtn");
+
+  const GRID_SIZE = 20;
+  const DEVICE_SIZE = 72;
+  const DEVICE_RADIUS = DEVICE_SIZE / 2;
+
   const TOOL = {
     SELECT: "select",
     CONNECT: "connect",
-    ROUTER: "router",
-    SWITCH: "switch",
-    PC: "pc",
   };
 
-  // Current selected tool (default is SELECT)
-  let currentTool = TOOL.SELECT;
+  const DEVICE_TYPES = {
+    pc: { label: "PC", icon: "bi-pc-display", color: "linear-gradient(135deg,#3b82f6,#2563eb)", category: "End Devices" },
+    laptop: { label: "Laptop", icon: "bi-laptop", color: "linear-gradient(135deg,#6366f1,#4338ca)", category: "End Devices" },
+    smartphone: { label: "Smartphone", icon: "bi-phone", color: "linear-gradient(135deg,#a855f7,#7e22ce)", category: "End Devices" },
+    printer: { label: "Printer", icon: "bi-printer", color: "linear-gradient(135deg,#6b7280,#4b5563)", category: "End Devices" },
+    router: { label: "Router", icon: "bi-diagram-3", color: "linear-gradient(135deg,#f97316,#ea580c)", category: "Network Devices" },
+    switch: { label: "Switch", icon: "bi-hdd-network", color: "linear-gradient(135deg,#8b5cf6,#6d28d9)", category: "Network Devices" },
+    "wireless-ap": { label: "Wireless AP", icon: "bi-wifi", color: "linear-gradient(135deg,#06b6d4,#0891b2)", category: "Wireless" },
+    firewall: { label: "Firewall", icon: "bi-shield-lock", color: "linear-gradient(135deg,#ef4444,#b91c1c)", category: "Security" },
+    server: { label: "Server", icon: "bi-server", color: "linear-gradient(135deg,#10b981,#059669)", category: "Servers" },
+    cloud: { label: "Internet", icon: "bi-cloud", color: "linear-gradient(135deg,#38bdf8,#0ea5e9)", category: "WAN" },
+  };
 
-  // Data structures for sandbox
-  let devices = [];     // All device objects on the canvas
-  let connections = []; // All links between devices
+  const CONNECTION_TYPES = {
+    ethernet: { label: "Ethernet", color: "#3b82f6", width: 2 },
+    fiber: { label: "Fiber", color: "#f97316", width: 3 },
+    serial: { label: "Serial", color: "#ef4444", width: 2, dash: "6,4" },
+    wireless: { label: "Wireless", color: "#06b6d4", width: 2, dash: "4,6" },
+    console: { label: "Console", color: "#6366f1", width: 2, dash: "2,6" },
+  };
 
-  // Selection and dragging state
-  let selectedDeviceId = null; // id of the selected device (or null)
-  let connectStartId = null;   // id of first device when connecting
+  const state = {
+    devices: [],
+    connections: [],
+    selectedIds: [],
+    tool: TOOL.SELECT,
+    connectFrom: null,
+    connectType: "ethernet",
+    zoom: 1,
+    showGrid: true,
+    snap: true,
+    dragging: null,
+    history: [],
+    historyIndex: -1,
+    rightTab: "config",
+    configTab: "general",
+    bottomTab: "console",
+    consoleOutput: ["Network Sandbox Pro v2.0", "Ready."],
+    actionLogs: [],
+    packets: [],
+    pingInspector: null,
+    objectiveStatus: {},
+    challengeMeta: null,
+    deviceAnimations: new Set(),
+  };
 
-  let isDragging = false;
-  let dragOffsetX = 0;
-  let dragOffsetY = 0;
+  const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
 
-  const DEVICE_RADIUS = 24; // Radius of each device circle
-
-
-  // ---------------------------
-  // NEW (UI Fix): Ping button visibility helper
-  // ---------------------------
-  // The page layout was revamped and Ping moved into the header.
-  // We keep the same IDs, but now we must update its visibility whenever selection changes.
-  const pingContainer = getById("pingContainer");
-  function updatePingVisibility() {
-    if (!pingContainer) return;
-    pingContainer.style.display = selectedDeviceId ? "block" : "none";
+  // ----------------------------------------
+  // Utilities
+  // ----------------------------------------
+  function parseJsonSafe(str, fallback = null) {
+    try { return JSON.parse(str); } catch { return fallback; }
   }
 
-  // ---------------------------
-  // Progress logging (local)
-  // ---------------------------
-  function parseJsonSafe(str) {
-    try { return JSON.parse(str); } catch { return null; }
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
   }
 
+  function clamp(n, min, max) {
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function setTip(text) {
+    if (tipsEl) tipsEl.textContent = text;
+  }
+
+  function isValidIP(ip) {
+    const parts = String(ip || "").trim().split(".");
+    return parts.length === 4 && parts.every((p) => {
+      const n = Number(p);
+      return Number.isInteger(n) && n >= 0 && n <= 255;
+    });
+  }
+
+  function isValidSubnet(mask) {
+    const valid = new Set([
+      "255.255.255.255", "255.255.255.254", "255.255.255.252", "255.255.255.248",
+      "255.255.255.240", "255.255.255.224", "255.255.255.192", "255.255.255.128",
+      "255.255.255.0", "255.255.254.0", "255.255.252.0", "255.255.248.0",
+      "255.255.240.0", "255.255.224.0", "255.255.192.0", "255.255.128.0",
+      "255.255.0.0", "255.254.0.0", "255.252.0.0", "255.248.0.0",
+      "255.240.0.0", "255.224.0.0", "255.192.0.0", "255.128.0.0",
+      "255.0.0.0", "254.0.0.0", "252.0.0.0", "248.0.0.0",
+      "240.0.0.0", "224.0.0.0", "192.0.0.0", "128.0.0.0", "0.0.0.0",
+    ]);
+    return valid.has(String(mask || "").trim());
+  }
+
+  function ipToInt(ip) {
+    return String(ip).split(".").reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+  }
+
+  function isSameSubnet(ip1, ip2, mask) {
+    if (!isValidIP(ip1) || !isValidIP(ip2) || !isValidSubnet(mask)) return false;
+    const ip1Int = ipToInt(ip1);
+    const ip2Int = ipToInt(ip2);
+    const maskInt = ipToInt(mask);
+    return (ip1Int & maskInt) === (ip2Int & maskInt);
+  }
+
+  function generateMacAddress() {
+    return "XX:XX:XX:XX:XX:XX".replace(/X/g, () =>
+      Math.floor(Math.random() * 16).toString(16).toUpperCase()
+    );
+  }
+
+  function generateInterfaces(type, count = 2) {
+    if (type === "router") {
+      return Array.from({ length: count }, (_, i) => ({
+        id: `gig0/${i}`,
+        name: `GigabitEthernet0/${i}`,
+        status: "admin-down",
+        speed: "1000Mbps",
+        connectedTo: "",
+        ipAddress: "",
+      }));
+    }
+    if (type === "switch") {
+      return Array.from({ length: 24 }, (_, i) => ({
+        id: `fa0/${i}`,
+        name: `FastEthernet0/${i}`,
+        status: "down",
+        speed: "100Mbps",
+        connectedTo: "",
+      }));
+    }
+    return [];
+  }
+
+  function normalizeDevice(raw) {
+    const base = raw || {};
+    const config = base.config || {};
+    const ipAddress = config.ipAddress ?? base.ipAddress ?? base.ip ?? "";
+    const subnetMask = config.subnetMask ?? base.subnetMask ?? base.mask ?? "255.255.255.0";
+    const defaultGateway = config.defaultGateway ?? base.defaultGateway ?? base.gateway ?? "";
+    const macAddress = config.macAddress ?? base.macAddress ?? generateMacAddress();
+    const dhcpEnabled = config.dhcpEnabled ?? base.dhcpEnabled ?? false;
+    const interfaces = config.interfaces ?? base.interfaces ?? generateInterfaces(base.type);
+    const routingTable = config.routingTable ?? base.routingTable ?? [];
+    const macTable = config.macTable ?? base.macTable ?? [];
+    const dhcpServer = config.dhcpServer ?? base.dhcpServer ?? ((base.type === "server" || base.type === "router") ? {
+      enabled: false,
+      network: "",
+      mask: "255.255.255.0",
+      gateway: "",
+      rangeStart: "",
+      rangeEnd: "",
+      leases: [],
+    } : null);
+    const dnsServer = config.dnsServer ?? base.dnsServer ?? (base.type === "server" ? {
+      enabled: false,
+      records: [],
+    } : null);
+
+    return {
+      id: base.id || `device-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: base.type || "pc",
+      x: Number(base.x ?? 200),
+      y: Number(base.y ?? 200),
+      name: base.name || `${DEVICE_TYPES[base.type]?.label || "Device"}`,
+      status: base.status || "on",
+      config: {
+        ipAddress,
+        subnetMask,
+        defaultGateway,
+        macAddress,
+        dhcpEnabled,
+        interfaces,
+        routingTable,
+        macTable,
+        dhcpServer,
+        dnsServer,
+      },
+    };
+  }
+
+  function normalizeConnection(raw) {
+    if (!raw) return null;
+    if (raw.from && raw.to) {
+      return {
+        id: raw.id || `conn-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        from: raw.from,
+        to: raw.to,
+        type: raw.type || "ethernet",
+        status: raw.status || "active",
+        fromInterface: raw.fromInterface || "",
+        toInterface: raw.toInterface || "",
+      };
+    }
+    if (raw.a && raw.b) {
+      return {
+        id: raw.id || `conn-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        from: raw.a,
+        to: raw.b,
+        type: raw.type || "ethernet",
+        status: raw.status || "active",
+        fromInterface: raw.fromInterface || "",
+        toInterface: raw.toInterface || "",
+      };
+    }
+    return null;
+  }
+
+  function findDevice(id) {
+    return state.devices.find((d) => d.id === id) || null;
+  }
+
+  function getSelectedDevice() {
+    if (state.selectedIds.length !== 1) return null;
+    return findDevice(state.selectedIds[0]);
+  }
+
+  // ----------------------------------------
+  // XP + progress logging (kept)
+  // ----------------------------------------
   function bumpUserXP(email, addXP) {
     if (!email || !addXP) return;
     const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
@@ -99,7 +294,7 @@ Clear the entire canvas
       lesson_number: payload.lesson_number,
       xp: Number(payload.xp || 0),
       ts: Date.now(),
-      date: new Date().toISOString().slice(0, 10)
+      date: new Date().toISOString().slice(0, 10),
     };
     const key = `netology_progress_log:${email}`;
     const list = parseJsonSafe(localStorage.getItem(key)) || [];
@@ -115,7 +310,7 @@ Clear the entire canvas
     const payload = {
       id: String(courseId),
       lastViewed: Date.now(),
-      lastLesson: Number(lessonNumber || 0) || undefined
+      lastLesson: Number(lessonNumber || 0) || undefined,
     };
     if (existing) {
       existing.lastViewed = payload.lastViewed;
@@ -144,50 +339,28 @@ Clear the entire canvas
     }
   }
 
-
-  // ---------------------------
-  // NEW (Part 3): Lesson session state (DB save/load per lesson)
-  // ---------------------------
-  /*
-  AI PROMPTED CODE BELOW:
-  "Can you add a simple DB save/load system so sandbox state is stored per (user, course, lesson_number)
-  using /lesson-session/save and /lesson-session/load, and make it work with the existing challenge flow?"
-  */
-
-  let __lessonSession = {
-    enabled: false,       // true when challenge=1 and active challenge exists
+  // ----------------------------------------
+  // Lesson session DB save/load
+  // ----------------------------------------
+  const lessonSession = {
+    enabled: false,
     email: "",
     course_id: null,
     lesson_number: null,
     saving: false,
     lastSaveAt: 0,
-    dirty: false
+    dirty: false,
   };
-
-  function getLoggedInUser() {
-    return JSON.parse(localStorage.getItem("user") || "{}");
-  }
-
-  function getActiveChallengeMeta() {
-    const raw = localStorage.getItem("netology_active_challenge");
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  }
 
   function lessonSessionReady() {
     return (
-      __lessonSession.enabled &&
-      __lessonSession.email &&
-      __lessonSession.course_id !== null &&
-      __lessonSession.lesson_number !== null
+      lessonSession.enabled &&
+      lessonSession.email &&
+      lessonSession.course_id !== null &&
+      lessonSession.lesson_number !== null
     );
   }
 
-  // Debounce helper for autosave
   function debounce(fn, delay) {
     let t = null;
     return function (...args) {
@@ -198,31 +371,29 @@ Clear the entire canvas
 
   async function saveLessonSessionToDb() {
     if (!lessonSessionReady()) return;
-    if (__lessonSession.saving) return;
-
-    // Avoid spamming DB saves
+    if (lessonSession.saving) return;
     const now = Date.now();
-    if (!__lessonSession.dirty && now - __lessonSession.lastSaveAt < 800) return;
+    if (!lessonSession.dirty && now - lessonSession.lastSaveAt < 800) return;
 
-    __lessonSession.saving = true;
+    lessonSession.saving = true;
     try {
-      await fetch(`${window.API_BASE}/lesson-session/save`, {
+      await fetch(`${API_BASE}/lesson-session/save`, {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: __lessonSession.email,
-          course_id: __lessonSession.course_id,
-          lesson_number: __lessonSession.lesson_number,
-          devices: devices,
-          connections: connections
-        })
+          email: lessonSession.email,
+          course_id: lessonSession.course_id,
+          lesson_number: lessonSession.lesson_number,
+          devices: state.devices,
+          connections: state.connections,
+        }),
       });
-      __lessonSession.lastSaveAt = Date.now();
-      __lessonSession.dirty = false;
+      lessonSession.lastSaveAt = Date.now();
+      lessonSession.dirty = false;
     } catch (e) {
       console.error("saveLessonSessionToDb error:", e);
     } finally {
-      __lessonSession.saving = false;
+      lessonSession.saving = false;
     }
   }
 
@@ -232,7 +403,7 @@ Clear the entire canvas
 
   function markDirtyAndSaveSoon() {
     if (!lessonSessionReady()) return;
-    __lessonSession.dirty = true;
+    lessonSession.dirty = true;
     scheduleAutoSave();
   }
 
@@ -240,1035 +411,1691 @@ Clear the entire canvas
     if (!lessonSessionReady()) return;
 
     try {
-      const url =
-        `${window.API_BASE}/lesson-session/load?email=${encodeURIComponent(__lessonSession.email)}&course_id=${encodeURIComponent(__lessonSession.course_id)}&lesson_number=${encodeURIComponent(__lessonSession.lesson_number)}`;
-
+      const url = `${API_BASE}/lesson-session/load?email=${encodeURIComponent(lessonSession.email)}&course_id=${encodeURIComponent(lessonSession.course_id)}&lesson_number=${encodeURIComponent(lessonSession.lesson_number)}`;
       const res = await fetch(url);
       const data = await res.json();
+      if (!data.success || !data.found) return;
 
-      if (!data.success) return;
-
-      // If nothing found, keep current canvas
-      if (!data.found) return;
-
-      devices = data.devices || [];
-      connections = data.connections || [];
-
-      // Ensure any older saved devices get the new networking fields
-      devices.forEach((d) => {
-        if (typeof d.subnetMask === "undefined") d.subnetMask = "";
-        if (typeof d.gateway === "undefined") d.gateway = "";
-        if (typeof d.configVersion !== "number") d.configVersion = 1;
-        if (typeof d.gatewayTouched === "undefined") d.gatewayTouched = false;
-      });
-
-      selectedDeviceId = null;
-      connectStartId = null;
-
-      // NEW (UI Fix): selection changed, update Ping visibility
-      updatePingVisibility();
-
-      draw();
-      renderProps(null);
+      state.devices = (data.devices || []).map(normalizeDevice);
+      state.connections = (data.connections || []).map(normalizeConnection).filter(Boolean);
+      state.selectedIds = [];
+      state.connectFrom = null;
+      rebuildMacTables();
+      renderAll();
       setTip("Loaded your saved lesson session from the database.");
     } catch (e) {
       console.error("loadLessonSessionFromDb error:", e);
     }
   }
 
+  // ----------------------------------------
+  // Chrome (top nav + sidebar)
+  // ----------------------------------------
+  function getLoggedInUser() {
+    const raw = localStorage.getItem("user") || localStorage.getItem("netology_user") || "{}";
+    return parseJsonSafe(raw) || {};
+  }
 
-  //ToolBAR Buttons
-  // When a toolbar button (Router, Switch, PC, Connect, Select) is clicked
-  // update the current tool and show a helpful tip.
-  document.querySelectorAll("[data-tool]").forEach((button) => {
-    button.addEventListener("click", () => {
-      currentTool = button.getAttribute("data-tool");
-      showTipForTool();
-    });
-  });
+  function setText(id, text) {
+    const el = getById(id);
+    if (el) el.textContent = String(text ?? "");
+  }
 
-  function showTipForTool() {
-    if (currentTool === TOOL.SELECT) {
-      setTip("Click a device to select it. Drag to move it.");
-    } else if (currentTool === TOOL.CONNECT) {
-      setTip("Click one device, then another device to draw a connection.");
+  function initChrome() {
+    const user = getLoggedInUser();
+    if (user && user.email) {
+      wireChrome(user);
     } else {
-      // For router, switch, pc placement
-      setTip(`Click on the canvas to place a ${currentTool}.`);
+      wireChromeGuest();
     }
+    wireBrandRouting(!!(user && user.email));
   }
 
-  //Clear Canvas Button
-  // When user clicks "Clear Canvas", remove all devices & connections.
-  getById("clearBtn").addEventListener("click", () => {
-    devices = [];
-    connections = [];
-    selectedDeviceId = null;
-    connectStartId = null;
+  function wireBrandRouting(isAuthed) {
+    const topBrand = getById("topBrand");
+    const sideBrand = getById("sideBrand");
+    const href = isAuthed ? "dashboard.html" : "index.html";
+    if (topBrand) topBrand.setAttribute("href", href);
+    if (sideBrand) sideBrand.setAttribute("href", href);
+  }
 
-    // NEW (UI Fix): selection cleared, update Ping visibility
-    updatePingVisibility();
+  function wireChromeGuest() {
+    setText("topAvatar", "G");
+    setText("ddAvatar", "G");
+    setText("ddName", "Guest");
+    setText("ddEmail", "Sign in to track progress");
+    setText("ddLevel", "Level —");
+    setText("ddRank", "Guest");
 
-    renderProps(null);
-    draw();
-    setTip("Canvas cleared.");
+    setText("sideAvatar", "G");
+    setText("sideUserName", "Guest");
+    setText("sideUserEmail", "Sign in to save progress");
+    setText("sideLevelBadge", "Lv —");
+    setText("sideXpText", "—");
+    setText("sideXpHint", "Sign in to track XP");
+    const bar = getById("sideXpBar");
+    if (bar) bar.style.width = "0%";
 
-    // NEW (Part 3): autosave cleared state to DB for this lesson
-    markDirtyAndSaveSoon();
-  });
+    const topLogout = getById("topLogoutBtn");
+    const sideLogout = getById("sideLogoutBtn");
+    if (topLogout) topLogout.style.display = "none";
+    if (sideLogout) sideLogout.style.display = "none";
 
-  //Mouse click events
-  // Canvas click:
-  // If placing tool - place a device
-  // If select tool - select a device
-  // If connect tool - pick 2 devices and connect them
-  canvas.addEventListener("click", (e) => {
-    const pos = getMousePosition(e);
+    wireSidebar();
+    wireUserDropdown();
+  }
 
-    // Placing devices (router , switch , pc)
-    if (isPlacingTool()) {
-      placeDevice(currentTool, pos.x, pos.y);
-      draw();
+  function wireChrome(user) {
+    wireSidebar();
+    wireUserDropdown();
+    fillIdentity(user);
 
-      // NEW (Part 3): autosave after edit
-      markDirtyAndSaveSoon();
-      return;
-    }
+    const topLogout = getById("topLogoutBtn");
+    const sideLogout = getById("sideLogoutBtn");
+    if (topLogout) topLogout.addEventListener("click", logout);
+    if (sideLogout) sideLogout.addEventListener("click", logout);
+  }
 
-    // Select or Connect on existing device
-    const hitDevice = findDeviceAt(pos.x, pos.y);
+  function wireSidebar() {
+    const openBtn = getById("openSidebarBtn");
+    const closeBtn = getById("closeSidebarBtn");
+    const sidebar = getById("slideSidebar");
+    const backdrop = getById("sideBackdrop");
 
-    // Select mode highlights device and show its properties
-    if (currentTool === TOOL.SELECT) {
-      selectedDeviceId = hitDevice ? hitDevice.id : null;
+    const open = () => {
+      if (!sidebar || !backdrop) return;
+      sidebar.classList.add("is-open");
+      backdrop.classList.add("is-open");
+      document.body.classList.add("net-noscroll");
+      sidebar.setAttribute("aria-hidden", "false");
+      backdrop.setAttribute("aria-hidden", "false");
+    };
 
-      // NEW (UI Fix): selection changed, update Ping visibility
-      updatePingVisibility();
+    const close = () => {
+      if (!sidebar || !backdrop) return;
+      sidebar.classList.remove("is-open");
+      backdrop.classList.remove("is-open");
+      document.body.classList.remove("net-noscroll");
+      sidebar.setAttribute("aria-hidden", "true");
+      backdrop.setAttribute("aria-hidden", "true");
+    };
 
-      renderProps(selectedDeviceId);
-      draw();
-      return;
-    }
+    openBtn?.addEventListener("click", open);
+    closeBtn?.addEventListener("click", close);
+    backdrop?.addEventListener("click", close);
 
-    // Connect mode lets users clicks first device and  then second device
-    if (currentTool === TOOL.CONNECT && hitDevice) {
-      if (!connectStartId) {
-        // First click
-        connectStartId = hitDevice.id;
-        setTip("Now click another device to finish the connection.");
-      } else if (connectStartId !== hitDevice.id) {
-        // Second click
-        createConnection(connectStartId, hitDevice.id);
-        connectStartId = null;
-        draw();
-        setTip("Devices connected. Switch to Select to move or edit.");
-
-        // NEW (Part 3): autosave after edit
-        markDirtyAndSaveSoon();
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        close();
+        toggleDropdown(false);
       }
-    }
-  });
-
-  // Mouse down: start dragging a device (only in SELECT mode)
-  canvas.addEventListener("mousedown", (e) => {
-    if (currentTool !== TOOL.SELECT) return;
-
-    const pos = getMousePosition(e);
-    const hitDevice = findDeviceAt(pos.x, pos.y);
-    if (!hitDevice) return;
-
-    // Mark as selected
-    selectedDeviceId = hitDevice.id;
-
-    // NEW (UI Fix): selection changed, update Ping visibility
-    updatePingVisibility();
-
-    renderProps(selectedDeviceId);
-
-    // Start dragging
-    isDragging = true;
-    dragOffsetX = pos.x - hitDevice.x;
-    dragOffsetY = pos.y - hitDevice.y;
-
-    draw();
-  });
-
-  // Mouse move: drag selected device around the canvas
-  canvas.addEventListener("mousemove", (e) => {
-    if (!isDragging) return;
-
-    const pos = getMousePosition(e);
-    const d = getDevice(selectedDeviceId);
-    if (!d) return;
-
-    // Update device position based on mouse movement
-    d.x = pos.x - dragOffsetX;
-    d.y = pos.y - dragOffsetY;
-
-    draw();
-  });
-
-  // Mouse up: stop dragging
-  window.addEventListener("mouseup", () => {
-    if (isDragging) {
-      // NEW (Part 3): autosave after drag move ends
-      markDirtyAndSaveSoon();
-    }
-    isDragging = false;
-  });
-
-  //Device placement , connection creation and selection
-  // Create a new device and add it to the array
-  function placeDevice(type, x, y) {
-    // Simple unique id
-    const id = Date.now() + "-" + Math.random().toString(16).slice(2);
-
-    // Count how many devices of this type already exist to give "Router 1", "Router 2", etc.
-    const count = devices.filter((d) => d.type === type).length + 1;
-
-    devices.push({
-      id,
-      type,
-      x,
-      y,
-      name: `${capitalize(type)} ${count}`,
-      ip: "",
-      // NEW networking fields for configuration
-      subnetMask: "",
-      gateway: "",
-      // Version counter for configuration changes
-      configVersion: 1,
-      // Track if user manually touched gateway
-      gatewayTouched: false,
     });
   }
 
-  // Create a connection between two devices (by id)
-  function createConnection(aId, bId) {
-    if (aId === bId) return; // no self-connections
+  function wireUserDropdown() {
+    const userBtn = getById("userBtn");
+    const dd = getById("userDropdown");
 
-    // Avoid duplicate connections (A-B same as B-A)
-    const exists = connections.some(
-      (c) =>
-        (c.a === aId && c.b === bId) ||
-        (c.a === bId && c.b === aId)
-    );
+    userBtn?.addEventListener("click", () => {
+      const expanded = userBtn.getAttribute("aria-expanded") === "true";
+      toggleDropdown(!expanded);
+    });
 
-    if (!exists) {
-      connections.push({ a: aId, b: bId });
+    document.addEventListener("click", (e) => {
+      if (!dd || !userBtn) return;
+      if (dd.contains(e.target) || userBtn.contains(e.target)) return;
+      toggleDropdown(false);
+    });
+  }
+
+  function toggleDropdown(open) {
+    const userBtn = getById("userBtn");
+    const dd = getById("userDropdown");
+    if (!userBtn || !dd) return;
+    dd.classList.toggle("is-open", !!open);
+    userBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function fillIdentity(user) {
+    const name = user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.username || "Student";
+    const email = user?.email || "";
+    const initial = name.trim().charAt(0).toUpperCase();
+
+    setText("topAvatar", initial);
+    setText("ddAvatar", initial);
+    setText("ddName", name);
+    setText("ddEmail", email || "email@example.com");
+    setText("ddLevel", `Level ${Number(user?.level || 1)}`);
+    setText("ddRank", String(user?.unlock_tier || "Novice").replace(/^\w/, (c) => c.toUpperCase()));
+
+    setText("sideAvatar", initial);
+    setText("sideUserName", name);
+    setText("sideUserEmail", email || "email@example.com");
+    setText("sideLevelBadge", `Lv ${Number(user?.level || 1)}`);
+    setText("sideXpText", `${Number(user?.xp || 0)}/100`);
+    setText("sideXpHint", `100 XP to next level`);
+    const bar = getById("sideXpBar");
+    if (bar) bar.style.width = `${Math.min(100, Number(user?.xp || 0))}%`;
+  }
+
+  function logout() {
+    localStorage.removeItem("netology_user");
+    localStorage.removeItem("user");
+    localStorage.removeItem("netology_token");
+    window.location.href = "login.html";
+  }
+
+  // ----------------------------------------
+  // Rendering
+  // ----------------------------------------
+  function updateEmptyState() {
+    if (!emptyState) return;
+    emptyState.style.display = state.devices.length ? "none" : "grid";
+  }
+
+  function updatePingVisibility() {
+    const pingContainer = getById("pingContainer");
+    if (!pingContainer) return;
+    pingContainer.style.display = state.selectedIds.length ? "block" : "none";
+  }
+
+  function updateZoomLabel() {
+    if (zoomLabel) zoomLabel.textContent = `${Math.round(state.zoom * 100)}%`;
+    deviceLayer.style.transform = `scale(${state.zoom})`;
+    deviceLayer.style.transformOrigin = "0 0";
+    connectionLayer.style.transform = `scale(${state.zoom})`;
+    connectionLayer.style.transformOrigin = "0 0";
+    if (state.showGrid) {
+      stage.style.backgroundSize = `${GRID_SIZE * state.zoom}px ${GRID_SIZE * state.zoom}px`;
     }
   }
 
-  // Find a device object by its id
-  function getDevice(id) {
-    return devices.find((d) => d.id === id) || null;
+  function updateGrid() {
+    stage.classList.toggle("is-grid", state.showGrid);
+    if (state.showGrid) {
+      stage.style.backgroundSize = `${GRID_SIZE * state.zoom}px ${GRID_SIZE * state.zoom}px`;
+    }
   }
 
-  // Find the topmost device under a given (x, y) on the canvas
-  function findDeviceAt(x, y) {
-    // We loop from the end so the last drawn (top-most) device is found first
-    for (let i = devices.length - 1; i >= 0; i--) {
-      const d = devices[i];
-      if (distance(x, y, d.x, d.y) <= DEVICE_RADIUS) {
-        return d;
+  function updateConnGroupVisibility() {
+    if (!connTypeGroup) return;
+    connTypeGroup.style.display = state.tool === TOOL.CONNECT ? "inline-flex" : "none";
+  }
+
+  function renderDevices() {
+    deviceLayer.innerHTML = "";
+
+    state.devices.forEach((device) => {
+      const typeMeta = DEVICE_TYPES[device.type] || DEVICE_TYPES.pc;
+      const isSelected = state.selectedIds.includes(device.id);
+      const isError = device.status === "error";
+
+      const el = document.createElement("div");
+      el.className = "sbx-device";
+      if (isSelected) el.classList.add("is-selected");
+      if (isError) el.classList.add("is-error");
+      if (state.connectFrom === device.id) el.classList.add("is-selected");
+      if (state.deviceAnimations.has(device.id)) {
+        el.classList.add("is-animating");
+        setTimeout(() => {
+          state.deviceAnimations.delete(device.id);
+          el.classList.remove("is-animating");
+        }, 420);
       }
+
+      el.dataset.id = device.id;
+      el.dataset.type = device.type;
+      el.style.left = `${device.x}px`;
+      el.style.top = `${device.y}px`;
+      el.style.background = typeMeta.color;
+
+      const icon = document.createElement("i");
+      icon.className = `bi ${typeMeta.icon}`;
+      icon.style.fontSize = "24px";
+      el.appendChild(icon);
+
+      const name = document.createElement("div");
+      name.className = "sbx-device-label-badge";
+      name.textContent = device.name;
+      el.appendChild(name);
+
+      if (device.config?.ipAddress) {
+        const ip = document.createElement("div");
+        ip.className = "sbx-device-ip";
+        ip.textContent = device.config.ipAddress;
+        el.appendChild(ip);
+      }
+
+      deviceLayer.appendChild(el);
+    });
+  }
+
+  function resizeConnections() {
+    const rect = stage.getBoundingClientRect();
+    connectionLayer.setAttribute("width", rect.width);
+    connectionLayer.setAttribute("height", rect.height);
+    connectionLayer.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+  }
+
+  function renderConnections() {
+    resizeConnections();
+    connectionLayer.innerHTML = "";
+
+    state.connections.forEach((conn) => {
+      const from = findDevice(conn.from);
+      const to = findDevice(conn.to);
+      if (!from || !to) return;
+
+      const meta = CONNECTION_TYPES[conn.type] || CONNECTION_TYPES.ethernet;
+      const x1 = from.x + DEVICE_RADIUS;
+      const y1 = from.y + DEVICE_RADIUS;
+      const x2 = to.x + DEVICE_RADIUS;
+      const y2 = to.y + DEVICE_RADIUS;
+
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2);
+      line.setAttribute("y2", y2);
+      line.setAttribute("stroke", meta.color);
+      line.setAttribute("stroke-width", meta.width || 2);
+      if (meta.dash) line.setAttribute("stroke-dasharray", meta.dash);
+      connectionLayer.appendChild(line);
+
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2;
+      const del = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      del.classList.add("sbx-conn-delete");
+      del.setAttribute("cx", midX);
+      del.setAttribute("cy", midY);
+      del.setAttribute("r", 7);
+      del.dataset.connId = conn.id;
+      connectionLayer.appendChild(del);
+    });
+  }
+
+  function renderInspector() {
+    if (!inspectorBody) return;
+    if (!state.pingInspector) {
+      inspectorBody.innerHTML = "Run a ping test to see detailed results.";
+      return;
+    }
+
+    const result = state.pingInspector;
+    const statusClass = result.success ? "text-success" : "text-danger";
+    const stepsHtml = (result.steps || [])
+      .map((s) => `<div class="sbx-inspector-step ${s.success ? "ok" : "bad"}">
+          <strong>${escapeHtml(s.step)}:</strong> ${escapeHtml(s.message)}
+        </div>`)
+      .join("");
+
+    inspectorBody.innerHTML = `
+      <div class="sbx-inspector-result ${statusClass}">${escapeHtml(result.message)}</div>
+      ${stepsHtml}
+      <div class="small text-muted mt-2">Latency: ${result.latency ?? "—"} ms</div>
+    `;
+  }
+
+  function renderObjectives() {
+    if (!objectivesBody) return;
+    if (!state.challengeMeta) {
+      objectivesBody.textContent = "No active challenge.";
+      return;
+    }
+
+    const { steps = [], tips = "" } = state.challengeMeta;
+    const stepsHtml = steps.length
+      ? `<ul>${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ul>`
+      : "";
+    const tipsHtml = tips ? `<div class="small text-muted"><em>${escapeHtml(tips)}</em></div>` : "";
+
+    objectivesBody.innerHTML = `
+      <div class="sbx-objectives">
+        ${stepsHtml}
+        ${tipsHtml}
+        <button class="btn btn-teal btn-sm mt-2" id="validateBtn">Validate Challenge</button>
+        <div id="challengeResult" class="small mt-2"></div>
+        <div id="challengeReturn" class="mt-2"></div>
+      </div>
+    `;
+
+    const validateBtn = getById("validateBtn");
+    validateBtn?.addEventListener("click", handleChallengeValidate);
+  }
+
+  function renderProps() {
+    if (!propsEl) return;
+    const device = getSelectedDevice();
+    if (!device) {
+      propsEl.textContent = "Select a device to view properties.";
+      return;
+    }
+
+    const config = device.config || {};
+    const tab = state.configTab;
+
+    if (tab === "general") {
+      propsEl.innerHTML = `
+        <div class="sbx-prop-group">
+          <label class="form-label small">Device Name</label>
+          <input class="form-control form-control-sm" id="prop_name" value="${escapeHtml(device.name)}">
+        </div>
+        <div class="sbx-prop-group">
+          <label class="form-label small">IP Address</label>
+          <input class="form-control form-control-sm" id="prop_ip" value="${escapeHtml(config.ipAddress || "")}" placeholder="192.168.1.10">
+          <div class="small text-muted" id="ip_warning"></div>
+        </div>
+        <div class="sbx-prop-group">
+          <label class="form-label small">Subnet Mask</label>
+          <input class="form-control form-control-sm" id="prop_mask" value="${escapeHtml(config.subnetMask || "")}" placeholder="255.255.255.0">
+          <div class="small text-muted" id="mask_warning"></div>
+        </div>
+        <div class="sbx-prop-group">
+          <label class="form-label small">Default Gateway</label>
+          <input class="form-control form-control-sm" id="prop_gw" value="${escapeHtml(config.defaultGateway || "")}" placeholder="192.168.1.1">
+          <div class="small text-muted" id="gw_warning"></div>
+        </div>
+        <div class="form-check form-switch mt-2">
+          <input class="form-check-input" type="checkbox" id="prop_dhcp" ${config.dhcpEnabled ? "checked" : ""}>
+          <label class="form-check-label small" for="prop_dhcp">DHCP enabled</label>
+        </div>
+        <div class="small text-muted mt-2">MAC: ${escapeHtml(config.macAddress || "")}</div>
+        <button class="btn btn-outline-danger btn-sm mt-3" id="deleteDeviceBtn">Delete Device</button>
+      `;
+
+      const nameInput = getById("prop_name");
+      const ipInput = getById("prop_ip");
+      const maskInput = getById("prop_mask");
+      const gwInput = getById("prop_gw");
+      const dhcpToggle = getById("prop_dhcp");
+
+      nameInput?.addEventListener("input", (e) => {
+        device.name = e.target.value;
+        addActionLog(`Renamed ${device.name}`);
+        renderDevices();
+        markDirtyAndSaveSoon();
+      });
+
+      ipInput?.addEventListener("input", (e) => {
+        device.config.ipAddress = e.target.value;
+        updateDeviceStatus(device);
+        renderDevices();
+        updateWarnings(device);
+        markDirtyAndSaveSoon();
+      });
+
+      maskInput?.addEventListener("input", (e) => {
+        device.config.subnetMask = e.target.value;
+        updateDeviceStatus(device);
+        updateWarnings(device);
+        markDirtyAndSaveSoon();
+      });
+
+      gwInput?.addEventListener("input", (e) => {
+        device.config.defaultGateway = e.target.value;
+        updateDeviceStatus(device);
+        updateWarnings(device);
+        markDirtyAndSaveSoon();
+      });
+
+      dhcpToggle?.addEventListener("change", (e) => {
+        device.config.dhcpEnabled = e.target.checked;
+        if (device.config.dhcpEnabled) {
+          requestDHCP(device.id);
+        }
+        markDirtyAndSaveSoon();
+      });
+
+      getById("deleteDeviceBtn")?.addEventListener("click", () => {
+        deleteDevices([device.id]);
+      });
+
+      updateWarnings(device);
+      return;
+    }
+
+    if (tab === "interfaces") {
+      if (!config.interfaces || !config.interfaces.length) {
+        propsEl.textContent = "This device has no configurable interfaces.";
+        return;
+      }
+
+      propsEl.innerHTML = config.interfaces
+        .map((iface, idx) => {
+          return `
+            <div class="sbx-prop-card">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong>${escapeHtml(iface.name)}</strong>
+                <span class="badge text-bg-light border">${escapeHtml(iface.status)}</span>
+              </div>
+              <div class="small text-muted">Speed: ${escapeHtml(iface.speed)}</div>
+              ${device.type === "router" ? `
+                <input class="form-control form-control-sm mt-2" data-iface-ip="${idx}" value="${escapeHtml(iface.ipAddress || "")}" placeholder="IP Address">
+              ` : ""}
+              ${iface.connectedTo ? `<div class="small text-muted mt-1">↔ ${escapeHtml(findDevice(iface.connectedTo)?.name || iface.connectedTo)}</div>` : ""}
+            </div>
+          `;
+        })
+        .join("");
+
+      qsa("[data-iface-ip]", propsEl).forEach((input) => {
+        input.addEventListener("input", (e) => {
+          const idx = Number(e.target.getAttribute("data-iface-ip"));
+          if (config.interfaces[idx]) {
+            config.interfaces[idx].ipAddress = e.target.value;
+            markDirtyAndSaveSoon();
+          }
+        });
+      });
+      return;
+    }
+
+    if (tab === "routing") {
+      if (!config.routingTable) {
+        propsEl.textContent = "Routing is not available for this device.";
+        return;
+      }
+
+      const routesHtml = config.routingTable.length
+        ? config.routingTable.map((route) => `
+            <div class="sbx-prop-card">
+              <div><strong>${escapeHtml(route.network)}/${escapeHtml(route.mask)}</strong></div>
+              <div class="small text-muted">Via ${escapeHtml(route.gateway)} · ${escapeHtml(route.interface)}</div>
+            </div>
+          `).join("")
+        : `<div class="small text-muted">No static routes configured.</div>`;
+
+      propsEl.innerHTML = `
+        ${routesHtml}
+        <button class="btn btn-outline-secondary btn-sm mt-2" id="addRouteBtn">Add Route</button>
+      `;
+
+      getById("addRouteBtn")?.addEventListener("click", () => {
+        const network = prompt("Network (e.g., 10.0.0.0)");
+        const mask = prompt("Mask (e.g., 255.255.255.0)");
+        const gateway = prompt("Gateway (e.g., 10.0.0.1)");
+        const iface = prompt("Interface (e.g., GigabitEthernet0/0)");
+        if (!network || !mask || !gateway || !iface) return;
+        config.routingTable.push({ network, mask, gateway, interface: iface, metric: 1 });
+        markDirtyAndSaveSoon();
+        renderProps();
+      });
+      return;
+    }
+
+    if (tab === "dhcp") {
+      if (!config.dhcpServer) {
+        propsEl.textContent = "DHCP server configuration is not available for this device.";
+        return;
+      }
+
+      propsEl.innerHTML = `
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" id="dhcpServerEnabled" ${config.dhcpServer.enabled ? "checked" : ""}>
+          <label class="form-check-label small" for="dhcpServerEnabled">Enable DHCP Server</label>
+        </div>
+        <div class="sbx-prop-grid">
+          <input class="form-control form-control-sm" id="dhcpNetwork" value="${escapeHtml(config.dhcpServer.network || "")}" placeholder="Network">
+          <input class="form-control form-control-sm" id="dhcpMask" value="${escapeHtml(config.dhcpServer.mask || "")}" placeholder="Mask">
+          <input class="form-control form-control-sm" id="dhcpGateway" value="${escapeHtml(config.dhcpServer.gateway || "")}" placeholder="Gateway">
+          <input class="form-control form-control-sm" id="dhcpStart" value="${escapeHtml(config.dhcpServer.rangeStart || "")}" placeholder="Range start">
+          <input class="form-control form-control-sm" id="dhcpEnd" value="${escapeHtml(config.dhcpServer.rangeEnd || "")}" placeholder="Range end">
+        </div>
+        <div class="small text-muted mt-2">Leases: ${config.dhcpServer.leases.length}</div>
+      `;
+
+      getById("dhcpServerEnabled")?.addEventListener("change", (e) => {
+        config.dhcpServer.enabled = e.target.checked;
+        markDirtyAndSaveSoon();
+      });
+      getById("dhcpNetwork")?.addEventListener("input", (e) => {
+        config.dhcpServer.network = e.target.value;
+        markDirtyAndSaveSoon();
+      });
+      getById("dhcpMask")?.addEventListener("input", (e) => {
+        config.dhcpServer.mask = e.target.value;
+        markDirtyAndSaveSoon();
+      });
+      getById("dhcpGateway")?.addEventListener("input", (e) => {
+        config.dhcpServer.gateway = e.target.value;
+        markDirtyAndSaveSoon();
+      });
+      getById("dhcpStart")?.addEventListener("input", (e) => {
+        config.dhcpServer.rangeStart = e.target.value;
+        markDirtyAndSaveSoon();
+      });
+      getById("dhcpEnd")?.addEventListener("input", (e) => {
+        config.dhcpServer.rangeEnd = e.target.value;
+        markDirtyAndSaveSoon();
+      });
+      return;
+    }
+
+    if (tab === "dns") {
+      if (!config.dnsServer) {
+        propsEl.textContent = "DNS server configuration is not available for this device.";
+        return;
+      }
+
+      const recordsHtml = config.dnsServer.records.length
+        ? config.dnsServer.records.map((r) => `
+            <div class="sbx-prop-card">
+              <strong>${escapeHtml(r.hostname)}</strong>
+              <div class="small text-muted">${escapeHtml(r.ip)}</div>
+            </div>
+          `).join("")
+        : `<div class="small text-muted">No DNS records yet.</div>`;
+
+      propsEl.innerHTML = `
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" id="dnsServerEnabled" ${config.dnsServer.enabled ? "checked" : ""}>
+          <label class="form-check-label small" for="dnsServerEnabled">Enable DNS Server</label>
+        </div>
+        ${recordsHtml}
+        <button class="btn btn-outline-secondary btn-sm mt-2" id="addDnsBtn">Add DNS Record</button>
+      `;
+
+      getById("dnsServerEnabled")?.addEventListener("change", (e) => {
+        config.dnsServer.enabled = e.target.checked;
+        markDirtyAndSaveSoon();
+      });
+      getById("addDnsBtn")?.addEventListener("click", () => {
+        const hostname = prompt("Hostname (e.g., router.local)");
+        const ip = prompt("IP address");
+        if (!hostname || !ip) return;
+        config.dnsServer.records.push({ hostname, ip });
+        markDirtyAndSaveSoon();
+        renderProps();
+      });
+      return;
+    }
+
+    if (tab === "mac") {
+      if (!config.macTable) {
+        propsEl.textContent = "MAC table not available for this device.";
+        return;
+      }
+
+      const macHtml = config.macTable.length
+        ? config.macTable.map((m) => `
+            <div class="sbx-prop-card">
+              <strong>${escapeHtml(m.macAddress)}</strong>
+              <div class="small text-muted">Port: ${escapeHtml(m.port)}</div>
+            </div>
+          `).join("")
+        : `<div class="small text-muted">MAC table is empty.</div>`;
+
+      propsEl.innerHTML = macHtml;
+      return;
+    }
+  }
+
+  function updateWarnings(device) {
+    const ipWarn = getById("ip_warning");
+    const maskWarn = getById("mask_warning");
+    const gwWarn = getById("gw_warning");
+
+    if (ipWarn) ipWarn.textContent = isValidIP(device.config.ipAddress) ? "" : "Invalid IP";
+    if (maskWarn) maskWarn.textContent = isValidSubnet(device.config.subnetMask) ? "" : "Invalid subnet";
+    if (gwWarn) {
+      gwWarn.textContent = device.config.defaultGateway && !isValidIP(device.config.defaultGateway) ? "Invalid gateway" : "";
+    }
+  }
+
+  function updateDeviceStatus(device) {
+    const ipOk = !device.config.ipAddress || isValidIP(device.config.ipAddress);
+    const maskOk = !device.config.subnetMask || isValidSubnet(device.config.subnetMask);
+    const gwOk = !device.config.defaultGateway || isValidIP(device.config.defaultGateway);
+    device.status = ipOk && maskOk && gwOk ? "on" : "error";
+  }
+
+  function renderLogs() {
+    if (!logsEl) return;
+    logsEl.innerHTML = state.actionLogs.length
+      ? state.actionLogs.map((l) => `<div>${escapeHtml(l)}</div>`).join("")
+      : "No actions logged yet.";
+  }
+
+  function renderPackets() {
+    if (!packetsEl) return;
+    packetsEl.innerHTML = state.packets.length
+      ? state.packets.map((p) => `<div>${escapeHtml(p)}</div>`).join("")
+      : "No packet activity yet.";
+  }
+
+  function renderConsole() {
+    if (!consoleOutputEl) return;
+    consoleOutputEl.innerHTML = state.consoleOutput.map((l) => `<div>${escapeHtml(l)}</div>`).join("");
+    consoleOutputEl.scrollTop = consoleOutputEl.scrollHeight;
+  }
+
+  function renderAll() {
+    updateGrid();
+    updateZoomLabel();
+    updateEmptyState();
+    renderDevices();
+    renderConnections();
+    renderProps();
+    renderInspector();
+    renderObjectives();
+    renderLogs();
+    renderPackets();
+    renderConsole();
+    updatePingVisibility();
+  }
+
+  // ----------------------------------------
+  // History (Undo/Redo)
+  // ----------------------------------------
+  function snapshotState() {
+    return {
+      devices: JSON.parse(JSON.stringify(state.devices)),
+      connections: JSON.parse(JSON.stringify(state.connections)),
+    };
+  }
+
+  function pushHistory() {
+    const snap = snapshotState();
+    state.history = state.history.slice(0, state.historyIndex + 1);
+    state.history.push(snap);
+    state.historyIndex = state.history.length - 1;
+    updateHistoryButtons();
+  }
+
+  function restoreHistory(index) {
+    const snap = state.history[index];
+    if (!snap) return;
+    state.devices = snap.devices.map(normalizeDevice);
+    state.connections = snap.connections.map(normalizeConnection).filter(Boolean);
+    rebuildMacTables();
+    renderAll();
+    updateHistoryButtons();
+    markDirtyAndSaveSoon();
+  }
+
+  function updateHistoryButtons() {
+    const undoBtn = getById("undoBtn");
+    const redoBtn = getById("redoBtn");
+    if (undoBtn) undoBtn.disabled = state.historyIndex <= 0;
+    if (redoBtn) redoBtn.disabled = state.historyIndex >= state.history.length - 1;
+  }
+
+  // ----------------------------------------
+  // Device and connection actions
+  // ----------------------------------------
+  function addDevice(type) {
+    const rect = stage.getBoundingClientRect();
+    const baseX = rect.width / 2 - DEVICE_RADIUS + (Math.random() * 100 - 50);
+    const baseY = rect.height / 2 - DEVICE_RADIUS + (Math.random() * 100 - 50);
+    const count = state.devices.filter((d) => d.type === type).length + 1;
+
+    const device = normalizeDevice({
+      id: `device-${Date.now()}`,
+      type,
+      x: clamp(baseX, 10, rect.width - DEVICE_SIZE - 10),
+      y: clamp(baseY, 10, rect.height - DEVICE_SIZE - 10),
+      name: `${DEVICE_TYPES[type]?.label || "Device"} ${count}`,
+      status: "on",
+    });
+
+    updateDeviceStatus(device);
+    state.devices.push(device);
+    state.selectedIds = [device.id];
+    state.deviceAnimations.add(device.id);
+    addActionLog(`Added ${device.name}`);
+    pushHistory();
+    renderAll();
+    markDirtyAndSaveSoon();
+  }
+
+  function deleteDevices(ids) {
+    if (!ids || !ids.length) return;
+    const removed = state.devices.filter((d) => ids.includes(d.id));
+    state.devices = state.devices.filter((d) => !ids.includes(d.id));
+    state.connections = state.connections.filter((c) => !ids.includes(c.from) && !ids.includes(c.to));
+    state.selectedIds = [];
+    removed.forEach((d) => addActionLog(`Removed ${d.name}`));
+    rebuildMacTables();
+    pushHistory();
+    renderAll();
+    markDirtyAndSaveSoon();
+  }
+
+  function createConnection(fromId, toId) {
+    if (fromId === toId) return;
+    const exists = state.connections.some(
+      (c) => (c.from === fromId && c.to === toId) || (c.from === toId && c.to === fromId)
+    );
+    if (exists) return;
+
+    const fromDevice = findDevice(fromId);
+    const toDevice = findDevice(toId);
+    const fromInterface = pickInterface(fromDevice);
+    const toInterface = pickInterface(toDevice);
+
+    const conn = {
+      id: `conn-${Date.now()}`,
+      from: fromId,
+      to: toId,
+      type: state.connectType,
+      status: "active",
+      fromInterface: fromInterface?.id || "",
+      toInterface: toInterface?.id || "",
+    };
+
+    if (fromInterface) fromInterface.connectedTo = toId;
+    if (toInterface) toInterface.connectedTo = fromId;
+
+    state.connections.push(conn);
+    rebuildMacTables();
+    addActionLog(`Connected ${fromDevice?.name || "device"} to ${toDevice?.name || "device"}`);
+    pushHistory();
+    renderAll();
+    markDirtyAndSaveSoon();
+  }
+
+  function deleteConnection(connId) {
+    const conn = state.connections.find((c) => c.id === connId);
+    if (!conn) return;
+
+    clearInterfaceLink(conn.from, conn.fromInterface);
+    clearInterfaceLink(conn.to, conn.toInterface);
+
+    state.connections = state.connections.filter((c) => c.id !== connId);
+    rebuildMacTables();
+    addActionLog("Removed connection");
+    pushHistory();
+    renderAll();
+    markDirtyAndSaveSoon();
+  }
+
+  function pickInterface(device) {
+    if (!device || !device.config?.interfaces) return null;
+    const available = device.config.interfaces.find((i) => !i.connectedTo);
+    if (available) {
+      available.status = "up";
+      return available;
     }
     return null;
   }
 
-  //Show all devices and connections on the canvas
-  // Redraw everything
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
-    drawConnections();
-    drawDevices();
-  }
-
-  // Draw all connection lines between devices
-  function drawConnections() {
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#90A4AE";
-
-    connections.forEach((con) => {
-      const A = getDevice(con.a);
-      const B = getDevice(con.b);
-      if (!A || !B) return;
-
-      ctx.beginPath();
-      ctx.moveTo(A.x, A.y);
-      ctx.lineTo(B.x, B.y);
-      ctx.stroke();
-    });
-  }
-
-  // Draw all devices as circles with icons and labels
-  function drawDevices() {
-    devices.forEach((d) => {
-      //Circle body
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, DEVICE_RADIUS, 0, Math.PI * 2);
-      // Auto-colour device based on config validity
-      let isValid =
-          isValidIp(d.ip) &&
-          isValidMask(d.subnetMask) &&
-          isValidIp(d.gateway) &&
-          sameSubnet(d.ip, d.gateway, d.subnetMask);
-
-      ctx.fillStyle = isValid ? "#C8E6C9" : "#FFCDD2"; // green if valid, red if not
-      ctx.fill();
-      ctx.strokeStyle = "#00838F";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      //icon inside circle
-      ctx.fillStyle = "#000";
-      ctx.font = "16px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(getIcon(d.type), d.x, d.y);
-
-      //Device name below circle
-      ctx.font = "12px Arial";
-      ctx.textBaseline = "alphabetic";
-      ctx.fillText(d.name, d.x, d.y + DEVICE_RADIUS + 14);
-
-      // Highlight box if this device is selected
-      if (d.id === selectedDeviceId) {
-        ctx.strokeStyle = "#FF9800";
-        ctx.setLineDash([5, 4]);
-        ctx.strokeRect(
-          d.x - DEVICE_RADIUS - 4,
-          d.y - DEVICE_RADIUS - 4,
-          (DEVICE_RADIUS + 4) * 2,
-          (DEVICE_RADIUS + 4) * 2
-        );
-        ctx.setLineDash([]);
+  function clearInterfaceLink(deviceId, ifaceId) {
+    if (!deviceId || !ifaceId) return;
+    const device = findDevice(deviceId);
+    if (!device || !device.config?.interfaces) return;
+    device.config.interfaces.forEach((iface) => {
+      if (iface.id === ifaceId) {
+        iface.connectedTo = "";
+        iface.status = device.type === "router" ? "admin-down" : "down";
       }
     });
   }
 
-  //Properties panel to edit device details
-  // Show/Update device information (type, name, IP, delete button)
-  function renderProps(id) {
-    const d = getDevice(id);
+  function rebuildMacTables() {
+    state.devices.forEach((device) => {
+      if (device.type !== "switch") return;
+      const entries = [];
+      const links = state.connections.filter((c) => c.from === device.id || c.to === device.id);
+      links.forEach((conn, idx) => {
+        const otherId = conn.from === device.id ? conn.to : conn.from;
+        const other = findDevice(otherId);
+        if (!other) return;
+        const port = device.config.interfaces?.[idx]?.name || `Fa0/${idx}`;
+        entries.push({ macAddress: other.config.macAddress, port, age: 0 });
+      });
+      device.config.macTable = entries;
+    });
+  }
 
-    // No device selected
-    if (!d) {
-      propsEl.innerHTML = "No selection";
+  // ----------------------------------------
+  // Ping & packets
+  // ----------------------------------------
+  function executePing(fromId, toId) {
+    const fromDevice = findDevice(fromId);
+    const toDevice = findDevice(toId);
+    const steps = [];
+
+    if (!fromDevice) return;
+    if (!fromDevice.config.ipAddress) {
+      steps.push({ step: "Source IP", success: false, message: "No IP configured" });
+      setPingResult({ success: false, steps, message: "Source IP missing" });
       return;
     }
 
-    // Make sure newer networking fields exist (for older loaded topologies)
-    if (typeof d.subnetMask === "undefined") d.subnetMask = "";
-    if (typeof d.gateway === "undefined") d.gateway = "";
-    if (typeof d.configVersion !== "number") d.configVersion = 1;
-    if (typeof d.gatewayTouched === "undefined") d.gatewayTouched = false;
+    steps.push({ step: "Source IP", success: true, message: fromDevice.config.ipAddress });
 
-    // Build small form for editing name and IP
-    propsEl.innerHTML = `
-      <div><strong>Type:</strong> ${capitalize(d.type)}</div>
+    if (!toDevice || !toDevice.config.ipAddress) {
+      steps.push({ step: "Destination IP", success: false, message: "Destination missing" });
+      setPingResult({ success: false, steps, message: "Destination not found" });
+      return;
+    }
 
-      <hr class="mt-2 mb-2">
+    steps.push({ step: "Destination IP", success: true, message: toDevice.config.ipAddress });
 
-      <div class="small fw-bold">Networking Settings</div>
+    if (!isValidSubnet(fromDevice.config.subnetMask)) {
+      steps.push({ step: "Subnet", success: false, message: "Invalid subnet mask" });
+      setPingResult({ success: false, steps, message: "Invalid subnet mask" });
+      return;
+    }
 
-      <label class="form-label small mt-2">IP Address</label>
-      <input
-        id="prop_ip"
-        class="form-control form-control-sm"
-        placeholder="192.168.1.10"
-        value="${escapeHtml(d.ip)}"
-      >
-      <div id="ip_warning" class="small mt-1"></div>
+    const path = findPath(fromId, toId);
+    if (!path.length) {
+      steps.push({ step: "Connectivity", success: false, message: "No path" });
+      setPingResult({ success: false, steps, message: "No route" });
+      return;
+    }
 
-      <label class="form-label small mt-2">Subnet Mask</label>
-      <input
-        id="prop_mask"
-        class="form-control form-control-sm"
-        placeholder="255.255.255.0"
-        value="${escapeHtml(d.subnetMask)}"
-      >
-      <div id="mask_warning" class="small mt-1"></div>
-
-      <label class="form-label small mt-2">Default Gateway</label>
-      <input
-        id="prop_gw"
-        class="form-control form-control-sm"
-        placeholder="192.168.1.1"
-        value="${escapeHtml(d.gateway)}"
-      >
-      <div id="gw_warning" class="small mt-1"></div>
-
-      <label class="form-label small mt-3">Device Name</label>
-      <input
-        id="prop_name"
-        class="form-control form-control-sm"
-        value="${escapeHtml(d.name)}"
-      >
-
-      <button class="btn btn-sm btn-outline-danger mt-3" id="deleteBtn">
-        Delete Device
-      </button>
-    `;
-
-    // Get references to inputs + warning areas
-    const nameInput = getById("prop_name");
-    const ipInput   = getById("prop_ip");
-    const maskInput = getById("prop_mask");
-    const gwInput   = getById("prop_gw");
-
-    // When user types into "Device Name", update device and redraw
-    nameInput.oninput = (e) => {
-      d.name = e.target.value;
-      bumpConfig(d);
-      draw();
-      updateWarnings(d);
-
-      // NEW (Part 3): autosave after edit
-      markDirtyAndSaveSoon();
-    };
-
-    // When user types into "IP Address", update stored IP value
-    ipInput.oninput = (e) => {
-      d.ip = e.target.value;
-      bumpConfig(d);
-      // Try to suggest a gateway if IP + mask are valid and user hasn't changed gateway
-      suggestGateway(d);
-      updateWarnings(d);
-
-      // NEW (Part 3): autosave after edit
-      markDirtyAndSaveSoon();
-    };
-
-    // When user types into "Subnet Mask", update stored mask value
-    maskInput.oninput = (e) => {
-      d.subnetMask = e.target.value;
-      bumpConfig(d);
-      suggestGateway(d);
-      updateWarnings(d);
-
-      // NEW (Part 3): autosave after edit
-      markDirtyAndSaveSoon();
-    };
-
-    // When user types into "Default Gateway", update stored gateway value
-    gwInput.oninput = (e) => {
-      d.gateway = e.target.value;
-      d.gatewayTouched = true; // user manually edited
-      bumpConfig(d);
-      updateWarnings(d);
-
-      // NEW (Part 3): autosave after edit
-      markDirtyAndSaveSoon();
-    };
-
-    // When "Delete Device" is clicked, remove device and any connections
-    getById("deleteBtn").onclick = () => {
-      if (confirm("Delete this device?")) {
-        devices = devices.filter((x) => x.id !== id);
-        connections = connections.filter(
-          (c) => c.a !== id && c.b !== id
-        );
-        selectedDeviceId = null;
-
-        // NEW (UI Fix): selection cleared, update Ping visibility
-        updatePingVisibility();
-
-        renderProps(null);
-        draw();
-
-        // NEW (Part 3): autosave after edit
-        markDirtyAndSaveSoon();
-      }
-    };
-
-    // Initial warnings render
-    updateWarnings(d);
-  }
-
-  // Helpful Functions
-  function isPlacingTool() {
-    return (
-      currentTool === TOOL.ROUTER ||
-      currentTool === TOOL.SWITCH ||
-      currentTool === TOOL.PC
+    const sameSubnet = isSameSubnet(
+      fromDevice.config.ipAddress,
+      toDevice.config.ipAddress,
+      fromDevice.config.subnetMask
     );
+    steps.push({ step: "Subnet", success: true, message: sameSubnet ? "Local" : "Remote" });
+
+    if (!sameSubnet) {
+      if (!fromDevice.config.defaultGateway) {
+        steps.push({ step: "Gateway", success: false, message: "No default gateway" });
+        setPingResult({ success: false, steps, message: "Missing gateway" });
+        return;
+      }
+
+      const gatewayDevice = state.devices.find((d) => d.config.ipAddress === fromDevice.config.defaultGateway);
+      if (!gatewayDevice) {
+        steps.push({ step: "Gateway", success: false, message: "Gateway not in topology" });
+        setPingResult({ success: false, steps, message: "Gateway unreachable" });
+        return;
+      }
+
+      const pathViaGateway = path.includes(gatewayDevice.id);
+      if (!pathViaGateway) {
+        steps.push({ step: "Gateway", success: false, message: "No route through gateway" });
+        setPingResult({ success: false, steps, message: "No route to destination" });
+        return;
+      }
+
+      steps.push({ step: "Gateway", success: true, message: `Gateway: ${gatewayDevice.name}` });
+    }
+
+    setPingResult({
+      success: true,
+      steps,
+      message: `Reply from ${toDevice.config.ipAddress}`,
+      latency: sameSubnet ? 1 : 2,
+    });
+
+    addPacketLog(`${fromDevice.name} → ${toDevice.name} (${fromDevice.config.ipAddress} → ${toDevice.config.ipAddress})`);
+    animatePacket(path);
   }
 
-  function setTip(msg) {
-    if (tipsEl) {
-      tipsEl.textContent = msg;
+  function setPingResult(result) {
+    state.pingInspector = result;
+    renderInspector();
+    const resultBox = getById("pingResult");
+    if (resultBox) {
+      resultBox.className = result.success ? "text-success" : "text-danger";
+      resultBox.innerHTML = result.success
+        ? `<strong>✔ ${escapeHtml(result.message)}</strong>`
+        : `❌ ${escapeHtml(result.message)}`;
     }
   }
 
-  function getMousePosition(e) {
-    const rect = canvas.getBoundingClientRect();
-
-    // NEW (UI Fix): If canvas is responsive (CSS scales it), mouse coords must be scaled too.
-    // This fixes selecting devices and connecting lines when canvas is displayed at a different size.
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-    };
+  function addPacketLog(line) {
+    state.packets.unshift(`[${new Date().toLocaleTimeString()}] ${line}`);
+    state.packets = state.packets.slice(0, 40);
+    renderPackets();
   }
 
-  function distance(x1, y1, x2, y2) {
-    return Math.hypot(x1 - x2, y1 - y2);
-  }
+  function animatePacket(path) {
+    if (!path || path.length < 2) return;
+    resizeConnections();
 
-  function capitalize(str) {
-    if (!str) return "";
-    return str.charAt(0).toUpperCase() + str.slice(1);
-  }
+    const points = path
+      .map((id) => findDevice(id))
+      .filter(Boolean)
+      .map((d) => ({ x: d.x + DEVICE_RADIUS, y: d.y + DEVICE_RADIUS }));
 
-  function getIcon(type) {
-    if (type === TOOL.ROUTER) return "Router";
-    if (type === TOOL.SWITCH) return "Switch";
-    return "PC";
-  }
+    if (points.length < 2) return;
 
-  // escapeHtml() prevents user-typed text from breaking the HTML.
-  // It replaces special characters (< > & " ') with safe versions.
-  // This protects the page when showing device names and IP addresses.
-  function escapeHtml(str) {
-    return String(str)
-      // Convert & to &amp (must be done first)
-      .replaceAll("&", "&amp;")
-      // Convert <  to &lt to stop HTML tags from appearing
-      .replaceAll("<", "&lt;")
-      // Convert > to &gt
-      .replaceAll(">", "&gt;")
-      // Convert " to &quot to avoid breaking HTML attributes
-      .replaceAll('"', "&quot;")
-      // Convert ' to &#39;
-      .replaceAll("'", "&#39;");
-  }
-
-  // --------- NEW: IP / Subnet / Gateway helpers + validation ----------
-
-  // Convert dotted-decimal IP to 32-bit integer
-  function ipToInt(ip) {
-    if (!isValidIp(ip)) return null;
-    const parts = ip.trim().split(".").map(Number);
-    return (
-      (parts[0] << 24) |
-      (parts[1] << 16) |
-      (parts[2] << 8) |
-      parts[3]
-    ) >>> 0; // ensure unsigned
-  }
-
-  // Convert 32-bit integer back to dotted-decimal IP
-  function intToIp(num) {
-    return [
-      (num >>> 24) & 255,
-      (num >>> 16) & 255,
-      (num >>> 8) & 255,
-      num & 255,
-    ].join(".");
-  }
-
-  // Basic IP validation
-  function isValidIp(ip) {
-    if (!ip) return false;
-    const parts = ip.trim().split(".");
-    if (parts.length !== 4) return false;
-    for (let p of parts) {
-      if (p === "" || isNaN(p)) return false;
-      const n = Number(p);
-      if (n < 0 || n > 255) return false;
+    const segments = [];
+    let total = 0;
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const a = points[i];
+      const b = points[i + 1];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      segments.push({ a, b, len });
+      total += len;
     }
-    return true;
-  }
 
-  // Check if mask is a valid contiguous subnet mask (e.g. 255.255.255.0)
-  function isValidMask(mask) {
-    const mInt = ipToInt(mask);
-    if (mInt === null) return false;
-    // must not be all 0s or all 1s
-    if (mInt === 0 || mInt === 0xffffffff) return false;
-    // contiguous ones check: pattern like 111...000...
-    return (mInt & (mInt + 1)) === 0;
-  }
+    if (!total) return;
 
-  // Same subnet check (ip and gateway under given mask)
-  function sameSubnet(ip, gw, mask) {
-    const ipInt = ipToInt(ip);
-    const gwInt = ipToInt(gw);
-    const mInt = ipToInt(mask);
-    if (ipInt === null || gwInt === null || mInt === null) return false;
-    return (ipInt & mInt) === (gwInt & mInt);
-  }
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("r", "6");
+    circle.setAttribute("fill", "#10b981");
+    circle.setAttribute("opacity", "0.95");
+    connectionLayer.appendChild(circle);
 
-  // Increment device configuration version when user changes settings
-  function bumpConfig(d) {
-    if (typeof d.configVersion !== "number") {
-      d.configVersion = 1;
-    } else {
-      d.configVersion += 1;
-    }
-  }
+    const duration = 1000 + segments.length * 200;
+    const start = performance.now();
 
-  // Suggest a default gateway: first host in the subnet (network + 1)
-  function suggestGateway(d) {
-    if (d.gatewayTouched) return;
-    if (!isValidIp(d.ip) || !isValidMask(d.subnetMask)) return;
+    function step(now) {
+      const t = Math.min(1, (now - start) / duration);
+      let dist = t * total;
+      for (const seg of segments) {
+        if (dist <= seg.len) {
+          const ratio = seg.len === 0 ? 0 : dist / seg.len;
+          const x = seg.a.x + (seg.b.x - seg.a.x) * ratio;
+          const y = seg.a.y + (seg.b.y - seg.a.y) * ratio;
+          circle.setAttribute("cx", x);
+          circle.setAttribute("cy", y);
+          break;
+        }
+        dist -= seg.len;
+      }
 
-    const ipInt = ipToInt(d.ip);
-    const maskInt = ipToInt(d.subnetMask);
-    if (ipInt === null || maskInt === null) return;
-
-    const networkInt = ipInt & maskInt;
-    const gwInt = networkInt + 1;
-    const gwIp = intToIp(gwInt);
-
-    d.gateway = gwIp;
-    const gwInput = getById("prop_gw");
-    if (gwInput) {
-      gwInput.value = gwIp;
-    }
-  }
-
-  // Update colour-coded warnings for IP / mask / gateway
-  function updateWarnings(d) {
-    const ipWarn   = getById("ip_warning");
-    const maskWarn = getById("mask_warning");
-    const gwWarn   = getById("gw_warning");
-
-    if (!ipWarn || !maskWarn || !gwWarn) return;
-
-    // Reset
-    ipWarn.textContent = "";
-    maskWarn.textContent = "";
-    gwWarn.textContent = "";
-
-    ipWarn.className = "small mt-1";
-    maskWarn.className = "small mt-1";
-    gwWarn.className = "small mt-1";
-
-    // IP warnings
-    if (d.ip && d.ip.trim() !== "") {
-      if (!isValidIp(d.ip)) {
-        ipWarn.textContent = "Invalid IP address.";
-        ipWarn.className += " text-danger";
+      if (t < 1) {
+        requestAnimationFrame(step);
       } else {
-        ipWarn.textContent = "IP address looks valid.";
-        ipWarn.className += " text-success";
+        circle.remove();
       }
     }
 
-    // Mask warnings
-    if (d.subnetMask && d.subnetMask.trim() !== "") {
-      if (!isValidMask(d.subnetMask)) {
-        maskWarn.textContent = "Invalid subnet mask.";
-        maskWarn.className += " text-danger";
-      } else {
-        maskWarn.textContent = "Subnet mask looks valid.";
-        maskWarn.className += " text-success";
-      }
+    requestAnimationFrame(step);
+  }
+
+  function findPath(fromId, toId) {
+    const visited = new Set();
+    const queue = [{ id: fromId, path: [fromId] }];
+
+    while (queue.length) {
+      const { id, path } = queue.shift();
+      if (id === toId) return path;
+      if (visited.has(id)) continue;
+      visited.add(id);
+
+      const neighbors = state.connections
+        .filter((c) => c.from === id || c.to === id)
+        .map((c) => (c.from === id ? c.to : c.from));
+
+      neighbors.forEach((next) => {
+        if (!visited.has(next)) queue.push({ id: next, path: [...path, next] });
+      });
     }
 
-    // Gateway warnings
-    if (d.gateway && d.gateway.trim() !== "") {
-      if (!isValidIp(d.gateway)) {
-        gwWarn.textContent = "Invalid gateway IP address.";
-        gwWarn.className += " text-danger";
-      } else if (isValidIp(d.ip) && isValidMask(d.subnetMask)) {
-        if (!sameSubnet(d.ip, d.gateway, d.subnetMask)) {
-          gwWarn.textContent = "Gateway is outside this IP subnet.";
-          gwWarn.className += " text-warning";
-        } else {
-          gwWarn.textContent = "Gateway is in the same subnet.";
-          gwWarn.className += " text-success";
-        }
-      }
-    }
+    return [];
   }
 
-  //Startup for the sandbox
-  setTip("Choose a tool, then click on the canvas to build your network.");
-  renderProps(null);
-  draw();
-
-  // NEW (UI Fix): initial ping visibility
-  updatePingVisibility();
-
-  // ---------------------------------------------------
-  // SAVE NETWORK (kept 100% unchanged)
-  // ---------------------------------------------------
-  getById("saveBtn").onclick = async () => {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user) return alert("You must be logged in.");
-
-      const name = prompt("Name your topology:");
-      if (!name) return;
-
-      const res = await fetch(`${window.API_BASE}/save-topology`, {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({
-              email: user.email,
-              name,
-              devices,
-              connections
-          })
-      });
-
-      const data = await res.json();
-      alert(data.message);
-  };
-
-  // ---------------------------------------------------
-  // NEW LOAD BUTTON USING MODAL UI
-  // ---------------------------------------------------
-  getById("loadBtn").onclick = async () => {
-      await refreshTopologyList();
-      const modal = new bootstrap.Modal(getById("topologyModal"));
-      modal.show();
-  };
-
-  // ---------------------------------------------------
-  // NEW: Refresh list inside modal
-  // ---------------------------------------------------
-  window.refreshTopologyList = async function () {
-      const user = JSON.parse(localStorage.getItem("user"));
-      const res = await fetch(`${window.API_BASE}/load-topologies?email=${user.email}`);
-      const data = await res.json();
-
-      const list = getById("topologyList");
-      list.innerHTML = "";
-
-      data.topologies.forEach(t => {
-          const row = document.createElement("tr");
-
-          row.innerHTML = `
-              <td>${t.name}</td>
-              <td>${new Date(t.created_at).toLocaleString()}</td>
-              <td class="text-end">
-                  <button class="btn btn-sm btn-primary me-2" onclick="loadTopologyById(${t.id})">
-                      Load
-                  </button>
-                  <button class="btn btn-sm btn-danger" onclick="deleteTopology(${t.id})">
-                      Delete
-                  </button>
-              </td>
-          `;
-
-          list.appendChild(row);
-      });
-  }
-
-  // ---------------------------------------------------
-  // NEW: Delete topology
-  // ---------------------------------------------------
-  window.deleteTopology = async function (id) {
-      if (!confirm("Delete this topology?")) return;
-
-      const res = await fetch(`${window.API_BASE}/delete-topology/${id}`, {
-          method: "DELETE"
-      });
-
-      const data = await res.json();
-      alert(data.message);
-
-      refreshTopologyList();
-  }
-
-  // ---------------------------------------------------
-  // UPDATED loadTopologyById to close modal afterward
-  // ---------------------------------------------------
-  window.loadTopologyById = async function (id) {
-      const res = await fetch(`${window.API_BASE}/load-topology/${id}`);
-      const data = await res.json();
-
-      if (!data.success) {
-          alert("Failed to load topology.");
-          return;
-      }
-
-      devices = data.devices;
-      connections = data.connections;
-
-      // Ensure any older saved devices get the new networking fields
-      devices.forEach((d) => {
-        if (typeof d.subnetMask === "undefined") d.subnetMask = "";
-        if (typeof d.gateway === "undefined") d.gateway = "";
-        if (typeof d.configVersion !== "number") d.configVersion = 1;
-        if (typeof d.gatewayTouched === "undefined") d.gatewayTouched = false;
-      });
-
-      selectedDeviceId = null;
-      connectStartId = null;
-
-      // NEW (UI Fix): selection cleared, update Ping visibility
-      updatePingVisibility();
-
-      draw();
-
-      // NEW (Part 3): if lesson session is active, autosave loaded state to DB
-      markDirtyAndSaveSoon();
-
-      // Close modal after loading
-      const modal = bootstrap.Modal.getInstance(getById("topologyModal"));
-      if (modal) modal.hide();
-  }
-
-  // ---------------------------------------------------
-  // NEW: Ping System — open modal
-  // ---------------------------------------------------
-  getById("pingBtn").onclick = () => {
-      if (!selectedDeviceId) return;
-
-      const source = getDevice(selectedDeviceId);
-      getById("pingSourceName").textContent = source.name;
-
-      // Populate dropdown with connected devices only
-      const connected = connections
-          .filter(c => c.a === source.id || c.b === source.id)
-          .map(c => c.a === source.id ? getDevice(c.b) : getDevice(c.a));
-
-      const select = getById("pingTargetSelect");
-      select.innerHTML = "";
-
-      connected.forEach(dev => {
-          const opt = document.createElement("option");
-          opt.value = dev.id;
-          opt.textContent = dev.name;
-          select.appendChild(opt);
-      });
-
-      const modal = new bootstrap.Modal(getById("pingModal"));
-      modal.show();
-  };
-
-  // ---------------------------------------------------
-  // NEW: Run Ping Test
-  // ---------------------------------------------------
-  getById("runPingBtn").onclick = () => {
-      const resultBox = getById("pingResult");
-      resultBox.innerHTML = "";
-
-      const source = getDevice(selectedDeviceId);
-      const targetId = getById("pingTargetSelect").value;
-      const target = getDevice(targetId);
-
-      // Validation
-      if (!isValidIp(source.ip)) {
-          resultBox.innerHTML = "❌ Source IP invalid.";
-          resultBox.className = "text-danger";
-          return;
-      }
-
-      if (!isValidIp(target.ip)) {
-          resultBox.innerHTML = "❌ Target IP invalid.";
-          resultBox.className = "text-danger";
-          return;
-      }
-
-      if (!isValidMask(source.subnetMask)) {
-          resultBox.innerHTML = "❌ Source subnet mask invalid.";
-          resultBox.className = "text-danger";
-          return;
-      }
-
-      if (!sameSubnet(source.ip, target.ip, source.subnetMask)) {
-          resultBox.innerHTML = "❌ Devices are in different subnets.";
-          resultBox.className = "text-danger";
-          return;
-      }
-
-      // Success
-      resultBox.innerHTML =
-          `<span class='text-success fw-bold'>✔ Ping successful!</span><br>
-          ${source.name} can reach ${target.name}.`;
-      resultBox.className = "text-success";
-  };
-
-  // ---------------- Netology Challenge Validator ----------------
-document.addEventListener("DOMContentLoaded", async () => {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("challenge") !== "1") return;
-
-  const user = getLoggedInUser();
-  if (!user || !user.email) return;
-
-  const raw = localStorage.getItem("netology_active_challenge");
-  if (!raw) return;
-
-  const data = JSON.parse(raw);
-
-  // NEW (Part 3): activate DB lesson session state
-  __lessonSession.enabled = true;
-  __lessonSession.email = user.email;
-  __lessonSession.course_id = Number(data.courseId);
-  __lessonSession.lesson_number = Number(data.lesson);
-
-  // NEW (Part 3): show challenge banner if present
-  const banner = getById("challengeBanner");
-  const bannerText = getById("challengeBannerText");
-  if (banner && bannerText) {
-    banner.style.display = "block";
-    bannerText.textContent = `${data.courseTitle || "Course"} • ${data.unitTitle || ""} • Lesson ${data.lesson}: ${data.lessonTitle || ""}`;
-  }
-
-  // NEW (Part 3): load saved lesson session from DB before validating
-  await loadLessonSessionFromDb();
-
-  const rules = (data.challenge && data.challenge.rules) ? data.challenge.rules : {};
-  const steps = (data.challenge && data.challenge.steps) || [];
-  const tips = (data.challenge && data.challenge.tips) || "";
-
-  const panel = document.createElement("div");
-  panel.className = "card shadow-sm";
-  panel.style.position = "fixed";
-  panel.style.right = "16px";
-  panel.style.bottom = "16px";
-  panel.style.width = "320px";
-  panel.style.zIndex = "9999";
-
-  const stepsHtml = steps.length
-    ? `<div class="small text-muted mt-2">
-         ${steps.map((s) => `• ${escapeHtml(s)}`).join("<br>")}
-       </div>`
-    : "";
-
-  const tipsHtml = tips
-    ? `<div class="small text-muted mt-2"><em>${escapeHtml(tips)}</em></div>`
-    : "";
-
-  panel.innerHTML = `
-    <div class="p-3">
-      <strong>Challenge</strong>
-
-      <div class="small text-muted mt-1">
-        Course: ${escapeHtml(data.courseTitle || "")}<br>
-        Lesson: ${escapeHtml(String(data.lesson || ""))} — ${escapeHtml(data.lessonTitle || "")}
-      </div>
-      ${stepsHtml}
-      ${tipsHtml}
-
-      <button id="validateBtn" class="btn btn-teal btn-sm w-100 mt-2">Validate</button>
-      <div class="small text-muted mt-2">Progress saves automatically.</div>
-
-      <div id="resultBox" class="small mt-2"></div>
-      <div id="returnBox" class="mt-2"></div>
-    </div>`;
-
-  document.body.appendChild(panel);
-
-  getById("validateBtn").onclick = async () => {
-    const res = validate(rules);
-    const box = getById("resultBox");
-    const returnBox = getById("returnBox");
-
-    if (!box) return;
-
-    if (res.ok) {
-      box.className = "small mt-2 text-success fw-semibold";
-      box.textContent = "✅ Passed! Saving + awarding XP…";
-
-      // NEW (Part 3): Save session (DB) then award XP (DB)
-      try {
-        await saveLessonSessionToDb();
-
-        const xpRes = await fetch(`${window.API_BASE}/complete-challenge`, {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({
-            email: user.email,
-            course_id: __lessonSession.course_id,
-            lesson_number: __lessonSession.lesson_number
-          })
-        });
-
-        const xpData = await xpRes.json();
-
-        if (xpData.success) {
-          if (xpData.already_completed) {
-            box.textContent = "✅ Passed! Challenge already completed (no extra XP).";
-          } else {
-            box.textContent = `✅ Passed! +${xpData.xp_added} XP earned.`;
-          }
-
-          markChallengeCompletion(
-            user.email,
-            __lessonSession.course_id,
-            __lessonSession.lesson_number,
-            xpData.xp_added || 0
-          );
-        } else {
-          box.className = "small mt-2 text-warning fw-semibold";
-          box.textContent = "✅ Passed, but XP award failed.";
-        }
-
-        // NEW (Part 3): return-to-lesson button
-        if (returnBox) {
-          const courseId = __lessonSession.course_id;
-          const lessonNum = __lessonSession.lesson_number;
-
-          // Fallback for course page: store last lesson so we can jump later if needed
-          // (course.js can read this later if you want)
-          localStorage.setItem("netology_return_lesson", JSON.stringify({
-            course_id: courseId,
-            lesson_number: lessonNum
-          }));
-
-          returnBox.innerHTML = `
-            <a class="btn btn-outline-secondary btn-sm w-100"
-               href="lesson.html?course_id=${courseId}&lesson=${lessonNum}">
-               Return to lesson
-            </a>
-          `;
-        }
-      } catch (e) {
-        console.error("validate pass flow error:", e);
-        box.className = "small mt-2 text-warning fw-semibold";
-        box.textContent = "✅ Passed, but could not save/award XP.";
-      }
-
+  // ----------------------------------------
+  // DHCP
+  // ----------------------------------------
+  function requestDHCP(deviceId) {
+    const device = findDevice(deviceId);
+    if (!device) return;
+
+    const dhcpServer = state.devices.find((d) => d.config.dhcpServer?.enabled);
+    if (!dhcpServer || !dhcpServer.config.dhcpServer) {
+      addConsoleOutput("DHCP: No DHCP server found");
       return;
     }
 
-    box.className = "small mt-2 text-danger fw-semibold";
-    box.textContent = "❌ " + res.reason;
-  };
+    const config = dhcpServer.config.dhcpServer;
+    const startIP = ipToInt(config.rangeStart || "0.0.0.0");
+    const endIP = ipToInt(config.rangeEnd || "0.0.0.0");
+    const usedIPs = config.leases.map((l) => ipToInt(l.ip));
 
-  function validate(r) {
-    if (r.requiredTypes) {
-      for (const t in r.requiredTypes) {
-        const count = devices.filter(d => d.type === t).length;
-        if (count < r.requiredTypes[t])
-          return { ok: false, reason: `Need ${r.requiredTypes[t]} ${t}(s)` };
-      }
-    }
-    if (r.requireConnections && connections.length === 0)
-      return { ok: false, reason: "No connections" };
-
-    // NEW (Part 3): optional rule checks (safe additions only)
-    // If you add these rules later in course_content.js, they will work automatically.
-    if (r.minDevices) {
-      if (devices.length < Number(r.minDevices)) {
-        return { ok: false, reason: `Need at least ${r.minDevices} device(s)` };
-      }
-    }
-    if (r.minConnections) {
-      if (connections.length < Number(r.minConnections)) {
-        return { ok: false, reason: `Need at least ${r.minConnections} connection(s)` };
+    let assigned = null;
+    for (let ip = startIP; ip <= endIP; ip += 1) {
+      if (!usedIPs.includes(ip)) {
+        assigned = ip;
+        break;
       }
     }
 
+    if (assigned === null) {
+      addConsoleOutput("DHCP: No available IPs in pool");
+      return;
+    }
+
+    const ipString = [
+      (assigned >>> 24) & 255,
+      (assigned >>> 16) & 255,
+      (assigned >>> 8) & 255,
+      assigned & 255,
+    ].join(".");
+
+    const lease = {
+      ip: ipString,
+      mac: device.config.macAddress,
+      hostname: device.name,
+      expiry: new Date(Date.now() + 86400000).toISOString(),
+    };
+
+    config.leases.push(lease);
+    device.config.ipAddress = ipString;
+    device.config.subnetMask = config.mask || "255.255.255.0";
+    device.config.defaultGateway = config.gateway || "";
+    device.config.dhcpEnabled = true;
+
+    updateDeviceStatus(device);
+    addConsoleOutput(`DHCP: Assigned ${ipString} to ${device.name}`);
+    addActionLog(`DHCP assigned ${ipString} to ${device.name}`);
+    renderDevices();
+    markDirtyAndSaveSoon();
+  }
+
+  // ----------------------------------------
+  // Console + logs
+  // ----------------------------------------
+  function addConsoleOutput(message) {
+    state.consoleOutput.push(`[${new Date().toLocaleTimeString()}] ${message}`);
+    state.consoleOutput = state.consoleOutput.slice(-200);
+    renderConsole();
+  }
+
+  function addActionLog(message) {
+    state.actionLogs.unshift(`${new Date().toLocaleTimeString()} - ${message}`);
+    state.actionLogs = state.actionLogs.slice(0, 200);
+    renderLogs();
+  }
+
+  function executeCommand(command) {
+    addConsoleOutput(`> ${command}`);
+    const parts = command.toLowerCase().trim().split(/\s+/);
+    const cmd = parts[0];
+
+    switch (cmd) {
+      case "help":
+        addConsoleOutput("Commands: help, show devices, show connections, ping <src> <dst>, ipconfig, dhcp request, clear, save");
+        break;
+      case "show":
+        if (parts[1] === "devices") {
+          state.devices.forEach((d) => {
+            addConsoleOutput(`${d.name} (${d.type}) - ${d.config.ipAddress || "No IP"}`);
+          });
+        } else if (parts[1] === "connections") {
+          state.connections.forEach((c) => {
+            const from = findDevice(c.from);
+            const to = findDevice(c.to);
+            addConsoleOutput(`${from?.name || "?"} ↔ ${to?.name || "?"} (${c.type})`);
+          });
+        }
+        break;
+      case "ping":
+        if (parts.length >= 3) {
+          const src = state.devices.find((d) => d.name.toLowerCase() === parts[1]);
+          const dst = state.devices.find((d) => d.name.toLowerCase() === parts[2]);
+          if (src && dst) executePing(src.id, dst.id);
+          else addConsoleOutput("Device not found");
+        } else {
+          addConsoleOutput("Usage: ping <source> <destination>");
+        }
+        break;
+      case "ipconfig":
+        const selected = getSelectedDevice();
+        if (selected) {
+          addConsoleOutput(`IP: ${selected.config.ipAddress || "Not set"}`);
+          addConsoleOutput(`Mask: ${selected.config.subnetMask || "Not set"}`);
+          addConsoleOutput(`Gateway: ${selected.config.defaultGateway || "Not set"}`);
+        } else {
+          addConsoleOutput("No device selected");
+        }
+        break;
+      case "dhcp":
+        if (parts[1] === "request") {
+          const selectedDevice = getSelectedDevice();
+          if (selectedDevice) requestDHCP(selectedDevice.id);
+          else addConsoleOutput("No device selected");
+        }
+        break;
+      case "clear":
+        state.consoleOutput = [];
+        renderConsole();
+        break;
+      case "save":
+        handleSaveTopology();
+        break;
+      default:
+        addConsoleOutput("Unknown command. Type help.");
+    }
+  }
+
+  // ----------------------------------------
+  // Challenge validation
+  // ----------------------------------------
+  async function handleChallengeValidate() {
+    if (!state.challengeMeta) return;
+    const resultBox = getById("challengeResult");
+    const returnBox = getById("challengeReturn");
+    const user = getLoggedInUser();
+
+    const validation = validateChallenge(state.challengeMeta.rules || {});
+    if (!resultBox) return;
+
+    if (!validation.ok) {
+      resultBox.className = "small text-danger fw-semibold";
+      resultBox.textContent = `❌ ${validation.reason}`;
+      return;
+    }
+
+    resultBox.className = "small text-success fw-semibold";
+    resultBox.textContent = "✅ Passed! Saving + awarding XP…";
+
+    try {
+      await saveLessonSessionToDb();
+
+      const xpRes = await fetch(`${API_BASE}/complete-challenge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          course_id: lessonSession.course_id,
+          lesson_number: lessonSession.lesson_number,
+        }),
+      });
+
+      const xpData = await xpRes.json();
+      if (xpData.success) {
+        if (xpData.already_completed) {
+          resultBox.textContent = "✅ Passed! Challenge already completed.";
+        } else {
+          resultBox.textContent = `✅ Passed! +${xpData.xp_added} XP earned.`;
+        }
+        markChallengeCompletion(user.email, lessonSession.course_id, lessonSession.lesson_number, xpData.xp_added || 0);
+      } else {
+        resultBox.className = "small text-warning fw-semibold";
+        resultBox.textContent = "✅ Passed, but XP award failed.";
+      }
+
+      if (returnBox) {
+        returnBox.innerHTML = `
+          <a class="btn btn-outline-secondary btn-sm w-100" href="lesson.html?course_id=${lessonSession.course_id}&lesson=${lessonSession.lesson_number}">
+            Return to lesson
+          </a>
+        `;
+      }
+    } catch (e) {
+      console.error("Challenge validate error", e);
+      resultBox.className = "small text-warning fw-semibold";
+      resultBox.textContent = "✅ Passed, but could not save/award XP.";
+    }
+  }
+
+  function validateChallenge(rules) {
+    if (rules.requiredTypes) {
+      for (const t in rules.requiredTypes) {
+        const count = state.devices.filter((d) => d.type === t).length;
+        if (count < rules.requiredTypes[t]) return { ok: false, reason: `Need ${rules.requiredTypes[t]} ${t}(s)` };
+      }
+    }
+    if (rules.requireConnections && state.connections.length === 0) return { ok: false, reason: "No connections" };
+    if (rules.minDevices && state.devices.length < Number(rules.minDevices)) return { ok: false, reason: `Need at least ${rules.minDevices} devices` };
+    if (rules.minConnections && state.connections.length < Number(rules.minConnections)) return { ok: false, reason: `Need at least ${rules.minConnections} connections` };
     return { ok: true };
   }
 
-  // NEW (Part 3): autosave on unload so DB is always updated
-  window.addEventListener("beforeunload", () => {
-    // fire-and-forget
-    saveLessonSessionToDb();
-  });
-});
+  // ----------------------------------------
+  // Save / Load
+  // ----------------------------------------
+  async function handleSaveTopology() {
+    const user = getLoggedInUser();
+    if (!user || !user.email) return alert("You must be logged in.");
 
+    const name = prompt("Name your topology:");
+    if (!name) return;
 
+    const res = await fetch(`${API_BASE}/save-topology`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: user.email,
+        name,
+        devices: state.devices,
+        connections: state.connections,
+      }),
+    });
+
+    const data = await res.json();
+    alert(data.message || "Saved.");
+  }
+
+  async function refreshTopologyList() {
+    const user = getLoggedInUser();
+    if (!user || !user.email) return;
+
+    const res = await fetch(`${API_BASE}/load-topologies?email=${encodeURIComponent(user.email)}`);
+    const data = await res.json();
+
+    const list = getById("topologyList");
+    if (!list) return;
+    list.innerHTML = "";
+
+    (data.topologies || []).forEach((t) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${escapeHtml(t.name)}</td>
+        <td>${new Date(t.created_at).toLocaleString()}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-primary me-2" data-load-id="${t.id}">Load</button>
+          <button class="btn btn-sm btn-danger" data-delete-id="${t.id}">Delete</button>
+        </td>
+      `;
+      list.appendChild(row);
+    });
+
+    list.querySelectorAll("[data-load-id]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-load-id");
+        await loadTopologyById(id);
+      });
+    });
+
+    list.querySelectorAll("[data-delete-id]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-delete-id");
+        await deleteTopology(id);
+      });
+    });
+  }
+
+  async function loadTopologyById(id) {
+    const res = await fetch(`${API_BASE}/load-topology/${id}`);
+    const data = await res.json();
+
+    if (!data.success) {
+      alert("Failed to load topology.");
+      return;
+    }
+
+    state.devices = (data.devices || []).map(normalizeDevice);
+    state.connections = (data.connections || []).map(normalizeConnection).filter(Boolean);
+    state.selectedIds = [];
+    state.connectFrom = null;
+    rebuildMacTables();
+    pushHistory();
+    renderAll();
+    markDirtyAndSaveSoon();
+
+    const modal = bootstrap.Modal.getInstance(getById("topologyModal"));
+    if (modal) modal.hide();
+  }
+
+  async function deleteTopology(id) {
+    if (!confirm("Delete this topology?")) return;
+    await fetch(`${API_BASE}/delete-topology/${id}`, { method: "DELETE" });
+    await refreshTopologyList();
+  }
+
+  // ----------------------------------------
+  // Event binding
+  // ----------------------------------------
+  function bindToolbar() {
+    qsa("[data-tool]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.tool = btn.getAttribute("data-tool");
+        qsa("[data-tool]").forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        state.connectFrom = null;
+        setTip(state.tool === TOOL.CONNECT ? "Select a device to start a connection." : "Select and drag devices.");
+        updateConnGroupVisibility();
+      });
+    });
+
+    qsa("[data-conn-type]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.connectType = btn.getAttribute("data-conn-type");
+        qsa("[data-conn-type]").forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+      });
+    });
+
+    qsa("[data-device]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const type = btn.getAttribute("data-device");
+        if (!type) return;
+        addDevice(type);
+      });
+    });
+
+    getById("toggleGridBtn")?.addEventListener("click", () => {
+      state.showGrid = !state.showGrid;
+      getById("toggleGridBtn")?.classList.toggle("is-active", state.showGrid);
+      updateGrid();
+    });
+
+    getById("toggleSnapBtn")?.addEventListener("click", () => {
+      state.snap = !state.snap;
+      getById("toggleSnapBtn")?.classList.toggle("is-active", state.snap);
+    });
+
+    getById("zoomInBtn")?.addEventListener("click", () => {
+      state.zoom = clamp(state.zoom + 0.1, 0.5, 2);
+      updateZoomLabel();
+      renderConnections();
+    });
+
+    getById("zoomOutBtn")?.addEventListener("click", () => {
+      state.zoom = clamp(state.zoom - 0.1, 0.5, 2);
+      updateZoomLabel();
+      renderConnections();
+    });
+
+    getById("undoBtn")?.addEventListener("click", () => {
+      if (state.historyIndex > 0) {
+        state.historyIndex -= 1;
+        restoreHistory(state.historyIndex);
+      }
+    });
+
+    getById("redoBtn")?.addEventListener("click", () => {
+      if (state.historyIndex < state.history.length - 1) {
+        state.historyIndex += 1;
+        restoreHistory(state.historyIndex);
+      }
+    });
+
+    getById("saveBtn")?.addEventListener("click", handleSaveTopology);
+    getById("loadBtn")?.addEventListener("click", async () => {
+      await refreshTopologyList();
+      const modal = new bootstrap.Modal(getById("topologyModal"));
+      modal.show();
+    });
+    getById("clearBtn")?.addEventListener("click", () => {
+      if (!confirm("Clear entire topology?")) return;
+      state.devices = [];
+      state.connections = [];
+      state.selectedIds = [];
+      state.connectFrom = null;
+      pushHistory();
+      renderAll();
+      markDirtyAndSaveSoon();
+      addActionLog("Cleared topology");
+    });
+
+    getById("pingBtn")?.addEventListener("click", () => {
+      const selected = getSelectedDevice();
+      if (!selected) return;
+
+      const connected = state.connections
+        .filter((c) => c.from === selected.id || c.to === selected.id)
+        .map((c) => (c.from === selected.id ? findDevice(c.to) : findDevice(c.from)))
+        .filter(Boolean);
+
+      const select = getById("pingTargetSelect");
+      if (!select) return;
+      select.innerHTML = "";
+      connected.forEach((dev) => {
+        const opt = document.createElement("option");
+        opt.value = dev.id;
+        opt.textContent = dev.name;
+        select.appendChild(opt);
+      });
+
+      getById("pingSourceName").textContent = selected.name;
+      const modal = new bootstrap.Modal(getById("pingModal"));
+      modal.show();
+    });
+
+    getById("runPingBtn")?.addEventListener("click", () => {
+      const selected = getSelectedDevice();
+      if (!selected) return;
+      const targetId = getById("pingTargetSelect")?.value;
+      if (!targetId) return;
+      executePing(selected.id, targetId);
+    });
+
+    updateConnGroupVisibility();
+  }
+
+  function bindPanels() {
+    function updatePanelButtons() {
+      const leftHidden = leftPanel.style.display === "none";
+      const rightHidden = rightPanel.style.display === "none";
+      if (leftOpenBtn) leftOpenBtn.style.display = leftHidden ? "flex" : "none";
+      if (rightOpenBtn) rightOpenBtn.style.display = rightHidden ? "flex" : "none";
+    }
+
+    leftToggle?.addEventListener("click", () => {
+      const hidden = leftPanel.style.display === "none";
+      leftPanel.style.display = hidden ? "" : "none";
+      workspace.classList.toggle("left-hidden", !hidden);
+      leftToggle.querySelector("i").className = hidden ? "bi bi-chevron-left" : "bi bi-chevron-right";
+      updatePanelButtons();
+    });
+
+    rightToggle?.addEventListener("click", () => {
+      const hidden = rightPanel.style.display === "none";
+      rightPanel.style.display = hidden ? "" : "none";
+      workspace.classList.toggle("right-hidden", !hidden);
+      rightToggle.querySelector("i").className = hidden ? "bi bi-chevron-right" : "bi bi-chevron-left";
+      updatePanelButtons();
+    });
+
+    leftOpenBtn?.addEventListener("click", () => {
+      leftPanel.style.display = "";
+      workspace.classList.remove("left-hidden");
+      leftToggle.querySelector("i").className = "bi bi-chevron-left";
+      updatePanelButtons();
+    });
+
+    rightOpenBtn?.addEventListener("click", () => {
+      rightPanel.style.display = "";
+      workspace.classList.remove("right-hidden");
+      rightToggle.querySelector("i").className = "bi bi-chevron-right";
+      updatePanelButtons();
+    });
+
+    bottomToggle?.addEventListener("click", () => {
+      bottomPanel.classList.toggle("is-collapsed");
+      bottomToggle.querySelector("i").className = bottomPanel.classList.contains("is-collapsed") ? "bi bi-chevron-up" : "bi bi-chevron-down";
+    });
+
+    qsa(".sbx-tab", getById("sbxRightTabs")).forEach((tab) => {
+      tab.addEventListener("click", () => {
+        state.rightTab = tab.getAttribute("data-tab");
+        qsa(".sbx-tab", getById("sbxRightTabs")).forEach((t) => t.classList.remove("is-active"));
+        tab.classList.add("is-active");
+        qsa(".sbx-tabpanel", rightPanel).forEach((panel) => panel.classList.remove("is-active"));
+        getById(`panel${state.rightTab.charAt(0).toUpperCase() + state.rightTab.slice(1)}`)?.classList.add("is-active");
+      });
+    });
+
+    qsa(".sbx-subtab", getById("sbxConfigTabs")).forEach((tab) => {
+      tab.addEventListener("click", () => {
+        state.configTab = tab.getAttribute("data-subtab");
+        qsa(".sbx-subtab", getById("sbxConfigTabs")).forEach((t) => t.classList.remove("is-active"));
+        tab.classList.add("is-active");
+        renderProps();
+      });
+    });
+
+    qsa(".sbx-tab", getById("sbxBottomTabs")).forEach((tab) => {
+      tab.addEventListener("click", () => {
+        state.bottomTab = tab.getAttribute("data-bottom-tab");
+        qsa(".sbx-tab", getById("sbxBottomTabs")).forEach((t) => t.classList.remove("is-active"));
+        tab.classList.add("is-active");
+        qsa(".sbx-bottom-panel", bottomPanel).forEach((panel) => panel.classList.remove("is-active"));
+        getById(`sbx${state.bottomTab.charAt(0).toUpperCase() + state.bottomTab.slice(1)}Panel`)?.classList.add("is-active");
+      });
+    });
+
+    consoleSendBtn?.addEventListener("click", () => {
+      const value = consoleInputEl.value.trim();
+      if (!value) return;
+      executeCommand(value);
+      consoleInputEl.value = "";
+    });
+
+    consoleInputEl?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const value = consoleInputEl.value.trim();
+        if (!value) return;
+        executeCommand(value);
+        consoleInputEl.value = "";
+      }
+    });
+
+    updatePanelButtons();
+  }
+
+  function bindStage() {
+    connectionLayer.style.pointerEvents = "all";
+    connectionLayer.addEventListener("click", (e) => {
+      const target = e.target;
+      if (target && target.dataset && target.dataset.connId) {
+        deleteConnection(target.dataset.connId);
+      }
+    });
+
+    stage.addEventListener("click", (e) => {
+      if (e.target === stage || e.target === deviceLayer || e.target === connectionLayer) {
+        if (state.tool === TOOL.SELECT) {
+          state.selectedIds = [];
+          renderAll();
+        }
+      }
+    });
+
+    deviceLayer.addEventListener("pointerdown", (e) => {
+      const deviceEl = e.target.closest(".sbx-device");
+      if (!deviceEl) return;
+      const id = deviceEl.dataset.id;
+      if (!id) return;
+
+      const device = findDevice(id);
+      if (!device) return;
+
+      if (state.tool === TOOL.CONNECT) {
+        if (!state.connectFrom) {
+          state.connectFrom = id;
+          state.selectedIds = [id];
+          renderDevices();
+          setTip("Select another device to complete the connection.");
+          return;
+        }
+        if (state.connectFrom && state.connectFrom !== id) {
+          createConnection(state.connectFrom, id);
+          state.connectFrom = null;
+          setTip("Devices connected.");
+          return;
+        }
+        return;
+      }
+
+      if (state.tool === TOOL.SELECT) {
+        state.selectedIds = [id];
+        renderDevices();
+        renderProps();
+        updatePingVisibility();
+
+        const rect = stage.getBoundingClientRect();
+        const pointerX = (e.clientX - rect.left) / state.zoom;
+        const pointerY = (e.clientY - rect.top) / state.zoom;
+
+        state.dragging = {
+          id,
+          offsetX: pointerX - device.x,
+          offsetY: pointerY - device.y,
+          el: deviceEl,
+        };
+        deviceEl.setPointerCapture(e.pointerId);
+      }
+    });
+
+    window.addEventListener("pointermove", (e) => {
+      if (!state.dragging) return;
+      const rect = stage.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / state.zoom - state.dragging.offsetX;
+      const y = (e.clientY - rect.top) / state.zoom - state.dragging.offsetY;
+      const device = findDevice(state.dragging.id);
+      if (!device) return;
+
+      device.x = x;
+      device.y = y;
+      state.dragging.el.style.left = `${x}px`;
+      state.dragging.el.style.top = `${y}px`;
+      renderConnections();
+    });
+
+    window.addEventListener("pointerup", () => {
+      if (!state.dragging) return;
+      const device = findDevice(state.dragging.id);
+      if (device && state.snap) {
+        device.x = Math.round(device.x / GRID_SIZE) * GRID_SIZE;
+        device.y = Math.round(device.y / GRID_SIZE) * GRID_SIZE;
+      }
+      state.dragging = null;
+      pushHistory();
+      renderAll();
+      markDirtyAndSaveSoon();
+    });
+
+    window.addEventListener("resize", () => {
+      renderConnections();
+    });
+  }
+
+  // ----------------------------------------
+  // Challenge initialization
+  // ----------------------------------------
+  async function initChallenge() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("challenge") !== "1") return;
+
+    const user = getLoggedInUser();
+    if (!user || !user.email) return;
+
+    const raw = localStorage.getItem("netology_active_challenge");
+    if (!raw) return;
+
+    const data = parseJsonSafe(raw);
+    if (!data) return;
+
+    lessonSession.enabled = true;
+    lessonSession.email = user.email;
+    lessonSession.course_id = Number(data.courseId);
+    lessonSession.lesson_number = Number(data.lesson);
+
+    state.challengeMeta = {
+      rules: data.challenge?.rules || data.challenge || {},
+      steps: data.challenge?.steps || [],
+      tips: data.challenge?.tips || "",
+    };
+
+    const banner = getById("challengeBanner");
+    const bannerText = getById("challengeBannerText");
+    if (banner && bannerText) {
+      banner.style.display = "block";
+      bannerText.textContent = `${data.courseTitle || "Course"} • ${data.unitTitle || ""} • Lesson ${data.lesson}: ${data.lessonTitle || ""}`;
+    }
+
+    await loadLessonSessionFromDb();
+    renderObjectives();
+  }
+
+  // ----------------------------------------
+  // Init
+  // ----------------------------------------
+  function init() {
+    initChrome();
+    bindToolbar();
+    bindPanels();
+    bindStage();
+
+    state.devices = [];
+    state.connections = [];
+    state.selectedIds = [];
+    pushHistory();
+
+    updateGrid();
+    updateZoomLabel();
+    setTip("Select a device to view and edit its settings.");
+    renderAll();
+
+    initChallenge();
+
+    window.addEventListener("beforeunload", () => {
+      saveLessonSessionToDb();
+    });
+  }
+
+  init();
 })();

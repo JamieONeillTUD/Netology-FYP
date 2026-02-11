@@ -298,8 +298,33 @@ What this file does:
     if (!state.user) wireChromeGuest();
     else wireChrome(state.user);
 
-    // course id from URL (?id=)
-    const courseId = new URLSearchParams(window.location.search).get("id");
+    // course id from URL (?id=) with fallbacks
+    const params = new URLSearchParams(window.location.search);
+    let courseId = params.get("id") || params.get("course_id") || params.get("course") || "1";
+
+    // Resolve by title if a non-numeric id was provided
+    if (typeof window.COURSE_CONTENT !== "undefined") {
+      const content = window.COURSE_CONTENT || {};
+      if (!content[String(courseId)]) {
+        const list = Object.values(content);
+        const byId = list.find((c) => String(c?.id || "") === String(courseId));
+        const target = String(courseId || "").trim().toLowerCase();
+        const byTitle = target
+          ? list.find((c) => String(c?.title || "").trim().toLowerCase() === target)
+          : null;
+        const resolved = byId || byTitle;
+        if (resolved?.id) courseId = String(resolved.id);
+      }
+    }
+
+    // Normalize URL to use ?id=
+    if (params.get("id") !== courseId) {
+      params.set("id", courseId);
+      params.delete("course_id");
+      params.delete("course");
+      history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    }
+
     state.courseId = courseId || "1";
     state.course.id = state.courseId;
 
@@ -831,14 +856,15 @@ What this file does:
   }
 
   function mapSectionTypeToItemType(sectionType, item) {
-    if (sectionType.includes("quiz")) return "quiz";
-    if (sectionType.includes("challenge")) return "challenge";
-    if (sectionType.includes("practice") || sectionType.includes("sandbox") || sectionType.includes("hands-on")) return "sandbox";
-
     const t = String(item.type || "").toLowerCase();
     if (t === "quiz") return "quiz";
     if (t === "challenge") return "challenge";
     if (t === "sandbox" || t === "practice") return "sandbox";
+    if (t === "learn") return "learn";
+
+    if (sectionType.includes("quiz")) return "quiz";
+    if (sectionType.includes("challenge")) return "challenge";
+    if (sectionType.includes("practice") || sectionType.includes("sandbox") || sectionType.includes("hands-on")) return "sandbox";
     return "learn";
   }
 
@@ -952,16 +978,22 @@ What this file does:
 
     // completed?
     const completedPill = getById("courseCompletedPill");
+    const activePill = getById("courseActivePill");
     const reviewBtn = getById("reviewBtn");
     const continueBtn = getById("continueBtn");
 
     if (state.courseCompleted) {
       completedPill?.classList.remove("d-none");
+      activePill?.classList.add("d-none");
       reviewBtn?.classList.remove("d-none");
       if (continueBtn) continueBtn.textContent = "Review";
     } else {
       completedPill?.classList.add("d-none");
       reviewBtn?.classList.add("d-none");
+      if (activePill) {
+        const prog = computeProgress();
+        activePill.classList.toggle("d-none", !(prog.done > 0));
+      }
       if (continueBtn) {
         continueBtn.innerHTML = `Continue <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>`;
       }
@@ -1037,7 +1069,9 @@ What this file does:
       const iconHtml = moduleIcon(modProg, state.courseLocked);
       const headerBadge = modProg.completed
         ? `<span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Completed</span>`
-        : `<span class="badge text-bg-light border">${modProg.done}/${modProg.total} items</span>`;
+        : modProg.done > 0
+          ? `<span class="badge bg-info text-dark"><i class="bi bi-play-fill me-1"></i>Active</span>`
+          : `<span class="badge text-bg-light border">${modProg.done}/${modProg.total} items</span>`;
 
       const chevronClass = expanded ? "bi-chevron-up" : "bi-chevron-down";
       const bodyStyle = expanded ? "" : "style='display:none'";

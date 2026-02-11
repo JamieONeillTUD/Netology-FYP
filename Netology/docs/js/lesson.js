@@ -535,14 +535,15 @@ lesson.js – Lesson page
   }
 
   function mapSectionTypeToItemType(sectionType, item) {
-    if (sectionType.includes("quiz")) return "quiz";
-    if (sectionType.includes("challenge")) return "challenge";
-    if (sectionType.includes("practice") || sectionType.includes("sandbox") || sectionType.includes("hands-on")) return "sandbox";
-
     const t = String(item.type || "").toLowerCase();
     if (t === "quiz") return "quiz";
     if (t === "challenge") return "challenge";
     if (t === "practice" || t === "sandbox") return "sandbox";
+    if (t === "learn") return "learn";
+
+    if (sectionType.includes("quiz")) return "quiz";
+    if (sectionType.includes("challenge")) return "challenge";
+    if (sectionType.includes("practice") || sectionType.includes("sandbox") || sectionType.includes("hands-on")) return "sandbox";
     return "learn";
   }
 
