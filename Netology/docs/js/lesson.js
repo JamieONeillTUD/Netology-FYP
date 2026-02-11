@@ -67,6 +67,22 @@ lesson.js – Lesson page
     fillIdentity(user);
   }
 
+  async function refreshUserFromServer(email) {
+    const api = getApiBase();
+    if (!api || !email) return null;
+    try {
+      const res = await fetch(`${api}/user-info?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (!data || data.success === false) return null;
+      updateUserStorage(data);
+      state.user = { ...(state.user || {}), ...data };
+      fillIdentity(state.user);
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
   function coursePageUrl() {
     return `course.html?id=${encodeURIComponent(state.courseId)}`;
   }
@@ -112,14 +128,81 @@ lesson.js – Lesson page
     return Number(level || 1) * 100;
   }
 
+  function totalXpForLevel(level) {
+    const lvl = Math.max(1, Number(level) || 1);
+    return (lvl - 1) * lvl * 50; // 100 * (n-1)*n/2
+  }
+
+  function levelFromTotalXp(totalXp) {
+    let level = 1;
+    let remaining = Math.max(0, Number(totalXp) || 0);
+    let step = 100;
+    while (remaining >= step) {
+      remaining -= step;
+      level += 1;
+      step += 100;
+    }
+    return level;
+  }
+
+  function rankForLevel(level) {
+    if (Number(level) >= 5) return "Advanced";
+    if (Number(level) >= 3) return "Intermediate";
+    return "Novice";
+  }
+
+  function resolveXpProgress(user) {
+    const totalXp = Math.max(0, Number(user?.xp || 0));
+    const numericLevel = Number(user?.numeric_level);
+    const level = Number.isFinite(numericLevel) && numericLevel > 0 ? numericLevel : levelFromTotalXp(totalXp);
+    const levelStart = totalXpForLevel(level);
+    const xpInto = Number.isFinite(Number(user?.xp_into_level))
+      ? Number(user?.xp_into_level)
+      : Math.max(0, totalXp - levelStart);
+    const nextXp = Number.isFinite(Number(user?.next_level_xp))
+      ? Number(user?.next_level_xp)
+      : xpForNextLevel(level);
+    const pct = nextXp ? Math.round((xpInto / nextXp) * 100) : 0;
+    return { totalXp, level, xpInto, nextXp, pct };
+  }
+
+  function applyXpToUser(user, addXP) {
+    const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
+    const nextLevel = levelFromTotalXp(nextTotal);
+    const nextStart = totalXpForLevel(nextLevel);
+    const xpInto = Math.max(0, nextTotal - nextStart);
+    const nextXp = xpForNextLevel(nextLevel);
+    return {
+      ...user,
+      xp: nextTotal,
+      numeric_level: nextLevel,
+      level: rankForLevel(nextLevel),
+      rank: rankForLevel(nextLevel),
+      xp_into_level: xpInto,
+      next_level_xp: nextXp
+    };
+  }
+
+  function updateUserStorage(nextUser) {
+    if (!nextUser || !nextUser.email) return;
+    const keys = ["netology_user", "user"];
+    keys.forEach((key) => {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const existing = parseJsonSafe(raw) || {};
+      if (existing.email && existing.email !== nextUser.email) return;
+      localStorage.setItem(key, JSON.stringify({ ...existing, ...nextUser }));
+    });
+  }
+
   function bumpUserXP(email, addXP) {
     if (!email || !addXP) return;
     const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
     const user = parseJsonSafe(raw) || {};
     if (!user || user.email !== email) return;
-    user.xp = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
-    if (localStorage.getItem("netology_user")) localStorage.setItem("netology_user", JSON.stringify(user));
-    if (localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify(user));
+    const updated = applyXpToUser(user, addXP);
+    if (localStorage.getItem("netology_user")) localStorage.setItem("netology_user", JSON.stringify(updated));
+    if (localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify(updated));
   }
 
   function logProgressEvent(email, payload) {
@@ -448,10 +531,7 @@ lesson.js – Lesson page
   function fillIdentity(user) {
     const name = user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "Student";
     const email = user?.email || "";
-    const level = Number(user?.numeric_level || user?.level || 1);
-    const xp = Number(user?.xp || 0);
-    const xpNext = xpForNextLevel(level);
-    const pct = xpNext ? Math.round((xp / xpNext) * 100) : 0;
+    const progress = resolveXpProgress(user);
 
     setText("topUserName", name);
     setText("ddName", name);
@@ -461,10 +541,10 @@ lesson.js – Lesson page
     setText("sideAvatar", name.charAt(0).toUpperCase());
     setText("sideUserName", name);
     setText("sideUserEmail", email || "email@example.com");
-    setText("sideLevelBadge", `Lv ${level}`);
-    setText("sideXPText", `${xp}/${xpNext}`);
+    setText("sideLevelBadge", `Lv ${progress.level}`);
+    setText("sideXPText", `${progress.xpInto}/${progress.nextXp}`);
     const bar = getById("sideXPBar");
-    if (bar) bar.style.width = `${Math.min(100, pct)}%`;
+    if (bar) bar.style.width = `${Math.min(100, progress.pct)}%`;
   }
 
   function logout() {
@@ -797,7 +877,8 @@ lesson.js – Lesson page
           challenge: {
             rules: (state.challengeItem.challenge && state.challengeItem.challenge.rules) || state.challengeItem.rules || state.challengeItem.challenge || null,
             steps: (state.challengeItem.challenge && state.challengeItem.challenge.steps) || state.challengeItem.steps || [],
-            tips: (state.challengeItem.challenge && state.challengeItem.challenge.tips) || state.challengeItem.tips || ""
+            tips: (state.challengeItem.challenge && state.challengeItem.challenge.tips) || state.challengeItem.tips || "",
+            xp: Number(state.challengeItem.xp || 0)
           }
         };
         localStorage.setItem("netology_active_challenge", JSON.stringify(payload));
@@ -814,11 +895,16 @@ lesson.js – Lesson page
       if (state.completedLessons.has(Number(state.lessonNumber))) return;
 
       const earnedXp = getEarnedLessonXP();
-      await completeLesson(state.user.email, state.courseId, state.lessonNumber, earnedXp);
-      markLessonCompletionLocal(state.user.email, state.courseId, state.lessonNumber, earnedXp);
+      const completion = await completeLesson(state.user.email, state.courseId, state.lessonNumber, earnedXp);
+      const xpAwarded = Number(completion?.xpAdded ?? earnedXp);
+      markLessonCompletionLocal(state.user.email, state.courseId, state.lessonNumber, xpAwarded);
       trackCourseStart(state.user.email, state.courseId, state.lessonNumber);
       state.completedLessons.add(Number(state.lessonNumber));
-      refreshUserFromStorage();
+      if (completion?.usedBackend) {
+        await refreshUserFromServer(state.user.email);
+      } else {
+        refreshUserFromStorage();
+      }
       renderLesson();
       const { nextInUnit } = getLessonNeighbors();
       showCompletionToast(nextInUnit);
@@ -826,8 +912,12 @@ lesson.js – Lesson page
   }
 
   async function completeLesson(email, courseId, lessonNumber, xp) {
+    const api = getApiBase();
+    if (!api) {
+      return { xpAdded: Number(xp || 0), usedBackend: false };
+    }
     try {
-      await fetch(`${getApiBase()}/complete-lesson`, {
+      const res = await fetch(`${api}/complete-lesson`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -837,8 +927,17 @@ lesson.js – Lesson page
           earned_xp: Number(xp || 0)
         })
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        return { xpAdded: Number(xp || 0), usedBackend: false };
+      }
+      return {
+        xpAdded: Number(data?.xp_added || 0),
+        alreadyCompleted: !!data?.already_completed,
+        usedBackend: true
+      };
     } catch {
-      // silent fallback
+      return { xpAdded: Number(xp || 0), usedBackend: false };
     }
   }
 

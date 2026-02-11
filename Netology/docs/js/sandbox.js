@@ -37,6 +37,18 @@ Reworked to match the Figma AI version:
   const packetsEl = getById("sbxPacketLogs");
   const zoomLabel = getById("zoomLabel");
   const connTypeGroup = getById("connTypeGroup");
+  const toastStack = getById("sbxToastStack");
+
+  const saveModalEl = getById("saveTopologyModal");
+  const saveNameInput = getById("saveTopologyName");
+  const saveSummaryEl = getById("saveTopologySummary");
+  const savePreviewEl = getById("saveTopologyPreview");
+  const saveConfirmBtn = getById("saveTopologyConfirm");
+
+  const clearModalEl = getById("clearTopologyModal");
+  const clearSummaryEl = getById("clearTopologySummary");
+  const clearPreviewEl = getById("clearTopologyPreview");
+  const clearConfirmBtn = getById("clearTopologyConfirm");
 
   const workspace = qs(".sbx-workspace");
   const leftPanel = getById("sbxLeftPanel");
@@ -101,6 +113,7 @@ Reworked to match the Figma AI version:
     objectiveStatus: {},
     challengeMeta: null,
     deviceAnimations: new Set(),
+    saveModalOpen: false,
   };
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
@@ -125,6 +138,266 @@ Reworked to match the Figma AI version:
 
   function setTip(text) {
     if (tipsEl) tipsEl.textContent = text;
+  }
+
+  let __tooltip = null;
+
+  function ensureTooltip() {
+    if (__tooltip) return __tooltip;
+    const tip = document.createElement("div");
+    tip.className = "net-tooltip";
+    tip.textContent = "";
+    document.body.appendChild(tip);
+    __tooltip = tip;
+    return tip;
+  }
+
+  function showTooltip(target) {
+    if (!target) return;
+    const text = target.getAttribute("data-tooltip") || target.getAttribute("aria-label") || target.getAttribute("title");
+    if (!text) return;
+    const tip = ensureTooltip();
+    tip.textContent = text;
+    tip.classList.add("is-open");
+
+    const rect = target.getBoundingClientRect();
+    const pad = 8;
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    let left = rect.left + rect.width / 2 - w / 2;
+    let top = rect.top - h - 10;
+    left = clamp(left, pad, window.innerWidth - w - pad);
+    if (top < pad) top = rect.bottom + 10;
+
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+  }
+
+  function hideTooltip() {
+    if (__tooltip) __tooltip.classList.remove("is-open");
+  }
+
+  function showToast({ title, message, variant = "info", timeout = 3200 }) {
+    const stack = toastStack || document.body;
+    const toast = document.createElement("div");
+    toast.className = `sbx-toast ${variant}`;
+    toast.innerHTML = `
+      <div class="sbx-toast-icon">
+        <i class="bi ${variant === "success" ? "bi-check-lg" : variant === "error" ? "bi-x-lg" : "bi-info-lg"}"></i>
+      </div>
+      <div>
+        <div class="sbx-toast-title">${escapeHtml(title || "Update")}</div>
+        <div class="sbx-toast-message">${escapeHtml(message || "")}</div>
+      </div>
+      <button class="sbx-toast-close" type="button" aria-label="Close">×</button>
+    `;
+    stack.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("is-show"));
+
+    const removeToast = () => {
+      toast.classList.add("is-leaving");
+      setTimeout(() => toast.remove(), 220);
+    };
+
+    toast.querySelector(".sbx-toast-close")?.addEventListener("click", removeToast);
+    if (timeout) setTimeout(removeToast, timeout);
+  }
+
+  function getTypeColor(type) {
+    const meta = DEVICE_TYPES[type];
+    if (!meta?.color) return "#94a3b8";
+    const match = meta.color.match(/#([0-9a-fA-F]{3,6})/);
+    return match ? `#${match[1]}` : "#94a3b8";
+  }
+
+  function getTopologySummary() {
+    const typeCounts = {};
+    state.devices.forEach((d) => {
+      typeCounts[d.type] = (typeCounts[d.type] || 0) + 1;
+    });
+    const topTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+    return {
+      deviceCount: state.devices.length,
+      connectionCount: state.connections.length,
+      types: topTypes,
+    };
+  }
+
+  function renderSummary(container) {
+    if (!container) return;
+    if (!state.devices.length) {
+      container.innerHTML = `<div class="sbx-preview-empty">No devices added yet.</div>`;
+      return;
+    }
+
+    const summary = getTopologySummary();
+    const chips = summary.types.slice(0, 6).map(([type, count]) => {
+      const label = DEVICE_TYPES[type]?.label || type;
+      return `<span class="sbx-chip">${escapeHtml(label)} • ${count}</span>`;
+    }).join("");
+
+    container.innerHTML = `
+      <div class="sbx-summary-row">
+        <span><strong>${summary.deviceCount}</strong> devices</span>
+        <span><strong>${summary.connectionCount}</strong> links</span>
+      </div>
+      <div class="sbx-chip-row">${chips || ""}</div>
+    `;
+  }
+
+  function renderTopologyPreview(container, width = 260, height = 160) {
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (!state.devices.length) {
+      container.innerHTML = `<div class="sbx-preview-empty">Preview updates after you add devices.</div>`;
+      return;
+    }
+
+    const centers = state.devices.map((d) => ({
+      id: d.id,
+      x: d.x + DEVICE_RADIUS,
+      y: d.y + DEVICE_RADIUS,
+      type: d.type,
+    }));
+
+    const minX = Math.min(...centers.map((c) => c.x));
+    const maxX = Math.max(...centers.map((c) => c.x));
+    const minY = Math.min(...centers.map((c) => c.y));
+    const maxY = Math.max(...centers.map((c) => c.y));
+    const spanX = Math.max(1, maxX - minX);
+    const spanY = Math.max(1, maxY - minY);
+    const pad = 16;
+    const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY);
+
+    const point = (c) => ({
+      x: pad + (c.x - minX) * scale,
+      y: pad + (c.y - minY) * scale,
+    });
+
+    const lines = state.connections.map((conn) => {
+      const from = centers.find((c) => c.id === conn.from);
+      const to = centers.find((c) => c.id === conn.to);
+      if (!from || !to) return "";
+      const a = point(from);
+      const b = point(to);
+      return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="rgba(15,23,42,.3)" stroke-width="2" />`;
+    }).join("");
+
+    const nodes = centers.map((c) => {
+      const p = point(c);
+      const color = getTypeColor(c.type);
+      return `<circle cx="${p.x}" cy="${p.y}" r="8" fill="${color}" stroke="rgba(255,255,255,.9)" stroke-width="2" />`;
+    }).join("");
+
+    container.innerHTML = `
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Topology preview">
+        <rect x="0" y="0" width="${width}" height="${height}" rx="16" fill="url(#sbxPreviewBg)" />
+        <defs>
+          <linearGradient id="sbxPreviewBg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="100%" stop-color="#f8fafc" />
+          </linearGradient>
+        </defs>
+        ${lines}
+        ${nodes}
+      </svg>
+    `;
+  }
+
+  function updateSaveModalLive() {
+    if (!state.saveModalOpen) return;
+    renderSummary(saveSummaryEl);
+    renderTopologyPreview(savePreviewEl);
+  }
+
+  function updatePingOverview(meta = {}, result = null) {
+    const fromDevice = meta.fromDevice || null;
+    const toDevice = meta.toDevice || null;
+    const path = Array.isArray(meta.path) ? meta.path : [];
+
+    setText("pingOverviewSource", fromDevice?.name || "—");
+    setText("pingOverviewSourceIp", fromDevice?.config?.ipAddress || "No IP");
+    setText("pingOverviewDest", toDevice?.name || "Select a device");
+    setText("pingOverviewDestIp", toDevice?.config?.ipAddress || "—");
+
+    const statusEl = getById("pingOverviewStatus");
+    if (statusEl) {
+      const label = result ? (result.success ? "Success" : "Failed") : "Ready";
+      statusEl.textContent = label;
+      statusEl.className = `sbx-ping-chip ${result ? (result.success ? "is-success" : "is-fail") : "is-neutral"}`;
+    }
+
+    const latencyEl = getById("pingOverviewLatency");
+    if (latencyEl) latencyEl.textContent = result?.latency ? `Latency: ${result.latency}ms` : "Latency: —";
+
+    const hopsEl = getById("pingOverviewHops");
+    if (hopsEl) hopsEl.textContent = path.length ? `Hops: ${Math.max(path.length - 1, 0)}` : "Hops: —";
+
+    const routeEl = getById("pingOverviewRoute");
+    if (routeEl) {
+      if (!path.length) {
+        routeEl.textContent = "Select a destination to preview the route.";
+      } else {
+        routeEl.classList.toggle("is-pulse", !!result?.success);
+        routeEl.innerHTML = path
+          .map((id, idx) => {
+            const dev = findDevice(id);
+            const name = escapeHtml(dev?.name || "Unknown");
+            const delay = result?.success ? `style=\"animation-delay:${idx * 0.12}s\"` : "";
+            const node = `<span class=\"sbx-ping-route-node\" ${delay}>${name}</span>`;
+            const sep = idx < path.length - 1 ? `<span class=\"sbx-ping-route-sep\">→</span>` : "";
+            return `${node}${sep}`;
+          })
+          .join("");
+      }
+    }
+  }
+
+  function getNextDevicePosition() {
+    const rect = stage.getBoundingClientRect();
+    const centerX = rect.width / 2 - DEVICE_RADIUS;
+    const centerY = rect.height / 2 - DEVICE_RADIUS;
+    const padding = 16;
+    const index = state.devices.length;
+
+    if (index === 0) {
+      return {
+        x: clamp(centerX, padding, rect.width - DEVICE_SIZE - padding),
+        y: clamp(centerY, padding, rect.height - DEVICE_SIZE - padding),
+      };
+    }
+
+    const step = DEVICE_SIZE + 20;
+    const ringIndex = index - 1;
+    const ring = Math.floor(ringIndex / 8) + 1;
+    const angle = ringIndex * 0.9;
+    const radius = ring * step;
+    let x = centerX + Math.cos(angle) * radius;
+    let y = centerY + Math.sin(angle) * radius;
+    x = clamp(x, padding, rect.width - DEVICE_SIZE - padding);
+    y = clamp(y, padding, rect.height - DEVICE_SIZE - padding);
+    return { x, y };
+  }
+
+  function createDragGhost(type) {
+    const meta = DEVICE_TYPES[type] || DEVICE_TYPES.pc;
+    const ghost = document.createElement("div");
+    ghost.className = "sbx-drag-ghost";
+    ghost.innerHTML = `
+      <div class="sbx-drag-icon"><i class="bi ${meta.icon}"></i></div>
+      <div class="sbx-drag-label">${escapeHtml(meta.label || "Device")}</div>
+    `;
+    const icon = ghost.querySelector(".sbx-drag-icon");
+    if (icon) icon.style.background = meta.color || "";
+    document.body.appendChild(ghost);
+    return ghost;
+  }
+
+  function positionDragGhost(ghost, x, y) {
+    if (!ghost) return;
+    ghost.style.left = `${x}px`;
+    ghost.style.top = `${y}px`;
   }
 
   function isValidIP(ip) {
@@ -276,14 +549,80 @@ Reworked to match the Figma AI version:
   // ----------------------------------------
   // XP + progress logging (kept)
   // ----------------------------------------
+  function totalXpForLevel(level) {
+    const lvl = Math.max(1, Number(level) || 1);
+    return (lvl - 1) * lvl * 50;
+  }
+
+  function levelFromTotalXp(totalXp) {
+    let level = 1;
+    let remaining = Math.max(0, Number(totalXp) || 0);
+    let step = 100;
+    while (remaining >= step) {
+      remaining -= step;
+      level += 1;
+      step += 100;
+    }
+    return level;
+  }
+
+  function rankForLevel(level) {
+    if (Number(level) >= 5) return "Advanced";
+    if (Number(level) >= 3) return "Intermediate";
+    return "Novice";
+  }
+
+  function resolveXpProgress(user) {
+    const totalXp = Math.max(0, Number(user?.xp || 0));
+    const numericLevel = Number(user?.numeric_level);
+    const level = Number.isFinite(numericLevel) && numericLevel > 0 ? numericLevel : levelFromTotalXp(totalXp);
+    const levelStart = totalXpForLevel(level);
+    const xpInto = Number.isFinite(Number(user?.xp_into_level))
+      ? Number(user?.xp_into_level)
+      : Math.max(0, totalXp - levelStart);
+    const nextXp = Number.isFinite(Number(user?.next_level_xp))
+      ? Number(user?.next_level_xp)
+      : level * 100;
+    const pct = nextXp ? Math.round((xpInto / nextXp) * 100) : 0;
+    return { totalXp, level, xpInto, nextXp, pct };
+  }
+
+  function applyXpToUser(user, addXP) {
+    const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
+    const nextLevel = levelFromTotalXp(nextTotal);
+    const nextStart = totalXpForLevel(nextLevel);
+    const xpInto = Math.max(0, nextTotal - nextStart);
+    return {
+      ...user,
+      xp: nextTotal,
+      numeric_level: nextLevel,
+      level: rankForLevel(nextLevel),
+      rank: rankForLevel(nextLevel),
+      xp_into_level: xpInto,
+      next_level_xp: nextLevel * 100
+    };
+  }
+
+  function updateUserStorage(nextUser) {
+    if (!nextUser || !nextUser.email) return;
+    const keys = ["netology_user", "user"];
+    keys.forEach((key) => {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const existing = parseJsonSafe(raw) || {};
+      if (existing.email && existing.email !== nextUser.email) return;
+      localStorage.setItem(key, JSON.stringify({ ...existing, ...nextUser }));
+    });
+  }
+
   function bumpUserXP(email, addXP) {
     if (!email || !addXP) return;
     const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
     const user = parseJsonSafe(raw) || {};
     if (!user || user.email !== email) return;
-    user.xp = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
-    if (localStorage.getItem("netology_user")) localStorage.setItem("netology_user", JSON.stringify(user));
-    if (localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify(user));
+    const updated = applyXpToUser(user, addXP);
+    if (localStorage.getItem("netology_user")) localStorage.setItem("netology_user", JSON.stringify(updated));
+    if (localStorage.getItem("user")) localStorage.setItem("user", JSON.stringify(updated));
   }
 
   function logProgressEvent(email, payload) {
@@ -436,6 +775,20 @@ Reworked to match the Figma AI version:
     return parseJsonSafe(raw) || {};
   }
 
+  async function refreshUserFromServer(email) {
+    if (!API_BASE || !email) return null;
+    try {
+      const res = await fetch(`${API_BASE}/user-info?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (!data || data.success === false) return null;
+      updateUserStorage(data);
+      fillIdentity(data);
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
   function setText(id, text) {
     const el = getById(id);
     if (el) el.textContent = String(text ?? "");
@@ -560,22 +913,23 @@ Reworked to match the Figma AI version:
     const name = user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.username || "Student";
     const email = user?.email || "";
     const initial = name.trim().charAt(0).toUpperCase();
+    const progress = resolveXpProgress(user);
 
     setText("topAvatar", initial);
     setText("ddAvatar", initial);
     setText("ddName", name);
     setText("ddEmail", email || "email@example.com");
-    setText("ddLevel", `Level ${Number(user?.level || 1)}`);
-    setText("ddRank", String(user?.unlock_tier || "Novice").replace(/^\w/, (c) => c.toUpperCase()));
+    setText("ddLevel", `Level ${progress.level}`);
+    setText("ddRank", String(user?.level || user?.rank || user?.unlock_tier || "Novice").replace(/^\w/, (c) => c.toUpperCase()));
 
     setText("sideAvatar", initial);
     setText("sideUserName", name);
     setText("sideUserEmail", email || "email@example.com");
-    setText("sideLevelBadge", `Lv ${Number(user?.level || 1)}`);
-    setText("sideXpText", `${Number(user?.xp || 0)}/100`);
-    setText("sideXpHint", `100 XP to next level`);
+    setText("sideLevelBadge", `Lv ${progress.level}`);
+    setText("sideXpText", `${progress.xpInto}/${progress.nextXp}`);
+    setText("sideXpHint", `${Math.max(0, progress.nextXp - progress.xpInto)} XP to next level`);
     const bar = getById("sideXpBar");
-    if (bar) bar.style.width = `${Math.min(100, Number(user?.xp || 0))}%`;
+    if (bar) bar.style.width = `${Math.min(100, progress.pct)}%`;
   }
 
   function logout() {
@@ -1082,6 +1436,7 @@ Reworked to match the Figma AI version:
     renderPackets();
     renderConsole();
     updatePingVisibility();
+    updateSaveModalLive();
   }
 
   // ----------------------------------------
@@ -1123,17 +1478,23 @@ Reworked to match the Figma AI version:
   // ----------------------------------------
   // Device and connection actions
   // ----------------------------------------
-  function addDevice(type) {
+  function addDevice(type, position = null) {
     const rect = stage.getBoundingClientRect();
-    const baseX = rect.width / 2 - DEVICE_RADIUS + (Math.random() * 100 - 50);
-    const baseY = rect.height / 2 - DEVICE_RADIUS + (Math.random() * 100 - 50);
+    const pos = position && Number.isFinite(position.x) && Number.isFinite(position.y)
+      ? { x: position.x, y: position.y }
+      : getNextDevicePosition();
     const count = state.devices.filter((d) => d.type === type).length + 1;
+
+    if (state.snap) {
+      pos.x = Math.round(pos.x / GRID_SIZE) * GRID_SIZE;
+      pos.y = Math.round(pos.y / GRID_SIZE) * GRID_SIZE;
+    }
 
     const device = normalizeDevice({
       id: `device-${Date.now()}`,
       type,
-      x: clamp(baseX, 10, rect.width - DEVICE_SIZE - 10),
-      y: clamp(baseY, 10, rect.height - DEVICE_SIZE - 10),
+      x: clamp(pos.x, 10, rect.width - DEVICE_SIZE - 10),
+      y: clamp(pos.y, 10, rect.height - DEVICE_SIZE - 10),
       name: `${DEVICE_TYPES[type]?.label || "Device"} ${count}`,
       status: "on",
     });
@@ -1258,7 +1619,7 @@ Reworked to match the Figma AI version:
     if (!fromDevice) return;
     if (!fromDevice.config.ipAddress) {
       steps.push({ step: "Source IP", success: false, message: "No IP configured" });
-      setPingResult({ success: false, steps, message: "Source IP missing" });
+      setPingResult({ success: false, steps, message: "Source IP missing" }, { fromDevice, toDevice, path: [] });
       return;
     }
 
@@ -1266,7 +1627,7 @@ Reworked to match the Figma AI version:
 
     if (!toDevice || !toDevice.config.ipAddress) {
       steps.push({ step: "Destination IP", success: false, message: "Destination missing" });
-      setPingResult({ success: false, steps, message: "Destination not found" });
+      setPingResult({ success: false, steps, message: "Destination not found" }, { fromDevice, toDevice, path: [] });
       return;
     }
 
@@ -1274,14 +1635,14 @@ Reworked to match the Figma AI version:
 
     if (!isValidSubnet(fromDevice.config.subnetMask)) {
       steps.push({ step: "Subnet", success: false, message: "Invalid subnet mask" });
-      setPingResult({ success: false, steps, message: "Invalid subnet mask" });
+      setPingResult({ success: false, steps, message: "Invalid subnet mask" }, { fromDevice, toDevice, path: [] });
       return;
     }
 
     const path = findPath(fromId, toId);
     if (!path.length) {
       steps.push({ step: "Connectivity", success: false, message: "No path" });
-      setPingResult({ success: false, steps, message: "No route" });
+      setPingResult({ success: false, steps, message: "No route" }, { fromDevice, toDevice, path });
       return;
     }
 
@@ -1295,21 +1656,21 @@ Reworked to match the Figma AI version:
     if (!sameSubnet) {
       if (!fromDevice.config.defaultGateway) {
         steps.push({ step: "Gateway", success: false, message: "No default gateway" });
-        setPingResult({ success: false, steps, message: "Missing gateway" });
+        setPingResult({ success: false, steps, message: "Missing gateway" }, { fromDevice, toDevice, path });
         return;
       }
 
       const gatewayDevice = state.devices.find((d) => d.config.ipAddress === fromDevice.config.defaultGateway);
       if (!gatewayDevice) {
         steps.push({ step: "Gateway", success: false, message: "Gateway not in topology" });
-        setPingResult({ success: false, steps, message: "Gateway unreachable" });
+        setPingResult({ success: false, steps, message: "Gateway unreachable" }, { fromDevice, toDevice, path });
         return;
       }
 
       const pathViaGateway = path.includes(gatewayDevice.id);
       if (!pathViaGateway) {
         steps.push({ step: "Gateway", success: false, message: "No route through gateway" });
-        setPingResult({ success: false, steps, message: "No route to destination" });
+        setPingResult({ success: false, steps, message: "No route to destination" }, { fromDevice, toDevice, path });
         return;
       }
 
@@ -1321,22 +1682,23 @@ Reworked to match the Figma AI version:
       steps,
       message: `Reply from ${toDevice.config.ipAddress}`,
       latency: sameSubnet ? 1 : 2,
-    });
+    }, { fromDevice, toDevice, path });
 
     addPacketLog(`${fromDevice.name} → ${toDevice.name} (${fromDevice.config.ipAddress} → ${toDevice.config.ipAddress})`);
     animatePacket(path);
   }
 
-  function setPingResult(result) {
+  function setPingResult(result, meta = {}) {
     state.pingInspector = result;
     renderInspector();
     const resultBox = getById("pingResult");
     if (resultBox) {
-      resultBox.className = result.success ? "text-success" : "text-danger";
+      resultBox.className = `sbx-ping-result ${result.success ? "is-success" : "is-fail"}`;
       resultBox.innerHTML = result.success
         ? `<strong>✔ ${escapeHtml(result.message)}</strong>`
         : `❌ ${escapeHtml(result.message)}`;
     }
+    updatePingOverview(meta, result);
   }
 
   function addPacketLog(line) {
@@ -1581,6 +1943,7 @@ Reworked to match the Figma AI version:
 
     try {
       await saveLessonSessionToDb();
+      const earnedXp = Number(state.challengeMeta?.xp || 0);
 
       const xpRes = await fetch(`${API_BASE}/complete-challenge`, {
         method: "POST",
@@ -1589,6 +1952,7 @@ Reworked to match the Figma AI version:
           email: user.email,
           course_id: lessonSession.course_id,
           lesson_number: lessonSession.lesson_number,
+          earned_xp: earnedXp,
         }),
       });
 
@@ -1599,7 +1963,13 @@ Reworked to match the Figma AI version:
         } else {
           resultBox.textContent = `✅ Passed! +${xpData.xp_added} XP earned.`;
         }
-        markChallengeCompletion(user.email, lessonSession.course_id, lessonSession.lesson_number, xpData.xp_added || 0);
+        markChallengeCompletion(
+          user.email,
+          lessonSession.course_id,
+          lessonSession.lesson_number,
+          Number(xpData.xp_added || 0)
+        );
+        await refreshUserFromServer(user.email);
       } else {
         resultBox.className = "small text-warning fw-semibold";
         resultBox.textContent = "✅ Passed, but XP award failed.";
@@ -1637,24 +2007,117 @@ Reworked to match the Figma AI version:
   // ----------------------------------------
   async function handleSaveTopology() {
     const user = getLoggedInUser();
-    if (!user || !user.email) return alert("You must be logged in.");
+    if (!user || !user.email) {
+      showToast({
+        variant: "error",
+        title: "Sign in required",
+        message: "Log in to save your topology.",
+      });
+      return;
+    }
 
-    const name = prompt("Name your topology:");
-    if (!name) return;
+    openSaveModal();
+  }
 
-    const res = await fetch(`${API_BASE}/save-topology`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: user.email,
-        name,
-        devices: state.devices,
-        connections: state.connections,
-      }),
+  function openSaveModal() {
+    if (!saveModalEl) return;
+    const user = getLoggedInUser();
+    if (!user || !user.email) return;
+
+    if (saveNameInput) {
+      const stamp = new Date();
+      const label = `Topology ${stamp.toLocaleDateString()} ${stamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+      if (!saveNameInput.value.trim()) saveNameInput.value = label;
+    }
+
+    renderSummary(saveSummaryEl);
+    renderTopologyPreview(savePreviewEl);
+
+    const modal = new bootstrap.Modal(saveModalEl);
+    modal.show();
+  }
+
+  async function confirmSaveTopology() {
+    const user = getLoggedInUser();
+    if (!user || !user.email) return;
+    const name = saveNameInput?.value?.trim();
+    if (!name) {
+      showToast({ variant: "error", title: "Name required", message: "Please name your topology." });
+      return;
+    }
+
+    if (saveConfirmBtn) {
+      saveConfirmBtn.disabled = true;
+      saveConfirmBtn.textContent = "Saving...";
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/save-topology`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          name,
+          devices: state.devices,
+          connections: state.connections,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Save failed.");
+
+      showToast({
+        variant: "success",
+        title: "Topology saved",
+        message: data.message || `Saved "${name}".`,
+      });
+
+      const modal = bootstrap.Modal.getInstance(saveModalEl);
+      if (modal) modal.hide();
+    } catch (e) {
+      console.error("Save topology error:", e);
+      showToast({
+        variant: "error",
+        title: "Save failed",
+        message: "Could not save the topology. Try again.",
+      });
+    } finally {
+      if (saveConfirmBtn) {
+        saveConfirmBtn.disabled = false;
+        saveConfirmBtn.textContent = "Save topology";
+      }
+    }
+  }
+
+  function openClearModal() {
+    if (!clearModalEl) return;
+    renderSummary(clearSummaryEl);
+    renderTopologyPreview(clearPreviewEl);
+    const modal = new bootstrap.Modal(clearModalEl);
+    modal.show();
+  }
+
+  function confirmClearTopology() {
+    const removedDevices = state.devices.length;
+    const removedConnections = state.connections.length;
+
+    state.devices = [];
+    state.connections = [];
+    state.selectedIds = [];
+    state.connectFrom = null;
+    pushHistory();
+    renderAll();
+    markDirtyAndSaveSoon();
+    addActionLog("Cleared topology");
+
+    const modal = bootstrap.Modal.getInstance(clearModalEl);
+    if (modal) modal.hide();
+
+    showToast({
+      variant: "info",
+      title: "Workspace cleared",
+      message: `Removed ${removedDevices} devices and ${removedConnections} links.`,
     });
-
-    const data = await res.json();
-    alert(data.message || "Saved.");
   }
 
   async function refreshTopologyList() {
@@ -1674,17 +2137,21 @@ Reworked to match the Figma AI version:
         <td>${escapeHtml(t.name)}</td>
         <td>${new Date(t.created_at).toLocaleString()}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-primary me-2" data-load-id="${t.id}">Load</button>
-          <button class="btn btn-sm btn-danger" data-delete-id="${t.id}">Delete</button>
+          <button class="btn btn-sm btn-primary me-2" data-load-id="${t.id}" data-tooltip="Load this topology">Load</button>
+          <button class="btn btn-sm btn-danger" data-delete-id="${t.id}" data-tooltip="Delete this topology">Delete</button>
         </td>
       `;
       list.appendChild(row);
+
+      const loadBtn = row.querySelector("[data-load-id]");
+      if (loadBtn) loadBtn.dataset.loadName = t.name || "Topology";
     });
 
     list.querySelectorAll("[data-load-id]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const id = btn.getAttribute("data-load-id");
-        await loadTopologyById(id);
+        const name = btn.dataset.loadName || "";
+        await loadTopologyById(id, name);
       });
     });
 
@@ -1696,12 +2163,16 @@ Reworked to match the Figma AI version:
     });
   }
 
-  async function loadTopologyById(id) {
+  async function loadTopologyById(id, name = "") {
     const res = await fetch(`${API_BASE}/load-topology/${id}`);
     const data = await res.json();
 
     if (!data.success) {
-      alert("Failed to load topology.");
+      showToast({
+        variant: "error",
+        title: "Load failed",
+        message: "Could not load this topology.",
+      });
       return;
     }
 
@@ -1716,17 +2187,118 @@ Reworked to match the Figma AI version:
 
     const modal = bootstrap.Modal.getInstance(getById("topologyModal"));
     if (modal) modal.hide();
+
+    showToast({
+      variant: "success",
+      title: "Topology loaded",
+      message: name ? `Loaded "${name}".` : "Topology loaded successfully.",
+    });
   }
 
   async function deleteTopology(id) {
     if (!confirm("Delete this topology?")) return;
     await fetch(`${API_BASE}/delete-topology/${id}`, { method: "DELETE" });
     await refreshTopologyList();
+    showToast({
+      variant: "info",
+      title: "Topology removed",
+      message: "Deleted the saved topology.",
+    });
   }
 
   // ----------------------------------------
   // Event binding
   // ----------------------------------------
+  function bindTooltips() {
+    const selector = "[data-tooltip],[aria-label],[title]";
+    const handleOver = (e) => {
+      const target = e.target?.closest?.(selector);
+      if (!target) return;
+      if (target.contains(e.relatedTarget)) return;
+      showTooltip(target);
+    };
+
+    const handleOut = (e) => {
+      const target = e.target?.closest?.(selector);
+      if (!target) return;
+      if (target.contains(e.relatedTarget)) return;
+      hideTooltip();
+    };
+
+    document.addEventListener("mouseover", handleOver);
+    document.addEventListener("mouseout", handleOut);
+    document.addEventListener("focusin", (e) => {
+      const target = e.target?.closest?.(selector);
+      if (!target) return;
+      showTooltip(target);
+    });
+    document.addEventListener("focusout", (e) => {
+      const target = e.target?.closest?.(selector);
+      if (!target) return;
+      hideTooltip();
+    });
+    window.addEventListener("scroll", hideTooltip, true);
+    window.addEventListener("resize", hideTooltip);
+    document.addEventListener("mousedown", hideTooltip);
+  }
+
+  function bindLibraryDrag() {
+    qsa("[data-device]").forEach((card) => {
+      card.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        const type = card.getAttribute("data-device");
+        if (!type) return;
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        let dragging = false;
+        let ghost = null;
+
+        const handleMove = (ev) => {
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+          if (!dragging && Math.hypot(dx, dy) > 6) {
+            dragging = true;
+            ghost = createDragGhost(type);
+            positionDragGhost(ghost, ev.clientX, ev.clientY);
+            stage.classList.add("is-drop");
+          }
+          if (dragging) {
+            positionDragGhost(ghost, ev.clientX, ev.clientY);
+          }
+        };
+
+        const handleUp = (ev) => {
+          window.removeEventListener("pointermove", handleMove);
+          window.removeEventListener("pointerup", handleUp);
+          window.removeEventListener("pointercancel", handleUp);
+          stage.classList.remove("is-drop");
+          if (ghost) ghost.remove();
+
+          if (dragging) {
+            const rect = stage.getBoundingClientRect();
+            const within =
+              ev.clientX >= rect.left &&
+              ev.clientX <= rect.right &&
+              ev.clientY >= rect.top &&
+              ev.clientY <= rect.bottom;
+            if (within) {
+              const x = (ev.clientX - rect.left) / state.zoom - DEVICE_RADIUS;
+              const y = (ev.clientY - rect.top) / state.zoom - DEVICE_RADIUS;
+              addDevice(type, { x, y });
+            }
+          } else {
+            addDevice(type);
+          }
+        };
+
+        window.addEventListener("pointermove", handleMove);
+        window.addEventListener("pointerup", handleUp, { once: true });
+        window.addEventListener("pointercancel", handleUp, { once: true });
+      });
+    });
+  }
+
   function bindToolbar() {
     qsa("[data-tool]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1744,14 +2316,6 @@ Reworked to match the Figma AI version:
         state.connectType = btn.getAttribute("data-conn-type");
         qsa("[data-conn-type]").forEach((b) => b.classList.remove("is-active"));
         btn.classList.add("is-active");
-      });
-    });
-
-    qsa("[data-device]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const type = btn.getAttribute("data-device");
-        if (!type) return;
-        addDevice(type);
       });
     });
 
@@ -1793,22 +2357,14 @@ Reworked to match the Figma AI version:
     });
 
     getById("saveBtn")?.addEventListener("click", handleSaveTopology);
+    saveConfirmBtn?.addEventListener("click", confirmSaveTopology);
     getById("loadBtn")?.addEventListener("click", async () => {
       await refreshTopologyList();
       const modal = new bootstrap.Modal(getById("topologyModal"));
       modal.show();
     });
-    getById("clearBtn")?.addEventListener("click", () => {
-      if (!confirm("Clear entire topology?")) return;
-      state.devices = [];
-      state.connections = [];
-      state.selectedIds = [];
-      state.connectFrom = null;
-      pushHistory();
-      renderAll();
-      markDirtyAndSaveSoon();
-      addActionLog("Cleared topology");
-    });
+    getById("clearBtn")?.addEventListener("click", openClearModal);
+    clearConfirmBtn?.addEventListener("click", confirmClearTopology);
 
     getById("pingBtn")?.addEventListener("click", () => {
       const selected = getSelectedDevice();
@@ -1828,8 +2384,21 @@ Reworked to match the Figma AI version:
         opt.textContent = dev.name;
         select.appendChild(opt);
       });
+      const defaultTarget = connected[0] || null;
+      updatePingOverview({ fromDevice: selected, toDevice: defaultTarget, path: defaultTarget ? findPath(selected.id, defaultTarget.id) : [] }, null);
 
-      getById("pingSourceName").textContent = selected.name;
+      select.onchange = () => {
+        const targetId = select.value;
+        const target = targetId ? findDevice(targetId) : null;
+        updatePingOverview({ fromDevice: selected, toDevice: target, path: target ? findPath(selected.id, target.id) : [] }, null);
+      };
+
+      const resultBox = getById("pingResult");
+      if (resultBox) {
+        resultBox.className = "sbx-ping-result";
+        resultBox.textContent = "Ready to run a ping.";
+      }
+
       const modal = new bootstrap.Modal(getById("pingModal"));
       modal.show();
     });
@@ -2058,6 +2627,7 @@ Reworked to match the Figma AI version:
       rules: data.challenge?.rules || data.challenge || {},
       steps: data.challenge?.steps || [],
       tips: data.challenge?.tips || "",
+      xp: Number(data.challenge?.xp || data.challengeXp || data.xp || 0),
     };
 
     const banner = getById("challengeBanner");
@@ -2076,9 +2646,21 @@ Reworked to match the Figma AI version:
   // ----------------------------------------
   function init() {
     initChrome();
+    bindTooltips();
+    bindLibraryDrag();
     bindToolbar();
     bindPanels();
     bindStage();
+
+    if (saveModalEl) {
+      saveModalEl.addEventListener("shown.bs.modal", () => {
+        state.saveModalOpen = true;
+        updateSaveModalLive();
+      });
+      saveModalEl.addEventListener("hidden.bs.modal", () => {
+        state.saveModalOpen = false;
+      });
+    }
 
     state.devices = [];
     state.connections = [];

@@ -35,8 +35,8 @@ const COURSE_CONTENT = {
     description: "Build core networking knowledge from scratch: devices, Ethernet, IP basics, and how networks actually move data.",
     difficulty: "novice",
     required_level: 1,
-    estimatedTime: "4 hrs",
-    xpReward: 650,
+    estimatedTime: "5.5 hrs",
+    xpReward: 800,
     category: "Core",
     units: [
       {
@@ -51,27 +51,34 @@ const COURSE_CONTENT = {
                 title: "What is a network?",
                 content: "A network is a set of devices that communicate using shared rules (protocols).",
                 duration: "12 min",
-                xp: 50
+                xp: 55
               },
               {
                 type: "Learn",
                 title: "LAN vs WAN vs Internet",
-                content: "LANs are local, WANs are wide-area, and the Internet is the global network of networks.",
+                content: "LANs are local, WANs connect sites over distance, and the Internet is the global network of networks.",
                 duration: "12 min",
-                xp: 50
+                xp: 55
+              },
+              {
+                type: "Learn",
+                title: "Network roles and services",
+                content: "Clients, servers, and shared services like DHCP and DNS make networks usable.",
+                duration: "12 min",
+                xp: 55
               },
               {
                 type: "Learn",
                 title: "Topologies and traffic flow",
                 content: "Understand common topologies (star, mesh, tree) and how traffic moves between devices.",
                 duration: "12 min",
-                xp: 50
+                xp: 55
               },
               {
                 type: "Quiz",
                 title: "Network basics quiz",
                 duration: "8 min",
-                xp: 80
+                xp: 90
               }
             ]
           },
@@ -111,14 +118,15 @@ const COURSE_CONTENT = {
             title: "What is a network?",
             learn: "A network connects devices so they can communicate, share data, and access services.",
             content: [
-              "A network is any group of devices that can exchange data. This includes phones, laptops, servers, printers, and even IoT devices like cameras or smart thermostats.",
-              "At home, your Wi-Fi router connects your phone, laptop, and TV to the same local network so they can share the Internet connection.",
-              "In an office, switches connect desktops and printers, while a router connects the office LAN to other networks or the Internet.",
-              "Networks exist so devices can share resources: files, printers, storage, and access to applications or cloud services.",
-              "Protocols are the rules for communication. Ethernet defines how frames move on a LAN, and TCP/IP defines how data moves between networks.",
-              "Good networks balance speed (bandwidth), responsiveness (latency), and reliability (packet loss).",
-              "Security matters too: networks should allow the right traffic and block the wrong traffic.",
-              "By the end of this course, you will be able to sketch a network and explain how data moves through it."
+              "A network is any group of devices that can exchange data using shared rules (protocols).",
+              "Devices can be laptops, phones, printers, servers, cameras, and cloud services.",
+              "At home, a router and Wi-Fi access point connect your devices and share one Internet link.",
+              "In a business, switches connect staff devices while routers connect the LAN to other sites or the Internet.",
+              "Networks exist to share resources: files, printers, storage, applications, and cloud services.",
+              "Performance is shaped by bandwidth (how much data), latency (how fast), and loss (reliability).",
+              "Security matters because shared access creates risk; networks must allow the right traffic and block the wrong traffic.",
+              "Example: a hospital isolates medical devices from guest Wi-Fi to protect patient systems.",
+              "When you can describe the devices, links, and rules, you can explain how data moves end to end."
             ],
             objectives: [
               "Define what a network is",
@@ -132,12 +140,14 @@ const COURSE_CONTENT = {
             title: "LAN vs WAN vs Internet",
             learn: "LANs are local, WANs connect distant locations, and the Internet connects everything.",
             content: [
-              "A LAN (Local Area Network) covers a small area like a home, office, or school. It is fast and controlled by a single organization.",
-              "A WAN (Wide Area Network) connects multiple LANs across cities or countries using service providers.",
-              "The Internet is a global network of networks that all agree on shared standards like TCP/IP.",
-              "If a company has offices in two cities, each office has its own LAN and the two LANs are linked by a WAN.",
-              "Knowing the scope helps you choose the right equipment and addressing strategy.",
-              "LANs focus on local speed and low latency; WANs focus on long-distance reliability."
+              "A LAN (Local Area Network) covers a small area like a home, office, or school building.",
+              "A WAN (Wide Area Network) connects multiple LANs over long distances using service providers.",
+              "The Internet is a global network of networks that all agree to use TCP/IP standards.",
+              "Example: a company has a LAN in Dublin and a LAN in London; a WAN link connects the two offices.",
+              "LANs are usually faster and more predictable; WANs have higher latency and rely on carriers.",
+              "Ownership differs: you control the LAN, but the WAN is shared with an ISP or carrier.",
+              "VPNs and SD-WAN overlays can secure traffic across a WAN or the Internet.",
+              "Knowing the scope helps you choose hardware, IP ranges, and the right troubleshooting steps."
             ],
             objectives: [
               "Compare LANs and WANs",
@@ -147,17 +157,37 @@ const COURSE_CONTENT = {
             summary: "LANs are local, WANs connect distant LANs, and the Internet is the largest WAN."
           },
           {
+            title: "Network roles and services",
+            learn: "Clients, servers, and shared services keep networks organized and reliable.",
+            content: [
+              "Networks are built around roles: clients request services, servers provide them, and peers share.",
+              "Common services include DHCP for IP addresses, DNS for names, file and print services, and authentication.",
+              "Central services make networks consistent: new devices can join without manual setup.",
+              "Example: a coffee shop uses DHCP to onboard guests, while a school uses DNS to reach learning portals.",
+              "Directory services and AAA control who can access which resources and reduce admin overhead.",
+              "Redundancy matters: two DNS servers prevent one failure from breaking name resolution.",
+              "Understanding roles helps you troubleshoot quickly when a service fails even if the network is up.",
+              "Benefit: clear roles improve reliability, security, and the overall user experience."
+            ],
+            objectives: [
+              "Identify client and server roles",
+              "Describe common network services",
+              "Explain why redundancy improves uptime"
+            ],
+            summary: "Network roles and shared services make access consistent, secure, and dependable."
+          },
+          {
             title: "Topologies and traffic flow",
             learn: "Topology describes how devices are arranged and how traffic moves between them.",
             content: [
-              "Topology is the shape of a network: star, bus, ring, mesh, or tree.",
-              "Most modern LANs use a star topology: devices connect to a central switch.",
-              "Mesh designs add redundancy by giving devices multiple paths.",
+              "Topology describes how devices are arranged: star, tree, mesh, ring, or bus.",
+              "Most modern LANs use a star topology with a switch at the center.",
+              "Mesh designs add redundancy by giving multiple paths, but cost and complexity increase.",
               "Traffic types include unicast (one-to-one), broadcast (one-to-all), and multicast (one-to-many).",
-              "Switches forward unicast traffic to a specific port, while broadcasts go to all ports in the same LAN.",
-              "Too many broadcasts can slow a network, which is why segmentation matters later.",
-              "Example: if PC A needs a printer, the switch uses the printer's MAC address to send frames only to that port.",
-              "Understanding topology helps you troubleshoot and plan expansions."
+              "Switches learn MAC addresses and forward unicast traffic only where it needs to go.",
+              "Broadcasts are useful for discovery like ARP, but too many can slow a network.",
+              "Example: a live video stream to many viewers can use multicast to save bandwidth.",
+              "Knowing the topology helps you plan growth and isolate failures when a link goes down."
             ],
             objectives: [
               "Identify common topologies",
@@ -167,7 +197,7 @@ const COURSE_CONTENT = {
             summary: "Topology and traffic patterns shape performance, reliability, and troubleshooting.",
             quiz: {
               title: "Network basics quiz",
-              xp: 80,
+              xp: 90,
               questions: [
                 {
                   id: "q1",
@@ -224,6 +254,20 @@ const COURSE_CONTENT = {
                   options: ["Down", "Still working", "Forced into a ring"],
                   correctAnswer: 1,
                   explanation: "Only that one device is impacted in a star topology."
+                },
+                {
+                  id: "q9",
+                  question: "A device that provides files or services to others is called a:",
+                  options: ["Client", "Server", "Repeater"],
+                  correctAnswer: 1,
+                  explanation: "Servers provide services that clients request."
+                },
+                {
+                  id: "q10",
+                  question: "Why use redundant services like two DNS servers?",
+                  options: ["It doubles Internet speed", "It improves availability if one fails", "It encrypts all traffic"],
+                  correctAnswer: 1,
+                  explanation: "Redundancy keeps critical services available during outages."
                 }
               ]
             }
@@ -256,6 +300,13 @@ const COURSE_CONTENT = {
                 title: "ARP and broadcast domains",
                 content: "ARP resolves IPs to MACs; broadcasts stay inside a single LAN.",
                 duration: "12 min",
+                xp: 50
+              },
+              {
+                type: "Learn",
+                title: "Switching loops and STP basics",
+                content: "Redundant links can cause loops; STP keeps Layer 2 stable.",
+                duration: "10 min",
                 xp: 50
               },
               {
@@ -306,10 +357,10 @@ const COURSE_CONTENT = {
               "Routers operate at Layer 3, forwarding packets based on IP addresses and routing tables.",
               "Endpoints are devices like laptops, servers, and phones that generate or consume data.",
               "In a small office, a switch connects endpoints while a router connects the LAN to the Internet.",
-              "Switches keep traffic local when possible; routers are the boundary between networks.",
-              "Understanding which device does what makes troubleshooting much faster.",
-              "If two PCs are on the same LAN, they can talk without the router.",
-              "If a PC needs a remote network, it sends traffic to the default gateway (the router)."
+              "Switches keep traffic local when possible; routers act as the boundary between networks.",
+              "The default gateway is the router address that sends traffic off the local subnet.",
+              "Example: two PCs on the same switch communicate directly without the router.",
+              "If local traffic works but Internet access fails, the gateway or router path is the likely issue."
             ],
             objectives: [
               "Distinguish switches from routers",
@@ -322,13 +373,13 @@ const COURSE_CONTENT = {
             title: "Ethernet frames and MAC addresses",
             learn: "Ethernet frames carry data on a LAN and use MAC addresses for delivery.",
             content: [
-              "An Ethernet frame includes destination MAC, source MAC, and a payload.",
+              "An Ethernet frame includes destination MAC, source MAC, a type field, a payload, and an FCS.",
               "MAC addresses are 48-bit identifiers, typically written like 00:1A:2B:3C:4D:5E.",
+              "The first half (OUI) identifies the vendor; the second half is device-specific.",
               "Switches learn MAC addresses by reading the source MAC of incoming frames.",
               "If the switch does not know the destination MAC, it floods the frame to all ports.",
-              "Frames also include a Frame Check Sequence (FCS) for error detection.",
-              "Because MACs are local, they are only meaningful inside a LAN.",
-              "IP addresses ride inside Ethernet frames when moving across a LAN.",
+              "MAC tables age out, which lets the network adapt when devices move ports.",
+              "Example: when a laptop moves desks, the switch learns its new port automatically.",
               "Understanding frame fields helps you debug why traffic is or is not flowing."
             ],
             objectives: [
@@ -344,19 +395,39 @@ const COURSE_CONTENT = {
             content: [
               "ARP (Address Resolution Protocol) maps an IP address to a MAC address on the LAN.",
               "When a device needs a MAC, it sends an ARP request as a broadcast.",
-              "Only the device with that IP responds with its MAC address.",
+              "Only the device with that IP responds with its MAC address, and the sender caches it.",
+              "ARP caches reduce repeated broadcasts but must be refreshed over time.",
               "Broadcasts stay within a broadcast domain, which is typically a single LAN or VLAN.",
               "Routers do not forward broadcast traffic, so they separate broadcast domains.",
-              "Too many broadcasts can degrade performance, which is why networks are segmented.",
-              "If ARP fails, devices can have the right IP but still fail to communicate.",
-              "Learning ARP explains why local communication happens before routing occurs."
+              "Example: a PC ARPs for the gateway before sending traffic to the Internet.",
+              "If ARP fails, devices can have the right IP but still fail to communicate."
             ],
             objectives: [
               "Explain how ARP works",
               "Define a broadcast domain",
               "Describe why routers block broadcasts"
             ],
-            summary: "ARP uses broadcasts to map IPs to MACs, and routers limit broadcasts to protect networks.",
+            summary: "ARP uses broadcasts to map IPs to MACs, and routers limit broadcasts to protect networks."
+          },
+          {
+            title: "Switching loops and STP basics",
+            learn: "Redundant links can create loops; STP keeps Layer 2 stable.",
+            content: [
+              "Redundant links improve resilience, but unmanaged loops can break a LAN.",
+              "Loops cause broadcast storms and MAC table flapping, which can overwhelm switches.",
+              "Spanning Tree Protocol (STP) builds a loop-free topology by blocking some links.",
+              "STP elects a root switch and chooses the best paths to it.",
+              "If a primary link fails, STP can reconverge and open a blocked path.",
+              "Example: two switches with two links will have one link blocked to prevent loops.",
+              "Using STP keeps redundancy without causing instability.",
+              "Tip: enable portfast on end-device ports to reduce startup delays."
+            ],
+            objectives: [
+              "Explain why loops are harmful",
+              "Describe what STP does",
+              "Identify why redundancy still matters"
+            ],
+            summary: "STP prevents loops while preserving backup paths for reliability.",
             quiz: {
               title: "Ethernet and switching quiz",
               xp: 80,
@@ -409,6 +480,20 @@ const COURSE_CONTENT = {
                   options: ["generate or consume", "only forward", "only encrypt"],
                   correctAnswer: 0,
                   explanation: "Endpoints are the sources and destinations of data."
+                },
+                {
+                  id: "q8",
+                  question: "STP is primarily used to prevent:",
+                  options: ["Routing loops", "Layer 2 loops", "IP conflicts"],
+                  correctAnswer: 1,
+                  explanation: "Spanning Tree prevents Layer 2 loops and broadcast storms."
+                },
+                {
+                  id: "q9",
+                  question: "PortFast should be enabled on:",
+                  options: ["Access ports to end devices", "Trunk links between switches", "Router uplinks only"],
+                  correctAnswer: 0,
+                  explanation: "PortFast speeds up access ports connected to end devices."
                 }
               ]
             }
@@ -433,6 +518,13 @@ const COURSE_CONTENT = {
                 type: "Learn",
                 title: "Subnet masks and gateways",
                 content: "Subnet masks define local vs remote traffic; gateways forward off-subnet packets.",
+                duration: "12 min",
+                xp: 50
+              },
+              {
+                type: "Learn",
+                title: "IP planning and common mistakes",
+                content: "Simple planning prevents conflicts, overlaps, and hard-to-debug outages.",
                 duration: "12 min",
                 xp: 50
               },
@@ -488,13 +580,13 @@ const COURSE_CONTENT = {
             learn: "IPv4 addresses uniquely identify devices so routers can deliver packets.",
             content: [
               "An IPv4 address is a 32-bit value written in dotted decimal, like 192.168.1.20.",
-              "The address is split into a network portion and a host portion.",
+              "The address is split into a network portion and a host portion, based on the subnet mask.",
               "Devices on the same network portion can communicate directly without a router.",
               "Public IPs are reachable on the Internet; private IPs are used inside local networks.",
               "Private ranges include 10.0.0.0/8, 172.16.0.0/12, and 192.168.0.0/16.",
-              "Routers use IP addresses to forward packets toward their destinations.",
-              "If an IP is wrong, communication fails even if the cable is correct.",
-              "Understanding IPs is the foundation for routing and troubleshooting."
+              "Most home networks use private IPs with NAT to share one public address.",
+              "Address conflicts cause intermittent issues that look like random outages.",
+              "Knowing IP basics is the foundation for routing and troubleshooting."
             ],
             objectives: [
               "Describe IPv4 addressing",
@@ -513,7 +605,8 @@ const COURSE_CONTENT = {
               "If the destination is outside the subnet, the device sends traffic to the default gateway.",
               "The default gateway is typically the router interface on that LAN.",
               "Wrong masks or gateways are one of the most common causes of connectivity issues.",
-              "Subnets are used to control broadcast size and organize large networks."
+              "Example: a PC can reach printers but not the Internet because the gateway is wrong.",
+              "Subnets keep broadcast traffic smaller and make large networks easier to manage."
             ],
             objectives: [
               "Interpret subnet masks",
@@ -523,16 +616,37 @@ const COURSE_CONTENT = {
             summary: "Subnet masks define local traffic, while gateways handle traffic to other networks."
           },
           {
+            title: "IP planning and common mistakes",
+            learn: "A simple IP plan prevents overlaps, conflicts, and hard-to-debug outages.",
+            content: [
+              "Start with a simple plan that separates users, servers, printers, and guests.",
+              "Reserve small blocks for infrastructure like routers, switches, and access points.",
+              "Avoid overlapping ranges when multiple sites connect or when VLANs are added later.",
+              "Use a consistent pattern, such as 10.10.x.0/24 for staff and 10.20.x.0/24 for guests.",
+              "Document address assignments and keep track of static IPs to prevent conflicts.",
+              "Remember that .0 is the network address and .255 is the broadcast address in a /24.",
+              "Example: a printer with a static IP prevents users from losing access after DHCP changes.",
+              "Good IP planning makes growth easy and reduces downtime."
+            ],
+            objectives: [
+              "Explain why IP planning matters",
+              "List common addressing mistakes",
+              "Describe a simple planning approach"
+            ],
+            summary: "Clear IP planning reduces conflicts and keeps networks easier to scale."
+          },
+          {
             title: "DHCP and DNS essentials",
             learn: "DHCP automates IP configuration and DNS translates names into addresses.",
             content: [
               "DHCP (Dynamic Host Configuration Protocol) automatically assigns IP addresses to hosts.",
               "The DHCP process follows DORA: Discover, Offer, Request, Acknowledge.",
               "DHCP also distributes options like subnet mask, gateway, and DNS server.",
+              "Reservations allow specific devices to always receive the same IP.",
               "DNS (Domain Name System) translates human-friendly names like example.com into IP addresses.",
-              "Without DNS, users would need to memorize IP addresses for every service.",
+              "DNS caching speeds up lookups and reduces traffic to authoritative servers.",
               "If DNS is misconfigured, services may be up but unreachable by name.",
-              "DHCP and DNS reduce manual configuration and improve consistency."
+              "DHCP and DNS reduce manual configuration and improve consistency across devices."
             ],
             objectives: [
               "Explain the DHCP DORA process",
@@ -599,6 +713,20 @@ const COURSE_CONTENT = {
                   options: ["Discover", "Offer", "Request"],
                   correctAnswer: 0,
                   explanation: "The client starts with a Discover message."
+                },
+                {
+                  id: "q9",
+                  question: "Which practice helps prevent IP conflicts?",
+                  options: ["Documenting static IPs and reservations", "Using random IPs", "Disabling DHCP"],
+                  correctAnswer: 0,
+                  explanation: "Tracking static IPs and reservations prevents overlaps."
+                },
+                {
+                  id: "q10",
+                  question: "Overlapping subnets between sites usually cause:",
+                  options: ["Faster routing", "Routing and reachability problems", "Better security"],
+                  correctAnswer: 1,
+                  explanation: "Overlaps create ambiguous routes and broken connectivity."
                 }
               ]
             }
@@ -607,6 +735,7 @@ const COURSE_CONTENT = {
       }
     ]
   },
+
   "2": {
     id: "2",
     title: "Ethernet & Switching Basics",
@@ -770,8 +899,8 @@ const COURSE_CONTENT = {
     description: "Design efficient subnets, segment networks with VLANs, and connect them securely with inter-VLAN routing.",
     difficulty: "intermediate",
     required_level: 3,
-    estimatedTime: "4.5 hrs",
-    xpReward: 800,
+    estimatedTime: "6 hrs",
+    xpReward: 950,
     category: "Routing",
     units: [
       {
@@ -794,6 +923,13 @@ const COURSE_CONTENT = {
                 content: "CIDR uses prefixes (like /24) to define network size and range.",
                 duration: "12 min",
                 xp: 55
+              },
+              {
+                type: "Learn",
+                title: "VLSM and subnet strategy",
+                content: "Variable-length subnets let you match address space to real needs.",
+                duration: "14 min",
+                xp: 60
               },
               {
                 type: "Learn",
@@ -844,10 +980,11 @@ const COURSE_CONTENT = {
               "Subnetting splits a large network into smaller networks, each with its own broadcast domain.",
               "Smaller broadcast domains reduce unnecessary traffic and make troubleshooting easier.",
               "Subnetting also helps enforce security boundaries between departments or services.",
-              "Example: HR, Finance, and Engineering can each have their own subnet, with routing and firewall rules between them.",
+              "Example: HR, Finance, and Engineering can each have their own subnet with routing and firewall rules between them.",
               "Subnetting makes IP planning realistic; you can assign only as many addresses as each group needs.",
               "Good subnetting reduces wasted addresses and prevents one noisy segment from impacting everyone.",
-              "Example: splitting a /23 into two /24s keeps guest Wi‑Fi separate while still leaving room for growth."
+              "Example: splitting a /23 into two /24s keeps guest Wi-Fi separate while still leaving room for growth.",
+              "The end result is a cleaner, more secure network that scales predictably."
             ],
             objectives: [
               "Explain why subnetting is used",
@@ -860,13 +997,14 @@ const COURSE_CONTENT = {
             title: "CIDR and prefix lengths",
             learn: "Prefix length determines how many addresses are in a subnet.",
             content: [
-              "CIDR uses prefix notation (like /24) to define network size.",
+              "CIDR uses prefix notation (like /24) to define network size and range.",
               "The shorter the prefix, the larger the subnet (more hosts).",
               "The longer the prefix, the smaller the subnet (fewer hosts).",
               "A /24 gives 256 total addresses (254 usable). A /26 gives 64 total (62 usable).",
               "Prefix length directly controls the block size and the step between subnets.",
-              "Learning CIDR quickly makes subnetting predictable.",
-              "Example: a /28 gives 16 total addresses (14 usable), perfect for a small printer or IoT VLAN."
+              "Knowing the prefix lets you calculate network, broadcast, and host ranges quickly.",
+              "Example: a /28 gives 16 total addresses (14 usable), perfect for a small printer or IoT VLAN.",
+              "CIDR makes subnet sizing predictable and easier to document."
             ],
             objectives: [
               "Read a CIDR prefix",
@@ -874,6 +1012,26 @@ const COURSE_CONTENT = {
               "Calculate total vs usable addresses"
             ],
             summary: "CIDR prefixes describe subnet size and usable host counts."
+          },
+          {
+            title: "VLSM and subnet strategy",
+            learn: "VLSM lets you mix subnet sizes to match real workloads.",
+            content: [
+              "VLSM (Variable Length Subnet Masking) allows different subnet sizes inside the same address block.",
+              "Start by listing your requirements from largest to smallest to avoid running out of space.",
+              "Large departments might need a /24, while a server segment might only need a /28.",
+              "Example: one /22 can be split into one /23 for users, two /25s for labs, and several /28s for devices.",
+              "VLSM reduces wasted addresses and keeps growth options open.",
+              "Document the plan so teams do not accidentally overlap ranges later.",
+              "Tip: leave buffer space between critical subnets for future expansion.",
+              "A good VLSM plan makes scaling easier and avoids costly renumbering."
+            ],
+            objectives: [
+              "Explain what VLSM is",
+              "Plan subnets of different sizes",
+              "Describe why ordering matters"
+            ],
+            summary: "VLSM matches address space to real needs while keeping future growth flexible."
           },
           {
             title: "Subnetting by hand",
@@ -885,7 +1043,8 @@ const COURSE_CONTENT = {
               "Each subnet has a network address, usable host range, and broadcast address.",
               "Knowing these ranges helps you avoid overlapping subnets and misconfigurations.",
               "You can always verify by counting: total addresses = block size, usable = total - 2.",
-              "Example: 10.0.5.64/26 has usable hosts .65–.126 with broadcast .127."
+              "Example: 10.0.5.64/26 has usable hosts .65 to .126 with broadcast .127.",
+              "With practice, manual subnetting becomes quick and reliable."
             ],
             objectives: [
               "Calculate block sizes",
@@ -952,6 +1111,20 @@ const COURSE_CONTENT = {
                   options: ["192.168.10.127", "192.168.10.95", "192.168.10.63"],
                   correctAnswer: 0,
                   explanation: "The broadcast is the last address in the block."
+                },
+                {
+                  id: "q9",
+                  question: "VLSM allows you to:",
+                  options: ["Use multiple subnet sizes in one address block", "Avoid subnetting entirely", "Eliminate routing"],
+                  correctAnswer: 0,
+                  explanation: "VLSM supports different subnet sizes in the same block."
+                },
+                {
+                  id: "q10",
+                  question: "When planning VLSM, you should allocate subnets in what order?",
+                  options: ["Largest to smallest", "Smallest to largest", "Randomly"],
+                  correctAnswer: 0,
+                  explanation: "Starting with the largest prevents running out of space."
                 }
               ]
             }
@@ -969,6 +1142,13 @@ const COURSE_CONTENT = {
                 type: "Learn",
                 title: "VLAN concepts",
                 content: "VLANs create separate broadcast domains on the same switch.",
+                duration: "12 min",
+                xp: 55
+              },
+              {
+                type: "Learn",
+                title: "VLAN planning and naming",
+                content: "Clear VLAN numbering and naming keeps large environments manageable.",
                 duration: "12 min",
                 xp: 55
               },
@@ -1028,10 +1208,11 @@ const COURSE_CONTENT = {
               "VLANs create logical segments on the same physical switch.",
               "Devices in different VLANs cannot communicate without routing.",
               "VLANs reduce broadcast scope and improve security.",
-              "Example: a school can keep student devices in one VLAN and staff devices in another.",
+              "Example: a school keeps student devices in one VLAN and staff devices in another.",
               "VLANs make it easier to apply policy and troubleshooting boundaries.",
               "You can think of VLANs like virtual switches: the same hardware, but separate logical networks.",
-              "Common use cases include voice VLANs for IP phones and guest VLANs for visitors."
+              "Common use cases include voice VLANs for IP phones and guest VLANs for visitors.",
+              "Segmentation also helps performance when many devices share the same switch."
             ],
             objectives: [
               "Define a VLAN",
@@ -1040,16 +1221,37 @@ const COURSE_CONTENT = {
             summary: "VLANs separate traffic on shared switches and reduce broadcast noise."
           },
           {
+            title: "VLAN planning and naming",
+            learn: "Consistent VLAN design makes growth and troubleshooting much easier.",
+            content: [
+              "A good VLAN plan maps business functions to clear segments.",
+              "Use consistent numbering, like 10 for staff, 20 for guests, 30 for voice, and 40 for printers.",
+              "Names should match the function so the intent is obvious in logs and configs.",
+              "Example: VLAN 20-GUEST in every site makes cross-site troubleshooting faster.",
+              "Document which subnets belong to each VLAN and who owns them.",
+              "Reserve VLAN ranges for future projects to avoid renumbering later.",
+              "Keep management VLANs separate and tightly controlled for security.",
+              "Good documentation is a visible benefit when networks scale."
+            ],
+            objectives: [
+              "Create a simple VLAN naming scheme",
+              "Explain why documentation matters",
+              "Describe how VLAN plans scale"
+            ],
+            summary: "Clear VLAN names and numbers reduce confusion and speed up troubleshooting."
+          },
+          {
             title: "802.1Q trunking",
             learn: "Trunk links tag frames so multiple VLANs can share the same link.",
             content: [
               "802.1Q adds a VLAN tag to Ethernet frames.",
               "Trunks carry traffic for multiple VLANs between switches or to routers.",
               "Access ports carry a single VLAN and do not tag frames.",
-              "The native VLAN on a trunk is sent untagged, so keep native VLANs consistent end‑to‑end.",
+              "The native VLAN on a trunk is sent untagged, so keep native VLANs consistent end to end.",
               "Allowed VLAN lists limit which VLANs are permitted across a trunk for safety and clarity.",
               "Example: a trunk between two switches might carry VLAN 10 and VLAN 20 for two departments.",
-              "If VLANs or the native VLAN mismatch, users see intermittent or one‑way connectivity."
+              "If VLANs or the native VLAN mismatch, users see intermittent or one-way connectivity.",
+              "Trunk documentation prevents accidental VLAN leaks between areas."
             ],
             objectives: [
               "Describe what trunking does",
@@ -1067,7 +1269,8 @@ const COURSE_CONTENT = {
               "Misconfigured trunks are a common cause of VLAN connectivity problems.",
               "Always document which VLANs are allowed on a trunk to reduce surprises.",
               "Example: if a PC is plugged into a trunk port, it may receive tagged frames and fail DHCP.",
-              "Best practice: place unused access ports in an unused VLAN and shut them down."
+              "Best practice: place unused access ports in an unused VLAN and shut them down.",
+              "Clear port roles keep segmentation working as designed."
             ],
             objectives: [
               "Describe access vs trunk ports",
@@ -1127,6 +1330,27 @@ const COURSE_CONTENT = {
                   options: ["Switches", "PCs", "Printers"],
                   correctAnswer: 0,
                   explanation: "Trunks connect switches or switch-to-router links."
+                },
+                {
+                  id: "q8",
+                  question: "A trunk link typically carries:",
+                  options: ["Multiple VLANs", "One VLAN only", "Only management traffic"],
+                  correctAnswer: 0,
+                  explanation: "Trunks are designed to carry multiple VLANs."
+                },
+                {
+                  id: "q9",
+                  question: "Which concept limits which VLANs can traverse a trunk?",
+                  options: ["Allowed VLAN list", "Default gateway", "ARP cache"],
+                  correctAnswer: 0,
+                  explanation: "Allowed VLAN lists control what traffic crosses a trunk."
+                },
+                {
+                  id: "q10",
+                  question: "A voice VLAN is typically used for:",
+                  options: ["IP phones", "File servers", "Printers only"],
+                  correctAnswer: 0,
+                  explanation: "Voice VLANs separate and prioritize IP phone traffic."
                 }
               ]
             }
@@ -1151,6 +1375,13 @@ const COURSE_CONTENT = {
                 type: "Learn",
                 title: "SVI on Layer 3 switches",
                 content: "SVIs provide gateway interfaces for VLANs on a multilayer switch.",
+                duration: "12 min",
+                xp: 55
+              },
+              {
+                type: "Learn",
+                title: "Inter-VLAN design patterns",
+                content: "Choose between router-on-a-stick, multilayer switches, or routed access designs.",
                 duration: "12 min",
                 xp: 55
               },
@@ -1201,16 +1432,17 @@ const COURSE_CONTENT = {
             learn: "Subinterfaces on one router port can route between VLANs.",
             content: [
               "Router-on-a-stick uses a single router interface with multiple subinterfaces.",
-              "Each subinterface is assigned to a VLAN and acts as that VLAN’s gateway.",
+              "Each subinterface is assigned to a VLAN and acts as that VLAN's gateway.",
               "This is common in smaller networks without Layer 3 switches.",
               "The switch port connected to the router must be a trunk carrying all required VLANs.",
               "If tagging is wrong, traffic will not reach the correct subinterface.",
               "Example: Gi0/0.10 can be VLAN 10 with IP 192.168.10.1/24, and Gi0/0.20 can be VLAN 20.",
-              "Because all VLANs share one physical link, that link can become a bottleneck."
+              "Because all VLANs share one physical link, that link can become a bottleneck.",
+              "It is cost-effective but less scalable for high-traffic environments."
             ],
             objectives: [
               "Explain router-on-a-stick",
-              "Identify when it’s used"
+              "Identify when it's used"
             ],
             summary: "Router-on-a-stick is a simple way to route between VLANs with one router link."
           },
@@ -1224,13 +1456,34 @@ const COURSE_CONTENT = {
               "Each VLAN has a unique SVI IP that serves as its default gateway.",
               "Inter-VLAN routing happens inside the switch, which is fast and scalable.",
               "Example: VLAN 10 can use 10.10.10.1 and VLAN 20 can use 10.10.20.1 as gateways.",
-              "Remember to enable IP routing on the switch, or SVIs will not route traffic."
+              "Remember to enable IP routing on the switch, or SVIs will not route traffic.",
+              "SVIs are the common choice for modern enterprise access layers."
             ],
             objectives: [
               "Define an SVI",
               "Compare SVIs to router-on-a-stick"
             ],
             summary: "SVIs give each VLAN a gateway interface on a Layer 3 switch."
+          },
+          {
+            title: "Inter-VLAN design patterns",
+            learn: "Design choices depend on size, cost, and performance needs.",
+            content: [
+              "Small sites often use router-on-a-stick to save cost.",
+              "Medium and large sites typically use Layer 3 switches for higher throughput.",
+              "Routed access designs remove Layer 2 trunks and route at the edge to reduce loops.",
+              "Example: a campus core might use Layer 3 switches while branch offices use router-on-a-stick.",
+              "Consider where you want policy enforcement: at the router, core, or distribution layer.",
+              "Plan gateway placement so troubleshooting remains simple for support teams.",
+              "Document VLAN-to-subnet mappings so traffic flows are predictable.",
+              "The right pattern balances simplicity, performance, and security."
+            ],
+            objectives: [
+              "Compare inter-VLAN design options",
+              "Explain trade-offs between patterns",
+              "Describe where gateways should live"
+            ],
+            summary: "Inter-VLAN routing can be designed in multiple ways depending on scale and budget."
           },
           {
             title: "Troubleshooting inter-VLAN routing",
@@ -1242,7 +1495,8 @@ const COURSE_CONTENT = {
               "Ensure hosts are in the right VLAN and use the correct gateway.",
               "A quick test: can hosts reach their own gateway IP?",
               "If local gateway fails, focus on VLAN membership and IP configuration.",
-              "Check ARP and MAC tables to confirm the gateway and host are learned on the expected ports."
+              "Check ARP and MAC tables to confirm the gateway and host are learned on the expected ports.",
+              "Use logs and interface counters to spot drops or mismatched VLAN tags."
             ],
             objectives: [
               "Identify common inter-VLAN failures",
@@ -1301,6 +1555,27 @@ const COURSE_CONTENT = {
                   options: ["Small networks", "Very large networks", "Wireless-only networks"],
                   correctAnswer: 0,
                   explanation: "It is common in smaller environments."
+                },
+                {
+                  id: "q8",
+                  question: "Router-on-a-stick requires the switch port to be a:",
+                  options: ["Trunk", "Access", "Monitor"],
+                  correctAnswer: 0,
+                  explanation: "The router must receive tagged VLAN traffic on a trunk."
+                },
+                {
+                  id: "q9",
+                  question: "Layer 3 switches route between VLANs using:",
+                  options: ["SVIs", "Hubs", "Repeaters"],
+                  correctAnswer: 0,
+                  explanation: "SVIs are the gateway interfaces for VLANs on L3 switches."
+                },
+                {
+                  id: "q10",
+                  question: "Best first test when VLANs can’t talk:",
+                  options: ["Ping the default gateway", "Change DNS", "Replace the ISP link"],
+                  correctAnswer: 0,
+                  explanation: "If the gateway fails, routing between VLANs won’t work."
                 }
               ]
             }
@@ -1453,8 +1728,8 @@ const COURSE_CONTENT = {
     description: "Secure networks with hardening, firewalls, ACLs, and monitoring best practices.",
     difficulty: "advanced",
     required_level: 5,
-    estimatedTime: "5 hrs",
-    xpReward: 900,
+    estimatedTime: "6.5 hrs",
+    xpReward: 1050,
     category: "Security",
     units: [
       {
@@ -1468,6 +1743,13 @@ const COURSE_CONTENT = {
                 type: "Learn",
                 title: "Attack surface",
                 content: "Every open port, service, and configuration adds to your attack surface.",
+                duration: "12 min",
+                xp: 60
+              },
+              {
+                type: "Learn",
+                title: "Threat modeling and risk",
+                content: "Prioritize controls by likelihood, impact, and asset value.",
                 duration: "12 min",
                 xp: 60
               },
@@ -1529,8 +1811,9 @@ const COURSE_CONTENT = {
               "Focus on least privilege, minimal services, and strong identity controls.",
               "Example: disabling unused remote access services closes entire categories of attacks.",
               "Documenting network assets helps you find and reduce unnecessary exposure.",
-              "Examples of high‑risk exposure include default SNMP communities and legacy management interfaces.",
-              "Regular scans and configuration reviews keep the attack surface from creeping back over time."
+              "Examples of high-risk exposure include default SNMP communities and legacy management interfaces.",
+              "Regular scans and configuration reviews keep the attack surface from creeping back over time.",
+              "A smaller attack surface improves both security and operational clarity."
             ],
             objectives: [
               "Define attack surface",
@@ -1538,6 +1821,26 @@ const COURSE_CONTENT = {
               "Explain why reduction matters"
             ],
             summary: "Smaller attack surfaces reduce risk and make defenses easier."
+          },
+          {
+            title: "Threat modeling and risk",
+            learn: "Threat modeling helps prioritize defenses based on what matters most.",
+            content: [
+              "Threat modeling starts with your most valuable assets and how they could be harmed.",
+              "Consider likelihood and impact to focus on the highest-risk scenarios first.",
+              "Example: protecting payment systems has higher priority than public marketing sites.",
+              "Map data flows so you know where sensitive information travels and where to add controls.",
+              "Use simple categories like spoofing, tampering, and data loss to guide discussions.",
+              "Translate risks into concrete actions such as MFA, network segmentation, or logging.",
+              "Revisit the model after major changes, new vendors, or new regulatory requirements.",
+              "This approach keeps security aligned with business goals and limited budgets."
+            ],
+            objectives: [
+              "Explain why threat modeling matters",
+              "Prioritize risks by likelihood and impact",
+              "Identify where to place controls"
+            ],
+            summary: "Threat modeling turns abstract risk into practical, prioritized defenses."
           },
           {
             title: "Hardening checklist",
@@ -1549,7 +1852,8 @@ const COURSE_CONTENT = {
               "Use configuration backups and version control to recover quickly after incidents.",
               "Apply secure management: restrict admin access to known subnets or jump hosts.",
               "Example: replace Telnet with SSH and prefer key-based authentication where possible.",
-              "Harden the management plane with a separate management VLAN and strict access rules."
+              "Harden the management plane with a separate management VLAN and strict access rules.",
+              "Routine hardening reduces both risk and emergency change work later."
             ],
             objectives: [
               "Describe key hardening actions",
@@ -1567,7 +1871,8 @@ const COURSE_CONTENT = {
               "Multi-factor authentication adds a second layer of protection for administrative access.",
               "Audit logs are essential for investigations and compliance.",
               "Role-based access helps: admins can change configs while helpdesk can only view status.",
-              "Central AAA makes offboarding fast and enforces consistent password policies."
+              "Central AAA makes offboarding fast and enforces consistent password policies.",
+              "Strong identity controls reduce the chance of lateral movement after a breach."
             ],
             objectives: [
               "Define AAA",
@@ -1596,7 +1901,7 @@ const COURSE_CONTENT = {
                 {
                   id: "q3",
                   question: "Least privilege means:",
-                  options: ["Everyone has admin access", "Access is only what’s needed", "No authentication required"],
+                  options: ["Everyone has admin access", "Access is only what's needed", "No authentication required"],
                   correctAnswer: 1,
                   explanation: "Least privilege limits access to only what is required."
                 },
@@ -1627,6 +1932,27 @@ const COURSE_CONTENT = {
                   options: ["Requires more passwords", "Simplifies access management", "Stops routing"],
                   correctAnswer: 1,
                   explanation: "Centralized AAA simplifies control and auditing."
+                },
+                {
+                  id: "q8",
+                  question: "Which control limits lateral movement?",
+                  options: ["Network segmentation", "Disable backups", "Open admin ports"],
+                  correctAnswer: 0,
+                  explanation: "Segmentation limits how far an attacker can move."
+                },
+                {
+                  id: "q9",
+                  question: "Hardening the management plane often includes:",
+                  options: ["Management VLAN and restricted access", "Guest Wi-Fi on the same VLAN", "Public admin interfaces"],
+                  correctAnswer: 0,
+                  explanation: "Separate management access reduces risk."
+                },
+                {
+                  id: "q10",
+                  question: "Least privilege helps because it:",
+                  options: ["Reduces blast radius", "Increases attack surface", "Eliminates logging"],
+                  correctAnswer: 0,
+                  explanation: "Smaller permissions reduce the impact of compromise."
                 }
               ]
             }
@@ -1651,6 +1977,13 @@ const COURSE_CONTENT = {
                 type: "Learn",
                 title: "ACL design",
                 content: "Use least privilege and document every rule.",
+                duration: "12 min",
+                xp: 60
+              },
+              {
+                type: "Learn",
+                title: "Firewall policy lifecycle",
+                content: "Policies need review, change control, and clean-up over time.",
                 duration: "12 min",
                 xp: 60
               },
@@ -1683,7 +2016,7 @@ const COURSE_CONTENT = {
                     "Connect PCs to the switch, then connect the switch to the router.",
                     "Imagine the router enforcing ACL rules between the PCs."
                   ],
-                  tips: "You’re validating topology and segmentation awareness."
+                  tips: "You're validating topology and segmentation awareness."
                 }
               }
             ]
@@ -1700,7 +2033,8 @@ const COURSE_CONTENT = {
               "Stateful inspection reduces the need for separate inbound allow rules for established sessions.",
               "Stateless filtering can be faster but requires more careful rule design.",
               "Example: web browsing needs return traffic; stateless ACLs require explicit inbound allows.",
-              "State tables consume memory, so tune timeouts for long‑lived connections."
+              "State tables consume memory, so tune timeouts for long-lived connections.",
+              "Choose stateful inspection when usability and safety are priorities."
             ],
             objectives: [
               "Compare stateless vs stateful behavior",
@@ -1712,19 +2046,40 @@ const COURSE_CONTENT = {
             title: "ACL design",
             learn: "Order matters. Place specific rules before general ones.",
             content: [
-              "ACLs are evaluated top‑down: the first match wins.",
-              "Put specific allow/deny rules before general rules.",
+              "ACLs are evaluated top-down: the first match wins.",
+              "Put specific allow or deny rules before general rules.",
               "Always include a default deny at the end when appropriate.",
               "Document each rule so future changes do not break intent.",
               "Use least privilege: allow only what is required, deny everything else.",
               "Group rules by zones (user VLAN to server VLAN) so intent is obvious.",
-              "Object groups and naming conventions make large ACLs easier to maintain."
+              "Object groups and naming conventions make large ACLs easier to maintain.",
+              "Well-structured ACLs are easier to audit and safer to change."
             ],
             objectives: [
               "Explain ACL order of operations",
               "Apply least privilege to rule design"
             ],
             summary: "Specific rules first, least privilege, and clear documentation."
+          },
+          {
+            title: "Firewall policy lifecycle",
+            learn: "Policies need regular review so they stay secure and relevant.",
+            content: [
+              "Firewall rules often outlive their original purpose unless they are reviewed.",
+              "A good policy lifecycle includes request, review, approval, and implementation.",
+              "Add owners and expiration dates so temporary rules do not become permanent.",
+              "Example: open a port for a migration with a planned removal date.",
+              "Log usage and review counters to identify rules that never match.",
+              "Clean up unused rules to reduce risk and improve performance.",
+              "Change control reduces accidental outages and keeps security aligned with business needs.",
+              "A healthy policy set is small, documented, and easy to explain."
+            ],
+            objectives: [
+              "Describe a firewall policy lifecycle",
+              "Explain why rule cleanup matters",
+              "Identify ways to control change risk"
+            ],
+            summary: "Active policy management keeps rule sets safe, small, and understandable."
           },
           {
             title: "Rule ordering and implicit deny",
@@ -1736,7 +2091,8 @@ const COURSE_CONTENT = {
               "Always test rules in a safe environment before deploying to production.",
               "Logging helps you validate which rules are being matched.",
               "Watch for shadowed rules that never match because an earlier rule already applies.",
-              "Use counters or logs to clean up unused rules over time."
+              "Use counters or logs to clean up unused rules over time.",
+              "Careful ordering prevents accidental outages and security gaps."
             ],
             objectives: [
               "Explain rule ordering",
@@ -1788,6 +2144,27 @@ const COURSE_CONTENT = {
                   options: ["Allow everything then block later", "Allow only required traffic", "Disable logging"],
                   correctAnswer: 1,
                   explanation: "Least privilege allows only what is needed."
+                },
+                {
+                  id: "q7",
+                  question: "Stateful firewalls allow return traffic because they keep a:",
+                  options: ["State table", "MAC table", "Routing table only"],
+                  correctAnswer: 0,
+                  explanation: "State tables track active connections."
+                },
+                {
+                  id: "q8",
+                  question: "Best rule order for ACLs is:",
+                  options: ["Specific rules first, then general rules", "General rules first", "Random ordering"],
+                  correctAnswer: 0,
+                  explanation: "Specific rules should appear before broad rules."
+                },
+                {
+                  id: "q9",
+                  question: "Why review firewall rules periodically?",
+                  options: ["Remove unused rules and reduce risk", "Make them longer", "Disable logging"],
+                  correctAnswer: 0,
+                  explanation: "Unused rules increase risk and complexity."
                 }
               ]
             }
@@ -1812,6 +2189,13 @@ const COURSE_CONTENT = {
                 type: "Learn",
                 title: "Incident response workflow",
                 content: "Prepare, detect, contain, eradicate, and recover.",
+                duration: "12 min",
+                xp: 60
+              },
+              {
+                type: "Learn",
+                title: "Playbooks and tabletop exercises",
+                content: "Practice response steps before incidents happen.",
                 duration: "12 min",
                 xp: 60
               },
@@ -1848,7 +2232,8 @@ const COURSE_CONTENT = {
               "Make sure logs include timestamps, usernames, source IPs, and action results.",
               "Noise reduction is important: collect what you need and keep it consistent.",
               "Example: repeated failed logins plus a sudden admin login from a new IP is higher risk when correlated.",
-              "Time sync (NTP) and log retention policies are critical for usable timelines."
+              "Time sync (NTP) and log retention policies are critical for usable timelines.",
+              "Well-structured logs reduce investigation time and false positives."
             ],
             objectives: [
               "Define SIEM at a high level",
@@ -1860,19 +2245,40 @@ const COURSE_CONTENT = {
             title: "Incident response workflow",
             learn: "Follow a consistent IR process to reduce downtime and impact.",
             content: [
-              "IR phases: Prepare → Detect → Contain → Eradicate → Recover.",
+              "IR phases: Prepare, Detect, Contain, Eradicate, and Recover.",
               "Preparation and detection reduce mean time to respond.",
               "Document everything to improve future defenses.",
               "Containment limits damage; eradication removes root cause.",
               "Recovery restores services safely and validates that the threat is gone.",
               "Define roles, contacts, and communication channels before incidents happen.",
-              "A post‑incident review turns lessons learned into better controls."
+              "A post-incident review turns lessons learned into better controls.",
+              "Clear escalation paths prevent confusion during high-stress events."
             ],
             objectives: [
               "List the IR phases",
               "Explain why documentation matters"
             ],
             summary: "A consistent IR process reduces downtime and long-term risk."
+          },
+          {
+            title: "Playbooks and tabletop exercises",
+            learn: "Practicing response steps builds speed and confidence.",
+            content: [
+              "Playbooks are step-by-step guides for common incidents like phishing or ransomware.",
+              "They define who does what, which systems to isolate, and how to communicate.",
+              "Tabletop exercises simulate incidents without breaking production systems.",
+              "Example: run a tabletop where a VPN account is compromised and test your containment plan.",
+              "Practicing reveals gaps in tooling, access, and decision-making.",
+              "Update playbooks after each exercise so they stay accurate.",
+              "Well-practiced teams respond faster and reduce business impact.",
+              "Playbooks also help onboard new team members quickly."
+            ],
+            objectives: [
+              "Explain what a playbook is",
+              "Describe the value of tabletop exercises",
+              "Identify gaps through practice"
+            ],
+            summary: "Practice makes response faster, clearer, and more reliable."
           },
           {
             title: "Detection baselines and alerting",
@@ -1884,7 +2290,8 @@ const COURSE_CONTENT = {
               "Tune alerts so they are actionable and not overwhelming.",
               "Good alerting reduces fatigue and improves response time.",
               "Example: a baseline for DNS queries per host helps spot malware or misbehaving clients.",
-              "Baselines shift after major changes or seasonal peaks, so revisit them regularly."
+              "Baselines shift after major changes or seasonal peaks, so revisit them regularly.",
+              "Alert quality is a measurable sign of a mature security program."
             ],
             objectives: [
               "Explain what a baseline is",
@@ -1936,6 +2343,27 @@ const COURSE_CONTENT = {
                   options: ["Timestamps and user actions", "Only usernames", "Only IP addresses"],
                   correctAnswer: 0,
                   explanation: "Timestamps and actions are critical for investigations."
+                },
+                {
+                  id: "q7",
+                  question: "Which phase comes after containment?",
+                  options: ["Eradicate", "Prepare", "Detect"],
+                  correctAnswer: 0,
+                  explanation: "After containment, remove root cause during eradication."
+                },
+                {
+                  id: "q8",
+                  question: "Tabletop exercises help teams:",
+                  options: ["Practice response without production impact", "Encrypt traffic", "Assign IPs"],
+                  correctAnswer: 0,
+                  explanation: "Tabletops test process and communication safely."
+                },
+                {
+                  id: "q9",
+                  question: "A good alert should be:",
+                  options: ["Actionable and low-noise", "As loud as possible", "Hidden by default"],
+                  correctAnswer: 0,
+                  explanation: "Actionable alerts reduce fatigue and speed response."
                 }
               ]
             }

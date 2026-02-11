@@ -76,7 +76,11 @@ function readQuizParams() {
 }
 
 function readUserFromStorage() {
-  return parseJsonSafe(localStorage.getItem("user")) || {};
+  return (
+    parseJsonSafe(localStorage.getItem("netology_user")) ||
+    parseJsonSafe(localStorage.getItem("user")) ||
+    {}
+  );
 }
 
 function redirectToLogin() {
@@ -133,6 +137,45 @@ function parseJsonSafe(raw) {
   }
 }
 
+function totalXpForLevel(level) {
+  const lvl = Math.max(1, Number(level) || 1);
+  return (lvl - 1) * lvl * 50;
+}
+
+function levelFromTotalXp(totalXp) {
+  let level = 1;
+  let remaining = Math.max(0, Number(totalXp) || 0);
+  let step = 100;
+  while (remaining >= step) {
+    remaining -= step;
+    level += 1;
+    step += 100;
+  }
+  return level;
+}
+
+function rankForLevel(level) {
+  if (Number(level) >= 5) return "Advanced";
+  if (Number(level) >= 3) return "Intermediate";
+  return "Novice";
+}
+
+function applyXpToUser(user, addXP) {
+  const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
+  const nextLevel = levelFromTotalXp(nextTotal);
+  const nextStart = totalXpForLevel(nextLevel);
+  const xpInto = Math.max(0, nextTotal - nextStart);
+  return {
+    ...user,
+    xp: nextTotal,
+    numeric_level: nextLevel,
+    level: rankForLevel(nextLevel),
+    rank: rankForLevel(nextLevel),
+    xp_into_level: xpInto,
+    next_level_xp: nextLevel * 100
+  };
+}
+
 function bumpUserXP(email, addXP) {
   if (!email || !addXP) return;
 
@@ -140,13 +183,13 @@ function bumpUserXP(email, addXP) {
   const user = parseJsonSafe(raw) || {};
   if (!user || user.email !== email) return;
 
-  user.xp = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
+  const updated = applyXpToUser(user, addXP);
 
   if (localStorage.getItem("netology_user")) {
-    localStorage.setItem("netology_user", JSON.stringify(user));
+    localStorage.setItem("netology_user", JSON.stringify(updated));
   }
   if (localStorage.getItem("user")) {
-    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("user", JSON.stringify(updated));
   }
 }
 
@@ -430,13 +473,12 @@ function retryQuiz(state) {
   window.location.reload();
 }
 
-function finishQuiz(state) {
+async function finishQuiz(state) {
   const total = state.questions.length;
   const correctCount = state.answers.filter(Boolean).length;
   const percentage = total ? (correctCount / total) * 100 : 0;
   const earnedXP = Math.round((percentage / 100) * state.maxXp);
 
-  // Save attempt
   const payload = {
     completed: true,
     correctCount,
@@ -446,13 +488,15 @@ function finishQuiz(state) {
     answers: state.answers
   };
 
+  const award = await awardQuizXpOnce(state, earnedXP);
+  const finalXP = Number(award?.xpAwarded ?? earnedXP);
+
+  payload.earnedXP = finalXP;
+  if (award?.alreadyCompleted) payload.alreadyCompleted = true;
+
   writeAttempt(state, payload);
   markQuizCompletion(state, payload);
-
-  // Best-effort backend award (once)
-  awardQuizXpOnce(state, earnedXP).finally(() => {
-    renderResults(state, payload);
-  });
+  renderResults(state, payload);
 }
 
 function renderResultsFromSaved(state, saved, backUrl) {
@@ -592,10 +636,18 @@ function awardKey(state) {
 
 async function awardQuizXpOnce(state, earnedXP) {
   // If already awarded (front-end flag), do nothing
-  if (localStorage.getItem(awardKey(state)) === "1") return;
+  if (localStorage.getItem(awardKey(state)) === "1") {
+    return { xpAwarded: 0, alreadyCompleted: true, usedBackend: false };
+  }
+
+  const apiBase = window.API_BASE;
+  if (!apiBase) {
+    localStorage.setItem(awardKey(state), "1");
+    return { xpAwarded: Number(earnedXP || 0), alreadyCompleted: false, usedBackend: false };
+  }
 
   try {
-    const res = await fetch(`${window.API_BASE}/complete-quiz`, {
+    const res = await fetch(`${apiBase}/complete-quiz`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -611,9 +663,16 @@ async function awardQuizXpOnce(state, earnedXP) {
 
     if (data && data.success) {
       localStorage.setItem(awardKey(state), "1");
+      return {
+        xpAwarded: Number(data.xp_added || 0),
+        alreadyCompleted: !!data.already_completed,
+        usedBackend: true
+      };
     }
+    return { xpAwarded: Number(earnedXP || 0), alreadyCompleted: false, usedBackend: false };
   } catch (e) {
     console.error("awardQuizXpOnce error:", e);
+    return { xpAwarded: Number(earnedXP || 0), alreadyCompleted: false, usedBackend: false };
   }
 }
 

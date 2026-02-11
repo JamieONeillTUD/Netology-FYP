@@ -249,7 +249,7 @@ CREATE TABLE IF NOT EXISTS challenge_completions (
 INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
 SELECT 'Networking Foundations',
        'Build core networking knowledge from scratch: devices, Ethernet, and IP basics.',
-       10, 3, 500, 'Novice', 'Core', 1, '2.5 hrs'
+       12, 3, 800, 'Novice', 'Core', 1, '5.5 hrs'
 WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Networking Foundations');
 
 INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
@@ -273,7 +273,7 @@ WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Routing Fundamentals');
 INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
 SELECT 'Subnetting & VLANs',
        'Design efficient subnets, segment networks with VLANs, and connect them securely.',
-       10, 3, 650, 'Intermediate', 'Routing', 3, '3 hrs'
+       12, 3, 950, 'Intermediate', 'Routing', 3, '6 hrs'
 WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Subnetting & VLANs');
 
 INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
@@ -291,7 +291,7 @@ WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Automation & Monitoring')
 INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
 SELECT 'Network Security & Hardening',
        'Secure networks with hardening, firewalls, ACLs, and monitoring best practices.',
-       10, 3, 800, 'Advanced', 'Security', 5, '3.5 hrs'
+       12, 3, 1050, 'Advanced', 'Security', 5, '6.5 hrs'
 WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Network Security & Hardening');
 
 INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
@@ -302,8 +302,8 @@ WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'WAN & BGP Design');
 
 UPDATE courses
 SET description = 'Build core networking knowledge from scratch: devices, Ethernet, and IP basics.',
-    total_lessons = 10, module_count = 3, xp_reward = 500,
-    difficulty = 'Novice', category = 'Core', required_level = 1, estimated_time = '2.5 hrs'
+    total_lessons = 12, module_count = 3, xp_reward = 800,
+    difficulty = 'Novice', category = 'Core', required_level = 1, estimated_time = '5.5 hrs'
 WHERE title = 'Networking Foundations';
 
 UPDATE courses
@@ -326,8 +326,8 @@ WHERE title = 'Routing Fundamentals';
 
 UPDATE courses
 SET description = 'Design efficient subnets, segment networks with VLANs, and connect them securely.',
-    total_lessons = 10, module_count = 3, xp_reward = 650,
-    difficulty = 'Intermediate', category = 'Routing', required_level = 3, estimated_time = '3 hrs'
+    total_lessons = 12, module_count = 3, xp_reward = 950,
+    difficulty = 'Intermediate', category = 'Routing', required_level = 3, estimated_time = '6 hrs'
 WHERE title = 'Subnetting & VLANs';
 
 UPDATE courses
@@ -344,8 +344,8 @@ WHERE title = 'Automation & Monitoring';
 
 UPDATE courses
 SET description = 'Secure networks with hardening, firewalls, ACLs, and monitoring best practices.',
-    total_lessons = 10, module_count = 3, xp_reward = 800,
-    difficulty = 'Advanced', category = 'Security', required_level = 5, estimated_time = '3.5 hrs'
+    total_lessons = 12, module_count = 3, xp_reward = 1050,
+    difficulty = 'Advanced', category = 'Security', required_level = 5, estimated_time = '6.5 hrs'
 WHERE title = 'Network Security & Hardening';
 
 UPDATE courses
@@ -353,17 +353,3 @@ SET description = 'Explore WAN technologies and the basics of BGP routing.',
     total_lessons = 3, module_count = 1, xp_reward = 520,
     difficulty = 'Advanced', category = 'WAN', required_level = 5, estimated_time = '1.9 hrs'
 WHERE title = 'WAN & BGP Design';
-
--- Keep only 9 courses (3 per difficulty)
-DELETE FROM courses
-WHERE title NOT IN (
-  'Networking Foundations',
-  'Ethernet & Switching Basics',
-  'IP Addressing Essentials',
-  'Routing Fundamentals',
-  'Subnetting & VLANs',
-  'Wireless & Network Services',
-  'Automation & Monitoring',
-  'Network Security & Hardening',
-  'WAN & BGP Design'
-);

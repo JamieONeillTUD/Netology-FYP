@@ -29,6 +29,25 @@ from xp_system import add_xp_to_user
 courses = Blueprint("courses", __name__)
 
 
+def _coerce_xp(value, fallback, max_xp=None):
+    """Coerce XP payloads to a safe integer with optional cap."""
+    try:
+        xp_val = int(value)
+    except (TypeError, ValueError):
+        xp_val = None
+
+    if xp_val is None or xp_val < 0:
+        xp_val = int(fallback or 0)
+
+    if max_xp is not None:
+        try:
+            xp_val = min(int(xp_val), int(max_xp))
+        except (TypeError, ValueError):
+            pass
+
+    return int(xp_val)
+
+
 """
 AI PROMPTED CODE BELOW
 Can you write helper functions that create tables (if they do not exist) to store:
@@ -318,6 +337,7 @@ def complete_lesson():
     email = data.get("email")
     course_id = data.get("course_id")
     lesson_number = data.get("lesson_number")  # optional
+    earned_xp = data.get("earned_xp") or data.get("xp")
 
     if not email or not course_id:
         return jsonify({"success": False, "message": "Email and course_id required."}), 400
@@ -353,6 +373,7 @@ def complete_lesson():
         """, (email, course_id))
 
         xp_per_lesson = xp_reward // max(total_lessons, 1)
+        xp_award = _coerce_xp(earned_xp, xp_per_lesson, max_xp=xp_reward)
 
         # --- NEW METHOD (lesson_number given): store completion and calculate progress from count ---
         if lesson_number is not None:
@@ -363,7 +384,7 @@ def complete_lesson():
                 INSERT INTO user_lessons (user_email, course_id, lesson_number, xp_awarded)
                 VALUES (%s, %s, %s, %s)
                 ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING;
-            """, (email, course_id, int(lesson_number), int(xp_per_lesson)))
+            """, (email, course_id, int(lesson_number), int(xp_award)))
 
             newly_added = (cur.rowcount == 1)
 
@@ -390,7 +411,7 @@ def complete_lesson():
 
             # Award XP only if new completion
             if newly_added:
-                xp_added, new_level = add_xp_to_user(email, xp_per_lesson, action="Lesson Completed")
+                xp_added, new_level = add_xp_to_user(email, xp_award, action="Lesson Completed")
             else:
                 xp_added, new_level = (0, 0)
 
@@ -418,7 +439,7 @@ def complete_lesson():
         conn.commit()
         cur.close(); conn.close()
 
-        xp_added, new_level = add_xp_to_user(email, xp_per_lesson, action="Lesson Completed")
+        xp_added, new_level = add_xp_to_user(email, xp_award, action="Lesson Completed")
 
         return jsonify({
             "success": True,
@@ -448,6 +469,7 @@ def complete_quiz():
     email = data.get("email")
     course_id = data.get("course_id")
     lesson_number = data.get("lesson_number")
+    earned_xp = data.get("earned_xp") or data.get("xp")
 
     if not email or not course_id or lesson_number is None:
         return jsonify({"success": False, "message": "Email, course_id and lesson_number required."}), 400
@@ -459,11 +481,13 @@ def complete_quiz():
         cur = conn.cursor()
 
         # Insert once
+        xp_award = _coerce_xp(earned_xp, 5)
+
         cur.execute("""
             INSERT INTO user_quizzes (user_email, course_id, lesson_number, xp_awarded)
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING;
-        """, (email, course_id, int(lesson_number), 5))
+        """, (email, course_id, int(lesson_number), int(xp_award)))
 
         newly_added = (cur.rowcount == 1)
 
@@ -472,7 +496,7 @@ def complete_quiz():
 
         # Simple XP amount for quiz
         if newly_added:
-            xp_added, new_level = add_xp_to_user(email, 5, action="Quiz Completed")
+            xp_added, new_level = add_xp_to_user(email, xp_award, action="Quiz Completed")
         else:
             xp_added, new_level = (0, 0)
 
@@ -503,6 +527,7 @@ def complete_challenge():
     email = data.get("email")
     course_id = data.get("course_id")
     lesson_number = data.get("lesson_number")
+    earned_xp = data.get("earned_xp") or data.get("xp")
 
     if not email or not course_id or lesson_number is None:
         return jsonify({"success": False, "message": "Email, course_id and lesson_number required."}), 400
@@ -514,11 +539,13 @@ def complete_challenge():
         cur = conn.cursor()
 
         # Insert once
+        xp_award = _coerce_xp(earned_xp, 15)
+
         cur.execute("""
             INSERT INTO user_challenges (user_email, course_id, lesson_number, xp_awarded)
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING;
-        """, (email, course_id, int(lesson_number), 15))
+        """, (email, course_id, int(lesson_number), int(xp_award)))
 
         newly_added = (cur.rowcount == 1)
 
@@ -527,7 +554,7 @@ def complete_challenge():
 
         # Simple XP amount for challenge
         if newly_added:
-            xp_added, new_level = add_xp_to_user(email, 15, action="Challenge Completed")
+            xp_added, new_level = add_xp_to_user(email, xp_award, action="Challenge Completed")
         else:
             xp_added, new_level = (0, 0)
 

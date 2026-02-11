@@ -108,6 +108,26 @@ What this file does:
     return { level, currentLevelXP, xpNext, xpProgressPct, toNext };
   }
 
+  function rankForLevel(level) {
+    if (Number(level) >= 5) return "Advanced";
+    if (Number(level) >= 3) return "Intermediate";
+    return "Novice";
+  }
+
+  function applyXpToUser(user, addXP) {
+    const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
+    const progress = computeXPFromTotal(nextTotal);
+    return {
+      ...user,
+      xp: nextTotal,
+      numeric_level: progress.level,
+      level: rankForLevel(progress.level),
+      rank: rankForLevel(progress.level),
+      xp_into_level: progress.currentLevelXP,
+      next_level_xp: progress.xpNext
+    };
+  }
+
   function parseJsonSafe(str) {
     // Avoid crashing if localStorage contains invalid JSON.
     try { return JSON.parse(str); } catch { return null; }
@@ -212,13 +232,12 @@ What this file does:
     const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
     const user = parseJsonSafe(raw) || {};
     if (!user || user.email !== email) return;
-    const nextXP = Math.max(0, Number(user.xp || 0) + Number(addXP || 0));
-    user.xp = nextXP;
+    const updated = applyXpToUser(user, addXP);
     if (localStorage.getItem("netology_user")) {
-      localStorage.setItem("netology_user", JSON.stringify(user));
+      localStorage.setItem("netology_user", JSON.stringify(updated));
     }
     if (localStorage.getItem("user")) {
-      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("user", JSON.stringify(updated));
     }
   }
 
@@ -1369,7 +1388,8 @@ What this file does:
           challenge: {
             rules: (item.challenge && item.challenge.rules) || item.rules || item.challenge || null,
             steps: (item.challenge && item.challenge.steps) || item.steps || [],
-            tips: (item.challenge && item.challenge.tips) || item.tips || ""
+            tips: (item.challenge && item.challenge.tips) || item.tips || "",
+            xp: Number(item.xp || 0)
           }
         };
         localStorage.setItem("netology_active_challenge", JSON.stringify(payload));
@@ -1646,50 +1666,62 @@ What this file does:
       return;
     }
 
+    const xpValue = Number(xp || 0);
+
     // Optimistic update so the UI updates immediately.
     if (t === "learn") state.completed.lesson.add(n);
     if (t === "quiz") state.completed.quiz.add(n);
     if (t === "challenge") state.completed.challenge.add(n);
 
     cacheCompletionsToLS(state.user.email, state.courseId);
+    const backend = await tryBackendComplete(t, n, xpValue).catch(() => null);
+    const xpAwarded = backend && backend.success ? Number(backend.xp_added || 0) : xpValue;
+
     logProgressEvent(state.user.email, {
       type: t,
       course_id: state.courseId,
       lesson_number: n,
-      xp: Number(xp || 0)
+      xp: xpAwarded
     });
-    bumpUserXP(state.user.email, Number(xp || 0));
+    if (xpAwarded > 0) {
+      bumpUserXP(state.user.email, xpAwarded);
+    }
 
-    showAria(`${capitalize(t)} completed. +${Number(xp || 0)} XP`);
+    if (backend?.already_completed) {
+      showAria(`${capitalize(t)} completed (already recorded).`);
+    } else {
+      showAria(`${capitalize(t)} completed. +${xpAwarded} XP`);
+    }
 
-    // Update local stats so UI reflects progress immediately
-    state.stats.xp = Number(state.stats.xp || 0) + Number(xp || 0);
-    const updated = computeXPFromTotal(state.stats.xp);
-    state.stats.level = updated.level;
-    state.stats.currentLevelXP = updated.currentLevelXP;
-    state.stats.xpProgressPct = updated.xpProgressPct;
-    state.stats.xpNext = updated.xpNext;
+    if (xpAwarded > 0) {
+      // Update local stats so UI reflects progress immediately
+      state.stats.xp = Number(state.stats.xp || 0) + xpAwarded;
+      const updated = computeXPFromTotal(state.stats.xp);
+      state.stats.level = updated.level;
+      state.stats.currentLevelXP = updated.currentLevelXP;
+      state.stats.xpProgressPct = updated.xpProgressPct;
+      state.stats.xpNext = updated.xpNext;
 
-    setText("sideLevelBadge", `Lv ${state.stats.level}`);
-    setText("sideXPText", `${state.stats.currentLevelXP}/${state.stats.xpNext}`);
-    const sideXPBar = getById("sideXPBar");
-    if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
+      setText("sideLevelBadge", `Lv ${state.stats.level}`);
+      setText("sideXPText", `${state.stats.currentLevelXP}/${state.stats.xpNext}`);
+      const sideXPBar = getById("sideXPBar");
+      if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
 
-    computeLockState();
-
-    await tryBackendComplete(t, n).catch(() => {});
+      computeLockState();
+    }
 
     const prog = computeProgress();
     if (prog.pct === 100) showAria("Course completed! 🎉");
   }
 
-  async function tryBackendComplete(type, lessonNumber) {
+  async function tryBackendComplete(type, lessonNumber, xp) {
     if (!API()) return false;
 
     const payload = {
       email: state.user.email,
       course_id: Number(state.courseId),
       lesson_number: Number(lessonNumber),
+      earned_xp: Number(xp || 0),
     };
 
     let url = "";
@@ -1704,12 +1736,12 @@ What this file does:
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) return false;
+    if (!res.ok) return null;
 
     const data = await res.json().catch(() => ({}));
-    if (data && data.success === false) return false;
+    if (data && data.success === false) return { success: false };
 
-    return true;
+    return { success: true, ...data };
   }
 
   /* =========================================================
