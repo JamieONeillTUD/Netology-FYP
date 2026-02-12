@@ -1006,14 +1006,11 @@ Works with:
 
     clearChildren(list);
 
-    const streakItem = makeEl("div", "dash-activity-item");
-    const streakLeft = document.createElement("div");
-    const streakTitle = makeEl("div", "fw-semibold", "Current streak");
-    const streakSub = document.createElement("small");
-    streakSub.textContent = `${streak} day${streak === 1 ? "" : "s"} in a row`;
-    streakLeft.append(streakTitle, streakSub);
-    const streakRight = makeEl("div", "dash-activity-xp", streak ? "Active" : "Start today");
-    streakItem.append(streakLeft, streakRight);
+    const streakMini = makeEl(
+      "div",
+      "dash-streak-mini net-xp-pill",
+      `Streak: ${streak} Day${streak === 1 ? "" : "s"}`
+    );
 
     const streakRow = makeEl("div", "dash-streak-row");
     days.forEach((d) => {
@@ -1024,7 +1021,7 @@ Works with:
 
     const tasksTitle = makeEl("div", "fw-semibold net-green-text mt-2", "Tasks done");
 
-    list.append(streakItem, streakRow, tasksTitle);
+    list.append(streakMini, streakRow, tasksTitle);
 
     activityItems.forEach((item) => {
       if (item.isEmpty) {
@@ -1032,16 +1029,24 @@ Works with:
         return;
       }
 
-      const row = makeEl("div", "dash-activity-item");
+      const row = makeEl("div", "dash-activity-item is-complete");
       const left = document.createElement("div");
-      const label = makeEl("div", "fw-semibold", item.label);
+      const label = makeEl("div", "fw-semibold d-flex align-items-center gap-2");
+      label.append(
+        makeIcon("bi bi-check-circle-fill text-success"),
+        document.createTextNode("Activity completed")
+      );
       const meta = document.createElement("small");
       const lessonPart = item.lessonNumber ? ` • Lesson ${item.lessonNumber}` : "";
       const timePart = item.time ? ` • ${item.time}` : "";
       meta.textContent = `${item.courseTitle || ""}${lessonPart}${timePart}`;
       left.append(label, meta);
 
-      const right = makeEl("div", "dash-activity-xp", item.xp ? `+${item.xp} XP` : "");
+      const right = makeEl(
+        "div",
+        "dash-activity-pill",
+        item.xp ? `Completed • +${item.xp} XP` : "Completed"
+      );
       row.append(left, right);
       list.appendChild(row);
     });

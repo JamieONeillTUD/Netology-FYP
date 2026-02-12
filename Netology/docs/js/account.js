@@ -519,13 +519,18 @@ async function renderRecentActivity(email) {
       const xp = Number(e.xp || 0);
       const courseTitle = e.course_title || "Course";
 
-      const item = makeEl("div", "net-activity-item");
+      const item = makeEl("div", "net-activity-item is-complete");
       const left = makeEl("div");
+      const heading = makeEl("div", "fw-semibold d-flex align-items-center gap-2");
+      heading.append(
+        makeIcon("bi bi-check-circle-fill text-success"),
+        document.createTextNode("Activity completed")
+      );
       left.append(
-        makeEl("div", "fw-semibold", label),
+        heading,
         makeEl("div", "small text-muted", [courseTitle, lessonPart, time].filter(Boolean).join(" • "))
       );
-      const right = makeEl("div", "net-activity-xp", xp ? `+${xp} XP` : "");
+      const right = makeEl("div", "net-activity-pill", xp ? `Completed • +${xp} XP` : "Completed");
       item.append(left, right);
       wrap.appendChild(item);
     });
@@ -561,13 +566,18 @@ async function renderRecentActivity(email) {
     const time = formatRelative(e.ts);
     const xp = Number(e.xp || 0);
 
-    const item = makeEl("div", "net-activity-item");
+    const item = makeEl("div", "net-activity-item is-complete");
     const left = makeEl("div");
+    const heading = makeEl("div", "fw-semibold d-flex align-items-center gap-2");
+    heading.append(
+      makeIcon("bi bi-check-circle-fill text-success"),
+      document.createTextNode("Activity completed")
+    );
     left.append(
-      makeEl("div", "fw-semibold", label),
+      heading,
       makeEl("div", "small text-muted", [courseTitle, lessonPart, time].filter(Boolean).join(" • "))
     );
-    const right = makeEl("div", "net-activity-xp", xp ? `+${xp} XP` : "");
+    const right = makeEl("div", "net-activity-pill", xp ? `Completed • +${xp} XP` : "Completed");
     item.append(left, right);
     wrap.appendChild(item);
   });

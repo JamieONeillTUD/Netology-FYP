@@ -2,23 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Netology | Progress</title>
-    <link rel="stylesheet" href="css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
-    <link rel="stylesheet" href="css/style.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Netology – Progress</title>
 
-    <!-- AI Prompt: Explain the Tiny topbar-size reduction (match dashboard) section in clear, simple terms. -->
-    <!-- Tiny topbar-size reduction (match dashboard) -->
-    <style>
-      .net-topnav .container-fluid{ padding-top:.55rem; padding-bottom:.55rem; }
-      .net-topnav-inner{ min-height: 54px; }
-      .net-logo-sm{ width: 56px; height: 56px; }
-      .net-brand-text{ font-size: 1.7rem; }
-      .net-userbtn{ padding: 7px 9px; }
-    </style>
+    <!-- Bootstrap + Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Netology CSS -->
+    <link rel="stylesheet" href="css/style.css">
   </head>
-  <body class="net-bg net-landing">
+  <body class="net-bg net-landing net-progress-view">
     <!-- AI Prompt: Explain the Slide Sidebar Backdrop section in clear, simple terms. -->
     <!-- Slide Sidebar Backdrop -->
     <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
@@ -88,8 +82,8 @@
       </div>
     </aside>
 
-    <!-- AI Prompt: Explain the TOP NAV (Dashboard Chrome) section in clear, simple terms. -->
-    <!-- TOP NAV (Dashboard Chrome) -->
+    <!-- AI Prompt: Explain the TOP NAV (no search now) section in clear, simple terms. -->
+    <!-- TOP NAV (no search now) -->
     <header class="net-topnav sticky-top" role="banner">
       <div class="container-fluid">
         <div class="net-topnav-inner">
@@ -115,13 +109,16 @@
 
           <!-- Right (dropdown only) -->
           <div class="net-topnav-right position-relative">
+
+            <!-- User dropdown -->
             <div class="position-relative">
               <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
                 <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
                 <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
               </button>
 
-              <!-- Dropdown shows details -->
+              <!-- AI Prompt: Explain the Dropdown shows details (dashboard.js fills ddName + ddEmail) section in clear, simple terms. -->
+              <!-- Dropdown shows details (dashboard.js fills ddName + ddEmail) -->
               <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
                 <div class="net-ddhead">
                   <div class="d-flex align-items-center gap-2">
@@ -144,6 +141,7 @@
                 </button>
               </div>
             </div>
+
           </div>
 
         </div>
@@ -153,53 +151,58 @@
     <!-- AI Prompt: Explain the MAIN section in clear, simple terms. -->
     <!-- MAIN -->
     <main class="container py-4 net-shell net-progress-page">
-      <div class="net-page-head mb-4">
-        <div>
-          <div class="text-muted small" id="progressEyebrow">Progress overview</div>
-          <h1 class="net-page-title" id="progressTitle">Your progress</h1>
-          <p class="text-muted mb-0" id="progressSubtitle">A detailed list of what you’ve completed so far.</p>
-        </div>
-        <a href="dashboard.html" class="btn btn-soft btn-sm"><i class="bi bi-arrow-left me-2"></i>Back to dashboard</a>
-      </div>
-
-      <div class="net-card p-4 mb-4">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-          <div class="d-flex align-items-center gap-2">
-            <span class="net-pill-badge badge text-bg-light border" id="progressBadge">Summary</span>
-            <span class="text-muted small" id="progressMeta">Loading your progress…</span>
+      <section class="net-progress-top">
+        <div class="net-progress-navwrap net-card">
+          <div class="net-progress-nav" role="tablist" aria-label="Progress views">
+            <a class="net-progress-nav-btn" href="progress.html?type=courses#courses" data-type="courses">
+              <i class="bi bi-play-circle"></i> Courses <span class="net-progress-nav-count">0</span>
+            </a>
+            <a class="net-progress-nav-btn" href="progress.html?type=lessons#lessons" data-type="lessons">
+              <i class="bi bi-journal-check"></i> Lessons <span class="net-progress-nav-count">0</span>
+            </a>
+            <a class="net-progress-nav-btn" href="progress.html?type=quizzes#quizzes" data-type="quizzes">
+              <i class="bi bi-patch-question"></i> Quizzes <span class="net-progress-nav-count">0</span>
+            </a>
+            <a class="net-progress-nav-btn" href="progress.html?type=tutorials#tutorials" data-type="tutorials">
+              <i class="bi bi-diagram-3"></i> Tutorials <span class="net-progress-nav-count">0</span>
+            </a>
+            <a class="net-progress-nav-btn" href="progress.html?type=challenges#challenges" data-type="challenges">
+              <i class="bi bi-flag"></i> Challenges <span class="net-progress-nav-count">0</span>
+            </a>
           </div>
         </div>
-      </div>
 
-      <div class="net-card p-3 mb-4">
-        <div class="net-progress-nav" role="tablist" aria-label="Progress views">
-          <a class="net-progress-nav-btn" href="progress.html?type=in-progress" data-type="in-progress">
-            <i class="bi bi-play-circle"></i> Courses <span class="net-progress-nav-count">0</span>
-          </a>
-          <a class="net-progress-nav-btn" href="progress.html?type=completed-courses" data-type="completed-courses">
-            <i class="bi bi-check2-circle"></i> Completed <span class="net-progress-nav-count">0</span>
-          </a>
-          <a class="net-progress-nav-btn" href="progress.html?type=lessons" data-type="lessons">
-            <i class="bi bi-journal-check"></i> Lessons <span class="net-progress-nav-count">0</span>
-          </a>
-          <a class="net-progress-nav-btn" href="progress.html?type=quizzes" data-type="quizzes">
-            <i class="bi bi-patch-question"></i> Quizzes <span class="net-progress-nav-count">0</span>
-          </a>
-          <a class="net-progress-nav-btn" href="progress.html?type=challenges" data-type="challenges">
-            <i class="bi bi-flag"></i> Challenges <span class="net-progress-nav-count">0</span>
-          </a>
-          <a class="net-progress-nav-btn" href="progress.html?type=tutorials" data-type="tutorials">
-            <i class="bi bi-diagram-3"></i> Tutorials <span class="net-progress-nav-count">0</span>
+        <div class="net-progress-hero net-card net-pop">
+          <div class="net-progress-hero-inner">
+            <div class="net-progress-hero-copy">
+              <div class="text-muted small" id="progressEyebrow">Progress overview</div>
+              <h1 class="net-progress-title" id="progressTitle">Your progress</h1>
+              <p class="net-progress-sub" id="progressSubtitle">A detailed list of what you’ve completed so far.</p>
+              <div class="net-progress-hero-meta">
+                <span class="net-pill-badge badge text-bg-light border" id="progressBadge">Summary</span>
+                <span class="net-progress-meta" id="progressMeta">Loading your progress…</span>
+              </div>
+            </div>
+            <div class="net-progress-hero-actions">
+              <a href="dashboard.html" class="btn btn-soft btn-sm">
+                <i class="bi bi-arrow-left me-2"></i>Back to dashboard
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="net-progress-content">
+        <div id="progressList" class="net-progress-list"></div>
+        <div id="progressEmpty" class="net-empty d-none">
+          <i class="bi bi-journal-x"></i>
+          <div class="fw-bold">Nothing to show yet</div>
+          <div class="small text-muted">Complete a lesson, quiz, or course and it will appear here.</div>
+          <a href="courses.html" class="btn btn-teal btn-sm mt-3">
+            <i class="bi bi-journal-bookmark me-2"></i>Browse courses
           </a>
         </div>
-      </div>
-
-      <div id="progressList" class="net-progress-list"></div>
-      <div id="progressEmpty" class="net-empty d-none">
-        <i class="bi bi-journal-x"></i>
-        <div class="fw-bold">Nothing to show yet</div>
-        <div class="small text-muted">Complete a lesson, quiz, or course and it will appear here.</div>
-      </div>
+      </section>
     </main>
 
     <script src="js/bootstrap.bundle.min.js"></script>

@@ -17,42 +17,31 @@ progress.js – Progress detail lists for dashboard stats.
   const getApiBase = () => window.API_BASE || "";
   const BASE_XP = 100;
 
-  const TYPE_CONFIG = {
+  const SECTION_CONFIG = {
+    courses: {
+      title: "Courses",
+      subtitle: "Active and completed courses at a glance.",
+      empty: "No course activity yet."
+    },
     lessons: {
-      title: "Lessons completed",
-      subtitle: "Every lesson you’ve finished so far, grouped by course.",
-      badge: "Lessons",
-      empty: "No lessons completed yet."
+      title: "Lessons",
+      subtitle: "Lessons grouped by course, split by status.",
+      empty: "No lesson progress yet."
     },
     quizzes: {
-      title: "Quizzes completed",
-      subtitle: "All quizzes you’ve completed so far, grouped by course.",
-      badge: "Quizzes",
+      title: "Quizzes",
+      subtitle: "Quiz progress, split into in-progress and completed.",
       empty: "No quizzes completed yet."
     },
-    challenges: {
-      title: "Challenges completed",
-      subtitle: "Your hands-on challenge completions, grouped by course.",
-      badge: "Challenges",
-      empty: "No challenges completed yet."
-    },
-    "in-progress": {
-      title: "Courses in progress",
-      subtitle: "Pick up right where you left off.",
-      badge: "In progress",
-      empty: "No courses in progress yet."
-    },
-    "completed-courses": {
-      title: "Completed courses",
-      subtitle: "A record of courses you’ve finished.",
-      badge: "Completed",
-      empty: "No completed courses yet."
-    },
     tutorials: {
-      title: "Sandbox tutorials",
-      subtitle: "Step-by-step tutorials you’ve started in the sandbox.",
-      badge: "Tutorials",
+      title: "Tutorials",
+      subtitle: "Sandbox tutorials and checklist progress.",
       empty: "No tutorials started yet."
+    },
+    challenges: {
+      title: "Challenges",
+      subtitle: "Sandbox challenges by completion state.",
+      empty: "No challenges completed yet."
     }
   };
 
@@ -78,10 +67,9 @@ progress.js – Progress detail lists for dashboard stats.
     wireChrome(user);
 
     const type = getTypeParam();
-    const cfg = TYPE_CONFIG[type] || TYPE_CONFIG["completed-courses"];
-    setText("progressTitle", cfg.title);
-    setText("progressSubtitle", cfg.subtitle);
-    setText("progressBadge", cfg.badge);
+    setText("progressTitle", "Progress overview");
+    setText("progressSubtitle", "Active and completed progress across every learning area.");
+    setText("progressBadge", "Overview");
     setActiveNav(type);
 
     const list = getById("progressList");
@@ -98,25 +86,20 @@ progress.js – Progress detail lists for dashboard stats.
     const navCounts = await buildNavCounts(courses, content, user.email);
     setNavCounts(navCounts);
 
-    if (type === "completed-courses" || type === "in-progress") {
-      const filtered = filterCoursesByStatus(courses, content, user.email, type);
-      const startedMap = type === "in-progress" ? getStartedCourses(user.email) : null;
-      setText("progressMeta", `${filtered.length} course${filtered.length === 1 ? "" : "s"}`);
-      renderCourseCards(filtered, list, type, startedMap);
-      if (!filtered.length) showEmpty(cfg.empty);
-      return;
+    const totals = await renderOverviewSections(list, courses, content, user.email);
+    setText("progressMeta", `${totals.inTotal} in progress • ${totals.doneTotal} completed`);
+    if (!totals.inTotal && !totals.doneTotal) {
+      const cfg = SECTION_CONFIG[type] || SECTION_CONFIG.courses;
+      showEmpty(cfg.empty || "No progress to show yet.");
     }
+    scrollToSection(type);
+  }
 
-    const grouped = await buildCompletionGroups(type, courses, content, user.email);
-    const totalItems = grouped.reduce((sum, g) => sum + g.items.length, 0);
-    setText("progressMeta", `${totalItems} item${totalItems === 1 ? "" : "s"} across ${grouped.length} course${grouped.length === 1 ? "" : "s"}`);
-    renderCompletionGroups(grouped, list, type);
-    if (!grouped.length) showEmpty(cfg.empty);
-
-    function showEmpty(message) {
-      empty.classList.remove("d-none");
-      empty.querySelector(".small")?.replaceChildren(document.createTextNode(message));
-    }
+  function showEmpty(message) {
+    const empty = getById("progressEmpty");
+    if (!empty) return;
+    empty.classList.remove("d-none");
+    empty.querySelector(".small")?.replaceChildren(document.createTextNode(message));
   }
 
   function setActiveNav(type) {
@@ -129,14 +112,18 @@ progress.js – Progress detail lists for dashboard stats.
   function setNavCounts(counts) {
     document.querySelectorAll(".net-progress-nav-btn").forEach((btn) => {
       const t = btn.getAttribute("data-type");
-      if (!t || !counts || typeof counts[t] === "undefined") return;
+      if (!t || !counts) return;
       let badge = btn.querySelector(".net-progress-nav-count");
       if (!badge) {
         badge = document.createElement("span");
         badge.className = "net-progress-nav-count";
         btn.appendChild(badge);
       }
-      badge.textContent = String(counts[t]);
+      if (t === "courses") {
+        badge.textContent = String((counts["in-progress"] || 0) + (counts["completed-courses"] || 0));
+      } else {
+        badge.textContent = String(counts[t] || 0);
+      }
       badge.classList.remove("is-animated");
       void badge.offsetWidth;
       badge.classList.add("is-animated");
@@ -150,9 +137,13 @@ progress.js – Progress detail lists for dashboard stats.
   function getTypeParam() {
     const params = new URLSearchParams(window.location.search);
     const raw = String(params.get("type") || "").trim().toLowerCase();
-    if (raw === "courses") return "in-progress";
-    if (TYPE_CONFIG[raw]) return raw;
-    return "in-progress";
+    if (raw === "courses") return "courses";
+    if (raw === "in-progress" || raw === "completed-courses") return "courses";
+    if (raw === "lessons") return "lessons";
+    if (raw === "quizzes") return "quizzes";
+    if (raw === "tutorials") return "tutorials";
+    if (raw === "challenges") return "challenges";
+    return "courses";
   }
 
   function getById(id) {
@@ -546,6 +537,187 @@ progress.js – Progress detail lists for dashboard stats.
     });
   }
 
+  function renderCourseSplit(inProgress, completed, list, startedMap, totals) {
+    const split = document.createElement("div");
+    split.className = "net-progress-split";
+
+    const inCol = buildCourseColumn("Active courses", inProgress.length, "in-progress", totals?.inXp);
+    renderCourseCards(inProgress, inCol.body, "in-progress", startedMap);
+    if (!inProgress.length) renderEmptyColumn(inCol.body, "No active courses yet.");
+
+    const doneCol = buildCourseColumn("Completed courses", completed.length, "completed-courses", totals?.doneXp);
+    renderCourseCards(completed, doneCol.body, "completed-courses");
+    if (!completed.length) renderEmptyColumn(doneCol.body, "No completed courses yet.");
+
+    split.append(inCol.wrap, doneCol.wrap);
+    list.appendChild(split);
+  }
+
+  function buildCourseColumn(title, count, type, xpTotal) {
+    const wrap = document.createElement("div");
+    wrap.className = "net-progress-col";
+
+    const head = document.createElement("div");
+    head.className = "net-card p-3 net-progress-col-head";
+
+    const left = document.createElement("div");
+    left.className = "net-progress-col-title";
+
+    const icon = document.createElement("i");
+    icon.className = `bi ${type === "completed-courses" ? "bi-check2-circle" : "bi-play-circle"} text-teal`;
+
+    const label = document.createElement("span");
+    label.textContent = title;
+
+    left.append(icon, label);
+
+    const meta = document.createElement("div");
+    meta.className = "net-progress-col-meta";
+
+    const countPill = document.createElement("span");
+    countPill.className = "net-progress-col-count";
+    countPill.textContent = `${count}`;
+
+    meta.append(countPill);
+    if (typeof xpTotal === "number") {
+      const xpPill = document.createElement("span");
+      xpPill.className = "net-progress-col-xp";
+      const xpIcon = document.createElement("i");
+      xpIcon.className = "bi bi-lightning-charge-fill";
+      xpPill.append(xpIcon, document.createTextNode(` ${Number(xpTotal || 0)} XP`));
+      meta.append(xpPill);
+    }
+    head.append(left, meta);
+
+    const body = document.createElement("div");
+    body.className = "net-progress-col-body";
+
+    wrap.append(head, body);
+    return { wrap, body };
+  }
+
+  async function buildCourseProgressList(courses, content, email) {
+    if (!Array.isArray(courses)) return [];
+    return Promise.all(
+      courses.map(async (course) => {
+        const contentId = resolveContentIdByTitle(course.title, content) || course.id;
+        const courseContent = resolveCourseContent(course, content);
+        const completions = await fetchCourseCompletions(email, course.id);
+        const items = buildCourseItems(courseContent);
+        const earnedXp = sumXpForCompletions(items, completions);
+
+        let status = course.status;
+        if (!status || status === "not-started") {
+          const required = countRequiredItems(courseContent);
+          const done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
+          if (required > 0 && done >= required) status = "completed";
+          else if (done > 0) status = "in-progress";
+          else status = "not-started";
+        }
+
+        return { ...course, contentId, earnedXp, status };
+      })
+    );
+  }
+
+  function buildCourseItems(course) {
+    if (!course || !Array.isArray(course.units)) return [];
+    const items = [];
+    let lessonCounter = 1;
+
+    course.units.forEach((unit) => {
+      const unitItems = [];
+
+      if (Array.isArray(unit.sections)) {
+        unit.sections.forEach((sec) => {
+          (sec.items || []).forEach((li) => {
+            const type = mapItemType(li?.type || "");
+            unitItems.push({
+              type,
+              lesson_number: li?.lesson_number || li?.lessonNumber,
+              xp: Number(li?.xp || 0)
+            });
+          });
+        });
+      }
+
+      if (!unitItems.length && unit.sections && typeof unit.sections === "object" && !Array.isArray(unit.sections)) {
+        const obj = unit.sections;
+        (obj.learn || obj.lesson || obj.lessons || []).forEach((li) => unitItems.push(mapPlainItem("learn", li)));
+        (obj.quiz || obj.quizzes || []).forEach((li) => unitItems.push(mapPlainItem("quiz", li)));
+        (obj.practice || obj.sandbox || []).forEach((li) => unitItems.push(mapPlainItem("sandbox", li)));
+        (obj.challenge || obj.challenges || []).forEach((li) => unitItems.push(mapPlainItem("challenge", li)));
+      }
+
+      if (!unitItems.length && Array.isArray(unit.lessons)) {
+        unit.lessons.forEach((li) => {
+          const t = mapItemType(li?.type || "learn");
+          unitItems.push({
+            type: t,
+            lesson_number: li?.lesson_number || li?.lessonNumber,
+            xp: Number(li?.xp || 0)
+          });
+        });
+      }
+
+      let lastLearn = lessonCounter - 1;
+      unitItems.forEach((it) => {
+        if (it.type === "learn") {
+          if (!it.lesson_number) {
+            it.lesson_number = lessonCounter++;
+          } else {
+            lessonCounter = Math.max(lessonCounter, Number(it.lesson_number) + 1);
+          }
+          lastLearn = it.lesson_number;
+        } else {
+          if (!it.lesson_number) {
+            it.lesson_number = Math.max(1, lastLearn || 1);
+          }
+        }
+
+        if (!it.xp) {
+          it.xp =
+            it.type === "quiz" ? 60 :
+            it.type === "challenge" ? 80 :
+            it.type === "sandbox" ? 30 :
+            40;
+        }
+        items.push(it);
+      });
+    });
+
+    return items;
+  }
+
+  function mapItemType(raw) {
+    const t = String(raw || "").toLowerCase();
+    if (t === "quiz") return "quiz";
+    if (t === "challenge") return "challenge";
+    if (t === "practice" || t === "sandbox") return "sandbox";
+    return "learn";
+  }
+
+  function mapPlainItem(type, li) {
+    return {
+      type,
+      lesson_number: li?.lesson_number || li?.lessonNumber,
+      xp: Number(li?.xp || 0)
+    };
+  }
+
+  function sumXpForCompletions(items, completions) {
+    if (!items || !items.length) return 0;
+    let total = 0;
+    items.forEach((it) => {
+      const n = Number(it.lesson_number || 0);
+      if (!n) return;
+      if (it.type === "learn" && completions.lesson.has(n)) total += Number(it.xp || 0);
+      if (it.type === "quiz" && completions.quiz.has(n)) total += Number(it.xp || 0);
+      if (it.type === "challenge" && completions.challenge.has(n)) total += Number(it.xp || 0);
+    });
+    return total;
+  }
+
   /* AI Prompt: Explain the Build completion groups section in clear, simple terms. */
   /* =========================================================
      Build completion groups
@@ -587,6 +759,265 @@ progress.js – Progress detail lists for dashboard stats.
 
     return groups;
   }
+
+  /* AI Prompt: Explain the Split: in-progress vs completed groups section in clear, simple terms. */
+  /* =========================================================
+     Split: in-progress vs completed groups
+  ========================================================= */
+  async function buildSplitGroups(type, courses, content, email, startedMap) {
+    if (type === "tutorials") {
+      return buildTutorialSplitGroups(courses, content, email);
+    }
+
+    const inGroups = [];
+    const doneGroups = [];
+    const targetType = type === "lessons" ? "learn" : type === "quizzes" ? "quiz" : "challenge";
+
+    for (const course of (courses || [])) {
+      const courseId = course.id;
+      const contentId = resolveContentIdByTitle(course.title, content) || courseId;
+      const courseContent = resolveCourseContent(course, content);
+      const titleMap = buildLessonTitleMap(courseContent);
+
+      const completions = await fetchCourseCompletions(email, courseId);
+      const doneCount = completions.lesson.size + completions.quiz.size + completions.challenge.size;
+      const courseStarted = doneCount > 0 || (startedMap && startedMap.has(String(courseId)));
+
+      const items = collectItemsForType(courseContent, targetType);
+      if (!items.length) continue;
+
+      const doneItems = [];
+      const inItems = [];
+      const doneSet = targetType === "quiz" ? completions.quiz
+        : targetType === "challenge" ? completions.challenge
+        : completions.lesson;
+
+      items.forEach((it) => {
+        const n = Number(it.lesson_number || 0);
+        if (!n) return;
+        const base = {
+          number: n,
+          title: titleMap.get(n) || `Lesson ${n}`,
+          link: targetType === "challenge"
+            ? buildChallengeLink(courseId, contentId, n)
+            : buildLessonLink(courseId, contentId, n)
+        };
+        if (doneSet.has(n)) {
+          doneItems.push(base);
+        } else if (courseStarted) {
+          inItems.push(base);
+        }
+      });
+
+      if (inItems.length) {
+        inGroups.push({
+          courseId,
+          contentId,
+          title: course.title || `Course ${courseId}`,
+          items: inItems.sort((a, b) => a.number - b.number)
+        });
+      }
+      if (doneItems.length) {
+        doneGroups.push({
+          courseId,
+          contentId,
+          title: course.title || `Course ${courseId}`,
+          items: doneItems.sort((a, b) => a.number - b.number)
+        });
+      }
+    }
+
+    return { inGroups, doneGroups };
+  }
+
+  function collectItemsForType(course, targetType) {
+    const items = buildCourseItems(course).filter((it) => it.type === targetType);
+    const seen = new Set();
+    const unique = [];
+    items.forEach((it) => {
+      const n = Number(it.lesson_number || 0);
+      if (!n || seen.has(n)) return;
+      seen.add(n);
+      unique.push(it);
+    });
+    return unique;
+  }
+
+  function buildTutorialSplitGroups(courses, content, email) {
+    const inMap = new Map();
+    const doneMap = new Map();
+    if (!email) return { inGroups: [], doneGroups: [] };
+
+    const prefix = `netology_tutorial_progress:${email}:`;
+    Object.keys(localStorage).forEach((key) => {
+      if (!key.startsWith(prefix)) return;
+      const parts = key.replace(prefix, "").split(":");
+      if (parts.length < 2) return;
+      const courseId = parts[0];
+      const lessonNumber = Number(parts[1] || 0);
+      if (!courseId || !lessonNumber) return;
+
+      const progress = parseJsonSafe(localStorage.getItem(key), {}) || {};
+      const checked = Array.isArray(progress.checked) ? progress.checked.filter(Boolean).length : 0;
+
+      const courseMeta = (courses || []).find((c) => String(c.id) === String(courseId));
+      const contentId = resolveContentIdByTitle(courseMeta?.title, content) || courseId;
+      const courseContent = resolveCourseContent(courseMeta || { id: courseId }, content);
+      const titleMap = buildLessonTitleMap(courseContent);
+      const stepsTotal = countTutorialSteps(courseContent, lessonNumber);
+      const title = titleMap.get(lessonNumber) || `Lesson ${lessonNumber}`;
+
+      const item = {
+        number: lessonNumber,
+        title,
+        link: buildTutorialLink(courseId, contentId, lessonNumber),
+        meta: `Tutorial • ${checked}/${stepsTotal || 0} steps`
+      };
+
+      const isComplete = stepsTotal > 0 ? checked >= stepsTotal : false;
+      const targetMap = isComplete ? doneMap : inMap;
+      const list = targetMap.get(courseId) || [];
+      list.push(item);
+      targetMap.set(courseId, list);
+    });
+
+    const buildGroups = (map) => {
+      const groups = [];
+      map.forEach((items, courseId) => {
+        const courseMeta = (courses || []).find((c) => String(c.id) === String(courseId));
+        groups.push({
+          courseId,
+          contentId: resolveContentIdByTitle(courseMeta?.title, content) || courseId,
+          title: courseMeta?.title || `Course ${courseId}`,
+          items: items.sort((a, b) => a.number - b.number)
+        });
+      });
+      return groups;
+    };
+
+    return { inGroups: buildGroups(inMap), doneGroups: buildGroups(doneMap) };
+  }
+
+  function renderSplitGroups(inGroups, doneGroups, list, type) {
+    const split = document.createElement("div");
+    split.className = "net-progress-split";
+
+    const inCount = countGroupItems(inGroups);
+    const doneCount = countGroupItems(doneGroups);
+
+    const inCol = buildCourseColumn("In progress", inCount, "in-progress");
+    renderCompletionGroups(inGroups, inCol.body, type);
+    if (!inGroups.length) renderEmptyColumn(inCol.body, "Nothing in progress yet.");
+
+    const doneCol = buildCourseColumn("Completed", doneCount, "completed-courses");
+    renderCompletionGroups(doneGroups, doneCol.body, type);
+    if (!doneGroups.length) renderEmptyColumn(doneCol.body, "Nothing completed yet.");
+
+    split.append(inCol.wrap, doneCol.wrap);
+    list.appendChild(split);
+  }
+
+  function renderEmptyColumn(body, message) {
+    const card = document.createElement("div");
+    card.className = "net-card p-4 net-progress-empty-col";
+    const icon = document.createElement("i");
+    icon.className = "bi bi-info-circle";
+    const text = document.createElement("div");
+    text.className = "small text-muted";
+    text.textContent = message;
+    card.append(icon, text);
+    body.appendChild(card);
+  }
+
+  function countGroupItems(groups) {
+    return (groups || []).reduce((sum, g) => sum + (g.items ? g.items.length : 0), 0);
+  }
+
+  /* AI Prompt: Explain the Overview renderer (all sections) section in clear, simple terms. */
+  /* =========================================================
+     Overview renderer (all sections)
+  ========================================================= */
+  async function renderOverviewSections(list, courses, content, email) {
+    const totals = { inTotal: 0, doneTotal: 0 };
+    const startedMap = getStartedCourses(email);
+
+    const coursesSection = buildProgressSection("courses", SECTION_CONFIG.courses);
+    list.appendChild(coursesSection.wrap);
+    const coursesWithProgress = await buildCourseProgressList(courses, content, email);
+    const inProgress = coursesWithProgress.filter((c) => c.status === "in-progress");
+    const completed = coursesWithProgress.filter((c) => c.status === "completed");
+    const inXp = inProgress.reduce((sum, c) => sum + Number(c.earnedXp || 0), 0);
+    const doneXp = completed.reduce((sum, c) => sum + Number(c.earnedXp || 0), 0);
+    renderCourseSplit(inProgress, completed, coursesSection.body, startedMap, { inXp, doneXp });
+    totals.inTotal += inProgress.length;
+    totals.doneTotal += completed.length;
+
+    const lessonSplit = await buildSplitGroups("lessons", courses, content, email, startedMap);
+    totals.inTotal += countGroupItems(lessonSplit.inGroups);
+    totals.doneTotal += countGroupItems(lessonSplit.doneGroups);
+    const lessonsSection = buildProgressSection("lessons", SECTION_CONFIG.lessons);
+    list.appendChild(lessonsSection.wrap);
+    renderSplitGroups(lessonSplit.inGroups, lessonSplit.doneGroups, lessonsSection.body, "lessons");
+
+    const quizSplit = await buildSplitGroups("quizzes", courses, content, email, startedMap);
+    totals.inTotal += countGroupItems(quizSplit.inGroups);
+    totals.doneTotal += countGroupItems(quizSplit.doneGroups);
+    const quizzesSection = buildProgressSection("quizzes", SECTION_CONFIG.quizzes);
+    list.appendChild(quizzesSection.wrap);
+    renderSplitGroups(quizSplit.inGroups, quizSplit.doneGroups, quizzesSection.body, "quizzes");
+
+    const tutorialSplit = await buildSplitGroups("tutorials", courses, content, email, startedMap);
+    totals.inTotal += countGroupItems(tutorialSplit.inGroups);
+    totals.doneTotal += countGroupItems(tutorialSplit.doneGroups);
+    const tutorialsSection = buildProgressSection("tutorials", SECTION_CONFIG.tutorials);
+    list.appendChild(tutorialsSection.wrap);
+    renderSplitGroups(tutorialSplit.inGroups, tutorialSplit.doneGroups, tutorialsSection.body, "tutorials");
+
+    const challengeSplit = await buildSplitGroups("challenges", courses, content, email, startedMap);
+    totals.inTotal += countGroupItems(challengeSplit.inGroups);
+    totals.doneTotal += countGroupItems(challengeSplit.doneGroups);
+    const challengesSection = buildProgressSection("challenges", SECTION_CONFIG.challenges);
+    list.appendChild(challengesSection.wrap);
+    renderSplitGroups(challengeSplit.inGroups, challengeSplit.doneGroups, challengesSection.body, "challenges");
+
+    return totals;
+  }
+
+  function buildProgressSection(id, cfg) {
+    const wrap = document.createElement("section");
+    wrap.className = "net-progress-section";
+    wrap.id = id;
+    wrap.setAttribute("data-progress-section", id);
+
+    const head = document.createElement("div");
+    head.className = "net-card p-4 net-progress-section-head";
+
+    const title = document.createElement("div");
+    title.className = "net-progress-section-title";
+    title.textContent = cfg?.title || "";
+
+    const sub = document.createElement("div");
+    sub.className = "small text-muted";
+    sub.textContent = cfg?.subtitle || "";
+
+    head.append(title, sub);
+
+    const body = document.createElement("div");
+    body.className = "net-progress-section-body";
+
+    wrap.append(head, body);
+    return { wrap, body };
+  }
+
+  function scrollToSection(type) {
+    if (!type) return;
+    const target = document.querySelector(`[data-progress-section="${type}"]`);
+    if (!target) return;
+    setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  }
+
 
   function buildTutorialGroups(courses, content, email) {
     const groupsMap = new Map();
