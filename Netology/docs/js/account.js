@@ -22,6 +22,7 @@ function parseJsonSafe(raw, fallback = null) {
   try { return JSON.parse(raw); } catch { return fallback; }
 }
 
+/* AI Prompt: Explain the XP helpers section in clear, simple terms. */
 /* =========================================================
    XP helpers
 ========================================================= */
@@ -53,6 +54,7 @@ function computeXPFromTotal(totalXP) {
   return { level, currentLevelXP, xpNext, pct, toNext, totalXP };
 }
 
+/* AI Prompt: Explain the Core helpers section in clear, simple terms. */
 /* =========================================================
    Core helpers
 ========================================================= */
@@ -115,6 +117,7 @@ function formatRelative(ts) {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
+/* AI Prompt: Explain the Login streaks section in clear, simple terms. */
 /* =========================================================
    Login streaks
 ========================================================= */
@@ -169,6 +172,7 @@ function computeLoginStreak(log) {
   return streak;
 }
 
+/* AI Prompt: Explain the Achievements + XP section in clear, simple terms. */
 /* =========================================================
    Achievements + XP
 ========================================================= */
@@ -302,6 +306,7 @@ async function awardAchievementBadges(email, loginStreak) {
   }
 }
 
+/* AI Prompt: Explain the Preferences section in clear, simple terms. */
 /* =========================================================
    Preferences
 ========================================================= */
@@ -386,6 +391,7 @@ function wirePrefs(email, initialPrefs) {
   newCourses.addEventListener("change", persist);
 }
 
+/* AI Prompt: Explain the Progress counts section in clear, simple terms. */
 /* =========================================================
    Progress counts
 ========================================================= */
@@ -477,6 +483,7 @@ function getProgressCounts(email) {
   return calcProgressFromLocal(email);
 }
 
+/* AI Prompt: Explain the Activity + history section in clear, simple terms. */
 /* =========================================================
    Activity + history
 ========================================================= */
@@ -675,6 +682,7 @@ async function renderQuizHistory(email) {
   });
 }
 
+/* AI Prompt: Explain the Rank + rings section in clear, simple terms. */
 /* =========================================================
    Rank + rings
 ========================================================= */
@@ -736,6 +744,7 @@ function setAccountRing(progressPct) {
   }
 }
 
+/* AI Prompt: Explain the Chrome section in clear, simple terms. */
 /* =========================================================
    Chrome
 ========================================================= */
@@ -825,6 +834,7 @@ function wireChrome(user) {
   logoutBtn?.addEventListener("click", doLogout);
 }
 
+/* AI Prompt: Explain the Activity widgets section in clear, simple terms. */
 /* =========================================================
    Activity widgets
 ========================================================= */
@@ -917,6 +927,7 @@ function renderAchievements(email, loginStreak) {
   if (badgePill) badgePill.textContent = `${earned.length} badges`;
 }
 
+/* AI Prompt: Explain the Stats load section in clear, simple terms. */
 /* =========================================================
    Stats load
 ========================================================= */
@@ -989,6 +1000,7 @@ async function loadStats(email, user) {
   }
 }
 
+/* AI Prompt: Explain the Init section in clear, simple terms. */
 /* =========================================================
    Init
 ========================================================= */

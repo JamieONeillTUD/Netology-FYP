@@ -27,6 +27,7 @@ Works with:
 */
 
 (function () {
+  // AI Prompt: Explain the Helpers section in clear, simple terms.
   // -----------------------------
   // Helpers
   // -----------------------------
@@ -188,6 +189,7 @@ Works with:
     return diff.charAt(0).toUpperCase() + diff.slice(1);
   }
 
+  // AI Prompt: Explain the Login streak + badges section in clear, simple terms.
   // -----------------------------
   // Login streak + badges
   // -----------------------------
@@ -379,6 +381,7 @@ Works with:
     }
   }
 
+  // AI Prompt: Explain the Brand routing (dashboard vs index) section in clear, simple terms.
   // -----------------------------
   // Brand routing (dashboard vs index)
   // -----------------------------
@@ -391,6 +394,7 @@ Works with:
     if (sideBrand) sideBrand.setAttribute("href", target);
   }
 
+  // AI Prompt: Explain the Sidebar section in clear, simple terms.
   // -----------------------------
   // Sidebar
   // -----------------------------
@@ -430,6 +434,7 @@ Works with:
     return { open, close };
   }
 
+  // AI Prompt: Explain the User dropdown section in clear, simple terms.
   // -----------------------------
   // User dropdown
   // -----------------------------
@@ -466,6 +471,7 @@ Works with:
     return { open, close };
   }
 
+  // AI Prompt: Explain the Logout section in clear, simple terms.
   // -----------------------------
   // Logout
   // -----------------------------
@@ -484,6 +490,7 @@ Works with:
     sideLogout?.addEventListener("click", doLogout);
   }
 
+  // AI Prompt: Explain the Courses data (from API / cache) section in clear, simple terms.
   // -----------------------------
   // Courses data (from API / cache)
   // -----------------------------
@@ -620,6 +627,7 @@ Works with:
     return list;
   }
 
+  /* AI Prompt: Explain the Progress + Completions (local) section in clear, simple terms. */
   /* -----------------------------
      Progress + Completions (local)
   ----------------------------- */
@@ -1027,6 +1035,7 @@ Works with:
     });
   }
 
+  // AI Prompt: Explain the Render course cards section in clear, simple terms.
   // -----------------------------
   // Render course cards
   // -----------------------------
@@ -1171,6 +1180,7 @@ Works with:
     return { card, locked };
   }
 
+  // AI Prompt: Explain the Search + filter section in clear, simple terms.
   // -----------------------------
   // Search + filter
   // -----------------------------
@@ -1277,6 +1287,7 @@ Works with:
     });
   }
 
+  // AI Prompt: Explain the Continue learning section in clear, simple terms.
   // -----------------------------
   // Continue learning
   // -----------------------------
@@ -1417,6 +1428,7 @@ Works with:
     return item;
   }
 
+  // AI Prompt: Explain the Render courses section in clear, simple terms.
   // -----------------------------
   // Render courses
   // -----------------------------
@@ -1494,6 +1506,7 @@ Works with:
     }
   }
 
+  // AI Prompt: Explain the Progress widgets (streak, goals, achievements) section in clear, simple terms.
   // -----------------------------
   // Progress widgets (streak, goals, achievements)
   // -----------------------------
@@ -1731,6 +1744,7 @@ Works with:
     renderRecentActivity();
   }
 
+  // AI Prompt: Explain the User UI fill section in clear, simple terms.
   // -----------------------------
   // User UI fill
   // -----------------------------
@@ -1817,6 +1831,7 @@ Works with:
     }
   }
 
+  // AI Prompt: Explain the Lightweight refresh (focus/visibility/storage) section in clear, simple terms.
   // -----------------------------
   // Lightweight refresh (focus/visibility/storage)
   // -----------------------------
@@ -1844,6 +1859,7 @@ Works with:
     safeStep("renderProgressWidgets", renderProgressWidgets);
   }
 
+  // AI Prompt: Explain the Init section in clear, simple terms.
   // -----------------------------
   // Init
   // -----------------------------

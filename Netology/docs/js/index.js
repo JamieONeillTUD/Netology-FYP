@@ -1,3 +1,7 @@
+/* AI Prompt: Explain the Core helpers section in clear, simple terms. */
+/* =========================================================
+   Core helpers
+========================================================= */
 const getById = (id) => document.getElementById(id);
 
 function onReady(fn) {
@@ -16,6 +20,10 @@ function parseJsonSafe(raw) {
   }
 }
 
+/* AI Prompt: Explain the XP math helpers section in clear, simple terms. */
+/* =========================================================
+   XP math helpers
+========================================================= */
 const BASE_XP = 100;
 
 function totalXpForLevel(level) {
@@ -58,6 +66,10 @@ function getCurrentUser() {
   );
 }
 
+/* AI Prompt: Explain the Course content mapping section in clear, simple terms. */
+/* =========================================================
+   Course content mapping
+========================================================= */
 function mapItemType(sectionType, item) {
   const st = String(sectionType || "").toLowerCase();
   if (st.includes("quiz")) return "quiz";
@@ -130,6 +142,10 @@ function getCourseTotals() {
   return { totalCourses: courseIds.length, totalChallenges, courseIds, courseMeta };
 }
 
+/* AI Prompt: Explain the Completion stats section in clear, simple terms. */
+/* =========================================================
+   Completion stats
+========================================================= */
 function getCompletionStats(email, courseIds, courseMeta) {
   if (!email || !courseIds.length) return { coursesCompleted: 0, challengesDone: 0 };
 
@@ -160,6 +176,10 @@ function getCompletionStats(email, courseIds, courseMeta) {
   return { coursesCompleted, challengesDone };
 }
 
+/* AI Prompt: Explain the Page initialization section in clear, simple terms. */
+/* =========================================================
+   Page initialization
+========================================================= */
 onReady(() => {
   const statusEl = getById("apiStatus");
   const dot = getById("apiDot");
@@ -177,6 +197,10 @@ onReady(() => {
     statusEl.setAttribute("aria-live", "polite");
   }
 
+  /* AI Prompt: Explain the Backend status helpers section in clear, simple terms. */
+  /* =========================================================
+     Backend status helpers
+  ========================================================= */
   function setDotColor(hex) {
     if (!dot) return;
     dot.style.background = hex;
@@ -221,6 +245,10 @@ onReady(() => {
     }
   }
 
+  /* AI Prompt: Explain the Backend health check section in clear, simple terms. */
+  /* =========================================================
+     Backend health check
+  ========================================================= */
   async function checkBackend() {
     try {
       const baseRaw = String(window.API_BASE || "").trim();
@@ -268,6 +296,10 @@ onReady(() => {
   setInterval(checkBackend, 30000);
 
   // --- Hero progress card (logged-in data) ---
+  /* AI Prompt: Explain the Hero progress fill section in clear, simple terms. */
+  /* =========================================================
+     Hero progress fill
+  ========================================================= */
   function fillHeroProgress() {
     const user = getCurrentUser();
     if (!user) return;
@@ -318,6 +350,10 @@ onReady(() => {
   fillHeroProgress();
 
   // --- Modern tilt/parallax on hero card (only if motion allowed) ---
+  /* AI Prompt: Explain the Hero tilt/parallax section in clear, simple terms. */
+  /* =========================================================
+     Hero tilt/parallax
+  ========================================================= */
   if (!reduceMotion && visualWrap && heroCard) {
     // smooth transitions
     heroCard.style.transformStyle = "preserve-3d";

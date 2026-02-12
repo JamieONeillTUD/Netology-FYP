@@ -29,6 +29,10 @@ from xp_system import add_xp_to_user
 courses = Blueprint("courses", __name__)
 
 
+# AI Prompt: Explain the XP payload helper section in clear, simple terms.
+# =========================================================
+# XP payload helpers
+# =========================================================
 def _coerce_xp(value, fallback, max_xp=None):
     """Coerce XP payloads to a safe integer with optional cap."""
     try:
@@ -57,6 +61,10 @@ Can you write helper functions that create tables (if they do not exist) to stor
 These tables should prevent duplicate completions using UNIQUE constraints.
 """
 
+# AI Prompt: Explain the Completion tables setup section in clear, simple terms.
+# =========================================================
+# Completion tables setup
+# =========================================================
 def ensure_user_lessons_table():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -122,6 +130,10 @@ List All Courses
 ---
 Returns a list of all active courses.
 """
+# AI Prompt: Explain the Course catalog endpoints section in clear, simple terms.
+# =========================================================
+# Course catalog endpoints
+# =========================================================
 @courses.route("/courses", methods=["GET"])
 def list_courses():
     try:
@@ -219,6 +231,10 @@ Courses with User Progress
 ---
 Returns all courses with a user's progress (0–100%).
 """
+# AI Prompt: Explain the User course tracking section in clear, simple terms.
+# =========================================================
+# User course tracking
+# =========================================================
 @courses.route("/user-courses", methods=["GET"])
 def user_courses():
     email = request.args.get("email")
@@ -287,6 +303,10 @@ Start Course
 ---
 Marks a course as started
 """
+# AI Prompt: Explain the Course start section in clear, simple terms.
+# =========================================================
+# Course start
+# =========================================================
 @courses.route("/start-course", methods=["POST"])
 def start_course():
     data = request.get_json(silent=True) or request.form
@@ -330,6 +350,10 @@ UPDATED (Backwards Compatible):
 - If lesson_number is provided, we store a completion row in user_lessons to prevent duplicate XP.
 - If lesson_number is NOT provided, we use the original progress step logic (your existing behavior).
 """
+# AI Prompt: Explain the Lesson completion + XP section in clear, simple terms.
+# =========================================================
+# Lesson completion + XP
+# =========================================================
 @courses.route("/complete-lesson", methods=["POST"])
 def complete_lesson():
     """Increases lesson progress and awards XP."""
@@ -463,6 +487,10 @@ Complete Quiz
 ---
 Marks a quiz as completed for (user, course, lesson_number) and awards XP once.
 """
+# AI Prompt: Explain the Quiz completion + XP section in clear, simple terms.
+# =========================================================
+# Quiz completion + XP
+# =========================================================
 @courses.route("/complete-quiz", methods=["POST"])
 def complete_quiz():
     data = request.get_json(silent=True) or request.form
@@ -521,6 +549,10 @@ Complete Challenge
 ---
 Marks a challenge as completed for (user, course, lesson_number) and awards XP once.
 """
+# AI Prompt: Explain the Challenge completion + XP section in clear, simple terms.
+# =========================================================
+# Challenge completion + XP
+# =========================================================
 @courses.route("/complete-challenge", methods=["POST"])
 def complete_challenge():
     data = request.get_json(silent=True) or request.form
@@ -578,6 +610,10 @@ Complete Course
 ---
 Marks course as fully completed and awards full XP.
 """
+# AI Prompt: Explain the Complete course (full override) section in clear, simple terms.
+# =========================================================
+# Complete course (full override)
+# =========================================================
 @courses.route("/complete-course", methods=["POST"])
 def complete_course():
     """Marks course as fully completed and awards full XP."""
@@ -644,6 +680,10 @@ User Course Status
 GET /user-course-status?email=...&course_id=...
 Returns lists of lesson_numbers the user has completed.
 """
+# AI Prompt: Explain the User course status section in clear, simple terms.
+# =========================================================
+# User course status
+# =========================================================
 @courses.route("/user-course-status", methods=["GET"])
 def user_course_status():
     email = request.args.get("email")
@@ -708,6 +748,10 @@ Recent Activity
 GET /recent-activity?email=...&limit=...
 Returns recent lesson/quiz/challenge completions with course info.
 """
+# AI Prompt: Explain the Recent activity feed section in clear, simple terms.
+# =========================================================
+# Recent activity feed
+# =========================================================
 @courses.route("/recent-activity", methods=["GET"])
 def recent_activity():
     email = request.args.get("email")
@@ -774,6 +818,10 @@ Quiz History
 GET /quiz-history?email=...&limit=...
 Returns recent quiz completions with course info.
 """
+# AI Prompt: Explain the Quiz history section in clear, simple terms.
+# =========================================================
+# Quiz history
+# =========================================================
 @courses.route("/quiz-history", methods=["GET"])
 def quiz_history():
     email = request.args.get("email")
@@ -819,6 +867,10 @@ GET /user-progress-summary?email=...
 Returns total counts for lessons/quizzes/challenges and completed/in-progress courses.
 Used by dashboard/account for real progress from DB.
 """
+# AI Prompt: Explain the Progress summary section in clear, simple terms.
+# =========================================================
+# Progress summary
+# =========================================================
 @courses.route("/user-progress-summary", methods=["GET"])
 def user_progress_summary():
     email = request.args.get("email")

@@ -37,6 +37,7 @@ auth = Blueprint("auth", __name__)
 bcrypt = Bcrypt()
 
 
+# AI Prompt: Explain the Helper Functions (Jamie style: small + readable) section in clear, simple terms.
 # =========================================================
 # Helper Functions (Jamie style: small + readable)
 # =========================================================
@@ -140,6 +141,7 @@ def ensure_user_logins_table():
     conn.close()
 
 
+# AI Prompt: Explain the Register New User section in clear, simple terms.
 # =========================================================
 # Register New User
 # =========================================================
@@ -185,6 +187,7 @@ def register():
         # Example: "start_level=intermediate; career, certification"
         reasons = f"start_level={start_level}; {reasons_only}".strip()
 
+        # AI Prompt: Explain the Server-side validation (simple + strict) section in clear, simple terms.
         # -------------------------------------------------
         # Server-side validation (simple + strict)
         # -------------------------------------------------
@@ -204,6 +207,7 @@ def register():
         if not reasons_list:
             return jsonify({"success": False, "message": "Please select at least one reason."}), 400
 
+        # AI Prompt: Explain the REAL progression values (do NOT change from start_level) section in clear, simple terms.
         # -------------------------------------------------
         # REAL progression values (do NOT change from start_level)
         # -------------------------------------------------
@@ -214,6 +218,7 @@ def register():
         # Hash password
         hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
 
+        # AI Prompt: Explain the Database insert (with duplicate checks) section in clear, simple terms.
         # -------------------------------------------------
         # Database insert (with duplicate checks)
         # -------------------------------------------------
@@ -263,6 +268,7 @@ def register():
         return jsonify({"success": False, "message": "Signup failed. Please try again."}), 500
 
 
+# AI Prompt: Explain the Login User section in clear, simple terms.
 # =========================================================
 # Login User
 # =========================================================
@@ -341,6 +347,7 @@ def login():
         return jsonify({"success": False, "message": "Login failed. Try again."}), 500
 
 
+# AI Prompt: Explain the Logout section in clear, simple terms.
 # =========================================================
 # Logout
 # =========================================================
@@ -349,6 +356,7 @@ def logout():
     return redirect("/docs/index.html")
 
 
+# AI Prompt: Explain the Fetch User Info (dashboard/account refresh) section in clear, simple terms.
 # =========================================================
 # Fetch User Info (dashboard/account refresh)
 # =========================================================
@@ -427,6 +435,7 @@ def user_info():
         return jsonify({"success": False, "message": "Error loading user info."}), 500
 
 
+# AI Prompt: Explain the User Preferences (Account page) section in clear, simple terms.
 # =========================================================
 # User Preferences (Account page)
 # =========================================================
@@ -502,6 +511,7 @@ def user_preferences():
         return jsonify({"success": False, "message": "Could not save preferences."}), 500
 
 
+# AI Prompt: Explain the User Achievements section in clear, simple terms.
 # =========================================================
 # User Achievements
 # =========================================================
@@ -585,6 +595,7 @@ def award_achievement():
         return jsonify({"success": False, "message": "Could not award achievement."}), 500
 
 
+# AI Prompt: Explain the Login Activity (streak tracking) section in clear, simple terms.
 # =========================================================
 # Login Activity (streak tracking)
 # =========================================================
@@ -624,6 +635,7 @@ def record_login():
         return jsonify({"success": False, "message": "Could not record login."}), 500
 
 
+# AI Prompt: Explain the Forgot Password section in clear, simple terms.
 # =========================================================
 # Forgot Password
 # =========================================================

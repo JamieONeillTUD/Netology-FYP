@@ -31,6 +31,7 @@ What this file does:
 (function () {
   "use strict";
 
+  /* AI Prompt: Explain the CONFIG / FALLBACKS section in clear, simple terms. */
   /* =========================================================
      CONFIG / FALLBACKS
   ========================================================= */
@@ -56,6 +57,7 @@ What this file does:
   const STARTED_KEY = (email) => `netology_started_courses:${email}`;
   const LOG_KEY = (email) => `netology_progress_log:${email}`;
 
+  /* AI Prompt: Explain the HELPERS section in clear, simple terms. */
   /* =========================================================
      HELPERS
   ========================================================= */
@@ -160,6 +162,17 @@ What this file does:
   function parseJsonSafe(str) {
     // Avoid crashing if localStorage contains invalid JSON.
     try { return JSON.parse(str); } catch { return null; }
+  }
+
+  function getQuizScore(email, courseId, lessonNumber) {
+    if (!email || !courseId || !lessonNumber) return null;
+    const key = `netology_quiz_attempt:${email}:${courseId}:${lessonNumber}`;
+    const data = parseJsonSafe(localStorage.getItem(key));
+    if (!data) return null;
+    const correct = Number(data.correctCount);
+    const total = Number(data.total);
+    if (!Number.isFinite(correct) || !Number.isFinite(total) || total <= 0) return null;
+    return { correct, total };
   }
 
   function escapeHtml(str) {
@@ -283,6 +296,7 @@ What this file does:
     return !!(user && (user.email || user.username));
   }
 
+  /* AI Prompt: Explain the STATE section in clear, simple terms. */
   /* =========================================================
      STATE
   ========================================================= */
@@ -331,6 +345,7 @@ What this file does:
     courseCompleted: false,
   };
 
+  /* AI Prompt: Explain the BOOT section in clear, simple terms. */
   /* =========================================================
      BOOT
   ========================================================= */
@@ -450,6 +465,7 @@ What this file does:
     }
   });
 
+  /* AI Prompt: Explain the CHROME (sidebar + dropdown)  (matches dashboard behaviour) section in clear, simple terms. */
   /* =========================================================
      CHROME (sidebar + dropdown)  (matches dashboard behaviour)
   ========================================================= */
@@ -599,6 +615,7 @@ What this file does:
     window.location.href = "index.html";
   }
 
+  /* AI Prompt: Explain the LOADERS (user stats + completions) section in clear, simple terms. */
   /* =========================================================
      LOADERS (user stats + completions)
   ========================================================= */
@@ -724,6 +741,7 @@ What this file does:
     chArr.forEach((n) => state.completed.challenge.add(Number(n)));
   }
 
+  /* AI Prompt: Explain the COURSE CONTENT NORMALIZATION section in clear, simple terms. */
   /* =========================================================
      COURSE CONTENT NORMALIZATION
   ========================================================= */
@@ -955,6 +973,7 @@ What this file does:
     return "learn";
   }
 
+  /* AI Prompt: Explain the LOCK / COMPLETION / PROGRESS section in clear, simple terms. */
   /* =========================================================
      LOCK / COMPLETION / PROGRESS
   ========================================================= */
@@ -1011,6 +1030,7 @@ What this file does:
     state.activeLearn = state.activeLearnIndex >= 0 ? list[state.activeLearnIndex] : null;
   }
 
+  /* AI Prompt: Explain the RENDER section in clear, simple terms. */
   /* =========================================================
      RENDER
   ========================================================= */
@@ -1259,8 +1279,8 @@ What this file does:
 
         const hint =
           it.type === "quiz" ? "Quiz" :
-          it.type === "challenge" ? "Challenge" :
-          (it.type === "sandbox" || it.type === "practice") ? "Sandbox" :
+          it.type === "challenge" ? "Sandbox challenge" :
+          (it.type === "sandbox" || it.type === "practice") ? "Sandbox tutorial" :
           "Lesson";
 
         const row = document.createElement("button");
@@ -1295,6 +1315,19 @@ What this file does:
         const hintBadge = makeEl("span", "badge text-bg-light border", hint);
 
         meta.append(time, sep1, xp, sep2, hintBadge);
+
+        if (it.type === "quiz" && state.user?.email) {
+          const score = getQuizScore(state.user.email, state.courseId, it.lesson_number);
+          if (score) {
+            const sep3 = makeEl("span", "text-muted", "•");
+            const scoreBadge = makeEl("span", "badge text-bg-light border net-quiz-score");
+            scoreBadge.append(
+              makeIcon("bi bi-clipboard-check me-1"),
+              document.createTextNode(`Score ${score.correct}/${score.total}`)
+            );
+            meta.append(sep3, scoreBadge);
+          }
+        }
         textWrap.append(title, meta);
         left.append(iconWrap, textWrap);
 
@@ -1352,6 +1385,7 @@ What this file does:
     if (jumpBtn) jumpBtn.disabled = !next || state.courseLocked;
   }
 
+  /* AI Prompt: Explain the ACTIONS / EVENTS section in clear, simple terms. */
   /* =========================================================
      ACTIONS / EVENTS
   ========================================================= */
@@ -1490,6 +1524,22 @@ What this file does:
     }
 
     if (t === "sandbox" || t === "practice") {
+      const item = findItem("sandbox", lessonNumber) || findItem("practice", lessonNumber);
+      if (item) {
+        const payload = {
+          courseId: state.courseId,
+          courseTitle: state.course.title,
+          unitTitle: item.unit_title || "",
+          lesson: lessonNumber,
+          lessonTitle: item.title || "",
+          tutorial: {
+            steps: item.steps || (item.tutorial && item.tutorial.steps) || [],
+            tips: item.tips || (item.tutorial && item.tutorial.tips) || "",
+            xp: Number(item.xp || 0)
+          }
+        };
+        localStorage.setItem("netology_active_tutorial", JSON.stringify(payload));
+      }
       window.location.href =
         `sandbox.html?course_id=${encodeURIComponent(state.courseId)}${contentQuery}&lesson=${encodeURIComponent(lessonNumber)}&mode=practice`;
       return;
@@ -1531,6 +1581,7 @@ What this file does:
     return null;
   }
 
+  /* AI Prompt: Explain the LESSON MODAL section in clear, simple terms. */
   /* =========================================================
      LESSON MODAL
   ========================================================= */
@@ -1703,6 +1754,7 @@ What this file does:
     });
   }
 
+  /* AI Prompt: Explain the Preview tooltip (1s delay) section in clear, simple terms. */
   /* =========================================================
      Preview tooltip (1s delay)
   ========================================================= */
@@ -1784,6 +1836,7 @@ What this file does:
     }
   }
 
+  /* AI Prompt: Explain the COMPLETION WRITES (backend best-effort + local fallback) section in clear, simple terms. */
   /* =========================================================
      COMPLETION WRITES (backend best-effort + local fallback)
   ========================================================= */
@@ -1879,6 +1932,7 @@ What this file does:
     return { success: true, ...data };
   }
 
+  /* AI Prompt: Explain the RETURN TOAST section in clear, simple terms. */
   /* =========================================================
      RETURN TOAST
   ========================================================= */
@@ -1959,6 +2013,7 @@ What this file does:
     setTimeout(removeToast, 2800);
   }
 
+  /* AI Prompt: Explain the ICON HELPERS (Bootstrap Icons) section in clear, simple terms. */
   /* =========================================================
      ICON HELPERS (Bootstrap Icons)
   ========================================================= */

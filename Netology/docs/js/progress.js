@@ -10,6 +10,10 @@ progress.js – Progress detail lists for dashboard stats.
 (() => {
   "use strict";
 
+  /* AI Prompt: Explain the API base + page config section in clear, simple terms. */
+  /* =========================================================
+     API base + page config
+  ========================================================= */
   const getApiBase = () => window.API_BASE || "";
 
   const TYPE_CONFIG = {
@@ -45,10 +49,18 @@ progress.js – Progress detail lists for dashboard stats.
     }
   };
 
+  /* AI Prompt: Explain the Page init wiring section in clear, simple terms. */
+  /* =========================================================
+     Page init wiring
+  ========================================================= */
   document.addEventListener("DOMContentLoaded", () => {
     initProgressPage().catch((err) => console.error("Progress init failed:", err));
   });
 
+  /* AI Prompt: Explain the Main init flow section in clear, simple terms. */
+  /* =========================================================
+     Main init flow
+  ========================================================= */
   async function initProgressPage() {
     const user = getCurrentUser();
     if (!user?.email) {
@@ -95,6 +107,10 @@ progress.js – Progress detail lists for dashboard stats.
     }
   }
 
+  /* AI Prompt: Explain the URL + DOM helpers section in clear, simple terms. */
+  /* =========================================================
+     URL + DOM helpers
+  ========================================================= */
   function getTypeParam() {
     const params = new URLSearchParams(window.location.search);
     return String(params.get("type") || "").trim().toLowerCase();
@@ -109,6 +125,10 @@ progress.js – Progress detail lists for dashboard stats.
     if (node) node.textContent = value;
   }
 
+  /* AI Prompt: Explain the Storage + user helpers section in clear, simple terms. */
+  /* =========================================================
+     Storage + user helpers
+  ========================================================= */
   function parseJsonSafe(raw, fallback) {
     try {
       return JSON.parse(raw);
@@ -125,6 +145,10 @@ progress.js – Progress detail lists for dashboard stats.
     );
   }
 
+  /* AI Prompt: Explain the Chrome (sidebar + user dropdown) section in clear, simple terms. */
+  /* =========================================================
+     Chrome (sidebar + user dropdown)
+  ========================================================= */
   function wireChrome(user) {
     setText("topUserName", user.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : (user.username || "User"));
     setText("ddName", user.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : (user.username || "User"));
@@ -141,6 +165,10 @@ progress.js – Progress detail lists for dashboard stats.
     });
   }
 
+  /* AI Prompt: Explain the Data fetch (courses + progress) section in clear, simple terms. */
+  /* =========================================================
+     Data fetch (courses + progress)
+  ========================================================= */
   async function fetchUserCourses(email) {
     const api = getApiBase();
     if (api && email) {
@@ -191,6 +219,10 @@ progress.js – Progress detail lists for dashboard stats.
     return list;
   }
 
+  /* AI Prompt: Explain the Render: course cards section in clear, simple terms. */
+  /* =========================================================
+     Render: course cards
+  ========================================================= */
   function renderCourseCards(courses, list) {
     if (!courses.length) return;
 
@@ -233,6 +265,10 @@ progress.js – Progress detail lists for dashboard stats.
     });
   }
 
+  /* AI Prompt: Explain the Build completion groups section in clear, simple terms. */
+  /* =========================================================
+     Build completion groups
+  ========================================================= */
   async function buildCompletionGroups(type, courses, content, email) {
     const groups = [];
     for (const course of (courses || [])) {
@@ -268,6 +304,10 @@ progress.js – Progress detail lists for dashboard stats.
     return groups;
   }
 
+  /* AI Prompt: Explain the Render: completion groups section in clear, simple terms. */
+  /* =========================================================
+     Render: completion groups
+  ========================================================= */
   function renderCompletionGroups(groups, list, type) {
     const icon = type === "challenges" ? "bi-flag" : "bi-check2-circle";
     const label = type === "challenges" ? "Challenge" : "Lesson";
@@ -317,6 +357,10 @@ progress.js – Progress detail lists for dashboard stats.
     });
   }
 
+  /* AI Prompt: Explain the Completion lookup section in clear, simple terms. */
+  /* =========================================================
+     Completion lookup
+  ========================================================= */
   async function fetchCourseCompletions(email, courseId) {
     const api = getApiBase();
     if (api && email && courseId) {
@@ -371,6 +415,10 @@ progress.js – Progress detail lists for dashboard stats.
     return match?.id ? String(match.id) : null;
   }
 
+  /* AI Prompt: Explain the Title + link helpers section in clear, simple terms. */
+  /* =========================================================
+     Title + link helpers
+  ========================================================= */
   function buildLessonTitleMap(course) {
     const map = new Map();
     if (!course || !Array.isArray(course.units)) return map;

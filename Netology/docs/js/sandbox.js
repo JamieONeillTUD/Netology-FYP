@@ -112,12 +112,15 @@ Reworked to match the Figma AI version:
     pingInspector: null,
     objectiveStatus: {},
     challengeMeta: null,
+    tutorialMeta: null,
+    mode: "free",
     deviceAnimations: new Set(),
     saveModalOpen: false,
   };
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
 
+  // AI Prompt: Explain the Utilities section in clear, simple terms.
   // ----------------------------------------
   // Utilities
   // ----------------------------------------
@@ -159,6 +162,66 @@ Reworked to match the Figma AI version:
 
   function setTip(text) {
     if (tipsEl) tipsEl.textContent = text;
+  }
+
+  function tutorialProgressKey(meta) {
+    if (!meta) return null;
+    return `netology_tutorial_progress:${meta.email || "guest"}:${meta.courseId}:${meta.lesson}`;
+  }
+
+  function loadTutorialProgress(meta) {
+    const key = tutorialProgressKey(meta);
+    if (!key) return { checked: [] };
+    return parseJsonSafe(localStorage.getItem(key), { checked: [] }) || { checked: [] };
+  }
+
+  function saveTutorialProgress(meta, progress) {
+    const key = tutorialProgressKey(meta);
+    if (!key) return;
+    localStorage.setItem(key, JSON.stringify(progress || { checked: [] }));
+  }
+
+  function buildChallengeProgress(rules = {}) {
+    const items = [];
+    const totalDevices = state.devices.length;
+    const totalLinks = state.connections.length;
+
+    if (rules.minDevices) {
+      items.push({
+        label: "Devices placed",
+        current: totalDevices,
+        target: Number(rules.minDevices),
+        ok: totalDevices >= Number(rules.minDevices)
+      });
+    }
+
+    if (rules.minConnections) {
+      items.push({
+        label: "Connections made",
+        current: totalLinks,
+        target: Number(rules.minConnections),
+        ok: totalLinks >= Number(rules.minConnections)
+      });
+    }
+
+    if (rules.requiredTypes) {
+      Object.keys(rules.requiredTypes).forEach((t) => {
+        const needed = Number(rules.requiredTypes[t]);
+        const count = state.devices.filter((d) => d.type === t).length;
+        items.push({
+          label: `${DEVICE_TYPES[t]?.label || t} devices`,
+          current: count,
+          target: needed,
+          ok: count >= needed
+        });
+      });
+    }
+
+    const done = items.filter((i) => i.ok).length;
+    const total = items.length || 1;
+    const pct = Math.round((done / total) * 100);
+
+    return { items, done, total, pct };
   }
 
   let __tooltip = null;
@@ -610,6 +673,7 @@ Reworked to match the Figma AI version:
     return findDevice(state.selectedIds[0]);
   }
 
+  // AI Prompt: Explain the XP + progress logging (kept) section in clear, simple terms.
   // ----------------------------------------
   // XP + progress logging (kept)
   // ----------------------------------------
@@ -742,6 +806,7 @@ Reworked to match the Figma AI version:
     }
   }
 
+  // AI Prompt: Explain the Lesson session DB save/load section in clear, simple terms.
   // ----------------------------------------
   // Lesson session DB save/load
   // ----------------------------------------
@@ -831,6 +896,7 @@ Reworked to match the Figma AI version:
     }
   }
 
+  // AI Prompt: Explain the Chrome (top nav + sidebar) section in clear, simple terms.
   // ----------------------------------------
   // Chrome (top nav + sidebar)
   // ----------------------------------------
@@ -1003,6 +1069,7 @@ Reworked to match the Figma AI version:
     window.location.href = "login.html";
   }
 
+  // AI Prompt: Explain the Rendering section in clear, simple terms.
   // ----------------------------------------
   // Rendering
   // ----------------------------------------
@@ -1160,14 +1227,102 @@ Reworked to match the Figma AI version:
 
   function renderObjectives() {
     if (!objectivesBody) return;
+    if (state.tutorialMeta) {
+      const meta = state.tutorialMeta;
+      const progress = loadTutorialProgress(meta);
+      const total = (meta.steps || []).length;
+      const checked = (progress.checked || []).filter((v) => v).length;
+      const pct = total ? Math.round((checked / total) * 100) : 0;
+
+      clearChildren(objectivesBody);
+      const wrap = makeEl("div", "sbx-objectives");
+
+      const header = makeEl("div", "sbx-objectives-header");
+      const title = makeEl("div", "fw-semibold", "Sandbox tutorial");
+      const sub = makeEl("div", "small text-muted", `Progress: ${checked}/${total} steps`);
+      header.append(title, sub);
+      wrap.appendChild(header);
+
+      const bar = makeEl("div", "sbx-progress-bar");
+      const fill = makeEl("div", "sbx-progress-fill");
+      fill.style.width = `${pct}%`;
+      bar.appendChild(fill);
+      wrap.appendChild(bar);
+
+      if (total) {
+        const list = makeEl("div", "sbx-step-list");
+        (meta.steps || []).forEach((s, idx) => {
+          const row = makeEl("label", "sbx-step-row");
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.className = "sbx-step-check";
+          cb.checked = !!progress.checked?.[idx];
+          cb.addEventListener("change", () => {
+            const next = loadTutorialProgress(meta);
+            next.checked = Array.isArray(next.checked) ? next.checked : [];
+            next.checked[idx] = cb.checked;
+            saveTutorialProgress(meta, next);
+            renderObjectives();
+          });
+          const text = makeEl("span", "sbx-step-text", String(s || ""));
+          row.append(cb, text);
+          list.appendChild(row);
+        });
+        wrap.appendChild(list);
+      }
+
+      if (meta.tips) {
+        const tipsBlock = makeEl("div", "small text-muted mt-2");
+        const em = makeEl("em", null, meta.tips);
+        tipsBlock.appendChild(em);
+        wrap.appendChild(tipsBlock);
+      }
+
+      const returnWrap = makeEl("div", "mt-3");
+      const backBtn = makeEl("a", "btn btn-outline-secondary btn-sm w-100", "Return to lesson");
+      backBtn.href = `lesson.html?course_id=${meta.courseId}&lesson=${meta.lesson}`;
+      returnWrap.appendChild(backBtn);
+      wrap.appendChild(returnWrap);
+
+      objectivesBody.appendChild(wrap);
+      return;
+    }
+
     if (!state.challengeMeta) {
       objectivesBody.textContent = "No active challenge.";
       return;
     }
 
-    const { steps = [], tips = "" } = state.challengeMeta;
+    const { steps = [], tips = "", rules = {} } = state.challengeMeta;
+    const progress = buildChallengeProgress(rules || {});
+
     clearChildren(objectivesBody);
     const wrap = makeEl("div", "sbx-objectives");
+
+    const header = makeEl("div", "sbx-objectives-header");
+    const title = makeEl("div", "fw-semibold", "Sandbox challenge");
+    const sub = makeEl("div", "small text-muted", `Progress: ${progress.done}/${progress.total} requirements`);
+    header.append(title, sub);
+    wrap.appendChild(header);
+
+    const bar = makeEl("div", "sbx-progress-bar");
+    const fill = makeEl("div", "sbx-progress-fill");
+    fill.style.width = `${progress.pct}%`;
+    bar.appendChild(fill);
+    wrap.appendChild(bar);
+
+    if (progress.items.length) {
+      const reqList = makeEl("div", "sbx-req-list");
+      progress.items.forEach((item) => {
+        const row = makeEl("div", `sbx-req ${item.ok ? "is-ok" : ""}`);
+        const label = makeEl("span", "sbx-req-label", item.label);
+        const count = makeEl("span", "sbx-req-count", `${item.current}/${item.target}`);
+        row.append(label, count);
+        reqList.appendChild(row);
+      });
+      wrap.appendChild(reqList);
+    }
+
     if (steps.length) {
       const list = makeEl("ul");
       steps.forEach((s) => list.appendChild(makeEl("li", null, s)));
@@ -1611,6 +1766,7 @@ Reworked to match the Figma AI version:
     updateSaveModalLive();
   }
 
+  // AI Prompt: Explain the History (Undo/Redo) section in clear, simple terms.
   // ----------------------------------------
   // History (Undo/Redo)
   // ----------------------------------------
@@ -1647,6 +1803,7 @@ Reworked to match the Figma AI version:
     if (redoBtn) redoBtn.disabled = state.historyIndex >= state.history.length - 1;
   }
 
+  // AI Prompt: Explain the Device and connection actions section in clear, simple terms.
   // ----------------------------------------
   // Device and connection actions
   // ----------------------------------------
@@ -1780,6 +1937,7 @@ Reworked to match the Figma AI version:
     });
   }
 
+  // AI Prompt: Explain the Ping & packets section in clear, simple terms.
   // ----------------------------------------
   // Ping & packets
   // ----------------------------------------
@@ -1958,6 +2116,7 @@ Reworked to match the Figma AI version:
     return [];
   }
 
+  // AI Prompt: Explain the DHCP section in clear, simple terms.
   // ----------------------------------------
   // DHCP
   // ----------------------------------------
@@ -2016,6 +2175,7 @@ Reworked to match the Figma AI version:
     markDirtyAndSaveSoon();
   }
 
+  // AI Prompt: Explain the Console + logs section in clear, simple terms.
   // ----------------------------------------
   // Console + logs
   // ----------------------------------------
@@ -2092,6 +2252,7 @@ Reworked to match the Figma AI version:
     }
   }
 
+  // AI Prompt: Explain the Challenge validation section in clear, simple terms.
   // ----------------------------------------
   // Challenge validation
   // ----------------------------------------
@@ -2173,6 +2334,7 @@ Reworked to match the Figma AI version:
     return { ok: true };
   }
 
+  // AI Prompt: Explain the Save / Load section in clear, simple terms.
   // ----------------------------------------
   // Save / Load
   // ----------------------------------------
@@ -2380,6 +2542,7 @@ Reworked to match the Figma AI version:
     });
   }
 
+  // AI Prompt: Explain the Event binding section in clear, simple terms.
   // ----------------------------------------
   // Event binding
   // ----------------------------------------
@@ -2776,21 +2939,22 @@ Reworked to match the Figma AI version:
     });
   }
 
+  // AI Prompt: Explain the Challenge initialization section in clear, simple terms.
   // ----------------------------------------
   // Challenge initialization
   // ----------------------------------------
   async function initChallenge() {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("challenge") !== "1") return;
+    if (params.get("challenge") !== "1") return false;
 
     const user = getLoggedInUser();
-    if (!user || !user.email) return;
+    if (!user || !user.email) return false;
 
     const raw = localStorage.getItem("netology_active_challenge");
-    if (!raw) return;
+    if (!raw) return false;
 
     const data = parseJsonSafe(raw);
-    if (!data) return;
+    if (!data) return false;
 
     lessonSession.enabled = true;
     lessonSession.email = user.email;
@@ -2803,22 +2967,73 @@ Reworked to match the Figma AI version:
       tips: data.challenge?.tips || "",
       xp: Number(data.challenge?.xp || data.challengeXp || data.xp || 0),
     };
+    state.mode = "challenge";
 
     const banner = getById("challengeBanner");
     const bannerText = getById("challengeBannerText");
     if (banner && bannerText) {
       banner.style.display = "block";
+      banner.classList.remove("is-tutorial");
+      const title = banner.querySelector(".sbx-challenge-title");
+      if (title) title.textContent = "Sandbox challenge";
       bannerText.textContent = `${data.courseTitle || "Course"} • ${data.unitTitle || ""} • Lesson ${data.lesson}: ${data.lessonTitle || ""}`;
     }
 
     await loadLessonSessionFromDb();
     renderObjectives();
+    return true;
   }
 
+  async function initTutorial() {
+    if (state.mode === "challenge") return false;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mode") !== "practice") return false;
+
+    const user = getLoggedInUser();
+    const raw = localStorage.getItem("netology_active_tutorial");
+    if (!raw) return false;
+
+    const data = parseJsonSafe(raw);
+    if (!data) return false;
+
+    if (user && user.email) {
+      lessonSession.enabled = true;
+      lessonSession.email = user.email;
+      lessonSession.course_id = Number(data.courseId);
+      lessonSession.lesson_number = Number(data.lesson);
+    }
+
+    state.tutorialMeta = {
+      courseId: Number(data.courseId),
+      lesson: Number(data.lesson),
+      email: user?.email || "guest",
+      steps: data.tutorial?.steps || data.steps || [],
+      tips: data.tutorial?.tips || data.tips || "",
+      xp: Number(data.tutorial?.xp || data.xp || 0),
+    };
+    state.mode = "tutorial";
+
+    const banner = getById("challengeBanner");
+    const bannerText = getById("challengeBannerText");
+    if (banner && bannerText) {
+      banner.style.display = "block";
+      banner.classList.add("is-tutorial");
+      const title = banner.querySelector(".sbx-challenge-title");
+      if (title) title.textContent = "Sandbox tutorial";
+      bannerText.textContent = `${data.courseTitle || "Course"} • ${data.unitTitle || ""} • Lesson ${data.lesson}: ${data.lessonTitle || ""}`;
+    }
+
+    if (lessonSession.enabled) await loadLessonSessionFromDb();
+    renderObjectives();
+    return true;
+  }
+
+  // AI Prompt: Explain the Init section in clear, simple terms.
   // ----------------------------------------
   // Init
   // ----------------------------------------
-  function init() {
+  async function init() {
     initChrome();
     bindTooltips();
     bindLibraryDrag();
@@ -2846,7 +3061,8 @@ Reworked to match the Figma AI version:
     setTip("Select a device to view and edit its settings.");
     renderAll();
 
-    initChallenge();
+    await initChallenge();
+    await initTutorial();
 
     window.addEventListener("beforeunload", () => {
       saveLessonSessionToDb();

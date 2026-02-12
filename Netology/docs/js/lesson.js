@@ -32,6 +32,7 @@ lesson.js – Lesson page
   let completionTimer = null;
   let completionInterval = null;
 
+  /* AI Prompt: Explain the Core helpers section in clear, simple terms. */
   /* =========================================================
      Core helpers
   ========================================================= */
@@ -291,6 +292,7 @@ lesson.js – Lesson page
     return Number(learnItem?.xp || fallbackXp || 40);
   }
 
+  /* AI Prompt: Explain the Progress tracking (local + backend) section in clear, simple terms. */
   /* =========================================================
      Progress tracking (local + backend)
   ========================================================= */
@@ -331,6 +333,7 @@ lesson.js – Lesson page
     }
   }
 
+  /* AI Prompt: Explain the Default resources (fallback links) section in clear, simple terms. */
   /* =========================================================
      Default resources (fallback links)
   ========================================================= */
@@ -369,6 +372,7 @@ lesson.js – Lesson page
     return list.slice(0, 4);
   }
 
+  /* AI Prompt: Explain the Init section in clear, simple terms. */
   /* =========================================================
      Init
   ========================================================= */
@@ -470,6 +474,7 @@ lesson.js – Lesson page
     wireActions();
   }
 
+  /* AI Prompt: Explain the Chrome (sidebar + user dropdown) section in clear, simple terms. */
   /* =========================================================
      Chrome (sidebar + user dropdown)
   ========================================================= */
@@ -606,6 +611,7 @@ lesson.js – Lesson page
     window.location.href = "login.html";
   }
 
+  /* AI Prompt: Explain the Data helpers section in clear, simple terms. */
   /* =========================================================
      Data helpers
   ========================================================= */
@@ -750,6 +756,7 @@ lesson.js – Lesson page
     }
   }
 
+  /* AI Prompt: Explain the Render section in clear, simple terms. */
   /* =========================================================
      Render
   ========================================================= */
@@ -852,7 +859,7 @@ lesson.js – Lesson page
     if (practiceCard) {
       if (state.practiceItem) {
         practiceCard.classList.remove("d-none");
-        setText("lessonPracticeMeta", state.practiceItem.title || "Sandbox practice");
+        setText("lessonPracticeMeta", state.practiceItem.title || "Sandbox tutorial");
       } else {
         practiceCard.classList.add("d-none");
       }
@@ -935,6 +942,7 @@ lesson.js – Lesson page
     }
   }
 
+  /* AI Prompt: Explain the Actions section in clear, simple terms. */
   /* =========================================================
      Actions
   ========================================================= */
@@ -945,6 +953,22 @@ lesson.js – Lesson page
     const completeBtn = getById("lessonCompleteBtn");
 
     practiceBtn?.addEventListener("click", () => {
+      if (state.practiceItem) {
+        const payload = {
+          courseId: state.courseId,
+          courseTitle: state.course.title,
+          unitTitle: state.practiceItem.unit_title || "",
+          lesson: state.lessonNumber,
+          lessonTitle: state.practiceItem.title || "",
+          tutorial: {
+            steps: state.practiceItem.steps || (state.practiceItem.tutorial && state.practiceItem.tutorial.steps) || [],
+            tips: state.practiceItem.tips || (state.practiceItem.tutorial && state.practiceItem.tutorial.tips) || "",
+            xp: Number(state.practiceItem.xp || 0)
+          }
+        };
+        localStorage.setItem("netology_active_tutorial", JSON.stringify(payload));
+      }
+
       const params = new URLSearchParams();
       params.set("course_id", String(state.courseId));
       if (state.courseContentId) params.set("content_id", String(state.courseContentId));

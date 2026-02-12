@@ -21,6 +21,11 @@ UPDATED (Part 3):
 
 from db import get_db_connection
 
+# AI Prompt: Explain the Rank label helper section in clear, simple terms.
+# =========================================================
+# Rank label helper
+# =========================================================
+
 
 def rank_for_level(level_num: int) -> str:
     if level_num >= 5:
@@ -36,6 +41,10 @@ AI PROMPTED CODE BELOW
 level 3 needs +200 XP, level 4 needs +300 XP, and so on. Also return progress info for UI."
 """
 
+# AI Prompt: Explain the Level progression math section in clear, simple terms.
+# =========================================================
+# Level progression math
+# =========================================================
 def get_level_progress(total_xp: int):
     """
     Returns:
@@ -75,6 +84,11 @@ Add XP to User
 Adds XP to a user's total and updates their numeric_level and level label.
 Logs the XP gain in the xp_log table in database.
 """
+
+# AI Prompt: Explain the XP write + logging section in clear, simple terms.
+# =========================================================
+# XP write + logging
+# =========================================================
 def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
     try:
         conn = get_db_connection()

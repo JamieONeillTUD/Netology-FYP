@@ -60,6 +60,7 @@ onReady(() => {
   wirePasswordToggles();
 });
 
+/* AI Prompt: Explain the SIGNUP SUBMISSION (signup.html) section in clear, simple terms. */
 /* =========================================================
    SIGNUP SUBMISSION (signup.html)
 ========================================================= */
@@ -138,6 +139,7 @@ function wireSignupSubmit(form) {
   });
 }
 
+/* AI Prompt: Explain the LOGIN (login.html) section in clear, simple terms. */
 /* =========================================================
    LOGIN (login.html)
 ========================================================= */
@@ -243,6 +245,7 @@ function wireLoginSubmit(form) {
   });
 }
 
+/* AI Prompt: Explain the PASSWORD TOGGLES (signup.html + login.html) section in clear, simple terms. */
 /* =========================================================
    PASSWORD TOGGLES (signup.html + login.html)
 ========================================================= */
@@ -270,6 +273,7 @@ function wirePasswordToggles() {
   });
 }
 
+/* AI Prompt: Explain the SIGNUP WIZARD IMPLEMENTATION section in clear, simple terms. */
 /* =========================================================
    SIGNUP WIZARD IMPLEMENTATION
 ========================================================= */
@@ -424,6 +428,7 @@ function initSignupWizard(form) {
   }
 }
 
+/* AI Prompt: Explain the FORGOT PASSWORD (forgot.html) – EMAIL ONLY section in clear, simple terms. */
 /* =========================================================
    FORGOT PASSWORD (forgot.html) – EMAIL ONLY
 ========================================================= */
@@ -490,6 +495,7 @@ function initForgotForm() {
   });
 }
 
+/* AI Prompt: Explain the INLINE BANNERS (login.html + signup.html + forgot.html) section in clear, simple terms. */
 /* =========================================================
    INLINE BANNERS (login.html + signup.html + forgot.html)
 ========================================================= */
@@ -583,6 +589,7 @@ function setBannerContent(banner, type, message) {
   banner.append(icon, text);
 }
 
+/* AI Prompt: Explain the LOGIN STREAKS + BADGES (localStorage) section in clear, simple terms. */
 /* =========================================================
    LOGIN STREAKS + BADGES (localStorage)
 ========================================================= */
@@ -694,6 +701,7 @@ function awardLoginStreakBadges(email, streak) {
   if (changed) saveBadges(email, badges);
 }
 
+/* AI Prompt: Explain the SHARED HELPERS section in clear, simple terms. */
 /* =========================================================
    SHARED HELPERS
 ========================================================= */
@@ -708,6 +716,7 @@ function setInvalid(el, isInvalid) {
   else el.classList.remove("is-invalid");
 }
 
+/* AI Prompt: Explain the Modern Toast Popup (Netology themed) section in clear, simple terms. */
 /* =========================================================
    Modern Toast Popup (Netology themed)
 ========================================================= */

@@ -51,6 +51,7 @@ onReady(async () => {
   await loadAllCourses(user.email, accessLevel);
 });
 
+/* AI Prompt: Explain the XP helpers section in clear, simple terms. */
 /* =========================================================
    XP helpers
 ========================================================= */
@@ -79,6 +80,7 @@ function unlockLevelFromTier(tier) {
   return 1;
 }
 
+/* AI Prompt: Explain the Data normalization + cache section in clear, simple terms. */
 /* =========================================================
    Data normalization + cache
 ========================================================= */
@@ -122,6 +124,7 @@ function getCachedCourseIndex() {
   }
 }
 
+/* AI Prompt: Explain the Progress helpers (local) section in clear, simple terms. */
 /* =========================================================
    Progress helpers (local)
 ========================================================= */
@@ -282,6 +285,7 @@ function setCachedCourseIndex(index) {
   } catch {}
 }
 
+/* AI Prompt: Explain the Chrome (sidebar + dropdown + search) section in clear, simple terms. */
 /* =========================================================
    Chrome (sidebar + dropdown + search)
 ========================================================= */
@@ -393,6 +397,7 @@ function setText(id, text) {
   if (el) el.textContent = text;
 }
 
+/* AI Prompt: Explain the User stats section in clear, simple terms. */
 /* =========================================================
    User stats
 ========================================================= */
@@ -442,6 +447,7 @@ async function loadUserStats(email) {
   }
 }
 
+/* AI Prompt: Explain the Courses loading + rendering section in clear, simple terms. */
 /* =========================================================
    Courses loading + rendering
 ========================================================= */

@@ -1,3 +1,7 @@
+/* AI Prompt: Explain the API base configuration section in clear, simple terms. */
+/* =========================================================
+   API base configuration
+========================================================= */
 // docs/js/config.js
 // Local dev:
 // window.API_BASE = "http://localhost:5001";
@@ -5,6 +9,10 @@
 // Production:
 window.API_BASE = window.API_BASE || "https://netology-fyp.onrender.com";
 
+/* AI Prompt: Explain the Preview mode seeding (demo user) section in clear, simple terms. */
+/* =========================================================
+   Preview mode seeding (demo user)
+========================================================= */
 // Preview mode (for Live Server + direct link testing)
 // - Activate by adding ?preview=1 once, or when on localhost
 // - Seeds a lightweight demo user so protected pages don't redirect

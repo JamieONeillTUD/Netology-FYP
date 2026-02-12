@@ -3,6 +3,7 @@
 -- Course: TU857/4
 -- Date: 2026-02-10
 
+-- AI Prompt: Explain the USERS section in clear, simple terms.
 -- =========================================================
 -- USERS
 -- =========================================================
@@ -34,6 +35,7 @@ ALTER TABLE users ALTER COLUMN level SET DEFAULT 'Novice';
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_key ON users(email);
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_key ON users(username);
 
+-- AI Prompt: Explain the COURSES section in clear, simple terms.
 -- =========================================================
 -- COURSES
 -- =========================================================
@@ -62,6 +64,7 @@ ALTER TABLE courses ADD COLUMN IF NOT EXISTS estimated_time VARCHAR(50);
 ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 ALTER TABLE courses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
+-- AI Prompt: Explain the USER COURSES section in clear, simple terms.
 -- =========================================================
 -- USER COURSES
 -- =========================================================
@@ -90,6 +93,7 @@ WHERE a.id < b.id
 CREATE UNIQUE INDEX IF NOT EXISTS user_courses_user_email_course_id_key
 ON user_courses(user_email, course_id);
 
+-- AI Prompt: Explain the USER PREFERENCES section in clear, simple terms.
 -- =========================================================
 -- USER PREFERENCES
 -- =========================================================
@@ -101,6 +105,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- AI Prompt: Explain the USER ACHIEVEMENTS (PERSISTENT BADGES) section in clear, simple terms.
 -- =========================================================
 -- USER ACHIEVEMENTS (PERSISTENT BADGES)
 -- =========================================================
@@ -116,6 +121,7 @@ CREATE TABLE IF NOT EXISTS user_achievements (
     UNIQUE (user_email, achievement_id)
 );
 
+-- AI Prompt: Explain the LOGIN ACTIVITY (STREAKS) section in clear, simple terms.
 -- =========================================================
 -- LOGIN ACTIVITY (STREAKS)
 -- =========================================================
@@ -126,6 +132,7 @@ CREATE TABLE IF NOT EXISTS user_logins (
     PRIMARY KEY (user_email, login_date)
 );
 
+-- AI Prompt: Explain the DETAILED COMPLETION TRACKING section in clear, simple terms.
 -- =========================================================
 -- DETAILED COMPLETION TRACKING
 -- =========================================================
@@ -164,6 +171,7 @@ ALTER TABLE user_lessons ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 0;
 ALTER TABLE user_quizzes ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 0;
 ALTER TABLE user_challenges ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 0;
 
+-- AI Prompt: Explain the XP LOG section in clear, simple terms.
 -- =========================================================
 -- XP LOG
 -- =========================================================
@@ -175,6 +183,7 @@ CREATE TABLE IF NOT EXISTS xp_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- AI Prompt: Explain the LESSONS (OPTIONAL) section in clear, simple terms.
 -- =========================================================
 -- LESSONS (OPTIONAL)
 -- =========================================================
@@ -187,6 +196,7 @@ CREATE TABLE IF NOT EXISTS lessons (
     xp_value INTEGER DEFAULT 10
 );
 
+-- AI Prompt: Explain the SANDBOX TOPOLOGIES section in clear, simple terms.
 -- =========================================================
 -- SANDBOX TOPOLOGIES
 -- =========================================================
@@ -199,6 +209,7 @@ CREATE TABLE IF NOT EXISTS saved_topologies (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- AI Prompt: Explain the LESSON SANDBOX SESSIONS section in clear, simple terms.
 -- =========================================================
 -- LESSON SANDBOX SESSIONS
 -- =========================================================
@@ -213,6 +224,7 @@ CREATE TABLE IF NOT EXISTS lesson_sessions (
     UNIQUE (user_email, course_id, lesson_number)
 );
 
+-- AI Prompt: Explain the LEGACY COMPLETION TABLES (SAFE TO KEEP) section in clear, simple terms.
 -- =========================================================
 -- LEGACY COMPLETION TABLES (SAFE TO KEEP)
 -- =========================================================
@@ -243,6 +255,7 @@ CREATE TABLE IF NOT EXISTS challenge_completions (
     UNIQUE (user_email, course_id, lesson_number)
 );
 
+-- AI Prompt: Explain the SAMPLE COURSES (SAFE INSERT + SAFE UPDATE BY TITLE) section in clear, simple terms.
 -- =========================================================
 -- SAMPLE COURSES (SAFE INSERT + SAFE UPDATE BY TITLE)
 -- =========================================================

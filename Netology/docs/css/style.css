@@ -27,6 +27,7 @@ This version:
 - Keeps Bootstrap-safe styles and existing dashboard.js output classes
 */
 
+/* AI Prompt: Explain the 1) GLOBAL BASE (all pages) section in clear, simple terms. */
 /* =========================================================
    1) GLOBAL BASE (all pages)
 ========================================================= */
@@ -165,6 +166,7 @@ footer{
 /* Bootstrap helper missing class used in dashboard.html */
 .text-white-75{ color: rgba(255,255,255,.78) !important; }
 
+/* AI Prompt: Explain the 2) SHARED NETOLOGY THEME (most pages) section in clear, simple terms. */
 /* =========================================================
    2) SHARED NETOLOGY THEME (most pages)
 ========================================================= */
@@ -239,6 +241,7 @@ footer{
   opacity: .85;
 }
 
+/* AI Prompt: Explain the PERFORMANCE OPTIMIZATIONS section in clear, simple terms. */
 /* =========================================================
    PERFORMANCE OPTIMIZATIONS
 ========================================================= */
@@ -515,6 +518,7 @@ footer{
   .net-pop{ animation: none !important; }
 }
 
+/* AI Prompt: Explain the 3) index.html (Landing page) section in clear, simple terms. */
 /* =========================================================
    3) index.html (Landing page)
 ========================================================= */
@@ -553,6 +557,7 @@ footer{
   box-shadow: 0 20px 60px rgba(6,182,212,.22);
 }
 
+/* AI Prompt: Explain the 3B) index.html (Landing page v2) section in clear, simple terms. */
 /* =========================================================
    3B) index.html (Landing page v2)
 ========================================================= */
@@ -570,6 +575,7 @@ body.net-landing-v2{
     linear-gradient(160deg, #f8fafc 0%, #ecfeff 45%, #f0f9ff 100%);
 }
 
+/* AI Prompt: Explain the 3C) index.html (Figma AI layout) section in clear, simple terms. */
 /* =========================================================
    3C) index.html (Figma AI layout)
 ========================================================= */
@@ -1556,6 +1562,7 @@ body.net-figma-landing{
   }
 }
 
+/* AI Prompt: Explain the 4) login.html / signup.html / forgot.html (Auth pages) section in clear, simple terms. */
 /* =========================================================
    4) login.html / signup.html / forgot.html (Auth pages)
 ========================================================= */
@@ -1939,6 +1946,7 @@ body.net-auth-v2.net-landing::before{
   body.net-auth-v2.net-landing::before{ animation: none !important; }
 }
 
+/* AI Prompt: Explain the 5) dashboard.html (Top Nav + Slide Sidebar + Dropdown) section in clear, simple terms. */
 /* =========================================================
    5) dashboard.html (Top Nav + Slide Sidebar + Dropdown)
 ========================================================= */
@@ -3133,6 +3141,7 @@ body.net-auth-v2.net-landing::before{
   .dash-card{ animation: none !important; }
 }
 
+/* AI Prompt: Explain the Dashboard tweaks requested (Top nav / Courses search / Level ring) section in clear, simple terms. */
 /* =========================================================
    Dashboard tweaks requested (Top nav / Courses search / Level ring)
 ========================================================= */
@@ -3256,6 +3265,7 @@ body.net-auth-v2.net-landing::before{
   color: rgba(15, 23, 42, .72);
 }
 
+/* AI Prompt: Explain the Dashboard course UI (matches dashboard.js output) section in clear, simple terms. */
 /* =========================================================
    Dashboard course UI (matches dashboard.js output)
 ========================================================= */
@@ -3534,6 +3544,7 @@ body.net-auth-v2.net-landing::before{
   margin-bottom: 6px;
 }
 
+/* AI Prompt: Explain the 6) courses.html (Courses list) section in clear, simple terms. */
 /* =========================================================
    6) courses.html (Courses list)
 ========================================================= */
@@ -3705,6 +3716,7 @@ body.net-auth-v2.net-landing::before{
 /* Courses can reuse .net-coursegrid + .net-coursecard */
 /* If your courses.html has a different class, these still won’t break anything. */
 
+/* AI Prompt: Explain the 7) account.html (Account overview) section in clear, simple terms. */
 /* =========================================================
    7) account.html (Account overview)
 ========================================================= */
@@ -3858,6 +3870,7 @@ body.net-auth-v2.net-landing::before{
   white-space: nowrap;
 }
 
+/* AI Prompt: Explain the Quiz Page (quiz.html) section in clear, simple terms. */
 /* =========================================================
    Quiz Page (quiz.html)
 ========================================================= */
@@ -4220,6 +4233,7 @@ body.net-auth-v2.net-landing::before{
   }
 }
 
+/* AI Prompt: Explain the 8) course.html (Single course + Khan-style sidebar) section in clear, simple terms. */
 /* =========================================================
    8) course.html (Single course + Khan-style sidebar)
 ========================================================= */
@@ -4267,6 +4281,7 @@ body.net-auth-v2.net-landing::before{
   box-shadow: 0 12px 34px rgba(2, 6, 23, .06);
 }
 
+/* AI Prompt: Explain the 8) sandbox.html (Sandbox revamp) section in clear, simple terms. */
 /* =========================================================
    8) sandbox.html (Sandbox revamp)
 ========================================================= */
@@ -4369,6 +4384,7 @@ body.net-auth-v2.net-landing::before{
   .sb-side{ position: sticky; top: 90px; }
 }
 
+/* AI Prompt: Explain the 8B) sandbox.html (Figma AI Pro layout) section in clear, simple terms. */
 /* =========================================================
    8B) sandbox.html (Figma AI Pro layout)
 ========================================================= */
@@ -5202,6 +5218,16 @@ body.net-auth-v2.net-landing::before{
   border: 1px solid rgba(16,185,129,.2);
   margin-bottom: 10px;
 }
+.sbx-challenge-banner.is-tutorial{
+  background: rgba(59,130,246,.12);
+  border-color: rgba(59,130,246,.2);
+}
+.sbx-challenge-banner.is-tutorial .sbx-challenge-title{
+  color: #1d4ed8;
+}
+.sbx-challenge-banner.is-tutorial .sbx-challenge-sub{
+  color: #2563eb;
+}
 .sbx-challenge-title{
   font-weight: 800;
   color: #065f46;
@@ -5209,6 +5235,69 @@ body.net-auth-v2.net-landing::before{
 .sbx-challenge-sub{
   font-size: .82rem;
   color: #047857;
+}
+.sbx-objectives-header{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.sbx-progress-bar{
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(15,23,42,.08);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.sbx-progress-fill{
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #14b8a6, #06b6d4);
+}
+.sbx-step-list{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+}
+.sbx-step-row{
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, .04);
+  border: 1px solid rgba(15, 23, 42, .06);
+  font-size: .82rem;
+}
+.sbx-step-check{
+  margin-top: 2px;
+}
+.sbx-step-row input:checked + .sbx-step-text{
+  text-decoration: line-through;
+  color: #047857;
+}
+.sbx-req-list{
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+.sbx-req{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, .04);
+  border: 1px solid rgba(15, 23, 42, .06);
+  font-size: .8rem;
+}
+.sbx-req.is-ok{
+  background: rgba(16,185,129,.12);
+  border-color: rgba(16,185,129,.24);
+  color: #065f46;
 }
 .sbx-objectives ul{
   padding-left: 18px;
@@ -5320,6 +5409,7 @@ body.net-auth-v2.net-landing::before{
   }
 }
 
+/* AI Prompt: Explain the 9) Shared: Modern Popup Toast (showPopup) section in clear, simple terms. */
 /* =========================================================
    9) Shared: Modern Popup Toast (showPopup)
 ========================================================= */
@@ -5463,6 +5553,7 @@ body.net-auth-v2.net-landing::before{
   .net-toast-exit{ animation: none !important; }
 }
 
+/* AI Prompt: Explain the ✅ ADDITIONS (09/02/2026) — Dashboard + Course page alignment section in clear, simple terms. */
 /* =========================================================
    ✅ ADDITIONS (09/02/2026) — Dashboard + Course page alignment
    (Nothing removed; only added so your new HTML/JS classes render perfectly)
@@ -5562,6 +5653,7 @@ body.net-auth-v2.net-landing::before{
   .net-search{ min-width: 200px; }
 }
 
+/* AI Prompt: Explain the Course page (course.html) — Figma-inspired layout support section in clear, simple terms. */
 /* =========================================================
    Course page (course.html) — Figma-inspired layout support
 ========================================================= */
@@ -5842,6 +5934,14 @@ body.net-course-page.net-landing::after{
   border: 1px solid rgba(59,130,246,.24);
   color: #2563eb;
 }
+.net-quiz-score{
+  background: rgba(16,185,129,.08);
+  border-color: rgba(16,185,129,.22);
+  color: #047857;
+}
+.net-quiz-score i{
+  color: #059669;
+}
 
 /* Sidebar pro tip + sandbox CTA */
 .net-protip{
@@ -6087,6 +6187,7 @@ body.net-course-page.net-landing::after{
   box-shadow: 0 22px 46px rgba(16,185,129,.35);
 }
 
+/* AI Prompt: Explain the Sigma AI Theme (opt-in) section in clear, simple terms. */
 /* =========================================================
    Sigma AI Theme (opt-in)
 ========================================================= */

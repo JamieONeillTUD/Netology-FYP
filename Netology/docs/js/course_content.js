@@ -26,6 +26,7 @@ const COURSE_CONTENT = {
   //     }
   //   ]
   // }
+  // AI Prompt: Explain the NOVICE COURSES (Level 1+) section in clear, simple terms.
   // ============================
   // NOVICE COURSES (Level 1+)
   // ============================
@@ -89,7 +90,14 @@ const COURSE_CONTENT = {
                 type: "Practice",
                 title: "Classify network types",
                 duration: "12 min",
-                xp: 35
+                xp: 35,
+                steps: [
+                  "Add a router, a switch, and two PCs to the canvas.",
+                  "Connect both PCs to the switch, then connect the switch to the router.",
+                  "Add an Internet cloud and connect it to the router.",
+                  "Use device names to label which parts are LAN, WAN, and Internet."
+                ],
+                tips: "LAN is the local group behind the switch; the router is the gateway to the WAN/Internet."
               },
               {
                 type: "Challenge",
@@ -324,7 +332,14 @@ const COURSE_CONTENT = {
                 type: "Practice",
                 title: "Trace a frame on a LAN",
                 duration: "12 min",
-                xp: 35
+                xp: 35,
+                steps: [
+                  "Add one switch and two PCs to the canvas.",
+                  "Connect each PC to the switch with Ethernet.",
+                  "Pretend PC-A sends a frame to PC-B; explain how the switch learns the source MAC.",
+                  "Add a third PC and explain why unknown destinations are flooded."
+                ],
+                tips: "Switches learn MACs from source addresses and flood unknown destinations."
               },
               {
                 type: "Challenge",
@@ -550,7 +565,14 @@ const COURSE_CONTENT = {
                 type: "Practice",
                 title: "Assign IP details",
                 duration: "12 min",
-                xp: 35
+                xp: 35,
+                steps: [
+                  "Add a router, a switch, and two PCs.",
+                  "Connect the PCs to the switch and the switch to the router.",
+                  "Set PC IPs in the same /24 (example: 192.168.10.10 and 192.168.10.11).",
+                  "Set the default gateway on both PCs to the router (example: 192.168.10.1)."
+                ],
+                tips: "Devices in the same /24 talk directly; the gateway is used for off-subnet traffic."
               },
               {
                 type: "Challenge",
@@ -777,7 +799,14 @@ const COURSE_CONTENT = {
                 type: "Practice",
                 title: "Inspect MAC tables",
                 duration: "8 min",
-                xp: 25
+                xp: 25,
+                steps: [
+                  "Add a switch and two PCs.",
+                  "Connect both PCs to the switch.",
+                  "Open the switch config panel and note the MAC table section.",
+                  "Explain how traffic from each PC would populate the table."
+                ],
+                tips: "MAC tables map source MAC addresses to the port they were learned on."
               }
             ]
           }
@@ -890,6 +919,7 @@ const COURSE_CONTENT = {
     ]
   },
 
+  // AI Prompt: Explain the INTERMEDIATE COURSES (Level 3+) section in clear, simple terms.
   // ============================
   // INTERMEDIATE COURSES (Level 3+)
   // ============================
@@ -948,7 +978,14 @@ const COURSE_CONTENT = {
                 type: "Practice",
                 title: "Calculate subnet ranges",
                 duration: "14 min",
-                xp: 40
+                xp: 40,
+                steps: [
+                  "Add a router, a switch, and four PCs.",
+                  "Connect all PCs to the switch and the switch to the router.",
+                  "Assign two PCs to 192.168.10.0/26 (example: .10 and .20).",
+                  "Assign two PCs to 192.168.10.64/26 (example: .70 and .80)."
+                ],
+                tips: "A /26 has 64 addresses; the network IDs here are .0 and .64."
               },
               {
                 type: "Challenge",
@@ -1176,7 +1213,14 @@ const COURSE_CONTENT = {
                 type: "Practice",
                 title: "Assign VLANs to ports",
                 duration: "14 min",
-                xp: 40
+                xp: 40,
+                steps: [
+                  "Add two switches and four PCs.",
+                  "Connect two PCs to Switch A and two PCs to Switch B.",
+                  "Link the two switches together with one uplink.",
+                  "Rename two PCs with VLAN10 and two PCs with VLAN20 to model segmentation."
+                ],
+                tips: "VLANs are logical; use naming to keep groups clear while you design."
               },
               {
                 type: "Challenge",
@@ -1402,7 +1446,14 @@ const COURSE_CONTENT = {
                 type: "Practice",
                 title: "Configure inter-VLAN routing",
                 duration: "14 min",
-                xp: 45
+                xp: 45,
+                steps: [
+                  "Add a router, a switch, and three PCs.",
+                  "Connect all PCs to the switch and connect the switch to the router.",
+                  "Name one PC VLAN10 and two PCs VLAN20 to model two groups.",
+                  "Assign gateway IPs on the router (one per VLAN) in your notes."
+                ],
+                tips: "Router-on-a-stick uses subinterfaces; each VLAN needs its own gateway IP."
               },
               {
                 type: "Challenge",
@@ -1719,6 +1770,7 @@ const COURSE_CONTENT = {
     ]
   },
 
+  // AI Prompt: Explain the ADVANCED COURSES (Level 5+) section in clear, simple terms.
   // ============================
   // ADVANCED COURSES (Level 5+)
   // ============================
@@ -1777,7 +1829,14 @@ const COURSE_CONTENT = {
                 type: "Practice",
                 title: "Spot hardening gaps",
                 duration: "12 min",
-                xp: 40
+                xp: 40,
+                steps: [
+                  "Add a router, firewall, switch, two PCs, and a server.",
+                  "Connect PCs and server to the switch, then switch to firewall, firewall to router.",
+                  "List three services you would disable on the server if unused.",
+                  "Identify one logging source you would always keep enabled."
+                ],
+                tips: "Least privilege and minimal services reduce exposure and simplify monitoring."
               },
               {
                 type: "Challenge",
@@ -2216,7 +2275,14 @@ const COURSE_CONTENT = {
                 type: "Practice",
                 title: "Analyze a log snippet",
                 duration: "12 min",
-                xp: 40
+                xp: 40,
+                steps: [
+                  "Add a firewall and a server to the canvas.",
+                  "Connect the server to the firewall, then connect the firewall to the Internet cloud.",
+                  "In your notes, list two signals that would make a log entry suspicious.",
+                  "Explain how a SIEM would correlate repeated failures from one IP."
+                ],
+                tips: "Look for repeated failures, impossible travel, or unusual ports for quick wins."
               }
             ]
           }

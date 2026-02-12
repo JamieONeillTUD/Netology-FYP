@@ -20,7 +20,6 @@ NOTE:
 - This file sends "earned_xp" too; backend can ignore it safely if not used.
 */
 
-const QUIZ_PASS_PCT = 60; // Used for completion tracking (local storage).
 const RESULTS_PASS_PCT = 70; // Used only for the results message/badge.
 const DEFAULT_QUIZ_XP = 40;
 const getApiBase = () => window.API_BASE || "";
@@ -319,9 +318,6 @@ function trackCourseStart(email, courseId, lessonNumber) {
 }
 
 function markQuizCompletion(state, payload) {
-  const passed = Number(payload.percentage || 0) >= QUIZ_PASS_PCT;
-  if (!passed) return;
-
   const key = `netology_completions:${state.email}:${state.courseId}`;
   const data = parseJsonSafe(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
   const quizArr = data.quiz || data.quizzes || [];
@@ -342,6 +338,7 @@ function markQuizCompletion(state, payload) {
   bumpUserXP(state.email, Number(payload.earnedXP || 0));
 }
 
+/* AI Prompt: Explain the Quiz Model Helpers section in clear, simple terms. */
 /* ----------------------------
    Quiz Model Helpers
 ---------------------------- */
@@ -410,6 +407,7 @@ function getQuizModelFromCourse(course, lessonNumber) {
   return null;
 }
 
+/* AI Prompt: Explain the Storage Keys section in clear, simple terms. */
 /* ----------------------------
    Storage Keys
 ---------------------------- */
@@ -429,6 +427,7 @@ function writeAttempt(state, payload) {
   localStorage.setItem(attemptKey(state), JSON.stringify(payload));
 }
 
+/* AI Prompt: Explain the Rendering section in clear, simple terms. */
 /* ----------------------------
    Rendering
 ---------------------------- */
@@ -626,6 +625,7 @@ async function finishQuiz(state) {
 }
 
 function renderResultsFromSaved(state, saved, backUrl) {
+  markQuizCompletion(state, saved || {});
   renderHeader(state);
   renderResults(state, saved);
   wireBackLinks(backUrl);
@@ -681,6 +681,7 @@ function renderResults(state, result) {
   }
 }
 
+/* AI Prompt: Explain the Feedback helpers section in clear, simple terms. */
 /* ----------------------------
    Feedback helpers
 ---------------------------- */
@@ -754,6 +755,7 @@ function xpPerQuestion(state, correct) {
   return Math.max(per, 1);
 }
 
+/* AI Prompt: Explain the Backend XP (best effort) section in clear, simple terms. */
 /* ----------------------------
    Backend XP (best effort)
 ---------------------------- */
@@ -808,6 +810,7 @@ async function awardQuizXpOnce(state, earnedXP) {
   }
 }
 
+/* AI Prompt: Explain the Tiny DOM helpers section in clear, simple terms. */
 /* ----------------------------
    Tiny DOM helpers
 ---------------------------- */

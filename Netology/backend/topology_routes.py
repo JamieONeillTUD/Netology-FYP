@@ -16,6 +16,7 @@ import json
 topology = Blueprint("topology", __name__)
 
 
+# AI Prompt: Explain the NEW (Part 3.2): section in clear, simple terms.
 # ---------------------------
 # NEW (Part 3.2):
 # Lesson session save/load (per lesson sandbox state)
@@ -27,6 +28,10 @@ AI PROMPTED CODE BELOW
 so the user can return to the exact same lesson session later?"
 """
 
+# AI Prompt: Explain the Lesson session storage section in clear, simple terms.
+# =========================================================
+# Lesson session storage
+# =========================================================
 def ensure_lesson_sessions_table():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -48,6 +53,10 @@ def ensure_lesson_sessions_table():
     conn.close()
 
 
+# AI Prompt: Explain the Lesson session save route section in clear, simple terms.
+# =========================================================
+# Lesson session save route
+# =========================================================
 @topology.route("/lesson-session/save", methods=["POST"])
 def save_lesson_session():
     """
@@ -103,6 +112,10 @@ def save_lesson_session():
         return jsonify({"success": False, "message": "Could not save lesson session."}), 500
 
 
+# AI Prompt: Explain the Lesson session load route section in clear, simple terms.
+# =========================================================
+# Lesson session load route
+# =========================================================
 @topology.route("/lesson-session/load", methods=["GET"])
 def load_lesson_session():
     """
@@ -158,6 +171,10 @@ def load_lesson_session():
 
 
 # saving and loading topologies
+# AI Prompt: Explain the Save topology route section in clear, simple terms.
+# =========================================================
+# Save topology route
+# =========================================================
 @topology.route("/save-topology", methods=["POST"])
 def save_topology():
     data = request.get_json()
@@ -189,6 +206,10 @@ def save_topology():
         return jsonify({"success": False, "message": "Save failed"}), 500
 
 # Loading saved topologies
+# AI Prompt: Explain the Load topologies list section in clear, simple terms.
+# =========================================================
+# Load topologies list
+# =========================================================
 @topology.route("/load-topologies", methods=["GET"])
 def load_topologies():
     email = request.args.get("email")
@@ -219,6 +240,10 @@ def load_topologies():
     return jsonify({"success": True, "topologies": topologies})
 
 # Loading a specific topology by ID
+# AI Prompt: Explain the Load single topology section in clear, simple terms.
+# =========================================================
+# Load single topology
+# =========================================================
 @topology.route("/load-topology/<int:tid>", methods=["GET"])
 def load_topology(tid):
     conn = get_db_connection()
@@ -243,6 +268,10 @@ def load_topology(tid):
     })
 
 # Deleting a topology by ID
+# AI Prompt: Explain the Delete topology section in clear, simple terms.
+# =========================================================
+# Delete topology
+# =========================================================
 @topology.route("/delete-topology/<int:tid>", methods=["DELETE"])
 def delete_topology(tid):
     try:

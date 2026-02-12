@@ -22,6 +22,11 @@ from topology_routes import topology
 from dotenv import load_dotenv
 load_dotenv()
 
+ 
+# AI Prompt: Explain the App setup section in clear, simple terms.
+# =========================================================
+# App setup
+# =========================================================
 # Create Flask App
 # static_folder points to where your HTML/CSS/JS is
 app = Flask(
@@ -30,11 +35,18 @@ app = Flask(
     static_url_path=""           # serve static at /
 )
 
-# Enable CORS
-# Allows the frontend to send requests to this backend.
+# AI Prompt: Explain the CORS configuration section in clear, simple terms.
+# =========================================================
+# CORS configuration
+# =========================================================
+# Enables the frontend to send requests to this backend.
 CORS(app, resources={r"/*": {"origins": ["https://jamieoneilltud.github.io"]}})
 
 
+# AI Prompt: Explain the Auth + Blueprint registration section in clear, simple terms.
+# =========================================================
+# Auth + Blueprints
+# =========================================================
 # Setup Password Hashing (bcrypt)
 auth_bcrypt.init_app(app)
 
@@ -45,6 +57,10 @@ app.register_blueprint(courses)     # /courses routes
 app.register_blueprint(topology)   # /topology routes
 
 
+# AI Prompt: Explain the Core routes section in clear, simple terms.
+# =========================================================
+# Core routes
+# =========================================================
 # Default Route
 @app.route("/")
 def home():
@@ -54,7 +70,10 @@ def home():
 def healthz():
     return {"ok": True}
 
+# AI Prompt: Explain the Run server section in clear, simple terms.
+# =========================================================
+# Run server
+# =========================================================
 # Run Server
 if __name__ == "__main__":
     app.run(debug=True)
-
