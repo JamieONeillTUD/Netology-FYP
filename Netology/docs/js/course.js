@@ -629,7 +629,11 @@ What this file does:
       const data = await res.json().catch(() => null);
       if (!data || data.success === false) throw new Error("user-info failed");
 
-      const xp = Number(data.xp || data.total_xp || 0) || 0;
+      const serverXP = Number(data.xp ?? data.total_xp);
+      const xp = Number.isFinite(serverXP) ? serverXP : Number(state.user?.xp || 0);
+      const serverLevel = Number(data.numeric_level);
+      const xpInto = Number(data.xp_into_level);
+      const nextXp = Number(data.next_level_xp);
       const { level, currentLevelXP, xpNext, xpProgressPct } = computeXPFromTotal(xp);
       const rank = String(data.rank || data.level_name || data.level || "Novice");
       const unlockTier = String(data.start_level || state.user?.unlock_tier || "novice").toLowerCase();
@@ -639,12 +643,22 @@ What this file does:
       state.stats.rank = rank;
       state.stats.accessLevel = Math.max(level, unlockLevelFromTier(unlockTier));
 
-      state.stats.currentLevelXP = currentLevelXP;
-      state.stats.xpProgressPct = xpProgressPct;
-      state.stats.xpNext = xpNext;
+      state.stats.currentLevelXP = Number.isFinite(xpInto) ? xpInto : currentLevelXP;
+      state.stats.xpProgressPct = Number.isFinite(xpInto) && Number.isFinite(nextXp) && nextXp > 0
+        ? clamp((xpInto / nextXp) * 100, 0, 100)
+        : xpProgressPct;
+      state.stats.xpNext = Number.isFinite(nextXp) && nextXp > 0 ? nextXp : xpNext;
 
       if (state.user) {
         state.user.unlock_tier = ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice";
+        state.user.xp = xp;
+        if (Number.isFinite(serverLevel) && serverLevel > 0) state.user.numeric_level = serverLevel;
+        if (Number.isFinite(xpInto)) state.user.xp_into_level = xpInto;
+        if (Number.isFinite(nextXp) && nextXp > 0) state.user.next_level_xp = nextXp;
+        if (data.rank || data.level) {
+          state.user.rank = data.rank || data.level;
+          state.user.level = data.level || data.rank;
+        }
         localStorage.setItem("user", JSON.stringify(state.user));
         localStorage.setItem("netology_user", JSON.stringify(state.user));
       }
@@ -1896,6 +1910,10 @@ What this file does:
       if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
 
       computeLockState();
+    }
+
+    if (backend && backend.success) {
+      await loadUserStats(state.user.email);
     }
 
     const prog = computeProgress();

@@ -49,7 +49,7 @@ function computeXPFromTotal(totalXP) {
   const levelStart = totalXpForLevel(level);
   const currentLevelXP = Math.max(0, totalXP - levelStart);
   const xpNext = xpForNextLevel(level);
-  const pct = Math.max(0, Math.min(100, Math.round((currentLevelXP / Math.max(xpNext, 1)) * 100)));
+  const pct = Math.max(0, Math.min(100, (currentLevelXP / Math.max(xpNext, 1)) * 100));
   const toNext = Math.max(0, xpNext - currentLevelXP);
   return { level, currentLevelXP, xpNext, pct, toNext, totalXP };
 }
@@ -733,7 +733,8 @@ function setAccountRing(progressPct) {
   const arc = 0.5;
   const dash = CIRC * arc;
   const gap = CIRC - dash;
-  const offset = dash * (1 - (Number(progressPct || 0) / 100));
+  const pct = Math.max(0, Math.min(100, Number(progressPct) || 0));
+  const offset = dash * (1 - (pct / 100));
   const dashArray = `${dash.toFixed(2)} ${gap.toFixed(2)}`;
 
   ring.style.strokeDasharray = dashArray;
@@ -938,10 +939,19 @@ async function loadStats(email, user) {
     const data = await res.json();
     if (!data.success) throw new Error("no data");
 
-    const serverXP = Number(data.xp || data.total_xp || 0);
-    const localXP = Number(user?.xp || 0);
-    const totalXP = Math.max(serverXP, localXP);
-    const stats = computeXPFromTotal(totalXP);
+    const serverXP = Number(data.xp ?? data.total_xp);
+    const hasServerXP = Number.isFinite(serverXP);
+    const totalXP = hasServerXP ? serverXP : Number(user?.xp || 0);
+    const serverLevel = Number(data.numeric_level);
+    const xpInto = Number(data.xp_into_level);
+    const nextXp = Number(data.next_level_xp);
+    let stats = computeXPFromTotal(totalXP);
+    if (Number.isFinite(xpInto) && Number.isFinite(nextXp) && nextXp > 0) {
+      const level = Number.isFinite(serverLevel) && serverLevel > 0 ? serverLevel : stats.level;
+      const pct = Math.max(0, Math.min(100, (xpInto / nextXp) * 100));
+      const toNext = Math.max(0, nextXp - xpInto);
+      stats = { level, currentLevelXP: xpInto, xpNext: nextXp, pct, toNext, totalXP };
+    }
     const unlockTier = String(data.start_level || user?.unlock_tier || user?.unlock_level || user?.unlockTier || "novice")
       .trim()
       .toLowerCase();
@@ -954,6 +964,11 @@ async function loadStats(email, user) {
       last_name: data.last_name || user?.last_name,
       username: data.username || user?.username,
       xp: totalXP,
+      numeric_level: Number.isFinite(serverLevel) && serverLevel > 0 ? serverLevel : stats.level,
+      xp_into_level: Number.isFinite(xpInto) ? xpInto : stats.currentLevelXP,
+      next_level_xp: Number.isFinite(nextXp) ? nextXp : stats.xpNext,
+      level: data.rank || data.level || user?.level,
+      rank: data.rank || data.level || user?.rank,
       unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
     };
     localStorage.setItem("user", JSON.stringify(mergedUser));
@@ -981,7 +996,13 @@ async function loadStats(email, user) {
     getById("levelText").textContent = stats.level;
     getById("xpText").textContent = stats.totalXP;
     getById("nextText").textContent = `${stats.currentLevelXP} / ${stats.xpNext}`;
-    getById("xpBar").style.width = `${stats.pct}%`;
+    const xpBar = getById("xpBar");
+    if (xpBar) xpBar.style.width = `${stats.pct}%`;
+    const statBar = getById("accountStatXpBar");
+    if (statBar) statBar.style.width = `${stats.pct}%`;
+    const totalBar = getById("accountTotalXpBar");
+    if (totalBar) totalBar.style.width = `${stats.pct}%`;
+    setText("accountTotalXpHint", `${stats.toNext} XP to next level`);
 
     return stats;
   } catch {
@@ -994,7 +1015,13 @@ async function loadStats(email, user) {
     getById("levelText").textContent = stats.level;
     getById("xpText").textContent = stats.totalXP;
     getById("nextText").textContent = `${stats.currentLevelXP} / ${stats.xpNext}`;
-    getById("xpBar").style.width = `${stats.pct}%`;
+    const xpBar = getById("xpBar");
+    if (xpBar) xpBar.style.width = `${stats.pct}%`;
+    const statBar = getById("accountStatXpBar");
+    if (statBar) statBar.style.width = `${stats.pct}%`;
+    const totalBar = getById("accountTotalXpBar");
+    if (totalBar) totalBar.style.width = `${stats.pct}%`;
+    setText("accountTotalXpHint", `${stats.toNext} XP to next level`);
 
     return stats;
   }

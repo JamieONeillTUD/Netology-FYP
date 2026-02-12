@@ -181,7 +181,7 @@
 
             <div class="net-xp-pill" id="accountXpText">0/100 XP</div>
             <div class="progress mt-2" style="height:10px;">
-              <div class="progress-bar bg-teal" id="xpBar" style="width:0%"></div>
+              <div class="progress-bar net-progress net-progress-fill" id="xpBar" style="width:0%"></div>
             </div>
           </div>
         </div>
@@ -200,6 +200,9 @@
             <div class="fw-bold fs-4" id="levelText">1</div>
             <div class="small text-muted" id="rankText"></div>
             <div class="small text-muted" id="nextText">0 / 100</div>
+            <div class="progress mt-2" style="height:8px;">
+              <div class="progress-bar net-progress net-progress-fill" id="accountStatXpBar" style="width:0%"></div>
+            </div>
           </div>
         </div>
 
@@ -208,7 +211,10 @@
           <div>
             <div class="text-muted small">Total XP</div>
             <div class="fw-bold fs-4" id="xpText">0</div>
-            <div class="small text-muted">Earned overall</div>
+            <div class="small text-muted" id="accountTotalXpHint">Earned overall</div>
+            <div class="progress mt-2" style="height:8px;">
+              <div class="progress-bar net-progress net-progress-fill" id="accountTotalXpBar" style="width:0%"></div>
+            </div>
           </div>
         </div>
 

@@ -100,6 +100,36 @@ function readUserFromStorage() {
   );
 }
 
+async function refreshUserFromServer(email) {
+  const apiBase = getApiBase();
+  if (!apiBase || !email) return;
+  try {
+    const res = await fetch(`${apiBase}/user-info?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    if (!data || !data.success) return;
+
+    const raw = readUserFromStorage();
+    const unlockTier = String(data.start_level || raw?.unlock_tier || raw?.unlock_level || raw?.unlockTier || "novice")
+      .trim()
+      .toLowerCase();
+
+    const merged = {
+      ...(raw || {}),
+      email,
+      first_name: data.first_name || raw?.first_name,
+      last_name: data.last_name || raw?.last_name,
+      username: data.username || raw?.username,
+      xp: Number(data.xp || data.total_xp || raw?.xp || 0),
+      unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
+    };
+
+    localStorage.setItem("user", JSON.stringify(merged));
+    localStorage.setItem("netology_user", JSON.stringify(merged));
+  } catch {
+    // ignore
+  }
+}
+
 function redirectToLogin() {
   window.location.href = "login.html";
 }
@@ -621,6 +651,9 @@ async function finishQuiz(state) {
 
   writeAttempt(state, payload);
   markQuizCompletion(state, payload);
+  if (award?.usedBackend) {
+    await refreshUserFromServer(state.email);
+  }
   renderResults(state, payload);
 }
 

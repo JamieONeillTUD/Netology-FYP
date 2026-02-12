@@ -147,6 +147,8 @@ Works with:
   }
 
   function userNumericLevel(user) {
+    const serverLevel = Number(user?.numeric_level);
+    if (Number.isFinite(serverLevel) && serverLevel > 0) return serverLevel;
     const totalXP = Number(user?.xp) || 0;
     return levelFromXP(totalXP);
   }
@@ -161,7 +163,16 @@ Works with:
   function computeXP(user) {
     // Converts total XP into level + progress for UI display.
     const totalXP = Number(user?.xp) || 0;
-    const level = levelFromXP(totalXP);
+    const serverLevel = Number(user?.numeric_level);
+    const xpInto = Number(user?.xp_into_level);
+    const nextXp = Number(user?.next_level_xp);
+    const fallbackLevel = levelFromXP(totalXP);
+    const level = Number.isFinite(serverLevel) && serverLevel > 0 ? serverLevel : fallbackLevel;
+    if (Number.isFinite(xpInto) && Number.isFinite(nextXp) && nextXp > 0) {
+      const progressPct = Math.max(0, Math.min(100, (xpInto / nextXp) * 100));
+      const toNext = Math.max(0, nextXp - xpInto);
+      return { totalXP, currentLevelXP: xpInto, xpNext: nextXp, progressPct, toNext, level };
+    }
     const levelStart = totalXpForLevel(level);
     const currentLevelXP = Math.max(0, totalXP - levelStart);
     const xpNext = xpForNextLevel(level);
@@ -369,7 +380,8 @@ Works with:
     const arc = 0.5; // 180deg arc (clear rainbow-style arch)
     const dash = CIRC * arc;
     const gap = CIRC - dash;
-    const offset = dash * (1 - (progressPct / 100));
+    const pct = Math.max(0, Math.min(100, Number(progressPct) || 0));
+    const offset = dash * (1 - (pct / 100));
 
     const dashArray = `${dash.toFixed(2)} ${gap.toFixed(2)}`;
     ring.style.strokeDasharray = dashArray;
@@ -1795,6 +1807,7 @@ Works with:
     if (getById("welcomeRank")) getById("welcomeRank").textContent = rank;
     if (getById("welcomeXpText")) getById("welcomeXpText").textContent = `${currentLevelXP}/${xpNext} XP`;
     if (getById("welcomeLevelHint")) getById("welcomeLevelHint").textContent = `${toNext} XP to next level`;
+    if (getById("welcomeXpBar")) getById("welcomeXpBar").style.width = `${progressPct}%`;
 
     setWelcomeRing(progressPct);
   }
@@ -1813,13 +1826,21 @@ Works with:
         .trim()
         .toLowerCase();
 
+      const serverXP = Number(data.xp ?? data.total_xp);
+      const xp = Number.isFinite(serverXP) ? serverXP : Number(user?.xp || 0);
+
       const merged = {
         ...(user || {}),
         email,
         first_name: data.first_name || user?.first_name,
         last_name: data.last_name || user?.last_name,
         username: data.username || user?.username,
-        xp: Number(data.xp || user?.xp || 0),
+        xp,
+        numeric_level: Number.isFinite(Number(data.numeric_level)) ? Number(data.numeric_level) : user?.numeric_level,
+        xp_into_level: Number.isFinite(Number(data.xp_into_level)) ? Number(data.xp_into_level) : user?.xp_into_level,
+        next_level_xp: Number.isFinite(Number(data.next_level_xp)) ? Number(data.next_level_xp) : user?.next_level_xp,
+        rank: data.rank || data.level || user?.rank,
+        level: data.level || data.rank || user?.level,
         unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
       };
 
