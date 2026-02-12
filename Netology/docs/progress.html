@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Netology | Progress</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
+  </head>
+  <body class="net-body">
+    <div class="net-app">
+      <!-- Sidebar (matches dashboard) -->
+      <aside class="net-sidebar">
+        <div class="net-side-header">
+          <a href="dashboard.html" class="net-brandchip" id="sideBrand" aria-label="Netology home">
+            <span class="net-brand-dot"></span>
+            <span class="net-brand-name">Netology</span>
+          </a>
+        </div>
+        <nav class="net-sidenav">
+          <a class="net-sidelink" href="dashboard.html"><i class="bi bi-grid-1x2"></i>Dashboard</a>
+          <a class="net-sidelink" href="account.html"><i class="bi bi-person-badge"></i>My Profile</a>
+          <a class="net-sidelink" href="courses.html"><i class="bi bi-journal-bookmark"></i>My Courses</a>
+          <a class="net-sidelink" href="sandbox.html"><i class="bi bi-diagram-3"></i>Network Sandbox</a>
+          <a class="net-sidelink" href="settings.html"><i class="bi bi-gear"></i>Settings</a>
+        </nav>
+      </aside>
+
+      <div class="net-main">
+        <!-- Top Nav (matches dashboard) -->
+        <header class="net-topnav">
+          <div class="container">
+            <div class="net-topbar">
+              <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
+                <span class="net-brand-dot"></span>
+                <span class="net-brand-name">Netology</span>
+              </a>
+              <div class="net-topbar-actions">
+                <div class="dropdown">
+                  <button class="btn btn-soft btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="me-2 net-avatar" id="topAvatar">U</span>
+                    <span id="topUserName">User</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li class="px-3 py-2">
+                      <div class="fw-semibold" id="ddName">User</div>
+                      <div class="small text-muted" id="ddEmail">email@example.com</div>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="account.html"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
+                    <li><a class="dropdown-item" href="settings.html"><i class="bi bi-gear me-2"></i>Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item text-danger" id="logoutBtn"><i class="bi bi-box-arrow-right me-2"></i>Log out</button></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="container py-4 net-shell">
+          <div class="net-page-head mb-4">
+            <div>
+              <div class="text-muted small" id="progressEyebrow">Progress overview</div>
+              <h1 class="net-page-title" id="progressTitle">Your progress</h1>
+              <p class="text-muted mb-0" id="progressSubtitle">A detailed list of what you’ve completed so far.</p>
+            </div>
+            <a href="dashboard.html" class="btn btn-soft btn-sm"><i class="bi bi-arrow-left me-2"></i>Back to dashboard</a>
+          </div>
+
+          <div class="net-card p-4 mb-4">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+              <div class="d-flex align-items-center gap-2">
+                <span class="net-pill-badge badge text-bg-light border" id="progressBadge">Summary</span>
+                <span class="text-muted small" id="progressMeta">Loading your progress…</span>
+              </div>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Progress filters">
+                <a class="btn btn-outline-secondary" href="progress.html?type=lessons">Lessons</a>
+                <a class="btn btn-outline-secondary" href="progress.html?type=quizzes">Quizzes</a>
+                <a class="btn btn-outline-secondary" href="progress.html?type=challenges">Challenges</a>
+                <a class="btn btn-outline-secondary" href="progress.html?type=in-progress">In progress</a>
+                <a class="btn btn-outline-secondary" href="progress.html?type=completed-courses">Completed courses</a>
+              </div>
+            </div>
+          </div>
+
+          <div id="progressList" class="net-progress-list"></div>
+          <div id="progressEmpty" class="net-empty d-none">
+            <i class="bi bi-journal-x"></i>
+            <div class="fw-bold">Nothing to show yet</div>
+            <div class="small text-muted">Complete a lesson, quiz, or course and it will appear here.</div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/course_content.js"></script>
+    <script src="js/progress.js"></script>
+  </body>
+</html>

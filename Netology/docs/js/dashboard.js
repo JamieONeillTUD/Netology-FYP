@@ -31,6 +31,18 @@ Works with:
   // Helpers
   // -----------------------------
   const getById = (id) => document.getElementById(id);
+  const clearChildren = (node) => { if (node) node.replaceChildren(); };
+  const makeEl = (tag, className, text) => {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    if (typeof text !== "undefined") el.textContent = text;
+    return el;
+  };
+  const makeIcon = (className) => {
+    const icon = document.createElement("i");
+    icon.className = className;
+    return icon;
+  };
   const BASE_XP = 100;
   const COURSE_CACHE_TTL = 5 * 60 * 1000;
   const COURSE_CACHE_VERSION = "db-only-v1";
@@ -724,17 +736,34 @@ Works with:
 
   function renderCourseProgress(progress) {
     const pct = Number(progress?.pct || 0);
-    return `
-      <div class="net-course-progress">
-        <div class="d-flex align-items-center justify-content-between small text-muted mb-2">
-          <span>Course progress</span>
-          <span class="fw-semibold">${pct}%</span>
-        </div>
-        <div class="net-meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-          <div class="net-meter-fill" style="width:${pct}%"></div>
-        </div>
-      </div>
-    `;
+    const wrap = document.createElement("div");
+    wrap.className = "net-course-progress";
+
+    const row = document.createElement("div");
+    row.className = "d-flex align-items-center justify-content-between small text-muted mb-2";
+
+    const label = document.createElement("span");
+    label.textContent = "Course progress";
+    const pctEl = document.createElement("span");
+    pctEl.className = "fw-semibold";
+    pctEl.textContent = `${pct}%`;
+
+    row.append(label, pctEl);
+
+    const meter = document.createElement("div");
+    meter.className = "net-meter";
+    meter.setAttribute("role", "progressbar");
+    meter.setAttribute("aria-valuenow", String(pct));
+    meter.setAttribute("aria-valuemin", "0");
+    meter.setAttribute("aria-valuemax", "100");
+
+    const fill = document.createElement("div");
+    fill.className = "net-meter-fill";
+    fill.style.width = `${pct}%`;
+    meter.appendChild(fill);
+
+    wrap.append(row, meter);
+    return wrap;
   }
 
   function getLocalProgressSummary(email) {
@@ -879,7 +908,8 @@ Works with:
     const user = getCurrentUser();
     const email = user?.email;
     if (!email) {
-      list.innerHTML = `<div class="small text-muted">Sign in to see your recent activity.</div>`;
+      clearChildren(list);
+      list.appendChild(makeEl("div", "small text-muted", "Sign in to see your recent activity."));
       return;
     }
 
@@ -898,31 +928,25 @@ Works with:
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    let activityHtml = "";
     const apiRecent = await fetchRecentActivity(email);
+    const activityItems = [];
 
     if (Array.isArray(apiRecent) && apiRecent.length) {
-      activityHtml = apiRecent.map((e) => {
+      apiRecent.forEach((e) => {
         const type = String(e?.type || "").toLowerCase();
         const label =
           type === "quiz" ? "Quiz passed" :
           type === "challenge" ? "Challenge completed" :
           "Lesson completed";
-        const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
         const time = e.completed_at ? formatRelative(new Date(e.completed_at).getTime()) : "";
-        const xp = Number(e.xp || 0);
-        const courseTitle = e.course_title || "Course";
-
-        return `
-          <div class="dash-activity-item">
-            <div>
-              <div class="fw-semibold">${label}</div>
-              <small>${courseTitle}${lessonPart}${time ? ` • ${time}` : ""}</small>
-            </div>
-            <div class="dash-activity-xp">${xp ? `+${xp} XP` : ""}</div>
-          </div>
-        `;
-      }).join("");
+        activityItems.push({
+          label,
+          courseTitle: e.course_title || "Course",
+          lessonNumber: e.lesson_number,
+          time,
+          xp: Number(e.xp || 0)
+        });
+      });
     } else {
       const progressLog = getProgressLog(email);
       const now = Date.now();
@@ -933,51 +957,74 @@ Works with:
         .slice(0, 8);
 
       if (!recent.length) {
-        activityHtml = `<div class="small text-muted">No recent activity yet.</div>`;
+        activityItems.push({
+          label: "No recent activity yet.",
+          courseTitle: "",
+          lessonNumber: null,
+          time: "",
+          xp: null,
+          isEmpty: true
+        });
       } else {
-        activityHtml = recent.map((e) => {
+        recent.forEach((e) => {
           const type = String(e?.type || "").toLowerCase();
           const label =
             type === "quiz" ? "Quiz passed" :
             type === "challenge" ? "Challenge completed" :
             type === "sandbox" ? "Sandbox build" :
             "Lesson completed";
-          const courseTitle = getCourseTitleById(e.course_id);
-          const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
-          const time = formatRelative(e.ts);
-          const xp = Number(e.xp || 0);
-
-          return `
-            <div class="dash-activity-item">
-              <div>
-                <div class="fw-semibold">${label}</div>
-                <small>${courseTitle}${lessonPart}${time ? ` • ${time}` : ""}</small>
-              </div>
-              <div class="dash-activity-xp">${xp ? `+${xp} XP` : ""}</div>
-            </div>
-          `;
-        }).join("");
+          activityItems.push({
+            label,
+            courseTitle: getCourseTitleById(e.course_id),
+            lessonNumber: e.lesson_number,
+            time: formatRelative(e.ts),
+            xp: Number(e.xp || 0)
+          });
+        });
       }
     }
 
-    list.innerHTML = `
-      <div class="dash-activity-item">
-        <div>
-          <div class="fw-semibold">Current streak</div>
-          <small>${streak} day${streak === 1 ? "" : "s"} in a row</small>
-        </div>
-        <div class="dash-activity-xp">${streak ? "Active" : "Start today"}</div>
-      </div>
-      <div class="dash-streak-row">
-        ${days.map((d) => `
-          <span class="dash-streak-day ${d.active ? "is-active" : ""}" title="${d.key}">
-            ${d.label}
-          </span>
-        `).join("")}
-      </div>
-      <div class="fw-semibold net-green-text mt-2">Tasks done</div>
-      ${activityHtml}
-    `;
+    clearChildren(list);
+
+    const streakItem = makeEl("div", "dash-activity-item");
+    const streakLeft = document.createElement("div");
+    const streakTitle = makeEl("div", "fw-semibold", "Current streak");
+    const streakSub = document.createElement("small");
+    streakSub.textContent = `${streak} day${streak === 1 ? "" : "s"} in a row`;
+    streakLeft.append(streakTitle, streakSub);
+    const streakRight = makeEl("div", "dash-activity-xp", streak ? "Active" : "Start today");
+    streakItem.append(streakLeft, streakRight);
+
+    const streakRow = makeEl("div", "dash-streak-row");
+    days.forEach((d) => {
+      const day = makeEl("span", `dash-streak-day ${d.active ? "is-active" : ""}`.trim(), d.label);
+      day.title = d.key;
+      streakRow.appendChild(day);
+    });
+
+    const tasksTitle = makeEl("div", "fw-semibold net-green-text mt-2", "Tasks done");
+
+    list.append(streakItem, streakRow, tasksTitle);
+
+    activityItems.forEach((item) => {
+      if (item.isEmpty) {
+        list.appendChild(makeEl("div", "small text-muted", item.label));
+        return;
+      }
+
+      const row = makeEl("div", "dash-activity-item");
+      const left = document.createElement("div");
+      const label = makeEl("div", "fw-semibold", item.label);
+      const meta = document.createElement("small");
+      const lessonPart = item.lessonNumber ? ` • Lesson ${item.lessonNumber}` : "";
+      const timePart = item.time ? ` • ${item.time}` : "";
+      meta.textContent = `${item.courseTitle || ""}${lessonPart}${timePart}`;
+      left.append(label, meta);
+
+      const right = makeEl("div", "dash-activity-xp", item.xp ? `+${item.xp} XP` : "");
+      row.append(left, right);
+      list.appendChild(row);
+    });
   }
 
   // -----------------------------
@@ -1002,12 +1049,6 @@ Works with:
       : diff === "intermediate" ? "bi-lightning-charge-fill"
       : "bi-leaf-fill";
 
-    const lockedOverlay = locked
-      ? `<div class="net-course-lock" aria-hidden="true">
-           <div class="net-course-lock-inner"><i class="bi bi-lock-fill me-1"></i> Level ${course.required_level}+ to unlock</div>
-         </div>`
-      : "";
-
     const card = document.createElement("div");
     card.className = "net-coursecard net-coursecard--library";
     if (locked) card.classList.add("is-locked");
@@ -1018,59 +1059,101 @@ Works with:
     card.setAttribute("tabindex", "0");
     card.setAttribute("aria-label", locked ? `${course.title} locked` : `${course.title} open course`);
 
-    const descHtml = course.description
-      ? `<div class="text-muted small mb-3">${course.description}</div>`
-      : "";
-
     const progress = computeCourseProgress(course, email);
-    const progressHtml = renderCourseProgress(progress);
+    if (locked) {
+      const overlay = document.createElement("div");
+      overlay.className = "net-course-lock";
+      overlay.setAttribute("aria-hidden", "true");
+      const overlayInner = document.createElement("div");
+      overlayInner.className = "net-course-lock-inner";
+      const lockIcon = makeIcon("bi bi-lock-fill me-1");
+      overlayInner.append(lockIcon, document.createTextNode(` Level ${course.required_level}+ to unlock`));
+      overlay.appendChild(overlayInner);
+      card.appendChild(overlay);
+    }
 
-    card.innerHTML = `
-      ${lockedOverlay}
-      <div class="net-coursebar ${gradClass}"></div>
-      <div class="p-4">
-        <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-          <div>
-            <div class="d-flex align-items-center gap-2 mb-2">
-              ${course.category ? `<span class="net-cat-chip">${course.category}</span>` : ``}
-              ${locked ? `<span class="net-lock-badge"><i class="bi bi-lock-fill"></i>Locked</span>` : ``}
-            </div>
-            <div class="fw-semibold fs-5">${course.title}</div>
-          </div>
-          <span class="net-diffbadge ${badgeClass}">
-            <i class="bi ${diffIcon}"></i>
-            ${prettyDiff(diff)}
-          </span>
-        </div>
+    const bar = document.createElement("div");
+    bar.className = `net-coursebar ${gradClass}`;
+    card.appendChild(bar);
 
-        ${descHtml}
+    const body = document.createElement("div");
+    body.className = "p-4";
 
-        ${progressHtml}
+    const header = document.createElement("div");
+    header.className = "d-flex align-items-start justify-content-between gap-2 mb-2";
 
-        <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta">
-          <span class="d-inline-flex align-items-center gap-1">
-            <i class="bi bi-collection" aria-hidden="true"></i> ${course.total_lessons || course.items || 0} lessons
-          </span>
-          <span class="d-inline-flex align-items-center gap-1">
-            <i class="bi bi-clock" aria-hidden="true"></i> ${course.estimated_time || "—"}
-          </span>
-          <span class="d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold">
-            <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> ${course.xpReward}
-          </span>
-        </div>
+    const left = document.createElement("div");
+    const chipRow = document.createElement("div");
+    chipRow.className = "d-flex align-items-center gap-2 mb-2";
+    if (course.category) {
+      const cat = makeEl("span", "net-cat-chip", course.category);
+      chipRow.appendChild(cat);
+    }
+    if (locked) {
+      const lockBadge = makeEl("span", "net-lock-badge");
+      lockBadge.append(makeIcon("bi bi-lock-fill"), document.createTextNode("Locked"));
+      chipRow.appendChild(lockBadge);
+    }
+    if (chipRow.childNodes.length) left.appendChild(chipRow);
 
-        ${locked ? `<div class="net-lockline mb-3"><i class="bi bi-lock me-2"></i>Level ${course.required_level}+ to unlock</div>` : ""}
+    const title = makeEl("div", "fw-semibold fs-5", course.title || "Course");
+    left.appendChild(title);
 
-        <div class="d-flex gap-2 flex-wrap course-cta">
-          <button class="btn ${locked ? "btn-outline-secondary" : "btn-teal"} btn-sm" ${locked ? "disabled" : ""} title="Open this course to view modules and lessons">
-            ${locked ? `Level ${course.required_level} required` : "Open"}
-          </button>
-          <a class="btn btn-soft btn-sm net-btn-icon" href="sandbox.html?course_id=${encodeURIComponent(course.key)}" title="Open the sandbox for a network simulation challenge">
-            <i class="bi bi-diagram-3 me-1"></i>Sandbox
-          </a>
-        </div>
-      </div>
-    `;
+    const badge = makeEl("span", `net-diffbadge ${badgeClass}`);
+    badge.append(makeIcon(`bi ${diffIcon}`), document.createTextNode(` ${prettyDiff(diff)}`));
+
+    header.append(left, badge);
+    body.appendChild(header);
+
+    if (course.description) {
+      const desc = makeEl("div", "text-muted small mb-3", course.description);
+      body.appendChild(desc);
+    }
+
+    body.appendChild(renderCourseProgress(progress));
+
+    const meta = makeEl("div", "net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta");
+
+    const lessonsMeta = makeEl("span", "d-inline-flex align-items-center gap-1");
+    const lessonsIcon = makeIcon("bi bi-collection");
+    lessonsIcon.setAttribute("aria-hidden", "true");
+    lessonsMeta.append(lessonsIcon, document.createTextNode(` ${course.total_lessons || course.items || 0} lessons`));
+
+    const timeMeta = makeEl("span", "d-inline-flex align-items-center gap-1");
+    const timeIcon = makeIcon("bi bi-clock");
+    timeIcon.setAttribute("aria-hidden", "true");
+    timeMeta.append(timeIcon, document.createTextNode(` ${course.estimated_time || "—"}`));
+
+    const xpMeta = makeEl("span", "d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold");
+    const xpIcon = makeIcon("bi bi-lightning-charge-fill");
+    xpIcon.setAttribute("aria-hidden", "true");
+    xpMeta.append(xpIcon, document.createTextNode(` ${course.xpReward}`));
+
+    meta.append(lessonsMeta, timeMeta, xpMeta);
+    body.appendChild(meta);
+
+    if (locked) {
+      const lockLine = makeEl("div", "net-lockline mb-3");
+      lockLine.append(makeIcon("bi bi-lock me-2"), document.createTextNode(`Level ${course.required_level}+ to unlock`));
+      body.appendChild(lockLine);
+    }
+
+    const cta = makeEl("div", "d-flex gap-2 flex-wrap course-cta");
+    const openBtn = makeEl("button", `btn ${locked ? "btn-outline-secondary" : "btn-teal"} btn-sm`, locked ? `Level ${course.required_level} required` : "Open");
+    openBtn.type = "button";
+    openBtn.title = "Open this course to view modules and lessons";
+    if (locked) openBtn.disabled = true;
+    cta.appendChild(openBtn);
+
+    const sandboxBtn = document.createElement("a");
+    sandboxBtn.className = "btn btn-soft btn-sm net-btn-icon";
+    sandboxBtn.href = `sandbox.html?course_id=${encodeURIComponent(course.key)}`;
+    sandboxBtn.title = "Open the sandbox for a network simulation challenge";
+    sandboxBtn.append(makeIcon("bi bi-diagram-3 me-1"), document.createTextNode("Sandbox"));
+    cta.appendChild(sandboxBtn);
+
+    body.appendChild(cta);
+    card.appendChild(body);
 
     function goCourse() {
       if (locked) return;
@@ -1123,11 +1206,11 @@ Works with:
       const empty = document.createElement("div");
       empty.id = emptyId;
       empty.className = "net-empty";
-      empty.innerHTML = `
-        <i class="bi bi-search"></i>
-        <div class="fw-bold">No courses found</div>
-        <div class="small text-muted">Try a different search or filter.</div>
-      `;
+      empty.append(
+        makeIcon("bi bi-search"),
+        makeEl("div", "fw-bold", "No courses found"),
+        makeEl("div", "small text-muted", "Try a different search or filter.")
+      );
       grid.appendChild(empty);
     }
   }
@@ -1206,7 +1289,8 @@ Works with:
 
     if (!email) {
       box.className = "dash-continue-list";
-      box.innerHTML = `<div class="text-muted small">Sign in to track your learning progress.</div>`;
+      clearChildren(box);
+      box.appendChild(makeEl("div", "text-muted small", "Sign in to track your learning progress."));
       return;
     }
 
@@ -1214,7 +1298,8 @@ Works with:
     const apiCourses = await fetchContinueCourses(email);
     if (Array.isArray(apiCourses) && apiCourses.length) {
       box.className = "dash-continue-list";
-      box.innerHTML = apiCourses.map((entry) => {
+      clearChildren(box);
+      apiCourses.forEach((entry) => {
         const course = content[String(entry.id)] || {};
         const title = entry.title || course.title || "Course";
         const diff = String(entry.difficulty || course.difficulty || "novice");
@@ -1225,7 +1310,6 @@ Works with:
         const pctApi = Math.max(0, Math.min(100, Number(entry.progress_pct || 0)));
         const doneApi = requiredApi ? Math.round((pctApi / 100) * requiredApi) : 0;
 
-        // Prefer local completion counts if they are higher (real-time UI updates).
         const comps = getCourseCompletionsLocal(email, entry.id);
         const requiredLocal = countRequiredItems(course);
         const doneLocal = comps.lesson.size + comps.quiz.size + comps.challenge.size;
@@ -1234,33 +1318,17 @@ Works with:
         const done = Math.max(doneApi, doneLocal);
         const pct = required ? Math.round((done / required) * 100) : Math.max(pctApi, 0);
 
-        return `
-          <div class="dash-continue-item" data-course-id="${entry.id}">
-            <div class="flex-grow-1">
-              <div class="fw-semibold">${title}</div>
-              <div class="dash-continue-meta">${category} • ${prettyDiff(diff)}</div>
-              <div class="net-meter mt-2" aria-label="Course progress">
-                <div class="net-meter-fill" style="width:${pct}%"></div>
-              </div>
-              <div class="small text-muted mt-1">${done}/${required || 0} items</div>
-            </div>
-            <div class="text-end">
-              <div class="small text-muted">Suggested</div>
-              <div class="fw-semibold net-xp-accent">
-                <i class="bi bi-lightning-charge-fill me-1"></i>${xpReward || 0}
-              </div>
-              <button class="btn btn-teal btn-sm mt-2" type="button">Continue</button>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      box.querySelectorAll("[data-course-id]").forEach((item) => {
-        item.addEventListener("click", () => {
-          const id = item.getAttribute("data-course-id");
-          if (!id) return;
-          window.location.href = `course.html?id=${encodeURIComponent(id)}`;
+        const item = buildContinueItem({
+          id: entry.id,
+          title,
+          category,
+          diff,
+          pct,
+          done,
+          required,
+          xpReward
         });
+        box.appendChild(item);
       });
       return;
     }
@@ -1273,7 +1341,8 @@ Works with:
 
     if (started.length) {
       box.className = "dash-continue-list";
-      box.innerHTML = started.map((entry) => {
+      clearChildren(box);
+      started.forEach((entry) => {
         const course = content[String(entry.id)] || (COURSE_CONTENT?.[String(entry.id)] || {});
         const title = course.title || "Course";
         const diff = String(course.difficulty || "novice");
@@ -1285,39 +1354,67 @@ Works with:
         const required = countRequiredItems(course);
         const pct = required ? Math.round((done / required) * 100) : 0;
 
-        return `
-          <div class="dash-continue-item" data-course-id="${entry.id}">
-            <div class="flex-grow-1">
-              <div class="fw-semibold">${title}</div>
-              <div class="dash-continue-meta">${category} • ${prettyDiff(diff)}</div>
-              <div class="net-meter mt-2" aria-label="Course progress">
-                <div class="net-meter-fill" style="width:${pct}%"></div>
-              </div>
-              <div class="small text-muted mt-1">${done}/${required || 0} items</div>
-            </div>
-            <div class="text-end">
-              <div class="small text-muted">Suggested</div>
-              <div class="fw-semibold net-xp-accent">
-                <i class="bi bi-lightning-charge-fill me-1"></i>${xpReward || 0}
-              </div>
-              <button class="btn btn-teal btn-sm mt-2" type="button">Continue</button>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      box.querySelectorAll("[data-course-id]").forEach((item) => {
-        item.addEventListener("click", () => {
-          const id = item.getAttribute("data-course-id");
-          if (!id) return;
-          window.location.href = `course.html?id=${encodeURIComponent(id)}`;
+        const item = buildContinueItem({
+          id: entry.id,
+          title,
+          category,
+          diff,
+          pct,
+          done,
+          required,
+          xpReward
         });
+        box.appendChild(item);
       });
       return;
     }
 
     box.className = "dash-continue-list";
-    box.innerHTML = `<div class="text-muted small">No started courses yet. Pick a course to begin.</div>`;
+    clearChildren(box);
+    box.appendChild(makeEl("div", "text-muted small", "No started courses yet. Pick a course to begin."));
+  }
+
+  function buildContinueItem({ id, title, category, diff, pct, done, required, xpReward }) {
+    const item = document.createElement("div");
+    item.className = "dash-continue-item";
+    item.setAttribute("data-course-id", String(id));
+
+    const left = document.createElement("div");
+    left.className = "flex-grow-1";
+
+    const titleEl = makeEl("div", "fw-semibold", title);
+    const meta = makeEl("div", "dash-continue-meta", `${category} • ${prettyDiff(diff)}`);
+
+    const meter = document.createElement("div");
+    meter.className = "net-meter mt-2";
+    meter.setAttribute("aria-label", "Course progress");
+    const meterFill = document.createElement("div");
+    meterFill.className = "net-meter-fill";
+    meterFill.style.width = `${pct}%`;
+    meter.appendChild(meterFill);
+
+    const count = makeEl("div", "small text-muted mt-1", `${done}/${required || 0} items`);
+    left.append(titleEl, meta, meter, count);
+
+    const right = document.createElement("div");
+    right.className = "text-end";
+    right.append(
+      makeEl("div", "small text-muted", "Suggested")
+    );
+
+    const xpWrap = makeEl("div", "fw-semibold net-xp-accent");
+    xpWrap.append(makeIcon("bi bi-lightning-charge-fill me-1"), document.createTextNode(String(xpReward || 0)));
+    right.appendChild(xpWrap);
+
+    const btn = makeEl("button", "btn btn-teal btn-sm mt-2", "Continue");
+    btn.type = "button";
+    right.appendChild(btn);
+
+    item.append(left, right);
+    item.addEventListener("click", () => {
+      window.location.href = `course.html?id=${encodeURIComponent(id)}`;
+    });
+    return item;
   }
 
   // -----------------------------
@@ -1360,13 +1457,14 @@ Works with:
       }
     }
     if (!courses.length) {
-      grid.innerHTML = `
-        <div class="net-empty">
-          <i class="bi bi-journal-x"></i>
-          <div class="fw-bold">No courses available</div>
-          <div class="small text-muted">Please check back later.</div>
-        </div>
-      `;
+      clearChildren(grid);
+      const empty = makeEl("div", "net-empty");
+      empty.append(
+        makeIcon("bi bi-journal-x"),
+        makeEl("div", "fw-bold", "No courses available"),
+        makeEl("div", "small text-muted", "Please check back later.")
+      );
+      grid.appendChild(empty);
       const lockNote = getById("lockNote");
       if (lockNote) lockNote.style.display = "none";
       if (banner) banner.classList.remove("d-none");
@@ -1374,7 +1472,7 @@ Works with:
     }
 
     if (banner) banner.classList.add("d-none");
-    grid.innerHTML = "";
+    clearChildren(grid);
     let anyLocked = false;
 
     courses.forEach((c) => {
@@ -1426,6 +1524,7 @@ Works with:
     if (getById("statCompleted")) getById("statCompleted").textContent = String(completed);
     if (getById("statLessons")) getById("statLessons").textContent = String(lessonsDone);
     if (getById("statQuizzes")) getById("statQuizzes").textContent = String(quizzesDone);
+    if (getById("statChallenges")) getById("statChallenges").textContent = String(challengesDone);
 
     // Login streak + streak badge progress
     const loginLog = email ? getLoginLog(email) : [];
@@ -1515,15 +1614,20 @@ Works with:
 
     const taskWrap = getById("weeklyTasks");
     if (taskWrap) {
-      taskWrap.innerHTML = shuffled.map((t) => `
-        <div class="dash-task" data-tip="${escapeHtml(`${t.tip} (+${t.xp} XP)`) }">
-          <div>
-            <div class="fw-semibold">${escapeHtml(t.title)}</div>
-            <div class="small text-muted">${t.progress}/${t.target} ${escapeHtml(t.unit)}</div>
-          </div>
-          <div class="dash-task-xp">+${t.xp} XP</div>
-        </div>
-      `).join("");
+      clearChildren(taskWrap);
+      shuffled.forEach((t) => {
+        const item = makeEl("div", "dash-task");
+        item.setAttribute("data-tip", `${t.tip} (+${t.xp} XP)`);
+
+        const left = document.createElement("div");
+        const title = makeEl("div", "fw-semibold", t.title);
+        const meta = makeEl("div", "small text-muted", `${t.progress}/${t.target} ${t.unit}`);
+        left.append(title, meta);
+
+        const xp = makeEl("div", "dash-task-xp", `+${t.xp} XP`);
+        item.append(left, xp);
+        taskWrap.appendChild(item);
+      });
     }
 
     const nextLoginBadge = streakDefs.find((d) => !earnedBadgeIds.has(d.id));
@@ -1572,42 +1676,46 @@ Works with:
 
     const list = getById("achievementsList");
     if (list) {
+      clearChildren(list);
       if (!pending.length) {
-        list.innerHTML = `<div class="small text-muted">All achievements completed. Great work.</div>`;
+        list.appendChild(makeEl("div", "small text-muted", "All achievements completed. Great work."));
       } else {
-        list.innerHTML = pending.map((a) => {
+        pending.forEach((a) => {
           const current = a.type === "login" ? Math.min(loginStreak, a.target) : (counts[a.type] || 0);
-          return `
-            <div class="dash-badge">
-              <span class="dash-badge-ico"><i class="bi ${a.icon}"></i></span>
-              <div>
-                <div class="fw-semibold">${a.title}</div>
-                <div class="small text-muted">${a.desc} (${current}/${a.target})</div>
-              </div>
-            </div>
-          `;
-        }).join("");
+          const badge = makeEl("div", "dash-badge");
+          const iconWrap = makeEl("span", "dash-badge-ico");
+          iconWrap.appendChild(makeIcon(`bi ${a.icon}`));
+          const body = document.createElement("div");
+          body.append(
+            makeEl("div", "fw-semibold", a.title),
+            makeEl("div", "small text-muted", `${a.desc} (${current}/${a.target})`)
+          );
+          badge.append(iconWrap, body);
+          list.appendChild(badge);
+        });
       }
     }
 
     const scroller = getById("achieveScroller");
     if (scroller) {
+      clearChildren(scroller);
       if (!pending.length) {
-        scroller.innerHTML = `<div class="small text-muted">All achievements completed. Great work.</div>`;
+        scroller.appendChild(makeEl("div", "small text-muted", "All achievements completed. Great work."));
       } else {
-        scroller.innerHTML = pending.map((a) => {
+        pending.forEach((a) => {
           const current = a.type === "login" ? Math.min(loginStreak, a.target) : (counts[a.type] || 0);
-          return `
-            <div class="dash-achieve-card">
-              <div class="dash-achieve-ico"><i class="bi ${a.icon}"></i></div>
-              <div>
-                <div class="fw-semibold">${a.title}</div>
-                <div class="small text-muted">${a.desc}</div>
-                <div class="small text-muted">${current}/${a.target}</div>
-              </div>
-            </div>
-          `;
-        }).join("");
+          const card = makeEl("div", "dash-achieve-card");
+          const ico = makeEl("div", "dash-achieve-ico");
+          ico.appendChild(makeIcon(`bi ${a.icon}`));
+          const body = document.createElement("div");
+          body.append(
+            makeEl("div", "fw-semibold", a.title),
+            makeEl("div", "small text-muted", a.desc),
+            makeEl("div", "small text-muted", `${current}/${a.target}`)
+          );
+          card.append(ico, body);
+          scroller.appendChild(card);
+        });
       }
     }
 

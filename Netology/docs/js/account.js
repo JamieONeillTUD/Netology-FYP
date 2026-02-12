@@ -62,6 +62,23 @@ function setText(id, text) {
   if (el) el.textContent = String(text ?? "");
 }
 
+function clearChildren(node) {
+  if (node) node.replaceChildren();
+}
+
+function makeEl(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (typeof text !== "undefined") el.textContent = text;
+  return el;
+}
+
+function makeIcon(className) {
+  const icon = document.createElement("i");
+  icon.className = className;
+  return icon;
+}
+
 function getCurrentUser() {
   return (
     parseJsonSafe(localStorage.getItem("netology_user"), null) ||
@@ -483,27 +500,28 @@ async function renderRecentActivity(email) {
 
   const apiRecent = await fetchRecentActivity(email);
   if (Array.isArray(apiRecent) && apiRecent.length) {
-    wrap.innerHTML = apiRecent.map((e) => {
+    clearChildren(wrap);
+    apiRecent.forEach((e) => {
       const type = String(e?.type || "").toLowerCase();
       const label =
         type === "quiz" ? "Quiz passed" :
           type === "challenge" ? "Challenge completed" :
             "Lesson completed";
-      const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
+      const lessonPart = e.lesson_number ? `Lesson ${e.lesson_number}` : "";
       const time = e.completed_at ? formatRelative(new Date(e.completed_at).getTime()) : "";
       const xp = Number(e.xp || 0);
       const courseTitle = e.course_title || "Course";
 
-      return `
-        <div class="net-activity-item">
-          <div>
-            <div class="fw-semibold">${label}</div>
-            <div class="small text-muted">${courseTitle}${lessonPart}${time ? ` • ${time}` : ""}</div>
-          </div>
-          <div class="net-activity-xp">${xp ? `+${xp} XP` : ""}</div>
-        </div>
-      `;
-    }).join("");
+      const item = makeEl("div", "net-activity-item");
+      const left = makeEl("div");
+      left.append(
+        makeEl("div", "fw-semibold", label),
+        makeEl("div", "small text-muted", [courseTitle, lessonPart, time].filter(Boolean).join(" • "))
+      );
+      const right = makeEl("div", "net-activity-xp", xp ? `+${xp} XP` : "");
+      item.append(left, right);
+      wrap.appendChild(item);
+    });
     return;
   }
 
@@ -516,12 +534,14 @@ async function renderRecentActivity(email) {
     .slice(0, 6);
 
   if (!recent.length) {
-    wrap.innerHTML = `<div class="small text-muted">No activity yet.</div>`;
+    clearChildren(wrap);
+    wrap.appendChild(makeEl("div", "small text-muted", "No activity yet."));
     return;
   }
 
   const content = getCourseIndex();
-  wrap.innerHTML = recent.map((e) => {
+  clearChildren(wrap);
+  recent.forEach((e) => {
     const type = String(e?.type || "").toLowerCase();
     const label =
       type === "quiz" ? "Quiz passed" :
@@ -530,20 +550,20 @@ async function renderRecentActivity(email) {
             "Lesson completed";
     const course = content[String(e.course_id)] || {};
     const courseTitle = course.title || "Course";
-    const lessonPart = e.lesson_number ? ` • Lesson ${e.lesson_number}` : "";
+    const lessonPart = e.lesson_number ? `Lesson ${e.lesson_number}` : "";
     const time = formatRelative(e.ts);
     const xp = Number(e.xp || 0);
 
-    return `
-      <div class="net-activity-item">
-        <div>
-          <div class="fw-semibold">${label}</div>
-          <div class="small text-muted">${courseTitle}${lessonPart}${time ? ` • ${time}` : ""}</div>
-        </div>
-        <div class="net-activity-xp">${xp ? `+${xp} XP` : ""}</div>
-      </div>
-    `;
-  }).join("");
+    const item = makeEl("div", "net-activity-item");
+    const left = makeEl("div");
+    left.append(
+      makeEl("div", "fw-semibold", label),
+      makeEl("div", "small text-muted", [courseTitle, lessonPart, time].filter(Boolean).join(" • "))
+    );
+    const right = makeEl("div", "net-activity-xp", xp ? `+${xp} XP` : "");
+    item.append(left, right);
+    wrap.appendChild(item);
+  });
 }
 
 async function renderTopologies(email) {
@@ -551,7 +571,8 @@ async function renderTopologies(email) {
   if (!wrap) return;
   const base = String(window.API_BASE || "").replace(/\/$/, "");
   if (!base || !email) {
-    wrap.innerHTML = `<div class="small text-muted">No saved topologies yet.</div>`;
+    clearChildren(wrap);
+    wrap.appendChild(makeEl("div", "small text-muted", "No saved topologies yet."));
     return;
   }
 
@@ -559,23 +580,30 @@ async function renderTopologies(email) {
     const res = await fetch(`${base}/load-topologies?email=${encodeURIComponent(email)}`);
     const data = await res.json();
     if (!data.success || !Array.isArray(data.topologies) || !data.topologies.length) {
-      wrap.innerHTML = `<div class="small text-muted">No saved topologies yet.</div>`;
+      clearChildren(wrap);
+      wrap.appendChild(makeEl("div", "small text-muted", "No saved topologies yet."));
       return;
     }
 
-    wrap.innerHTML = data.topologies.slice(0, 6).map((t) => {
+    clearChildren(wrap);
+    data.topologies.slice(0, 6).forEach((t) => {
       const devices = Array.isArray(t.devices) ? t.devices.length : 0;
       const links = Array.isArray(t.connections) ? t.connections.length : 0;
       const when = t.created_at ? new Date(t.created_at).toLocaleDateString() : "";
-      return `
-        <div class="net-topology-card">
-          <div class="fw-semibold">${t.name || "Unnamed topology"}</div>
-          <div class="small text-muted">${devices} devices • ${links} links${when ? ` • ${when}` : ""}</div>
-        </div>
-      `;
-    }).join("");
+      const card = makeEl("div", "net-topology-card");
+      card.append(
+        makeEl("div", "fw-semibold", t.name || "Unnamed topology"),
+        makeEl(
+          "div",
+          "small text-muted",
+          [ `${devices} devices`, `${links} links`, when ].filter(Boolean).join(" • ")
+        )
+      );
+      wrap.appendChild(card);
+    });
   } catch {
-    wrap.innerHTML = `<div class="small text-muted">No saved topologies yet.</div>`;
+    clearChildren(wrap);
+    wrap.appendChild(makeEl("div", "small text-muted", "No saved topologies yet."));
   }
 }
 
@@ -598,19 +626,20 @@ async function renderQuizHistory(email) {
 
   const apiHistory = await fetchQuizHistory(email);
   if (Array.isArray(apiHistory) && apiHistory.length) {
-    wrap.innerHTML = apiHistory.map((e) => {
+    clearChildren(wrap);
+    apiHistory.forEach((e) => {
       const courseTitle = e.course_title || "Course";
       const lessonPart = e.lesson_number ? `Lesson ${e.lesson_number}` : "Quiz";
       const time = e.completed_at ? formatRelative(new Date(e.completed_at).getTime()) : "";
-      return `
-        <div class="net-quiz-item">
-          <div>
-            <div class="fw-semibold">${courseTitle}</div>
-            <div class="small text-muted">${lessonPart}${time ? ` • ${time}` : ""}</div>
-          </div>
-        </div>
-      `;
-    }).join("");
+      const item = makeEl("div", "net-quiz-item");
+      const left = makeEl("div");
+      left.append(
+        makeEl("div", "fw-semibold", courseTitle),
+        makeEl("div", "small text-muted", [lessonPart, time].filter(Boolean).join(" • "))
+      );
+      item.appendChild(left);
+      wrap.appendChild(item);
+    });
     return;
   }
 
@@ -621,27 +650,29 @@ async function renderQuizHistory(email) {
     .slice(0, 8);
 
   if (!quizzes.length) {
-    wrap.innerHTML = `<div class="small text-muted">No quizzes completed yet.</div>`;
+    clearChildren(wrap);
+    wrap.appendChild(makeEl("div", "small text-muted", "No quizzes completed yet."));
     return;
   }
 
   const content = getCourseIndex();
-  wrap.innerHTML = quizzes.map((e) => {
+  clearChildren(wrap);
+  quizzes.forEach((e) => {
     const course = content[String(e.course_id)] || {};
     const courseTitle = course.title || "Course";
     const lessonPart = e.lesson_number ? `Lesson ${e.lesson_number}` : "Quiz";
     const time = formatRelative(e.ts);
     const xp = Number(e.xp || 0);
-    return `
-      <div class="net-quiz-item">
-        <div>
-          <div class="fw-semibold">${courseTitle}</div>
-          <div class="small text-muted">${lessonPart}${time ? ` • ${time}` : ""}</div>
-        </div>
-        <div class="net-activity-xp">${xp ? `+${xp} XP` : ""}</div>
-      </div>
-    `;
-  }).join("");
+    const item = makeEl("div", "net-quiz-item");
+    const left = makeEl("div");
+    left.append(
+      makeEl("div", "fw-semibold", courseTitle),
+      makeEl("div", "small text-muted", [lessonPart, time].filter(Boolean).join(" • "))
+    );
+    const right = makeEl("div", "net-activity-xp", xp ? `+${xp} XP` : "");
+    item.append(left, right);
+    wrap.appendChild(item);
+  });
 }
 
 /* =========================================================
@@ -804,7 +835,7 @@ function renderLoginActivity(email, loginStreak) {
 
   const log = getLoginLog(email);
   const set = new Set(log);
-  const cells = [];
+  clearChildren(grid);
   const days = 30;
   const today = new Date();
 
@@ -815,10 +846,10 @@ function renderLoginActivity(email, loginStreak) {
     const active = set.has(key);
     const withinStreak = loginStreak > 0 && i < loginStreak; // most recent streak days
     const cls = active ? (withinStreak ? "net-activity-cell is-streak" : "net-activity-cell is-active") : "net-activity-cell";
-    cells.push(`<span class="${cls}" title="${key}"></span>`);
+    const cell = makeEl("span", cls);
+    cell.title = key;
+    grid.appendChild(cell);
   }
-
-  grid.innerHTML = cells.join("");
 }
 
 function renderAchievements(email, loginStreak) {
@@ -851,24 +882,35 @@ function renderAchievements(email, loginStreak) {
     const existing = earnedBadges.find((b) => b.id === a.id);
     const tier = existing?.tier || a.tier || "bronze";
 
-    const card = `
-      <div class="net-badge-card ${achieved ? `is-earned tier-${tier}` : "is-locked"}">
-        <div class="net-badge-ico"><i class="bi ${a.icon}"></i></div>
-        <div>
-          <div class="fw-semibold">${a.name}</div>
-          <div class="small text-muted">${a.description}</div>
-          <div class="small text-muted">${Math.min(current, a.target)}/${a.target}</div>
-          ${a.xp ? `<div class="small text-muted">+${a.xp} XP</div>` : ""}
-        </div>
-      </div>
-    `;
+    const card = makeEl("div", `net-badge-card ${achieved ? `is-earned tier-${tier}` : "is-locked"}`);
+    const ico = makeEl("div", "net-badge-ico");
+    ico.appendChild(makeIcon(`bi ${a.icon}`));
+    const body = makeEl("div");
+    body.append(
+      makeEl("div", "fw-semibold", a.name),
+      makeEl("div", "small text-muted", a.description),
+      makeEl("div", "small text-muted", `${Math.min(current, a.target)}/${a.target}`)
+    );
+    if (a.xp) body.appendChild(makeEl("div", "small text-muted", `+${a.xp} XP`));
+    card.append(ico, body);
 
     if (achieved) earned.push(card);
     else locked.push(card);
   });
 
-  earnedWrap.innerHTML = earned.length ? earned.join("") : `<div class="small text-muted">No badges earned yet.</div>`;
-  lockedWrap.innerHTML = locked.length ? locked.join("") : `<div class="small text-muted">All badges unlocked.</div>`;
+  clearChildren(earnedWrap);
+  if (earned.length) {
+    earned.forEach((card) => earnedWrap.appendChild(card));
+  } else {
+    earnedWrap.appendChild(makeEl("div", "small text-muted", "No badges earned yet."));
+  }
+
+  clearChildren(lockedWrap);
+  if (locked.length) {
+    locked.forEach((card) => lockedWrap.appendChild(card));
+  } else {
+    lockedWrap.appendChild(makeEl("div", "small text-muted", "All badges unlocked."));
+  }
 
   if (countEl) countEl.textContent = `${earned.length} earned`;
   const badgePill = getById("badgePill");

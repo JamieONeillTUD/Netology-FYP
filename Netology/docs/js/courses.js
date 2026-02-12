@@ -243,17 +243,35 @@ function computeCourseProgress(course, email) {
 
 function renderCourseProgress(progress) {
   const pct = Number(progress?.pct || 0);
-  return `
-    <div class="net-course-progress">
-      <div class="d-flex align-items-center justify-content-between small text-muted mb-2">
-        <span>Course progress</span>
-        <span class="fw-semibold">${pct}%</span>
-      </div>
-      <div class="net-meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-        <div class="net-meter-fill" style="width:${pct}%"></div>
-      </div>
-    </div>
-  `;
+  const wrap = document.createElement("div");
+  wrap.className = "net-course-progress";
+
+  const row = document.createElement("div");
+  row.className = "d-flex align-items-center justify-content-between small text-muted mb-2";
+
+  const label = document.createElement("span");
+  label.textContent = "Course progress";
+
+  const pctEl = document.createElement("span");
+  pctEl.className = "fw-semibold";
+  pctEl.textContent = `${pct}%`;
+
+  row.append(label, pctEl);
+
+  const meter = document.createElement("div");
+  meter.className = "net-meter";
+  meter.setAttribute("role", "progressbar");
+  meter.setAttribute("aria-valuenow", String(pct));
+  meter.setAttribute("aria-valuemin", "0");
+  meter.setAttribute("aria-valuemax", "100");
+
+  const fill = document.createElement("div");
+  fill.className = "net-meter-fill";
+  fill.style.width = `${pct}%`;
+  meter.appendChild(fill);
+
+  wrap.append(row, meter);
+  return wrap;
 }
 
 function setCachedCourseIndex(index) {
@@ -492,9 +510,9 @@ function renderCourses(courses, userLevel) {
   const q = String(window.__coursesSearch || "").trim().toLowerCase();
   const email = String(window.__coursesUserEmail || "");
 
-  noviceRow.innerHTML = "";
-  intermediateRow.innerHTML = "";
-  advancedRow.innerHTML = "";
+  noviceRow.replaceChildren();
+  intermediateRow.replaceChildren();
+  advancedRow.replaceChildren();
 
   const counts = { novice: 0, intermediate: 0, advanced: 0 };
 
@@ -514,7 +532,7 @@ function renderCourses(courses, userLevel) {
           noviceRow;
 
     const progress = computeCourseProgress(c, email);
-    row.insertAdjacentHTML("beforeend", courseCardHtml(c, lock, progress));
+    row.appendChild(buildCourseCardElement(c, lock, progress));
     if (diff === "advanced" || diff === "intermediate" || diff === "novice") {
       counts[diff] += 1;
     } else {
@@ -527,7 +545,7 @@ function renderCourses(courses, userLevel) {
   renderTrackEmpty(advancedRow, counts.advanced, "No advanced courses match this search yet.");
 }
 
-function courseCardHtml(course, lock, progress) {
+function buildCourseCardElement(course, lock, progress) {
   const lockedText = lock.locked ? `Locked — unlocks at Level ${lock.required}` : "";
 
   const diff = String(lock.difficulty || "Novice").toLowerCase();
@@ -549,69 +567,159 @@ function courseCardHtml(course, lock, progress) {
 
   const btnLabel = lock.locked ? `Level ${lock.required} required` : "Open";
   const btnClass = lock.locked ? "btn btn-outline-secondary" : "btn btn-teal";
-  const btnAttr = lock.locked ? "disabled" : `onclick="window.location.href='course.html?id=${encodeURIComponent(course.id)}'"`;
-
-  const lockedOverlay = lock.locked
-    ? `<div class="net-course-lock" aria-hidden="true">
-         <div class="net-course-lock-inner"><i class="bi bi-lock-fill me-1"></i> Level ${lock.required}+ to unlock</div>
-       </div>`
-    : "";
-
-  const cardAction = lock.locked ? "" : `onclick="window.location.href='course.html?id=${encodeURIComponent(course.id)}'"`;
+  const courseLink = `course.html?id=${encodeURIComponent(course.id)}`;
   const sandboxLink = `sandbox.html?course_id=${encodeURIComponent(course.id)}`;
   const diffIcon =
     diffLabel.toLowerCase() === "advanced" ? "bi-shield-lock-fill"
       : diffLabel.toLowerCase() === "intermediate" ? "bi-lightning-charge-fill"
         : "bi-leaf-fill";
 
-  const progressHtml = renderCourseProgress(progress);
+  const article = document.createElement("article");
+  article.className = `net-coursecard net-coursecard--library ${lock.locked ? "is-locked" : ""}`.trim();
+  article.tabIndex = 0;
+  article.setAttribute("role", "button");
+  article.setAttribute("aria-label", `Open course ${course.title || ""}`);
+  if (!lock.locked) {
+    article.addEventListener("click", () => { window.location.href = courseLink; });
+    article.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        window.location.href = courseLink;
+      }
+    });
+  }
 
-  return `
-    <article class="net-coursecard net-coursecard--library ${lock.locked ? "is-locked" : ""}" tabindex="0" role="button" aria-label="Open course ${escapeHtml(course.title)}" ${cardAction}>
-      ${lockedOverlay}
-      <div class="net-coursebar ${gradClass}"></div>
-      <div class="p-4">
-        <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-          <div>
-            <div class="d-flex align-items-center gap-2 mb-2">
-              ${course.category ? `<span class="net-cat-chip">${escapeHtml(course.category)}</span>` : ``}
-              ${lock.locked ? `<span class="net-lock-badge"><i class="bi bi-lock-fill"></i>Locked</span>` : ``}
-            </div>
-            <div class="fw-semibold fs-5">${escapeHtml(course.title)}</div>
-          </div>
-          <span class="net-diffbadge ${diffBadgeClass}">
-            <i class="bi ${diffIcon}"></i>
-            ${diffLabel}
-          </span>
-        </div>
+  if (lock.locked) {
+    const overlay = document.createElement("div");
+    overlay.className = "net-course-lock";
+    overlay.setAttribute("aria-hidden", "true");
+    const overlayInner = document.createElement("div");
+    overlayInner.className = "net-course-lock-inner";
+    const lockIcon = document.createElement("i");
+    lockIcon.className = "bi bi-lock-fill me-1";
+    overlayInner.append(lockIcon, document.createTextNode(` Level ${lock.required}+ to unlock`));
+    overlay.appendChild(overlayInner);
+    article.appendChild(overlay);
+  }
 
-        ${course.description ? `<div class="text-muted small mb-3">${escapeHtml(course.description)}</div>` : ""}
+  const bar = document.createElement("div");
+  bar.className = `net-coursebar ${gradClass}`;
+  article.appendChild(bar);
 
-        ${progressHtml}
+  const body = document.createElement("div");
+  body.className = "p-4";
 
-        <div class="net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta">
-          <span class="d-inline-flex align-items-center gap-1">
-            <i class="bi bi-collection" aria-hidden="true"></i> ${lessons || 0} lessons
-          </span>
-          <span class="d-inline-flex align-items-center gap-1">
-            <i class="bi bi-clock" aria-hidden="true"></i> ${escapeHtml(time || "—")}
-          </span>
-          <span class="d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold">
-            <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> ${totalXP || 0} XP
-          </span>
-        </div>
+  const header = document.createElement("div");
+  header.className = "d-flex align-items-start justify-content-between gap-2 mb-2";
 
-        ${lock.locked ? `<div class="net-lockline mb-3"><i class="bi bi-lock me-2"></i>${escapeHtml(lockedText)}</div>` : ""}
+  const left = document.createElement("div");
+  const chips = document.createElement("div");
+  chips.className = "d-flex align-items-center gap-2 mb-2";
+  if (course.category) {
+    const cat = document.createElement("span");
+    cat.className = "net-cat-chip";
+    cat.textContent = String(course.category);
+    chips.appendChild(cat);
+  }
+  if (lock.locked) {
+    const lockBadge = document.createElement("span");
+    lockBadge.className = "net-lock-badge";
+    const lockIco = document.createElement("i");
+    lockIco.className = "bi bi-lock-fill";
+    lockBadge.append(lockIco, document.createTextNode("Locked"));
+    chips.appendChild(lockBadge);
+  }
+  if (chips.childNodes.length) left.appendChild(chips);
 
-        <div class="d-flex gap-2 flex-wrap course-cta">
-          <button class="${btnClass} btn-sm" type="button" ${btnAttr} title="Open this course to view modules and lessons">${escapeHtml(btnLabel)}</button>
-          <a class="btn btn-soft btn-sm net-btn-icon" href="${sandboxLink}" title="Open the sandbox for a network simulation challenge">
-            <i class="bi bi-diagram-3 me-1"></i>Sandbox
-          </a>
-        </div>
-      </div>
-    </article>
-  `;
+  const title = document.createElement("div");
+  title.className = "fw-semibold fs-5";
+  title.textContent = String(course.title || "Course");
+  left.appendChild(title);
+
+  const badge = document.createElement("span");
+  badge.className = `net-diffbadge ${diffBadgeClass}`;
+  const badgeIcon = document.createElement("i");
+  badgeIcon.className = `bi ${diffIcon}`;
+  badge.append(badgeIcon, document.createTextNode(` ${diffLabel}`));
+
+  header.append(left, badge);
+  body.appendChild(header);
+
+  if (course.description) {
+    const desc = document.createElement("div");
+    desc.className = "text-muted small mb-3";
+    desc.textContent = String(course.description);
+    body.appendChild(desc);
+  }
+
+  body.appendChild(renderCourseProgress(progress));
+
+  const meta = document.createElement("div");
+  meta.className = "net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta";
+
+  const metaLessons = document.createElement("span");
+  metaLessons.className = "d-inline-flex align-items-center gap-1";
+  const metaLessonsIcon = document.createElement("i");
+  metaLessonsIcon.className = "bi bi-collection";
+  metaLessonsIcon.setAttribute("aria-hidden", "true");
+  metaLessons.append(metaLessonsIcon, document.createTextNode(` ${lessons || 0} lessons`));
+
+  const metaTime = document.createElement("span");
+  metaTime.className = "d-inline-flex align-items-center gap-1";
+  const metaTimeIcon = document.createElement("i");
+  metaTimeIcon.className = "bi bi-clock";
+  metaTimeIcon.setAttribute("aria-hidden", "true");
+  metaTime.append(metaTimeIcon, document.createTextNode(` ${time || "—"}`));
+
+  const metaXp = document.createElement("span");
+  metaXp.className = "d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold";
+  const metaXpIcon = document.createElement("i");
+  metaXpIcon.className = "bi bi-lightning-charge-fill";
+  metaXpIcon.setAttribute("aria-hidden", "true");
+  metaXp.append(metaXpIcon, document.createTextNode(` ${totalXP || 0} XP`));
+
+  meta.append(metaLessons, metaTime, metaXp);
+  body.appendChild(meta);
+
+  if (lock.locked) {
+    const lockLine = document.createElement("div");
+    lockLine.className = "net-lockline mb-3";
+    const lockLineIcon = document.createElement("i");
+    lockLineIcon.className = "bi bi-lock me-2";
+    lockLine.append(lockLineIcon, document.createTextNode(lockedText));
+    body.appendChild(lockLine);
+  }
+
+  const cta = document.createElement("div");
+  cta.className = "d-flex gap-2 flex-wrap course-cta";
+
+  const openBtn = document.createElement("button");
+  openBtn.className = `${btnClass} btn-sm`;
+  openBtn.type = "button";
+  openBtn.title = "Open this course to view modules and lessons";
+  openBtn.textContent = btnLabel;
+  if (lock.locked) {
+    openBtn.disabled = true;
+  } else {
+    openBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.location.href = courseLink;
+    });
+  }
+
+  const sandboxBtn = document.createElement("a");
+  sandboxBtn.className = "btn btn-soft btn-sm net-btn-icon";
+  sandboxBtn.href = sandboxLink;
+  sandboxBtn.title = "Open the sandbox for a network simulation challenge";
+  const sandboxIcon = document.createElement("i");
+  sandboxIcon.className = "bi bi-diagram-3 me-1";
+  sandboxBtn.append(sandboxIcon, document.createTextNode("Sandbox"));
+
+  cta.append(openBtn, sandboxBtn);
+  body.appendChild(cta);
+  article.appendChild(body);
+
+  return article;
 }
 
 function escapeHtml(str) {
@@ -625,11 +733,18 @@ function renderTrackEmpty(row, count, message) {
   if (!row) return;
   if (count > 0) return;
 
-  row.innerHTML = `
-    <div class="net-empty net-empty--tiny">
-      <i class="bi bi-search"></i>
-      <div class="fw-semibold">Nothing to show</div>
-      <div class="small text-muted">${escapeHtml(message)}</div>
-    </div>
-  `;
+  const empty = document.createElement("div");
+  empty.className = "net-empty net-empty--tiny";
+
+  const icon = document.createElement("i");
+  icon.className = "bi bi-search";
+  const title = document.createElement("div");
+  title.className = "fw-semibold";
+  title.textContent = "Nothing to show";
+  const desc = document.createElement("div");
+  desc.className = "small text-muted";
+  desc.textContent = String(message || "");
+
+  empty.append(icon, title, desc);
+  row.appendChild(empty);
 }

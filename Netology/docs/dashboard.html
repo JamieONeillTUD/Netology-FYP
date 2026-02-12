@@ -224,41 +224,50 @@ Updates requested:
 
             <!-- Stats (dashboard.js fills IDs) -->
             <div class="dash-statgrid mt-3" id="progress">
-              <div class="dash-stat dash-stat--green">
+              <a class="dash-stat dash-stat--green dash-stat-link" href="progress.html?type=lessons" aria-label="View completed lessons">
                 <div class="dash-stat-ico"><i class="bi bi-check2-circle"></i></div>
                 <div>
                   <div class="text-muted small">Lessons completed</div>
                   <div class="fw-bold fs-4" id="statLessons">0</div>
                   <div class="small text-muted">Keep your streak going</div>
                 </div>
-              </div>
+              </a>
 
-              <div class="dash-stat dash-stat--blue">
+              <a class="dash-stat dash-stat--blue dash-stat-link" href="progress.html?type=quizzes" aria-label="View completed quizzes">
                 <div class="dash-stat-ico"><i class="bi bi-patch-check"></i></div>
                 <div>
                   <div class="text-muted small">Quizzes passed</div>
                   <div class="fw-bold fs-4" id="statQuizzes">0</div>
                   <div class="small text-muted">Boost confidence fast</div>
                 </div>
-              </div>
+              </a>
 
-              <div class="dash-stat dash-stat--amber">
+              <a class="dash-stat dash-stat--violet dash-stat-link" href="progress.html?type=challenges" aria-label="View completed challenges">
+                <div class="dash-stat-ico"><i class="bi bi-flag"></i></div>
+                <div>
+                  <div class="text-muted small">Challenges completed</div>
+                  <div class="fw-bold fs-4" id="statChallenges">0</div>
+                  <div class="small text-muted">Hands-on progress</div>
+                </div>
+              </a>
+
+              <a class="dash-stat dash-stat--amber dash-stat-link" href="progress.html?type=in-progress" aria-label="View courses in progress">
                 <div class="dash-stat-ico"><i class="bi bi-journal-text"></i></div>
                 <div>
                   <div class="text-muted small">In progress</div>
                   <div class="fw-bold fs-4" id="statInProgress">0</div>
                   <div class="small text-muted">Continue where you stopped</div>
                 </div>
-              </div>
+              </a>
 
-              <div class="dash-stat dash-stat--teal">
+              <a class="dash-stat dash-stat--teal dash-stat-link" href="progress.html?type=completed-courses" aria-label="View completed courses">
                 <div class="dash-stat-ico"><i class="bi bi-award"></i></div>
                 <div>
                   <div class="text-muted small">Completed courses</div>
                   <div class="fw-bold fs-4" id="statCompleted">0</div>
                   <div class="small text-muted">Review anytime</div>
                 </div>
-              </div>
+              </a>
             </div>
 
             <div class="dash-achieve mt-3">

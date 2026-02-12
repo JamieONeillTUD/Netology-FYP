@@ -61,6 +61,35 @@ What this file does:
   ========================================================= */
 
   const getById = (id) => document.getElementById(id);
+  const clearChildren = (node) => { if (node) node.replaceChildren(); };
+  const makeEl = (tag, className, text) => {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    if (typeof text !== "undefined") el.textContent = text;
+    return el;
+  };
+  const makeIcon = (className) => {
+    const icon = document.createElement("i");
+    icon.className = className;
+    return icon;
+  };
+
+  function appendTextWithBreaks(node, text) {
+    if (!node) return;
+    const parts = String(text || "").split(/\n/);
+    parts.forEach((part, idx) => {
+      node.appendChild(document.createTextNode(part));
+      if (idx < parts.length - 1) node.appendChild(document.createElement("br"));
+    });
+  }
+
+  function setButtonIconText(btn, iconClass, label) {
+    if (!btn) return;
+    btn.replaceChildren();
+    const icon = makeIcon(iconClass);
+    icon.setAttribute("aria-hidden", "true");
+    btn.append(icon, document.createTextNode(` ${label}`));
+  }
 
   function setText(id, text) {
     const n = getById(id);
@@ -1053,7 +1082,7 @@ What this file does:
         activePill.classList.toggle("d-none", !(prog.done > 0));
       }
       if (continueBtn) {
-        continueBtn.innerHTML = `Continue <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>`;
+        setButtonIconText(continueBtn, "bi bi-chevron-right ms-1", "Continue");
       }
     }
 
@@ -1113,68 +1142,100 @@ What this file does:
     if (!wrap) return;
 
     if (!state.course.modules.length) {
-      wrap.innerHTML = "";
+      clearChildren(wrap);
       empty?.classList.remove("d-none");
       return;
     }
     empty?.classList.add("d-none");
 
-    wrap.innerHTML = "";
+    clearChildren(wrap);
 
     state.course.modules.forEach((m, idx) => {
       const modProg = computeModuleCompletion(m);
       const expanded = state.expandedModules.has(m.id);
 
-      const iconHtml = moduleIcon(modProg, state.courseLocked);
-      const headerBadge = modProg.completed
-        ? `<span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Completed</span>`
-        : modProg.done > 0
-          ? `<span class="badge bg-info text-dark"><i class="bi bi-play-fill me-1"></i>Active</span>`
-          : `<span class="badge text-bg-light border">${modProg.done}/${modProg.total} items</span>`;
+      const article = document.createElement("article");
+      article.className = "net-course-card net-module-card";
+      article.dataset.moduleId = String(m.id);
 
-      const chevronClass = expanded ? "bi-chevron-up" : "bi-chevron-down";
-      const bodyStyle = expanded ? "" : "style='display:none'";
+      const shell = document.createElement("div");
+      shell.className = "p-0";
 
-      wrap.insertAdjacentHTML("beforeend", `
-        <article class="net-course-card net-module-card" data-module-id="${escapeHtml(m.id)}">
-          <div class="p-0">
-            <button class="net-module-btn p-4 d-flex align-items-start justify-content-between gap-3"
-                    type="button"
-                    data-action="toggle-module"
-                    data-module="${escapeHtml(m.id)}"
-                    aria-expanded="${expanded ? "true" : "false"}"
-                    title="Open this module to view its lessons and activities">
+      const headerBtn = document.createElement("button");
+      headerBtn.className = "net-module-btn p-4 d-flex align-items-start justify-content-between gap-3";
+      headerBtn.type = "button";
+      headerBtn.dataset.action = "toggle-module";
+      headerBtn.dataset.module = String(m.id);
+      headerBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+      headerBtn.title = "Open this module to view its lessons and activities";
 
-              <div class="d-flex align-items-start gap-3">
-                <div class="net-module-ico">${iconHtml}</div>
+      const left = document.createElement("div");
+      left.className = "d-flex align-items-start gap-3";
 
-                <div class="flex-grow-1">
-                  <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                    <span class="small text-teal fw-semibold text-uppercase" style="letter-spacing:.04em;">Module ${idx + 1}</span>
-                    ${headerBadge}
-                  </div>
-                  <div class="fw-semibold fs-5">${escapeHtml(m.title)}</div>
-                  ${m.description ? `<div class="text-muted small mt-1">${escapeHtml(m.description)}</div>` : ""}
-                </div>
-              </div>
+      const iconWrap = makeEl("div", "net-module-ico");
+      iconWrap.appendChild(moduleIcon(modProg, state.courseLocked));
 
-              <div class="d-flex align-items-center gap-3">
-                <div class="text-end small text-muted d-none d-sm-block">
-                  <div class="fw-semibold text-dark">${modProg.done}/${modProg.total}</div>
-                  <div>required</div>
-                </div>
-                <i class="bi ${chevronClass} text-muted" aria-hidden="true"></i>
-              </div>
-            </button>
+      const info = document.createElement("div");
+      info.className = "flex-grow-1";
 
-            <div class="border-top" ${bodyStyle} data-module-body="${escapeHtml(m.id)}">
-              <div class="p-2 p-sm-3 net-module-body-bg">
-                ${renderModuleItems(m)}
-              </div>
-            </div>
-          </div>
-        </article>
-      `);
+      const infoRow = document.createElement("div");
+      infoRow.className = "d-flex flex-wrap align-items-center gap-2 mb-1";
+
+      const modLabel = makeEl("span", "small text-teal fw-semibold text-uppercase", `Module ${idx + 1}`);
+      modLabel.style.letterSpacing = ".04em";
+      infoRow.appendChild(modLabel);
+
+      const headerBadge = document.createElement("span");
+      if (modProg.completed) {
+        headerBadge.className = "badge bg-success";
+        headerBadge.append(makeIcon("bi bi-check2-circle me-1"), document.createTextNode("Completed"));
+      } else if (modProg.done > 0) {
+        headerBadge.className = "badge bg-info text-dark";
+        headerBadge.append(makeIcon("bi bi-play-fill me-1"), document.createTextNode("Active"));
+      } else {
+        headerBadge.className = "badge text-bg-light border";
+        headerBadge.textContent = `${modProg.done}/${modProg.total} items`;
+      }
+      infoRow.appendChild(headerBadge);
+
+      const title = makeEl("div", "fw-semibold fs-5", m.title || "");
+      info.append(infoRow, title);
+
+      if (m.description) {
+        info.appendChild(makeEl("div", "text-muted small mt-1", m.description));
+      }
+
+      left.append(iconWrap, info);
+
+      const right = document.createElement("div");
+      right.className = "d-flex align-items-center gap-3";
+
+      const counts = document.createElement("div");
+      counts.className = "text-end small text-muted d-none d-sm-block";
+      counts.append(
+        makeEl("div", "fw-semibold text-dark", `${modProg.done}/${modProg.total}`),
+        makeEl("div", "", "required")
+      );
+      right.appendChild(counts);
+
+      const chev = makeIcon(`bi ${expanded ? "bi-chevron-up" : "bi-chevron-down"} text-muted`);
+      chev.setAttribute("aria-hidden", "true");
+      right.appendChild(chev);
+
+      headerBtn.append(left, right);
+
+      const body = document.createElement("div");
+      body.className = "border-top";
+      body.dataset.moduleBody = String(m.id);
+      if (!expanded) body.style.display = "none";
+
+      const bodyInner = makeEl("div", "p-2 p-sm-3 net-module-body-bg");
+      bodyInner.appendChild(renderModuleItems(m));
+      body.appendChild(bodyInner);
+
+      shell.append(headerBtn, body);
+      article.appendChild(shell);
+      wrap.appendChild(article);
     });
   }
 
@@ -1188,7 +1249,7 @@ What this file does:
     });
 
     const keys = Array.from(groups.keys()).sort((a, b) => a - b);
-    let html = `<div class="d-grid gap-2">`;
+    const grid = makeEl("div", "d-grid gap-2");
 
     keys.forEach((lessonNum) => {
       const items = groups.get(lessonNum) || [];
@@ -1196,61 +1257,76 @@ What this file does:
         const completed = isItemCompleted(it);
         const locked = state.courseLocked;
 
-        const icon = lessonIcon(it, completed, locked);
-        const right = completed
-          ? `<span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Done</span>`
-          : `<i class="bi bi-play-fill text-teal" aria-hidden="true"></i>`;
-
         const hint =
           it.type === "quiz" ? "Quiz" :
           it.type === "challenge" ? "Challenge" :
           (it.type === "sandbox" || it.type === "practice") ? "Sandbox" :
           "Lesson";
 
-        const lockedClass = locked ? "is-locked" : "";
-        const completedClass = completed ? "is-complete" : "";
-        const previewBtn = it.type === "learn"
-          ? `<span class="net-preview-btn" role="button" tabindex="0" data-action="preview-lesson" data-lesson="${Number(it.lesson_number)}" title="Quick preview">
-               <i class="bi bi-eye" aria-hidden="true"></i>
-             </span>`
-          : "";
+        const row = document.createElement("button");
+        row.className = `net-lesson-row px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${locked ? "is-locked" : ""} ${completed ? "is-complete" : ""}`.trim();
+        row.type = "button";
+        row.dataset.action = "open-item";
+        row.dataset.type = it.type;
+        row.dataset.lesson = String(Number(it.lesson_number));
+        row.dataset.title = String(it.title || "");
+        if (locked) {
+          row.disabled = true;
+          row.setAttribute("aria-disabled", "true");
+        }
 
-        html += `
-          <button class="net-lesson-row px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${lockedClass} ${completedClass}"
-                  type="button"
-                  data-action="open-item"
-                  data-type="${escapeHtml(it.type)}"
-                  data-lesson="${Number(it.lesson_number)}"
-                  data-title="${escapeHtml(it.title)}"
-                  ${locked ? "disabled aria-disabled='true'" : ""}>
-            <div class="d-flex align-items-center gap-3">
-              <div class="net-lesson-ico">${icon}</div>
-              <div>
-                <div class="fw-semibold text-dark">${escapeHtml(it.title)}</div>
-                <div class="small text-muted d-flex flex-wrap gap-2 align-items-center mt-1">
-                  <span class="d-inline-flex align-items-center gap-1">
-                    <i class="bi bi-clock" aria-hidden="true"></i> ${escapeHtml(it.duration)}
-                  </span>
-                  <span class="text-muted">•</span>
-                  <span class="d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold">
-                    <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> ${Number(it.xp)} XP
-                  </span>
-                  <span class="text-muted">•</span>
-                  <span class="badge text-bg-light border">${hint}</span>
-                </div>
-              </div>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-              ${previewBtn}
-              ${right}
-            </div>
-          </button>
-        `;
+        const left = makeEl("div", "d-flex align-items-center gap-3");
+        const iconWrap = makeEl("div", "net-lesson-ico");
+        iconWrap.appendChild(lessonIcon(it, completed, locked));
+
+        const textWrap = document.createElement("div");
+        const title = makeEl("div", "fw-semibold text-dark", it.title || "");
+
+        const meta = makeEl("div", "small text-muted d-flex flex-wrap gap-2 align-items-center mt-1");
+        const time = makeEl("span", "d-inline-flex align-items-center gap-1");
+        time.append(makeIcon("bi bi-clock"), document.createTextNode(` ${it.duration || "—"}`));
+
+        const sep1 = makeEl("span", "text-muted", "•");
+
+        const xp = makeEl("span", "d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold");
+        xp.append(makeIcon("bi bi-lightning-charge-fill"), document.createTextNode(` ${Number(it.xp)} XP`));
+
+        const sep2 = makeEl("span", "text-muted", "•");
+        const hintBadge = makeEl("span", "badge text-bg-light border", hint);
+
+        meta.append(time, sep1, xp, sep2, hintBadge);
+        textWrap.append(title, meta);
+        left.append(iconWrap, textWrap);
+
+        const right = makeEl("div", "d-flex align-items-center gap-2");
+
+        if (it.type === "learn") {
+          const preview = makeEl("span", "net-preview-btn");
+          preview.setAttribute("role", "button");
+          preview.setAttribute("tabindex", "0");
+          preview.dataset.action = "preview-lesson";
+          preview.dataset.lesson = String(Number(it.lesson_number));
+          preview.title = "Quick preview";
+          preview.appendChild(makeIcon("bi bi-eye"));
+          right.appendChild(preview);
+        }
+
+        if (completed) {
+          const done = makeEl("span", "badge bg-success");
+          done.append(makeIcon("bi bi-check2-circle me-1"), document.createTextNode("Done"));
+          right.appendChild(done);
+        } else {
+          const play = makeIcon("bi bi-play-fill text-teal");
+          play.setAttribute("aria-hidden", "true");
+          right.appendChild(play);
+        }
+
+        row.append(left, right);
+        grid.appendChild(row);
       });
     });
 
-    html += `</div>`;
-    return html;
+    return grid;
   }
 
   function renderSidebarCards() {
@@ -1507,20 +1583,25 @@ What this file does:
     const body = getById("lessonPreviewBody");
     if (body) {
       const c = item.content;
+      clearChildren(body);
       if (Array.isArray(c)) {
         const preview = c.slice(0, 2);
-        body.innerHTML = preview.map((p) => `<p>${escapeHtml(p)}</p>`).join("");
+        preview.forEach((p) => {
+          const para = document.createElement("p");
+          para.textContent = String(p ?? "");
+          body.appendChild(para);
+        });
         if (c.length > 2) {
-          body.innerHTML += `<p class="text-muted small mb-0">Open the full lesson to continue.</p>`;
+          body.appendChild(makeEl("p", "text-muted small mb-0", "Open the full lesson to continue."));
         }
       } else if (typeof c === "string" && c.trim()) {
         const trimmed = c.split("\n").slice(0, 3).join("\n");
-        body.innerHTML = escapeHtml(trimmed).replace(/\n/g, "<br>");
+        appendTextWithBreaks(body, trimmed);
       } else {
-        body.innerHTML = `
-          <p class="text-muted mb-2">Lesson content not added yet.</p>
-          <p class="text-muted small mb-0">We can plug your in-depth content here from COURSE_CONTENT next.</p>
-        `;
+        body.append(
+          makeEl("p", "text-muted mb-2", "Lesson content not added yet."),
+          makeEl("p", "text-muted small mb-0", "We can plug your in-depth content here from COURSE_CONTENT next.")
+        );
       }
     }
 
@@ -1530,13 +1611,26 @@ What this file does:
         ? item.resources
         : buildDefaultResources(item.title || "", state.course.title || "");
       const previewRes = resources.slice(0, 2);
-      resEl.innerHTML = previewRes.map((r) => `
-        <a class="net-resource-item" href="${escapeHtml(r.url)}" target="_blank" rel="noopener">
-          <span class="net-resource-ico"><i class="bi bi-book"></i></span>
-          <span>${escapeHtml(r.label)}</span>
-          <i class="bi bi-box-arrow-up-right ms-auto text-muted"></i>
-        </a>
-      `).join("");
+      clearChildren(resEl);
+      previewRes.forEach((r) => {
+        const link = document.createElement("a");
+        link.className = "net-resource-item";
+        link.href = r.url || "#";
+        link.target = "_blank";
+        link.rel = "noopener";
+
+        const icoWrap = document.createElement("span");
+        icoWrap.className = "net-resource-ico";
+        icoWrap.appendChild(makeIcon("bi bi-book"));
+
+        const label = document.createElement("span");
+        label.textContent = String(r.label || "");
+
+        const ext = makeIcon("bi bi-box-arrow-up-right ms-auto text-muted");
+
+        link.append(icoWrap, label, ext);
+        resEl.appendChild(link);
+      });
     }
 
     const openBtn = getById("lessonOpenBtn");
@@ -1686,9 +1780,7 @@ What this file does:
     if (completeBtn && state.activeLearn) {
       const done = state.completed.lesson.has(Number(state.activeLearn.lesson_number));
       completeBtn.disabled = done || state.courseLocked;
-      completeBtn.innerHTML = done
-        ? `<i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Completed`
-        : `<i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Mark Complete`;
+      setButtonIconText(completeBtn, "bi bi-check2-circle me-1", done ? "Completed" : "Mark Complete");
     }
   }
 
@@ -1823,22 +1915,36 @@ What this file does:
         ? `Next level in ${Math.max(0, Number(state.stats.toNext))} XP.`
         : "";
 
-    popup.innerHTML = `
-      <div class="net-toast-inner">
-        <div class="net-toast-icon" aria-hidden="true"></div>
-        <div class="net-toast-body">
-          <div class="net-toast-title">
-            <i class="bi bi-stars me-2" aria-hidden="true"></i>
-            Course progress updated
-          </div>
-          <div class="net-toast-sub">${escapeHtml(sub)}</div>
-          ${xpHint ? `<div class="net-toast-sub mt-1"><i class="bi bi-lightning-charge-fill me-1" aria-hidden="true"></i>${escapeHtml(xpHint)}</div>` : ""}
-        </div>
-        <button class="net-toast-close" type="button" aria-label="Dismiss">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-    `;
+    const inner = makeEl("div", "net-toast-inner");
+    const icon = makeEl("div", "net-toast-icon");
+    icon.setAttribute("aria-hidden", "true");
+
+    const body = makeEl("div", "net-toast-body");
+    const title = makeEl("div", "net-toast-title");
+    const star = makeIcon("bi bi-stars me-2");
+    star.setAttribute("aria-hidden", "true");
+    title.append(star, document.createTextNode("Course progress updated"));
+    const subEl = makeEl("div", "net-toast-sub", sub);
+
+    body.append(title, subEl);
+    if (xpHint) {
+      const xpRow = makeEl("div", "net-toast-sub mt-1");
+      const bolt = makeIcon("bi bi-lightning-charge-fill me-1");
+      bolt.setAttribute("aria-hidden", "true");
+      xpRow.append(bolt, document.createTextNode(xpHint));
+      body.append(xpRow);
+    }
+
+    const closeBtn = makeEl("button", "net-toast-close");
+    closeBtn.type = "button";
+    closeBtn.setAttribute("aria-label", "Dismiss");
+    const closeSpan = makeEl("span");
+    closeSpan.setAttribute("aria-hidden", "true");
+    closeSpan.textContent = "×";
+    closeBtn.appendChild(closeSpan);
+
+    inner.append(icon, body, closeBtn);
+    popup.appendChild(inner);
 
     document.body.appendChild(popup);
 
@@ -1848,8 +1954,7 @@ What this file does:
       setTimeout(() => popup.remove(), 220);
     };
 
-    const closeBtn = popup.querySelector(".net-toast-close");
-    closeBtn?.addEventListener("click", removeToast);
+    closeBtn.addEventListener("click", removeToast);
 
     setTimeout(removeToast, 2800);
   }
@@ -1859,43 +1964,51 @@ What this file does:
   ========================================================= */
 
   function moduleIcon(modProg, locked) {
-    if (locked) return `<i class="bi bi-lock-fill text-muted" aria-hidden="true"></i>`;
-    if (modProg.completed) return `<i class="bi bi-check2-circle text-white" aria-hidden="true"></i>`;
-    return `<i class="bi bi-book text-white" aria-hidden="true"></i>`;
+    let cls = "bi bi-book text-white";
+    if (locked) cls = "bi bi-lock-fill text-muted";
+    else if (modProg.completed) cls = "bi bi-check2-circle text-white";
+    const icon = makeIcon(cls);
+    icon.setAttribute("aria-hidden", "true");
+    return icon;
   }
 
   function lessonIcon(it, completed, locked) {
+    const wrap = document.createElement("div");
+
     if (locked) {
-      return `<div class="net-ico-pill bg-light border"><i class="bi bi-lock-fill text-muted" aria-hidden="true"></i></div>`;
+      wrap.className = "net-ico-pill bg-light border";
+      const icon = makeIcon("bi bi-lock-fill text-muted");
+      icon.setAttribute("aria-hidden", "true");
+      wrap.appendChild(icon);
+      return wrap;
     }
     if (completed) {
-      return `<div class="net-ico-pill net-ico-success">
-                <i class="bi bi-check2-circle" aria-hidden="true"></i>
-              </div>`;
+      wrap.className = "net-ico-pill net-ico-success";
+      const icon = makeIcon("bi bi-check2-circle");
+      icon.setAttribute("aria-hidden", "true");
+      wrap.appendChild(icon);
+      return wrap;
     }
 
-    if (it.type === "learn") {
-      return `<div class="net-ico-pill net-ico-learn">
-                <i class="bi bi-file-text" aria-hidden="true"></i>
-              </div>`;
-    }
     if (it.type === "quiz") {
-      return `<div class="net-ico-pill net-ico-quiz">
-                <i class="bi bi-patch-question" aria-hidden="true"></i>
-              </div>`;
+      wrap.className = "net-ico-pill net-ico-quiz";
+      wrap.appendChild(makeIcon("bi bi-patch-question"));
+      return wrap;
     }
     if (it.type === "sandbox" || it.type === "practice") {
-      return `<div class="net-ico-pill net-ico-sandbox">
-                <i class="bi bi-diagram-3" aria-hidden="true"></i>
-              </div>`;
+      wrap.className = "net-ico-pill net-ico-sandbox";
+      wrap.appendChild(makeIcon("bi bi-diagram-3"));
+      return wrap;
     }
     if (it.type === "challenge") {
-      return `<div class="net-ico-pill net-ico-challenge">
-                <i class="bi bi-flag" aria-hidden="true"></i>
-              </div>`;
+      wrap.className = "net-ico-pill net-ico-challenge";
+      wrap.appendChild(makeIcon("bi bi-flag"));
+      return wrap;
     }
 
-    return `<div class="net-ico-pill bg-light border"><i class="bi bi-circle text-muted" aria-hidden="true"></i></div>`;
+    wrap.className = "net-ico-pill net-ico-learn";
+    wrap.appendChild(makeIcon("bi bi-file-text"));
+    return wrap;
   }
 
 })();

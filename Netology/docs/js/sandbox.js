@@ -132,6 +132,27 @@ Reworked to match the Figma AI version:
       .replaceAll(">", "&gt;");
   }
 
+  function clearChildren(node) {
+    if (node) node.replaceChildren();
+  }
+
+  function makeEl(tag, className, text) {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    if (typeof text !== "undefined") el.textContent = text;
+    return el;
+  }
+
+  function makeIcon(className) {
+    const icon = document.createElement("i");
+    icon.className = className;
+    return icon;
+  }
+
+  function makeSvgEl(tag) {
+    return document.createElementNS("http://www.w3.org/2000/svg", tag);
+  }
+
   function clamp(n, min, max) {
     return Math.min(max, Math.max(min, n));
   }
@@ -181,16 +202,21 @@ Reworked to match the Figma AI version:
     const stack = toastStack || document.body;
     const toast = document.createElement("div");
     toast.className = `sbx-toast ${variant}`;
-    toast.innerHTML = `
-      <div class="sbx-toast-icon">
-        <i class="bi ${variant === "success" ? "bi-check-lg" : variant === "error" ? "bi-x-lg" : "bi-info-lg"}"></i>
-      </div>
-      <div>
-        <div class="sbx-toast-title">${escapeHtml(title || "Update")}</div>
-        <div class="sbx-toast-message">${escapeHtml(message || "")}</div>
-      </div>
-      <button class="sbx-toast-close" type="button" aria-label="Close">×</button>
-    `;
+    const iconWrap = makeEl("div", "sbx-toast-icon");
+    const iconClass = variant === "success" ? "bi-check-lg" : variant === "error" ? "bi-x-lg" : "bi-info-lg";
+    iconWrap.appendChild(makeIcon(`bi ${iconClass}`));
+
+    const body = makeEl("div");
+    body.append(
+      makeEl("div", "sbx-toast-title", title || "Update"),
+      makeEl("div", "sbx-toast-message", message || "")
+    );
+
+    const closeBtn = makeEl("button", "sbx-toast-close", "×");
+    closeBtn.type = "button";
+    closeBtn.setAttribute("aria-label", "Close");
+
+    toast.append(iconWrap, body, closeBtn);
     stack.appendChild(toast);
     requestAnimationFrame(() => toast.classList.add("is-show"));
 
@@ -199,7 +225,7 @@ Reworked to match the Figma AI version:
       setTimeout(() => toast.remove(), 220);
     };
 
-    toast.querySelector(".sbx-toast-close")?.addEventListener("click", removeToast);
+    closeBtn.addEventListener("click", removeToast);
     if (timeout) setTimeout(removeToast, timeout);
   }
 
@@ -226,31 +252,36 @@ Reworked to match the Figma AI version:
   function renderSummary(container) {
     if (!container) return;
     if (!state.devices.length) {
-      container.innerHTML = `<div class="sbx-preview-empty">No devices added yet.</div>`;
+      clearChildren(container);
+      container.appendChild(makeEl("div", "sbx-preview-empty", "No devices added yet."));
       return;
     }
 
     const summary = getTopologySummary();
-    const chips = summary.types.slice(0, 6).map(([type, count]) => {
-      const label = DEVICE_TYPES[type]?.label || type;
-      return `<span class="sbx-chip">${escapeHtml(label)} • ${count}</span>`;
-    }).join("");
+    clearChildren(container);
 
-    container.innerHTML = `
-      <div class="sbx-summary-row">
-        <span><strong>${summary.deviceCount}</strong> devices</span>
-        <span><strong>${summary.connectionCount}</strong> links</span>
-      </div>
-      <div class="sbx-chip-row">${chips || ""}</div>
-    `;
+    const row = makeEl("div", "sbx-summary-row");
+    const devicesSpan = makeEl("span");
+    devicesSpan.append(makeEl("strong", "", String(summary.deviceCount)), document.createTextNode(" devices"));
+    const linksSpan = makeEl("span");
+    linksSpan.append(makeEl("strong", "", String(summary.connectionCount)), document.createTextNode(" links"));
+    row.append(devicesSpan, linksSpan);
+
+    const chipRow = makeEl("div", "sbx-chip-row");
+    summary.types.slice(0, 6).forEach(([type, count]) => {
+      const label = DEVICE_TYPES[type]?.label || type;
+      chipRow.appendChild(makeEl("span", "sbx-chip", `${label} • ${count}`));
+    });
+
+    container.append(row, chipRow);
   }
 
   function renderTopologyPreview(container, width = 260, height = 160) {
     if (!container) return;
-    container.innerHTML = "";
+    clearChildren(container);
 
     if (!state.devices.length) {
-      container.innerHTML = `<div class="sbx-preview-empty">Preview updates after you add devices.</div>`;
+      container.appendChild(makeEl("div", "sbx-preview-empty", "Preview updates after you add devices."));
       return;
     }
 
@@ -275,34 +306,67 @@ Reworked to match the Figma AI version:
       y: pad + (c.y - minY) * scale,
     });
 
-    const lines = state.connections.map((conn) => {
+    const svg = makeSvgEl("svg");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Topology preview");
+
+    const defs = makeSvgEl("defs");
+    const grad = makeSvgEl("linearGradient");
+    grad.setAttribute("id", "sbxPreviewBg");
+    grad.setAttribute("x1", "0");
+    grad.setAttribute("y1", "0");
+    grad.setAttribute("x2", "0");
+    grad.setAttribute("y2", "1");
+    const stop1 = makeSvgEl("stop");
+    stop1.setAttribute("offset", "0%");
+    stop1.setAttribute("stop-color", "#ffffff");
+    const stop2 = makeSvgEl("stop");
+    stop2.setAttribute("offset", "100%");
+    stop2.setAttribute("stop-color", "#f8fafc");
+    grad.append(stop1, stop2);
+    defs.appendChild(grad);
+
+    const rect = makeSvgEl("rect");
+    rect.setAttribute("x", "0");
+    rect.setAttribute("y", "0");
+    rect.setAttribute("width", width);
+    rect.setAttribute("height", height);
+    rect.setAttribute("rx", "16");
+    rect.setAttribute("fill", "url(#sbxPreviewBg)");
+
+    svg.append(defs, rect);
+
+    state.connections.forEach((conn) => {
       const from = centers.find((c) => c.id === conn.from);
       const to = centers.find((c) => c.id === conn.to);
-      if (!from || !to) return "";
+      if (!from || !to) return;
       const a = point(from);
       const b = point(to);
-      return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="rgba(15,23,42,.3)" stroke-width="2" />`;
-    }).join("");
+      const line = makeSvgEl("line");
+      line.setAttribute("x1", a.x);
+      line.setAttribute("y1", a.y);
+      line.setAttribute("x2", b.x);
+      line.setAttribute("y2", b.y);
+      line.setAttribute("stroke", "rgba(15,23,42,.3)");
+      line.setAttribute("stroke-width", "2");
+      svg.appendChild(line);
+    });
 
-    const nodes = centers.map((c) => {
+    centers.forEach((c) => {
       const p = point(c);
       const color = getTypeColor(c.type);
-      return `<circle cx="${p.x}" cy="${p.y}" r="8" fill="${color}" stroke="rgba(255,255,255,.9)" stroke-width="2" />`;
-    }).join("");
+      const circle = makeSvgEl("circle");
+      circle.setAttribute("cx", p.x);
+      circle.setAttribute("cy", p.y);
+      circle.setAttribute("r", "8");
+      circle.setAttribute("fill", color);
+      circle.setAttribute("stroke", "rgba(255,255,255,.9)");
+      circle.setAttribute("stroke-width", "2");
+      svg.appendChild(circle);
+    });
 
-    container.innerHTML = `
-      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Topology preview">
-        <rect x="0" y="0" width="${width}" height="${height}" rx="16" fill="url(#sbxPreviewBg)" />
-        <defs>
-          <linearGradient id="sbxPreviewBg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#ffffff" />
-            <stop offset="100%" stop-color="#f8fafc" />
-          </linearGradient>
-        </defs>
-        ${lines}
-        ${nodes}
-      </svg>
-    `;
+    container.appendChild(svg);
   }
 
   function updateSaveModalLive() {
@@ -336,20 +400,21 @@ Reworked to match the Figma AI version:
 
     const routeEl = getById("pingOverviewRoute");
     if (routeEl) {
+      routeEl.classList.toggle("is-pulse", !!result?.success);
+      clearChildren(routeEl);
       if (!path.length) {
         routeEl.textContent = "Select a destination to preview the route.";
       } else {
-        routeEl.classList.toggle("is-pulse", !!result?.success);
-        routeEl.innerHTML = path
-          .map((id, idx) => {
-            const dev = findDevice(id);
-            const name = escapeHtml(dev?.name || "Unknown");
-            const delay = result?.success ? `style=\"animation-delay:${idx * 0.12}s\"` : "";
-            const node = `<span class=\"sbx-ping-route-node\" ${delay}>${name}</span>`;
-            const sep = idx < path.length - 1 ? `<span class=\"sbx-ping-route-sep\">→</span>` : "";
-            return `${node}${sep}`;
-          })
-          .join("");
+        path.forEach((id, idx) => {
+          const dev = findDevice(id);
+          const name = dev?.name || "Unknown";
+          const node = makeEl("span", "sbx-ping-route-node", name);
+          if (result?.success) node.style.animationDelay = `${idx * 0.12}s`;
+          routeEl.appendChild(node);
+          if (idx < path.length - 1) {
+            routeEl.appendChild(makeEl("span", "sbx-ping-route-sep", "→"));
+          }
+        });
       }
     }
   }
@@ -384,12 +449,11 @@ Reworked to match the Figma AI version:
     const meta = DEVICE_TYPES[type] || DEVICE_TYPES.pc;
     const ghost = document.createElement("div");
     ghost.className = "sbx-drag-ghost";
-    ghost.innerHTML = `
-      <div class="sbx-drag-icon"><i class="bi ${meta.icon}"></i></div>
-      <div class="sbx-drag-label">${escapeHtml(meta.label || "Device")}</div>
-    `;
-    const icon = ghost.querySelector(".sbx-drag-icon");
-    if (icon) icon.style.background = meta.color || "";
+    const iconWrap = makeEl("div", "sbx-drag-icon");
+    iconWrap.appendChild(makeIcon(`bi ${meta.icon}`));
+    const label = makeEl("div", "sbx-drag-label", meta.label || "Device");
+    iconWrap.style.background = meta.color || "";
+    ghost.append(iconWrap, label);
     document.body.appendChild(ghost);
     return ghost;
   }
@@ -977,7 +1041,7 @@ Reworked to match the Figma AI version:
   }
 
   function renderDevices() {
-    deviceLayer.innerHTML = "";
+    clearChildren(deviceLayer);
 
     state.devices.forEach((device) => {
       const typeMeta = DEVICE_TYPES[device.type] || DEVICE_TYPES.pc;
@@ -1033,7 +1097,7 @@ Reworked to match the Figma AI version:
 
   function renderConnections() {
     resizeConnections();
-    connectionLayer.innerHTML = "";
+    clearChildren(connectionLayer);
 
     state.connections.forEach((conn) => {
       const from = findDevice(conn.from);
@@ -1071,23 +1135,27 @@ Reworked to match the Figma AI version:
   function renderInspector() {
     if (!inspectorBody) return;
     if (!state.pingInspector) {
-      inspectorBody.innerHTML = "Run a ping test to see detailed results.";
+      clearChildren(inspectorBody);
+      inspectorBody.textContent = "Run a ping test to see detailed results.";
       return;
     }
 
     const result = state.pingInspector;
     const statusClass = result.success ? "text-success" : "text-danger";
-    const stepsHtml = (result.steps || [])
-      .map((s) => `<div class="sbx-inspector-step ${s.success ? "ok" : "bad"}">
-          <strong>${escapeHtml(s.step)}:</strong> ${escapeHtml(s.message)}
-        </div>`)
-      .join("");
+    clearChildren(inspectorBody);
+    const resultEl = makeEl("div", `sbx-inspector-result ${statusClass}`, result.message || "");
+    inspectorBody.appendChild(resultEl);
 
-    inspectorBody.innerHTML = `
-      <div class="sbx-inspector-result ${statusClass}">${escapeHtml(result.message)}</div>
-      ${stepsHtml}
-      <div class="small text-muted mt-2">Latency: ${result.latency ?? "—"} ms</div>
-    `;
+    (result.steps || []).forEach((s) => {
+      const stepEl = makeEl("div", `sbx-inspector-step ${s.success ? "ok" : "bad"}`);
+      const strong = makeEl("strong", null, `${s.step}:`);
+      stepEl.append(strong, document.createTextNode(` ${s.message || ""}`));
+      inspectorBody.appendChild(stepEl);
+    });
+
+    inspectorBody.appendChild(
+      makeEl("div", "small text-muted mt-2", `Latency: ${result.latency ?? "—"} ms`)
+    );
   }
 
   function renderObjectives() {
@@ -1098,23 +1166,29 @@ Reworked to match the Figma AI version:
     }
 
     const { steps = [], tips = "" } = state.challengeMeta;
-    const stepsHtml = steps.length
-      ? `<ul>${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ul>`
-      : "";
-    const tipsHtml = tips ? `<div class="small text-muted"><em>${escapeHtml(tips)}</em></div>` : "";
+    clearChildren(objectivesBody);
+    const wrap = makeEl("div", "sbx-objectives");
+    if (steps.length) {
+      const list = makeEl("ul");
+      steps.forEach((s) => list.appendChild(makeEl("li", null, s)));
+      wrap.appendChild(list);
+    }
+    if (tips) {
+      const tipsEl = makeEl("div", "small text-muted");
+      const em = makeEl("em", null, tips);
+      tipsEl.appendChild(em);
+      wrap.appendChild(tipsEl);
+    }
+    const validateBtnEl = makeEl("button", "btn btn-teal btn-sm mt-2", "Validate Challenge");
+    validateBtnEl.id = "validateBtn";
+    const resultEl = makeEl("div", "small mt-2");
+    resultEl.id = "challengeResult";
+    const returnEl = makeEl("div", "mt-2");
+    returnEl.id = "challengeReturn";
+    wrap.append(validateBtnEl, resultEl, returnEl);
+    objectivesBody.appendChild(wrap);
 
-    objectivesBody.innerHTML = `
-      <div class="sbx-objectives">
-        ${stepsHtml}
-        ${tipsHtml}
-        <button class="btn btn-teal btn-sm mt-2" id="validateBtn">Validate Challenge</button>
-        <div id="challengeResult" class="small mt-2"></div>
-        <div id="challengeReturn" class="mt-2"></div>
-      </div>
-    `;
-
-    const validateBtn = getById("validateBtn");
-    validateBtn?.addEventListener("click", handleChallengeValidate);
+    validateBtnEl.addEventListener("click", handleChallengeValidate);
   }
 
   function renderProps() {
@@ -1127,35 +1201,70 @@ Reworked to match the Figma AI version:
 
     const config = device.config || {};
     const tab = state.configTab;
+    clearChildren(propsEl);
 
     if (tab === "general") {
-      propsEl.innerHTML = `
-        <div class="sbx-prop-group">
-          <label class="form-label small">Device Name</label>
-          <input class="form-control form-control-sm" id="prop_name" value="${escapeHtml(device.name)}">
-        </div>
-        <div class="sbx-prop-group">
-          <label class="form-label small">IP Address</label>
-          <input class="form-control form-control-sm" id="prop_ip" value="${escapeHtml(config.ipAddress || "")}" placeholder="192.168.1.10">
-          <div class="small text-muted" id="ip_warning"></div>
-        </div>
-        <div class="sbx-prop-group">
-          <label class="form-label small">Subnet Mask</label>
-          <input class="form-control form-control-sm" id="prop_mask" value="${escapeHtml(config.subnetMask || "")}" placeholder="255.255.255.0">
-          <div class="small text-muted" id="mask_warning"></div>
-        </div>
-        <div class="sbx-prop-group">
-          <label class="form-label small">Default Gateway</label>
-          <input class="form-control form-control-sm" id="prop_gw" value="${escapeHtml(config.defaultGateway || "")}" placeholder="192.168.1.1">
-          <div class="small text-muted" id="gw_warning"></div>
-        </div>
-        <div class="form-check form-switch mt-2">
-          <input class="form-check-input" type="checkbox" id="prop_dhcp" ${config.dhcpEnabled ? "checked" : ""}>
-          <label class="form-check-label small" for="prop_dhcp">DHCP enabled</label>
-        </div>
-        <div class="small text-muted mt-2">MAC: ${escapeHtml(config.macAddress || "")}</div>
-        <button class="btn btn-outline-danger btn-sm mt-3" id="deleteDeviceBtn">Delete Device</button>
-      `;
+      const nameGroup = makeEl("div", "sbx-prop-group");
+      const nameLabel = makeEl("label", "form-label small", "Device Name");
+      nameLabel.setAttribute("for", "prop_name");
+      const nameInputEl = document.createElement("input");
+      nameInputEl.className = "form-control form-control-sm";
+      nameInputEl.id = "prop_name";
+      nameInputEl.value = device.name || "";
+      nameGroup.append(nameLabel, nameInputEl);
+
+      const ipGroup = makeEl("div", "sbx-prop-group");
+      const ipLabel = makeEl("label", "form-label small", "IP Address");
+      ipLabel.setAttribute("for", "prop_ip");
+      const ipInputEl = document.createElement("input");
+      ipInputEl.className = "form-control form-control-sm";
+      ipInputEl.id = "prop_ip";
+      ipInputEl.value = config.ipAddress || "";
+      ipInputEl.placeholder = "192.168.1.10";
+      const ipWarn = makeEl("div", "small text-muted");
+      ipWarn.id = "ip_warning";
+      ipGroup.append(ipLabel, ipInputEl, ipWarn);
+
+      const maskGroup = makeEl("div", "sbx-prop-group");
+      const maskLabel = makeEl("label", "form-label small", "Subnet Mask");
+      maskLabel.setAttribute("for", "prop_mask");
+      const maskInputEl = document.createElement("input");
+      maskInputEl.className = "form-control form-control-sm";
+      maskInputEl.id = "prop_mask";
+      maskInputEl.value = config.subnetMask || "";
+      maskInputEl.placeholder = "255.255.255.0";
+      const maskWarn = makeEl("div", "small text-muted");
+      maskWarn.id = "mask_warning";
+      maskGroup.append(maskLabel, maskInputEl, maskWarn);
+
+      const gwGroup = makeEl("div", "sbx-prop-group");
+      const gwLabel = makeEl("label", "form-label small", "Default Gateway");
+      gwLabel.setAttribute("for", "prop_gw");
+      const gwInputEl = document.createElement("input");
+      gwInputEl.className = "form-control form-control-sm";
+      gwInputEl.id = "prop_gw";
+      gwInputEl.value = config.defaultGateway || "";
+      gwInputEl.placeholder = "192.168.1.1";
+      const gwWarn = makeEl("div", "small text-muted");
+      gwWarn.id = "gw_warning";
+      gwGroup.append(gwLabel, gwInputEl, gwWarn);
+
+      const dhcpWrap = makeEl("div", "form-check form-switch mt-2");
+      const dhcpInputEl = document.createElement("input");
+      dhcpInputEl.className = "form-check-input";
+      dhcpInputEl.type = "checkbox";
+      dhcpInputEl.id = "prop_dhcp";
+      dhcpInputEl.checked = !!config.dhcpEnabled;
+      const dhcpLabel = makeEl("label", "form-check-label small", "DHCP enabled");
+      dhcpLabel.setAttribute("for", "prop_dhcp");
+      dhcpWrap.append(dhcpInputEl, dhcpLabel);
+
+      const macText = makeEl("div", "small text-muted mt-2", `MAC: ${config.macAddress || ""}`);
+
+      const deleteBtn = makeEl("button", "btn btn-outline-danger btn-sm mt-3", "Delete Device");
+      deleteBtn.id = "deleteDeviceBtn";
+
+      propsEl.append(nameGroup, ipGroup, maskGroup, gwGroup, dhcpWrap, macText, deleteBtn);
 
       const nameInput = getById("prop_name");
       const ipInput = getById("prop_ip");
@@ -1214,23 +1323,29 @@ Reworked to match the Figma AI version:
         return;
       }
 
-      propsEl.innerHTML = config.interfaces
-        .map((iface, idx) => {
-          return `
-            <div class="sbx-prop-card">
-              <div class="d-flex justify-content-between align-items-center">
-                <strong>${escapeHtml(iface.name)}</strong>
-                <span class="badge text-bg-light border">${escapeHtml(iface.status)}</span>
-              </div>
-              <div class="small text-muted">Speed: ${escapeHtml(iface.speed)}</div>
-              ${device.type === "router" ? `
-                <input class="form-control form-control-sm mt-2" data-iface-ip="${idx}" value="${escapeHtml(iface.ipAddress || "")}" placeholder="IP Address">
-              ` : ""}
-              ${iface.connectedTo ? `<div class="small text-muted mt-1">↔ ${escapeHtml(findDevice(iface.connectedTo)?.name || iface.connectedTo)}</div>` : ""}
-            </div>
-          `;
-        })
-        .join("");
+      config.interfaces.forEach((iface, idx) => {
+        const card = makeEl("div", "sbx-prop-card");
+        const header = makeEl("div", "d-flex justify-content-between align-items-center");
+        header.append(
+          makeEl("strong", null, iface.name || ""),
+          makeEl("span", "badge text-bg-light border", iface.status || "")
+        );
+        card.appendChild(header);
+        card.appendChild(makeEl("div", "small text-muted", `Speed: ${iface.speed || ""}`));
+        if (device.type === "router") {
+          const ifaceInput = document.createElement("input");
+          ifaceInput.className = "form-control form-control-sm mt-2";
+          ifaceInput.setAttribute("data-iface-ip", String(idx));
+          ifaceInput.value = iface.ipAddress || "";
+          ifaceInput.placeholder = "IP Address";
+          card.appendChild(ifaceInput);
+        }
+        if (iface.connectedTo) {
+          const name = findDevice(iface.connectedTo)?.name || iface.connectedTo;
+          card.appendChild(makeEl("div", "small text-muted mt-1", `↔ ${name}`));
+        }
+        propsEl.appendChild(card);
+      });
 
       qsa("[data-iface-ip]", propsEl).forEach((input) => {
         input.addEventListener("input", (e) => {
@@ -1250,19 +1365,25 @@ Reworked to match the Figma AI version:
         return;
       }
 
-      const routesHtml = config.routingTable.length
-        ? config.routingTable.map((route) => `
-            <div class="sbx-prop-card">
-              <div><strong>${escapeHtml(route.network)}/${escapeHtml(route.mask)}</strong></div>
-              <div class="small text-muted">Via ${escapeHtml(route.gateway)} · ${escapeHtml(route.interface)}</div>
-            </div>
-          `).join("")
-        : `<div class="small text-muted">No static routes configured.</div>`;
+      if (config.routingTable.length) {
+        config.routingTable.forEach((route) => {
+          const card = makeEl("div", "sbx-prop-card");
+          const title = makeEl("div");
+          const strong = makeEl("strong", null, `${route.network}/${route.mask}`);
+          title.appendChild(strong);
+          card.appendChild(title);
+          card.appendChild(
+            makeEl("div", "small text-muted", `Via ${route.gateway} · ${route.interface}`)
+          );
+          propsEl.appendChild(card);
+        });
+      } else {
+        propsEl.appendChild(makeEl("div", "small text-muted", "No static routes configured."));
+      }
 
-      propsEl.innerHTML = `
-        ${routesHtml}
-        <button class="btn btn-outline-secondary btn-sm mt-2" id="addRouteBtn">Add Route</button>
-      `;
+      const addBtn = makeEl("button", "btn btn-outline-secondary btn-sm mt-2", "Add Route");
+      addBtn.id = "addRouteBtn";
+      propsEl.appendChild(addBtn);
 
       getById("addRouteBtn")?.addEventListener("click", () => {
         const network = prompt("Network (e.g., 10.0.0.0)");
@@ -1283,20 +1404,46 @@ Reworked to match the Figma AI version:
         return;
       }
 
-      propsEl.innerHTML = `
-        <div class="form-check form-switch mb-2">
-          <input class="form-check-input" type="checkbox" id="dhcpServerEnabled" ${config.dhcpServer.enabled ? "checked" : ""}>
-          <label class="form-check-label small" for="dhcpServerEnabled">Enable DHCP Server</label>
-        </div>
-        <div class="sbx-prop-grid">
-          <input class="form-control form-control-sm" id="dhcpNetwork" value="${escapeHtml(config.dhcpServer.network || "")}" placeholder="Network">
-          <input class="form-control form-control-sm" id="dhcpMask" value="${escapeHtml(config.dhcpServer.mask || "")}" placeholder="Mask">
-          <input class="form-control form-control-sm" id="dhcpGateway" value="${escapeHtml(config.dhcpServer.gateway || "")}" placeholder="Gateway">
-          <input class="form-control form-control-sm" id="dhcpStart" value="${escapeHtml(config.dhcpServer.rangeStart || "")}" placeholder="Range start">
-          <input class="form-control form-control-sm" id="dhcpEnd" value="${escapeHtml(config.dhcpServer.rangeEnd || "")}" placeholder="Range end">
-        </div>
-        <div class="small text-muted mt-2">Leases: ${config.dhcpServer.leases.length}</div>
-      `;
+      const toggleWrap = makeEl("div", "form-check form-switch mb-2");
+      const enabledInput = document.createElement("input");
+      enabledInput.className = "form-check-input";
+      enabledInput.type = "checkbox";
+      enabledInput.id = "dhcpServerEnabled";
+      enabledInput.checked = !!config.dhcpServer.enabled;
+      const enabledLabel = makeEl("label", "form-check-label small", "Enable DHCP Server");
+      enabledLabel.setAttribute("for", "dhcpServerEnabled");
+      toggleWrap.append(enabledInput, enabledLabel);
+
+      const grid = makeEl("div", "sbx-prop-grid");
+      const dhcpNetwork = document.createElement("input");
+      dhcpNetwork.className = "form-control form-control-sm";
+      dhcpNetwork.id = "dhcpNetwork";
+      dhcpNetwork.value = config.dhcpServer.network || "";
+      dhcpNetwork.placeholder = "Network";
+      const dhcpMask = document.createElement("input");
+      dhcpMask.className = "form-control form-control-sm";
+      dhcpMask.id = "dhcpMask";
+      dhcpMask.value = config.dhcpServer.mask || "";
+      dhcpMask.placeholder = "Mask";
+      const dhcpGateway = document.createElement("input");
+      dhcpGateway.className = "form-control form-control-sm";
+      dhcpGateway.id = "dhcpGateway";
+      dhcpGateway.value = config.dhcpServer.gateway || "";
+      dhcpGateway.placeholder = "Gateway";
+      const dhcpStart = document.createElement("input");
+      dhcpStart.className = "form-control form-control-sm";
+      dhcpStart.id = "dhcpStart";
+      dhcpStart.value = config.dhcpServer.rangeStart || "";
+      dhcpStart.placeholder = "Range start";
+      const dhcpEnd = document.createElement("input");
+      dhcpEnd.className = "form-control form-control-sm";
+      dhcpEnd.id = "dhcpEnd";
+      dhcpEnd.value = config.dhcpServer.rangeEnd || "";
+      dhcpEnd.placeholder = "Range end";
+      grid.append(dhcpNetwork, dhcpMask, dhcpGateway, dhcpStart, dhcpEnd);
+
+      const leases = makeEl("div", "small text-muted mt-2", `Leases: ${config.dhcpServer.leases.length}`);
+      propsEl.append(toggleWrap, grid, leases);
 
       getById("dhcpServerEnabled")?.addEventListener("change", (e) => {
         config.dhcpServer.enabled = e.target.checked;
@@ -1331,23 +1478,33 @@ Reworked to match the Figma AI version:
         return;
       }
 
-      const recordsHtml = config.dnsServer.records.length
-        ? config.dnsServer.records.map((r) => `
-            <div class="sbx-prop-card">
-              <strong>${escapeHtml(r.hostname)}</strong>
-              <div class="small text-muted">${escapeHtml(r.ip)}</div>
-            </div>
-          `).join("")
-        : `<div class="small text-muted">No DNS records yet.</div>`;
+      const toggleWrap = makeEl("div", "form-check form-switch mb-2");
+      const enabledInput = document.createElement("input");
+      enabledInput.className = "form-check-input";
+      enabledInput.type = "checkbox";
+      enabledInput.id = "dnsServerEnabled";
+      enabledInput.checked = !!config.dnsServer.enabled;
+      const enabledLabel = makeEl("label", "form-check-label small", "Enable DNS Server");
+      enabledLabel.setAttribute("for", "dnsServerEnabled");
+      toggleWrap.append(enabledInput, enabledLabel);
+      propsEl.appendChild(toggleWrap);
 
-      propsEl.innerHTML = `
-        <div class="form-check form-switch mb-2">
-          <input class="form-check-input" type="checkbox" id="dnsServerEnabled" ${config.dnsServer.enabled ? "checked" : ""}>
-          <label class="form-check-label small" for="dnsServerEnabled">Enable DNS Server</label>
-        </div>
-        ${recordsHtml}
-        <button class="btn btn-outline-secondary btn-sm mt-2" id="addDnsBtn">Add DNS Record</button>
-      `;
+      if (config.dnsServer.records.length) {
+        config.dnsServer.records.forEach((r) => {
+          const card = makeEl("div", "sbx-prop-card");
+          card.append(
+            makeEl("strong", null, r.hostname || ""),
+            makeEl("div", "small text-muted", r.ip || "")
+          );
+          propsEl.appendChild(card);
+        });
+      } else {
+        propsEl.appendChild(makeEl("div", "small text-muted", "No DNS records yet."));
+      }
+
+      const addBtn = makeEl("button", "btn btn-outline-secondary btn-sm mt-2", "Add DNS Record");
+      addBtn.id = "addDnsBtn";
+      propsEl.appendChild(addBtn);
 
       getById("dnsServerEnabled")?.addEventListener("change", (e) => {
         config.dnsServer.enabled = e.target.checked;
@@ -1370,16 +1527,18 @@ Reworked to match the Figma AI version:
         return;
       }
 
-      const macHtml = config.macTable.length
-        ? config.macTable.map((m) => `
-            <div class="sbx-prop-card">
-              <strong>${escapeHtml(m.macAddress)}</strong>
-              <div class="small text-muted">Port: ${escapeHtml(m.port)}</div>
-            </div>
-          `).join("")
-        : `<div class="small text-muted">MAC table is empty.</div>`;
-
-      propsEl.innerHTML = macHtml;
+      if (config.macTable.length) {
+        config.macTable.forEach((m) => {
+          const card = makeEl("div", "sbx-prop-card");
+          card.append(
+            makeEl("strong", null, m.macAddress || ""),
+            makeEl("div", "small text-muted", `Port: ${m.port || ""}`)
+          );
+          propsEl.appendChild(card);
+        });
+      } else {
+        propsEl.appendChild(makeEl("div", "small text-muted", "MAC table is empty."));
+      }
       return;
     }
   }
@@ -1405,21 +1564,34 @@ Reworked to match the Figma AI version:
 
   function renderLogs() {
     if (!logsEl) return;
-    logsEl.innerHTML = state.actionLogs.length
-      ? state.actionLogs.map((l) => `<div>${escapeHtml(l)}</div>`).join("")
-      : "No actions logged yet.";
+    clearChildren(logsEl);
+    if (!state.actionLogs.length) {
+      logsEl.textContent = "No actions logged yet.";
+      return;
+    }
+    state.actionLogs.forEach((l) => {
+      logsEl.appendChild(makeEl("div", null, l));
+    });
   }
 
   function renderPackets() {
     if (!packetsEl) return;
-    packetsEl.innerHTML = state.packets.length
-      ? state.packets.map((p) => `<div>${escapeHtml(p)}</div>`).join("")
-      : "No packet activity yet.";
+    clearChildren(packetsEl);
+    if (!state.packets.length) {
+      packetsEl.textContent = "No packet activity yet.";
+      return;
+    }
+    state.packets.forEach((p) => {
+      packetsEl.appendChild(makeEl("div", null, p));
+    });
   }
 
   function renderConsole() {
     if (!consoleOutputEl) return;
-    consoleOutputEl.innerHTML = state.consoleOutput.map((l) => `<div>${escapeHtml(l)}</div>`).join("");
+    clearChildren(consoleOutputEl);
+    state.consoleOutput.forEach((l) => {
+      consoleOutputEl.appendChild(makeEl("div", null, l));
+    });
     consoleOutputEl.scrollTop = consoleOutputEl.scrollHeight;
   }
 
@@ -1694,9 +1866,9 @@ Reworked to match the Figma AI version:
     const resultBox = getById("pingResult");
     if (resultBox) {
       resultBox.className = `sbx-ping-result ${result.success ? "is-success" : "is-fail"}`;
-      resultBox.innerHTML = result.success
-        ? `<strong>✔ ${escapeHtml(result.message)}</strong>`
-        : `❌ ${escapeHtml(result.message)}`;
+      clearChildren(resultBox);
+      const strong = makeEl("strong", null, `${result.success ? "✔" : "❌"} ${result.message}`);
+      resultBox.appendChild(strong);
     }
     updatePingOverview(meta, result);
   }
@@ -1976,11 +2148,10 @@ Reworked to match the Figma AI version:
       }
 
       if (returnBox) {
-        returnBox.innerHTML = `
-          <a class="btn btn-outline-secondary btn-sm w-100" href="lesson.html?course_id=${lessonSession.course_id}&lesson=${lessonSession.lesson_number}">
-            Return to lesson
-          </a>
-        `;
+        clearChildren(returnBox);
+        const link = makeEl("a", "btn btn-outline-secondary btn-sm w-100", "Return to lesson");
+        link.href = `lesson.html?course_id=${lessonSession.course_id}&lesson=${lessonSession.lesson_number}`;
+        returnBox.appendChild(link);
       }
     } catch (e) {
       console.error("Challenge validate error", e);
@@ -2129,18 +2300,21 @@ Reworked to match the Figma AI version:
 
     const list = getById("topologyList");
     if (!list) return;
-    list.innerHTML = "";
+    clearChildren(list);
 
     (data.topologies || []).forEach((t) => {
       const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${escapeHtml(t.name)}</td>
-        <td>${new Date(t.created_at).toLocaleString()}</td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-primary me-2" data-load-id="${t.id}" data-tooltip="Load this topology">Load</button>
-          <button class="btn btn-sm btn-danger" data-delete-id="${t.id}" data-tooltip="Delete this topology">Delete</button>
-        </td>
-      `;
+      const nameTd = makeEl("td", null, t.name || "");
+      const dateTd = makeEl("td", null, new Date(t.created_at).toLocaleString());
+      const actionTd = makeEl("td", "text-end");
+      const loadButton = makeEl("button", "btn btn-sm btn-primary me-2", "Load");
+      loadButton.setAttribute("data-load-id", t.id);
+      loadButton.setAttribute("data-tooltip", "Load this topology");
+      const deleteButton = makeEl("button", "btn btn-sm btn-danger", "Delete");
+      deleteButton.setAttribute("data-delete-id", t.id);
+      deleteButton.setAttribute("data-tooltip", "Delete this topology");
+      actionTd.append(loadButton, deleteButton);
+      row.append(nameTd, dateTd, actionTd);
       list.appendChild(row);
 
       const loadBtn = row.querySelector("[data-load-id]");
@@ -2377,7 +2551,7 @@ Reworked to match the Figma AI version:
 
       const select = getById("pingTargetSelect");
       if (!select) return;
-      select.innerHTML = "";
+      clearChildren(select);
       connected.forEach((dev) => {
         const opt = document.createElement("option");
         opt.value = dev.id;

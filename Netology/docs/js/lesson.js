@@ -53,6 +53,29 @@ lesson.js – Lesson page
     if (node) node.textContent = value;
   }
 
+  function clearChildren(node) {
+    if (node) node.replaceChildren();
+  }
+
+  function appendTextWithBreaks(node, text) {
+    if (!node) return;
+    const parts = String(text || "").split(/\n/);
+    parts.forEach((part, idx) => {
+      node.appendChild(document.createTextNode(part));
+      if (idx < parts.length - 1) node.appendChild(document.createElement("br"));
+    });
+  }
+
+  function setButtonIconText(btn, iconClass, label) {
+    if (!btn) return;
+    btn.replaceChildren();
+    const icon = document.createElement("i");
+    icon.className = iconClass;
+    icon.setAttribute("aria-hidden", "true");
+    const text = document.createTextNode(` ${label}`);
+    btn.append(icon, text);
+  }
+
   function getCurrentUser() {
     return (
       parseJsonSafe(localStorage.getItem("netology_user")) ||
@@ -760,17 +783,27 @@ lesson.js – Lesson page
     const objList = getById("lessonObjectives");
     if (objWrap && objList && Array.isArray(lessonData.objectives) && lessonData.objectives.length) {
       objWrap.classList.remove("d-none");
-      objList.innerHTML = lessonData.objectives.map((o) => `<li>${escapeHtml(o)}</li>`).join("");
+      clearChildren(objList);
+      lessonData.objectives.forEach((o) => {
+        const li = document.createElement("li");
+        li.textContent = String(o ?? "");
+        objList.appendChild(li);
+      });
     }
 
     // Content
     const content = getById("lessonContent");
     const c = lessonData.content || lessonData.learn;
     if (content) {
+      clearChildren(content);
       if (Array.isArray(c)) {
-        content.innerHTML = c.map((p) => `<p>${escapeHtml(p)}</p>`).join("");
+        c.forEach((p) => {
+          const para = document.createElement("p");
+          para.textContent = String(p ?? "");
+          content.appendChild(para);
+        });
       } else if (typeof c === "string") {
-        content.innerHTML = escapeHtml(c).replace(/\n/g, "<br>");
+        appendTextWithBreaks(content, c);
       } else {
         content.textContent = "Lesson content not available.";
       }
@@ -789,13 +822,29 @@ lesson.js – Lesson page
       : buildDefaultResources(lessonData.title || "", course.title || "");
     const resWrap = getById("lessonResources");
     if (resWrap) {
-      resWrap.innerHTML = resources.map((r) => `
-        <a class="net-resource-item" href="${escapeHtml(r.url)}" target="_blank" rel="noopener">
-          <span class="net-resource-ico"><i class="bi bi-book"></i></span>
-          <span>${escapeHtml(r.label)}</span>
-          <i class="bi bi-box-arrow-up-right ms-auto text-muted"></i>
-        </a>
-      `).join("");
+      clearChildren(resWrap);
+      resources.forEach((r) => {
+        const link = document.createElement("a");
+        link.className = "net-resource-item";
+        link.href = r.url || "#";
+        link.target = "_blank";
+        link.rel = "noopener";
+
+        const icoWrap = document.createElement("span");
+        icoWrap.className = "net-resource-ico";
+        const ico = document.createElement("i");
+        ico.className = "bi bi-book";
+        icoWrap.appendChild(ico);
+
+        const label = document.createElement("span");
+        label.textContent = String(r.label || "");
+
+        const ext = document.createElement("i");
+        ext.className = "bi bi-box-arrow-up-right ms-auto text-muted";
+
+        link.append(icoWrap, label, ext);
+        resWrap.appendChild(link);
+      });
     }
 
     // Practice
@@ -817,7 +866,12 @@ lesson.js – Lesson page
         const steps = (state.challengeItem.challenge && state.challengeItem.challenge.steps) || state.challengeItem.steps || [];
         const stepsEl = getById("lessonChallengeSteps");
         if (stepsEl) {
-          stepsEl.innerHTML = steps.length ? steps.map((s) => `• ${escapeHtml(s)}`).join("<br>") : "";
+          clearChildren(stepsEl);
+          steps.forEach((s) => {
+            const line = document.createElement("div");
+            line.textContent = `• ${String(s ?? "")}`;
+            stepsEl.appendChild(line);
+          });
         }
       } else {
         challengeCard.classList.add("d-none");
@@ -832,9 +886,7 @@ lesson.js – Lesson page
       const completeBtn = getById("lessonCompleteBtn");
       if (completeBtn) {
         completeBtn.disabled = done;
-        completeBtn.innerHTML = done
-          ? "<i class=\"bi bi-check2-circle me-1\" aria-hidden=\"true\"></i> Completed"
-          : "<i class=\"bi bi-check2-circle me-1\" aria-hidden=\"true\"></i> Mark Complete";
+        setButtonIconText(completeBtn, "bi bi-check2-circle me-1", done ? "Completed" : "Mark Complete");
       }
     }
 
@@ -1019,39 +1071,74 @@ lesson.js – Lesson page
     const barId = "lessonToastBar";
 
     const subText = nextInUnit
-      ? `Continue to next lesson in <span id="${countdownId}" class="net-toast-countdown">5</span>s`
+      ? "Continue to next lesson in "
       : "Lesson saved. Return to course page.";
 
-    const actionsHtml = nextInUnit
-      ? `<div class="net-toast-actions">
-           <button class="btn btn-teal btn-sm net-toast-continue" type="button">
-             Continue now
-           </button>
-         </div>`
-      : "";
+    const inner = document.createElement("div");
+    inner.className = "net-toast-inner";
 
-    const barHtml = nextInUnit
-      ? `<div class="net-toast-timer"><div class="net-toast-timer-fill" id="${barId}" style="width:0%"></div></div>`
-      : "";
+    const icon = document.createElement("div");
+    icon.className = "net-toast-icon";
+    icon.setAttribute("aria-hidden", "true");
 
-    popup.innerHTML = `
-      <div class="net-toast-inner">
-        <div class="net-toast-icon" aria-hidden="true"></div>
-        <div class="net-toast-body">
-          <div class="net-toast-title">Lesson saved</div>
-          <div class="net-toast-sub">${subText}</div>
-          ${barHtml}
-          ${actionsHtml}
-        </div>
-        <button class="net-toast-close" type="button" aria-label="Back to course">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-    `;
+    const body = document.createElement("div");
+    body.className = "net-toast-body";
+
+    const title = document.createElement("div");
+    title.className = "net-toast-title";
+    title.textContent = "Lesson saved";
+
+    const sub = document.createElement("div");
+    sub.className = "net-toast-sub";
+
+    if (nextInUnit) {
+      const prefix = document.createTextNode(subText);
+      const count = document.createElement("span");
+      count.id = countdownId;
+      count.className = "net-toast-countdown";
+      count.textContent = "5";
+      const suffix = document.createTextNode("s");
+      sub.append(prefix, count, suffix);
+    } else {
+      sub.textContent = subText;
+    }
+
+    body.append(title, sub);
+
+    if (nextInUnit) {
+      const timer = document.createElement("div");
+      timer.className = "net-toast-timer";
+      const fill = document.createElement("div");
+      fill.className = "net-toast-timer-fill";
+      fill.id = barId;
+      fill.style.width = "0%";
+      timer.appendChild(fill);
+      body.appendChild(timer);
+
+      const actions = document.createElement("div");
+      actions.className = "net-toast-actions";
+      const continueBtn = document.createElement("button");
+      continueBtn.className = "btn btn-teal btn-sm net-toast-continue";
+      continueBtn.type = "button";
+      continueBtn.textContent = "Continue now";
+      actions.appendChild(continueBtn);
+      body.appendChild(actions);
+    }
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "net-toast-close";
+    closeBtn.type = "button";
+    closeBtn.setAttribute("aria-label", "Back to course");
+    const closeSpan = document.createElement("span");
+    closeSpan.setAttribute("aria-hidden", "true");
+    closeSpan.textContent = "×";
+    closeBtn.appendChild(closeSpan);
+
+    inner.append(icon, body, closeBtn);
+    popup.appendChild(inner);
 
     document.body.appendChild(popup);
 
-    const closeBtn = popup.querySelector(".net-toast-close");
     closeBtn?.addEventListener("click", () => {
       clearCompletionToastTimers();
       window.location.href = coursePageUrl();

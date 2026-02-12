@@ -459,7 +459,7 @@ function renderQuestion(state) {
   // Options
   const optionsBox = document.getElementById("optionsBox");
   if (!optionsBox) return;
-  optionsBox.innerHTML = "";
+  optionsBox.replaceChildren();
 
   (q.options || []).forEach((opt, idx) => {
     const btn = document.createElement("button");
@@ -467,11 +467,20 @@ function renderQuestion(state) {
     btn.className = "net-quiz-option";
     btn.setAttribute("aria-label", `Select answer: ${opt}`);
     const letter = String.fromCharCode(65 + idx);
-    btn.innerHTML = `
-      <span class="net-quiz-option-letter" aria-hidden="true">${letter}</span>
-      <span class="net-quiz-option-text">${escapeHtml(opt)}</span>
-      <span class="net-quiz-option-status" aria-hidden="true"></span>
-    `;
+    const letterEl = document.createElement("span");
+    letterEl.className = "net-quiz-option-letter";
+    letterEl.setAttribute("aria-hidden", "true");
+    letterEl.textContent = letter;
+
+    const textEl = document.createElement("span");
+    textEl.className = "net-quiz-option-text";
+    textEl.textContent = String(opt ?? "");
+
+    const statusEl = document.createElement("span");
+    statusEl.className = "net-quiz-option-status";
+    statusEl.setAttribute("aria-hidden", "true");
+
+    btn.append(letterEl, textEl, statusEl);
 
     btn.addEventListener("click", () => selectAnswer(state, idx, btn));
     optionsBox.appendChild(btn);
@@ -507,7 +516,7 @@ function renderMiniProgress(state) {
   setText("progressCorrectCount", correctCount);
   setText("progressRemaining", remaining);
 
-  wrap.innerHTML = "";
+  wrap.replaceChildren();
   for (let i = 0; i < total; i += 1) {
     const seg = document.createElement("span");
     seg.className = "net-quiz-progress-bar";

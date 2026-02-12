@@ -505,7 +505,7 @@ function showLoginBanner(message, type) {
   else if (type === "warning") banner.classList.add("alert-warning");
   else banner.classList.add("alert-danger");
 
-  banner.innerHTML = `${bannerIcon(type)}${escapeHtml(String(message || ""))}`;
+  setBannerContent(banner, type, message);
 
   window.clearTimeout(showLoginBanner._t);
   showLoginBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4000);
@@ -522,7 +522,7 @@ function showSignupBanner(message, type) {
   else if (type === "warning") banner.classList.add("alert-warning");
   else banner.classList.add("alert-danger");
 
-  banner.innerHTML = `${bannerIcon(type)}${escapeHtml(String(message || ""))}`;
+  setBannerContent(banner, type, message);
 
   window.clearTimeout(showSignupBanner._t);
   showSignupBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4500);
@@ -545,7 +545,7 @@ function showForgotBanner(message, type) {
   else if (type === "warning") banner.classList.add("alert-warning");
   else banner.classList.add("alert-danger");
 
-  banner.innerHTML = `${bannerIcon(type)}${escapeHtml(String(message || ""))}`;
+  setBannerContent(banner, type, message);
 
   window.clearTimeout(showForgotBanner._t);
   showForgotBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4500);
@@ -557,12 +557,30 @@ function hideForgotBanner() {
   banner.classList.add("d-none");
 }
 
-function bannerIcon(type) {
+function buildBannerIcon(type) {
   const t = String(type || "").toLowerCase();
-  const cls = t === "success" ? "bi-check-circle-fill"
-    : t === "warning" ? "bi-exclamation-triangle-fill"
+  const cls = t === "success"
+    ? "bi-check-circle-fill"
+    : t === "warning"
+      ? "bi-exclamation-triangle-fill"
       : "bi-x-circle-fill";
-  return `<span class="net-banner-icon" aria-hidden="true"><i class="bi ${cls}"></i></span>`;
+
+  const wrap = document.createElement("span");
+  wrap.className = "net-banner-icon";
+  wrap.setAttribute("aria-hidden", "true");
+
+  const icon = document.createElement("i");
+  icon.className = `bi ${cls}`;
+  wrap.appendChild(icon);
+  return wrap;
+}
+
+function setBannerContent(banner, type, message) {
+  if (!banner) return;
+  banner.replaceChildren();
+  const icon = buildBannerIcon(type);
+  const text = document.createTextNode(String(message || ""));
+  banner.append(icon, text);
 }
 
 /* =========================================================
@@ -705,19 +723,32 @@ function showPopup(message, type) {
   popup.setAttribute("aria-live", "polite");
   popup.dataset.type = type || "info";
 
-  popup.innerHTML = `
-    <div class="net-toast-inner">
-      <div class="net-toast-icon" aria-hidden="true"></div>
-      <div class="net-toast-text">${escapeHtml(String(message || ""))}</div>
-      <button class="net-toast-close" type="button" aria-label="Dismiss message">
-        <span aria-hidden="true">&times;</span>
-      </button>
-    </div>
-  `;
+  const inner = document.createElement("div");
+  inner.className = "net-toast-inner";
+
+  const icon = document.createElement("div");
+  icon.className = "net-toast-icon";
+  icon.setAttribute("aria-hidden", "true");
+
+  const text = document.createElement("div");
+  text.className = "net-toast-text";
+  text.textContent = String(message || "");
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "net-toast-close";
+  closeBtn.type = "button";
+  closeBtn.setAttribute("aria-label", "Dismiss message");
+
+  const closeSpan = document.createElement("span");
+  closeSpan.setAttribute("aria-hidden", "true");
+  closeSpan.textContent = "×";
+
+  closeBtn.appendChild(closeSpan);
+  inner.append(icon, text, closeBtn);
+  popup.appendChild(inner);
 
   document.body.appendChild(popup);
 
-  const closeBtn = popup.querySelector(".net-toast-close");
   const dismiss = () => {
     popup.classList.remove("net-toast-enter");
     popup.classList.add("net-toast-exit");
