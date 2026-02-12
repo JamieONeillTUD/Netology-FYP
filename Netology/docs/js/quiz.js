@@ -23,6 +23,7 @@ NOTE:
 const QUIZ_PASS_PCT = 60; // Used for completion tracking (local storage).
 const RESULTS_PASS_PCT = 70; // Used only for the results message/badge.
 const DEFAULT_QUIZ_XP = 40;
+const getApiBase = () => window.API_BASE || "";
 
 document.addEventListener("DOMContentLoaded", () => {
   initQuizPage().catch((err) => {
@@ -31,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function initQuizPage() {
-  const { courseId, lessonNumber } = readQuizParams();
+  const { courseId, contentId, lessonNumber } = readQuizParams();
   const user = readUserFromStorage();
 
   if (!user.email || !courseId || !lessonNumber) {
@@ -39,10 +40,26 @@ async function initQuizPage() {
     return;
   }
 
-  const backUrl = buildCourseUrl(courseId, lessonNumber);
+  let resolved = resolveCourseContent(courseId, contentId);
+  if (!resolved.course || resolved.fallback) {
+    const titleHint = await fetchCourseTitle(courseId);
+    if (titleHint) {
+      resolved = resolveCourseContent(courseId, contentId, titleHint);
+    }
+  }
+
+  const resolvedContentId = resolved.id || contentId || courseId;
+  if (resolvedContentId && resolvedContentId !== String(contentId || "")) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("content_id", String(resolvedContentId));
+    url.searchParams.delete("content");
+    history.replaceState(null, "", url.toString());
+  }
+
+  const backUrl = buildCourseUrl(courseId, lessonNumber, resolvedContentId);
   wireBackLinks(backUrl);
 
-  const quizModel = getQuizModel(courseId, lessonNumber);
+  const quizModel = resolved.course ? getQuizModelFromCourse(resolved.course, lessonNumber) : null;
   if (!quizModel || !quizModel.questions || quizModel.questions.length === 0) {
     alert("No quiz found for this lesson yet.");
     window.location.href = backUrl;
@@ -70,7 +87,8 @@ async function initQuizPage() {
 function readQuizParams() {
   const params = new URLSearchParams(window.location.search);
   return {
-    courseId: params.get("course") || params.get("course_id"),
+    courseId: params.get("course") || params.get("course_id") || params.get("id"),
+    contentId: params.get("content_id") || params.get("content"),
     lessonNumber: Number(params.get("lesson") || 0)
   };
 }
@@ -87,15 +105,65 @@ function redirectToLogin() {
   window.location.href = "login.html";
 }
 
-function buildLessonUrl(courseId, lessonNumber) {
-  return `lesson.html?course_id=${encodeURIComponent(courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
+function buildLessonUrl(courseId, lessonNumber, contentId) {
+  const params = new URLSearchParams();
+  params.set("course_id", courseId);
+  if (contentId) params.set("content_id", contentId);
+  if (lessonNumber) params.set("lesson", String(lessonNumber));
+  return `lesson.html?${params.toString()}`;
 }
 
-function buildCourseUrl(courseId, lessonNumber) {
+function buildCourseUrl(courseId, lessonNumber, contentId) {
   const params = new URLSearchParams();
   params.set("id", courseId);
+  if (contentId) params.set("content_id", contentId);
   if (lessonNumber) params.set("lesson", String(lessonNumber));
   return `course.html?${params.toString()}`;
+}
+
+async function fetchCourseTitle(courseId) {
+  const api = getApiBase();
+  if (!api || !courseId) return "";
+  try {
+    const res = await fetch(`${api}/course?id=${encodeURIComponent(courseId)}`);
+    const data = await res.json();
+    if (data && data.success && data.title) return data.title;
+  } catch {
+    // ignore
+  }
+  return "";
+}
+
+function resolveCourseContent(courseId, contentId, titleHint) {
+  if (typeof COURSE_CONTENT === "undefined") {
+    return { course: null, id: null, fallback: false };
+  }
+
+  const content = COURSE_CONTENT || {};
+  const keys = [contentId, courseId].filter(Boolean).map(String);
+
+  for (const key of keys) {
+    if (content[key]) {
+      return { course: content[key], id: String(content[key]?.id || key), fallback: false };
+    }
+  }
+
+  const list = Object.values(content);
+  const byId = list.find((c) => String(c?.id || "") === String(contentId || courseId));
+  if (byId) return { course: byId, id: String(byId.id || contentId || courseId), fallback: false };
+
+  const target = String(titleHint || "").trim().toLowerCase();
+  if (target) {
+    const byTitle = list.find((c) => String(c?.title || "").trim().toLowerCase() === target);
+    if (byTitle) return { course: byTitle, id: String(byTitle.id || contentId || courseId), fallback: false };
+  }
+
+  const firstKey = Object.keys(content)[0];
+  if (firstKey) {
+    return { course: content[firstKey], id: String(content[firstKey]?.id || firstKey), fallback: true };
+  }
+
+  return { course: null, id: null, fallback: false };
 }
 
 function wireBackLinks(backUrl) {
@@ -283,9 +351,7 @@ Supports BOTH shapes:
 A) lesson.quiz = { title, xp, questions: [...] }
 B) lesson.quiz = { question, options, answer, explain } (single question legacy)
 */
-function getQuizModel(courseId, lessonNumber) {
-  if (typeof COURSE_CONTENT === "undefined") return null;
-  const course = COURSE_CONTENT[String(courseId)];
+function getQuizModelFromCourse(course, lessonNumber) {
   if (!course || !course.units) return null;
 
   // Flatten lessons exactly like course.js does (unit lessons order)

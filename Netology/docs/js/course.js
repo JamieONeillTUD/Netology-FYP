@@ -261,6 +261,7 @@ What this file does:
   const state = {
     user: null,
     courseId: null,
+    courseContentId: null,
 
     // normalized course model
     course: {
@@ -320,6 +321,7 @@ What this file does:
     // course id from URL (?id=) with fallbacks
     const params = new URLSearchParams(window.location.search);
     let courseId = params.get("id") || params.get("course_id") || params.get("course") || "1";
+    const contentIdParam = params.get("content_id") || params.get("content");
 
     // Resolve by title if a non-numeric id was provided
     if (typeof window.COURSE_CONTENT !== "undefined") {
@@ -345,6 +347,7 @@ What this file does:
     }
 
     state.courseId = courseId || "1";
+    state.courseContentId = contentIdParam ? String(contentIdParam) : null;
     state.course.id = state.courseId;
 
     const lessonParam = new URLSearchParams(window.location.search).get("lesson");
@@ -354,7 +357,12 @@ What this file does:
 
     // load course meta (from DB) + structure (from COURSE_CONTENT)
     const apiMeta = await fetchCourseMeta(state.courseId);
-    hydrateCourseFromContent(state.courseId, apiMeta);
+    hydrateCourseFromContent(state.courseId, apiMeta, state.courseContentId);
+
+    if (state.courseContentId && params.get("content_id") !== state.courseContentId) {
+      params.set("content_id", state.courseContentId);
+      history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    }
 
     // load user stats + completions (if logged in)
     if (state.user?.email) {
@@ -698,9 +706,10 @@ What this file does:
     return 1;
   }
 
-  function hydrateCourseFromContent(courseId, apiMeta) {
+  function hydrateCourseFromContent(courseId, apiMeta, contentId) {
+    const contentKey = contentId ? String(contentId) : String(courseId);
     let raw = (typeof window.COURSE_CONTENT !== "undefined")
-      ? window.COURSE_CONTENT[String(courseId)]
+      ? window.COURSE_CONTENT[contentKey]
       : null;
 
     if (!raw && apiMeta?.title && typeof window.COURSE_CONTENT !== "undefined") {
@@ -755,6 +764,8 @@ What this file does:
       };
       return;
     }
+
+    state.courseContentId = String(raw.id || contentKey || courseId);
 
     state.course.title = raw.title || raw.name || "Course";
     state.course.description = raw.description || raw.about || "No description yet.";
@@ -1076,7 +1087,8 @@ What this file does:
     }
 
     // sandbox buttons carry course context
-    const q = `course_id=${encodeURIComponent(state.courseId)}`;
+      const contentId = state.courseContentId || state.courseId;
+      const q = `course_id=${encodeURIComponent(state.courseId)}&content_id=${encodeURIComponent(contentId)}`;
     const topSandbox = getById("topSandboxLink");
     const sidebarSandboxBtn = getById("sidebarSandboxBtn");
     const openSandboxBtn = getById("openSandboxBtn");
@@ -1386,21 +1398,24 @@ What this file does:
       trackCourseStart(state.user.email, state.courseId, lessonNumber);
     }
 
+    const contentId = state.courseContentId || state.courseId;
+    const contentQuery = `&content_id=${encodeURIComponent(contentId)}`;
+
     if (t === "learn") {
       window.location.href =
-        `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
+        `lesson.html?course_id=${encodeURIComponent(state.courseId)}${contentQuery}&lesson=${encodeURIComponent(lessonNumber)}`;
       return;
     }
 
     if (t === "quiz") {
       window.location.href =
-        `quiz.html?course=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
+        `quiz.html?course=${encodeURIComponent(state.courseId)}${contentQuery}&lesson=${encodeURIComponent(lessonNumber)}`;
       return;
     }
 
     if (t === "sandbox" || t === "practice") {
       window.location.href =
-        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}&mode=practice`;
+        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}${contentQuery}&lesson=${encodeURIComponent(lessonNumber)}&mode=practice`;
       return;
     }
 
@@ -1423,7 +1438,7 @@ What this file does:
         localStorage.setItem("netology_active_challenge", JSON.stringify(payload));
       }
       window.location.href =
-        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}&mode=challenge&challenge=1`;
+        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}${contentQuery}&lesson=${encodeURIComponent(lessonNumber)}&mode=challenge&challenge=1`;
       return;
     }
   }
@@ -1528,7 +1543,7 @@ What this file does:
     if (openBtn) {
       openBtn.setAttribute(
         "href",
-        `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(item.lesson_number)}`
+        `lesson.html?course_id=${encodeURIComponent(state.courseId)}&content_id=${encodeURIComponent(state.courseContentId || state.courseId)}&lesson=${encodeURIComponent(item.lesson_number)}`
       );
       const started = getStartedLessonNumber(state.user?.email, state.courseId);
       const done = state.completed.lesson.has(Number(item.lesson_number));

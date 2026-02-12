@@ -11,8 +11,7 @@ window.API_BASE = window.API_BASE || "https://netology-fyp.onrender.com";
 (() => {
   try {
     const params = new URLSearchParams(window.location.search);
-    const isLocal = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname);
-    const wantsPreview = params.has("preview") || localStorage.getItem("netology_preview") === "1" || isLocal;
+    const wantsPreview = params.has("preview") || localStorage.getItem("netology_preview") === "1";
 
     if (wantsPreview) {
       localStorage.setItem("netology_preview", "1");

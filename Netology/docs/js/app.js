@@ -203,7 +203,7 @@ function wireLoginSubmit(form) {
         let unlockTier = serverTier || existingTier || pendingTier || "novice";
         if (!["novice", "intermediate", "advanced"].includes(unlockTier)) unlockTier = "novice";
 
-        localStorage.setItem("user", JSON.stringify({
+        const loginPayload = {
           email: email,
           first_name: data.first_name,
           last_name: data.last_name,
@@ -213,7 +213,10 @@ function wireLoginSubmit(form) {
 
           // NEW: dashboard uses this to unlock content tiers
           unlock_tier: unlockTier
-        }));
+        };
+
+        localStorage.setItem("user", JSON.stringify(loginPayload));
+        localStorage.setItem("netology_user", JSON.stringify(loginPayload));
         localStorage.setItem("netology_last_email", email);
 
         // Login streak tracking + badge awards

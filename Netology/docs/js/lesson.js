@@ -18,6 +18,7 @@ lesson.js – Lesson page
   const state = {
     user: null,
     courseId: null,
+    courseContentId: null,
     lessonNumber: null,
     course: null,
     lessonEntry: null,
@@ -86,12 +87,17 @@ lesson.js – Lesson page
   function coursePageUrl() {
     const params = new URLSearchParams();
     params.set("id", String(state.courseId));
+    if (state.courseContentId) params.set("content_id", String(state.courseContentId));
     if (state.lessonNumber) params.set("lesson", String(state.lessonNumber));
     return `course.html?${params.toString()}`;
   }
 
   function lessonUrl(lessonNumber) {
-    return `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
+    const params = new URLSearchParams();
+    params.set("course_id", String(state.courseId));
+    if (state.courseContentId) params.set("content_id", String(state.courseContentId));
+    params.set("lesson", String(lessonNumber));
+    return `lesson.html?${params.toString()}`;
   }
 
   function resolveCourseByParam(courseId) {
@@ -116,6 +122,19 @@ lesson.js – Lesson page
     }
 
     return { course: null, id: null, fallback: false };
+  }
+
+  async function fetchCourseTitle(courseId) {
+    const api = getApiBase();
+    if (!api || !courseId) return "";
+    try {
+      const res = await fetch(`${api}/course?id=${encodeURIComponent(courseId)}`);
+      const data = await res.json();
+      if (data && data.success && data.title) return data.title;
+    } catch {
+      // ignore
+    }
+    return "";
   }
 
   function isLoggedIn(user) {
@@ -340,6 +359,8 @@ lesson.js – Lesson page
   async function initLessonPage() {
     const params = new URLSearchParams(window.location.search);
     state.courseId = params.get("course_id") || params.get("course") || "1";
+    const contentParam = params.get("content_id") || params.get("content");
+    state.courseContentId = contentParam ? String(contentParam) : null;
     state.lessonNumber = Number(params.get("lesson") || "1");
 
     // User
@@ -351,18 +372,24 @@ lesson.js – Lesson page
       setText("lessonTitle", "Course content unavailable");
       return;
     }
-    const resolved = resolveCourseByParam(state.courseId);
+    let resolved = resolveCourseByParam(state.courseContentId || state.courseId);
+    if ((resolved.fallback || !resolved.course) && state.courseId) {
+      const titleHint = await fetchCourseTitle(state.courseId);
+      if (titleHint) {
+        resolved = resolveCourseByParam(titleHint);
+      }
+    }
     state.course = resolved.course;
     if (!state.course) {
       setText("lessonTitle", "Course not found");
       return;
     }
 
-    if (resolved.id && String(resolved.id) !== String(state.courseId)) {
-      state.courseId = String(resolved.id);
+    if (resolved.id && String(resolved.id) !== String(state.courseContentId || "")) {
+      state.courseContentId = String(resolved.id);
       const url = new URL(window.location.href);
-      url.searchParams.set("course_id", String(state.courseId));
-      url.searchParams.delete("course");
+      url.searchParams.set("content_id", String(state.courseContentId));
+      url.searchParams.delete("content");
       history.replaceState(null, "", url.toString());
     }
 
@@ -434,7 +461,7 @@ lesson.js – Lesson page
 
     if (brand) brand.setAttribute("href", href);
     if (sideBrand) sideBrand.setAttribute("href", href);
-    if (back) back.setAttribute("href", `course.html?id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(state.lessonNumber)}`);
+    if (back) back.setAttribute("href", coursePageUrl());
   }
 
   function wireChromeGuest() {
@@ -838,7 +865,7 @@ lesson.js – Lesson page
     const nextLink = getById("nextLessonLink");
     if (prevLink) {
       if (prev) {
-        prevLink.href = `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(prev.lessonNumber)}`;
+        prevLink.href = lessonUrl(prev.lessonNumber);
         prevLink.textContent = `Previous: ${prev.lesson.title}`;
       } else {
         prevLink.classList.add("disabled");
@@ -847,7 +874,7 @@ lesson.js – Lesson page
     }
     if (nextLink) {
       if (next) {
-        nextLink.href = `lesson.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(next.lessonNumber)}`;
+        nextLink.href = lessonUrl(next.lessonNumber);
         nextLink.textContent = `Next: ${next.lesson.title}`;
       } else {
         nextLink.classList.add("disabled");
@@ -866,7 +893,12 @@ lesson.js – Lesson page
     const completeBtn = getById("lessonCompleteBtn");
 
     practiceBtn?.addEventListener("click", () => {
-      window.location.href = `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(state.lessonNumber)}&mode=practice`;
+      const params = new URLSearchParams();
+      params.set("course_id", String(state.courseId));
+      if (state.courseContentId) params.set("content_id", String(state.courseContentId));
+      params.set("lesson", String(state.lessonNumber));
+      params.set("mode", "practice");
+      window.location.href = `sandbox.html?${params.toString()}`;
     });
 
     challengeBtn?.addEventListener("click", () => {
@@ -887,7 +919,13 @@ lesson.js – Lesson page
         localStorage.setItem("netology_active_challenge", JSON.stringify(payload));
       }
 
-      window.location.href = `sandbox.html?course_id=${encodeURIComponent(state.courseId)}&lesson=${encodeURIComponent(state.lessonNumber)}&mode=challenge&challenge=1`;
+      const params = new URLSearchParams();
+      params.set("course_id", String(state.courseId));
+      if (state.courseContentId) params.set("content_id", String(state.courseContentId));
+      params.set("lesson", String(state.lessonNumber));
+      params.set("mode", "challenge");
+      params.set("challenge", "1");
+      window.location.href = `sandbox.html?${params.toString()}`;
     });
 
     completeBtn?.addEventListener("click", async () => {
