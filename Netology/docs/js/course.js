@@ -385,6 +385,34 @@ What this file does:
     maybeShowReturnToast();
   });
 
+  async function refreshCourseState(options = {}) {
+    const before = computeProgress();
+    if (!state.courseId) return;
+    if (state.user?.email) {
+      await loadUserStats(state.user.email);
+      await loadCompletions(state.user.email, state.courseId);
+    }
+    computeLockState();
+    renderAll();
+    const after = computeProgress();
+    if (options.showToast && (after.pct !== before.pct || after.done !== before.done)) {
+      showCourseProgressToast(after);
+    }
+  }
+
+  // Ensure back/forward navigation refreshes progress (bfcache-safe)
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+      refreshCourseState({ showToast: true }).catch(() => {});
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      refreshCourseState({ showToast: true }).catch(() => {});
+    }
+  });
+
   /* =========================================================
      CHROME (sidebar + dropdown)  (matches dashboard behaviour)
   ========================================================= */
@@ -1756,6 +1784,59 @@ What this file does:
     const decoded = decodeURIComponent(msg);
     if (typeof window.showPopup === "function") window.showPopup(decoded, "success");
     else showAria(decoded);
+  }
+
+  function showCourseProgressToast(progress) {
+    const existing = document.getElementById("courseProgressToast");
+    if (existing) existing.remove();
+
+    const popup = document.createElement("div");
+    popup.id = "courseProgressToast";
+    popup.className = "net-toast net-toast-enter";
+    popup.setAttribute("role", "status");
+    popup.setAttribute("aria-live", "polite");
+    popup.dataset.type = "success";
+
+    const pct = Number(progress?.pct || 0);
+    const done = Number(progress?.done || 0);
+    const total = Number(progress?.total || 0);
+    const sub = total
+      ? `You're now ${pct}% complete · ${done}/${total} required items done.`
+      : "Your course progress just refreshed.";
+    const xpHint =
+      state.user && state.stats && Number.isFinite(Number(state.stats.toNext))
+        ? `Next level in ${Math.max(0, Number(state.stats.toNext))} XP.`
+        : "";
+
+    popup.innerHTML = `
+      <div class="net-toast-inner">
+        <div class="net-toast-icon" aria-hidden="true"></div>
+        <div class="net-toast-body">
+          <div class="net-toast-title">
+            <i class="bi bi-stars me-2" aria-hidden="true"></i>
+            Course progress updated
+          </div>
+          <div class="net-toast-sub">${escapeHtml(sub)}</div>
+          ${xpHint ? `<div class="net-toast-sub mt-1"><i class="bi bi-lightning-charge-fill me-1" aria-hidden="true"></i>${escapeHtml(xpHint)}</div>` : ""}
+        </div>
+        <button class="net-toast-close" type="button" aria-label="Dismiss">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(popup);
+
+    const removeToast = () => {
+      popup.classList.remove("net-toast-enter");
+      popup.classList.add("net-toast-exit");
+      setTimeout(() => popup.remove(), 220);
+    };
+
+    const closeBtn = popup.querySelector(".net-toast-close");
+    closeBtn?.addEventListener("click", removeToast);
+
+    setTimeout(removeToast, 2800);
   }
 
   /* =========================================================

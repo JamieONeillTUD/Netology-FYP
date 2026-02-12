@@ -39,7 +39,7 @@ async function initQuizPage() {
     return;
   }
 
-  const backUrl = buildLessonUrl(courseId, lessonNumber);
+  const backUrl = buildCourseUrl(courseId, lessonNumber);
   wireBackLinks(backUrl);
 
   const quizModel = getQuizModel(courseId, lessonNumber);
@@ -91,6 +91,13 @@ function buildLessonUrl(courseId, lessonNumber) {
   return `lesson.html?course_id=${encodeURIComponent(courseId)}&lesson=${encodeURIComponent(lessonNumber)}`;
 }
 
+function buildCourseUrl(courseId, lessonNumber) {
+  const params = new URLSearchParams();
+  params.set("id", courseId);
+  if (lessonNumber) params.set("lesson", String(lessonNumber));
+  return `course.html?${params.toString()}`;
+}
+
 function wireBackLinks(backUrl) {
   const backTop = document.getElementById("backToCourseTop");
   const backBtn = document.getElementById("backToCourseBtn");
@@ -135,6 +142,15 @@ function parseJsonSafe(raw) {
   } catch {
     return null;
   }
+}
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function totalXpForLevel(level) {
@@ -384,7 +400,12 @@ function renderQuestion(state) {
     btn.type = "button";
     btn.className = "net-quiz-option";
     btn.setAttribute("aria-label", `Select answer: ${opt}`);
-    btn.textContent = opt;
+    const letter = String.fromCharCode(65 + idx);
+    btn.innerHTML = `
+      <span class="net-quiz-option-letter" aria-hidden="true">${letter}</span>
+      <span class="net-quiz-option-text">${escapeHtml(opt)}</span>
+      <span class="net-quiz-option-status" aria-hidden="true"></span>
+    `;
 
     btn.addEventListener("click", () => selectAnswer(state, idx, btn));
     optionsBox.appendChild(btn);
@@ -394,6 +415,7 @@ function renderQuestion(state) {
   hideFeedback();
   setSubmitEnabled(false);
   showNext(false);
+  renderMiniProgress(state);
 
   // Add a tiny entrance animation class (CSS handles it)
   const card = document.getElementById("quizCard");
@@ -402,6 +424,34 @@ function renderQuestion(state) {
     // force reflow
     void card.offsetWidth;
     card.classList.add("net-quiz-enter");
+  }
+
+  const progressCard = document.getElementById("progressCard");
+  if (progressCard) progressCard.classList.remove("d-none");
+}
+
+function renderMiniProgress(state) {
+  const wrap = document.getElementById("miniProgress");
+  if (!wrap) return;
+  const total = state.questions.length;
+  const answeredCount = state.answers.filter((v) => typeof v === "boolean").length;
+  const correctCount = state.answers.filter((v) => v === true).length;
+  const remaining = Math.max(0, total - answeredCount);
+
+  setText("progressCorrectCount", correctCount);
+  setText("progressRemaining", remaining);
+
+  wrap.innerHTML = "";
+  for (let i = 0; i < total; i += 1) {
+    const seg = document.createElement("span");
+    seg.className = "net-quiz-progress-bar";
+    const ans = state.answers[i];
+    if (typeof ans === "boolean") {
+      seg.classList.add(ans ? "is-correct" : "is-wrong");
+    } else if (i === state.currentIndex) {
+      seg.classList.add("is-current");
+    }
+    wrap.appendChild(seg);
   }
 }
 
@@ -445,6 +495,7 @@ function submitAnswer(state) {
 
   // Show feedback panel
   showFeedback(correct, q.explanation || "", xpPerQuestion(state, correct));
+  renderMiniProgress(state);
 
   // Toggle buttons
   setSubmitEnabled(false);
@@ -509,8 +560,10 @@ function renderResults(state, result) {
   // Hide question card, show results
   const quizCard = document.getElementById("quizCard");
   const resultsCard = document.getElementById("resultsCard");
+  const progressCard = document.getElementById("progressCard");
   if (quizCard) quizCard.classList.add("d-none");
   if (resultsCard) resultsCard.classList.remove("d-none");
+  if (progressCard) progressCard.classList.add("d-none");
 
   // Progress bar to 100%
   setText("quizStepText", "Completed");
@@ -565,7 +618,7 @@ function showFeedback(correct, explanation, xpEarned) {
   if (!box || !icon || !title || !text) return;
 
   box.classList.remove("d-none");
-  box.classList.remove("is-correct", "is-wrong");
+  box.classList.remove("is-correct", "is-wrong", "is-show");
 
   if (correct) {
     box.classList.add("is-correct");
@@ -578,6 +631,7 @@ function showFeedback(correct, explanation, xpEarned) {
   }
 
   text.textContent = explanation || "Explanation not available.";
+  box.classList.add("is-show");
 
   // XP row
   const row = document.getElementById("xpEarnedRow");
@@ -594,7 +648,10 @@ function showFeedback(correct, explanation, xpEarned) {
 
 function hideFeedback() {
   const box = document.getElementById("feedbackBox");
-  if (box) box.classList.add("d-none");
+  if (box) {
+    box.classList.add("d-none");
+    box.classList.remove("is-show", "is-correct", "is-wrong");
+  }
 }
 
 function setSubmitEnabled(on) {

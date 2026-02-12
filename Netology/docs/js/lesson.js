@@ -84,7 +84,10 @@ lesson.js – Lesson page
   }
 
   function coursePageUrl() {
-    return `course.html?id=${encodeURIComponent(state.courseId)}`;
+    const params = new URLSearchParams();
+    params.set("id", String(state.courseId));
+    if (state.lessonNumber) params.set("lesson", String(state.lessonNumber));
+    return `course.html?${params.toString()}`;
   }
 
   function lessonUrl(lessonNumber) {

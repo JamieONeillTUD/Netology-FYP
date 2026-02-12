@@ -3819,6 +3819,368 @@ body.net-auth-v2.net-landing::before{
 }
 
 /* =========================================================
+   Quiz Page (quiz.html)
+========================================================= */
+.net-quiz-page{
+  background: radial-gradient(circle at top, rgba(45,212,191,.18), transparent 55%),
+              radial-gradient(circle at 10% 20%, rgba(34,211,238,.12), transparent 45%),
+              linear-gradient(135deg, var(--net-bg2), var(--net-bg1));
+  min-height: 100vh;
+}
+
+.net-quiz-topbar{
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255,255,255,.86);
+  border-bottom: 1px solid rgba(6,182,212,.14);
+}
+
+.net-quiz-back{
+  border-radius: 999px;
+  padding: .4rem .85rem;
+}
+
+.net-quiz-shell{
+  border-radius: 28px;
+  border: 1px solid rgba(6,182,212,.16);
+  background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,255,255,.72));
+  box-shadow: 0 22px 60px rgba(2, 6, 23, .12);
+}
+
+.net-quiz-kicker{
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(15,118,110,.9);
+}
+
+.net-quiz-xp-pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: .45rem .9rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(6,182,212,.12));
+  color: #0f766e;
+  font-weight: 800;
+  border: 1px solid rgba(6,182,212,.2);
+  box-shadow: 0 10px 28px rgba(6,182,212,.18);
+}
+
+.net-quiz-xp-ico{
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(16,185,129,.85), rgba(6,182,212,.85));
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 8px 18px rgba(6,182,212,.22);
+}
+
+.net-quiz-card{
+  border-radius: 26px;
+  border: 1px solid rgba(6,182,212,.16);
+  box-shadow: 0 20px 60px rgba(2,6,23,.12);
+}
+
+.net-quiz-question-head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.net-quiz-question{
+  font-weight: 800;
+  color: var(--net-ink-2);
+}
+
+.net-quiz-chip{
+  padding: .4rem .85rem;
+  border-radius: 999px;
+  font-weight: 700;
+  background: rgba(15,118,110,.08);
+  color: rgba(15,118,110,.95);
+  border: 1px solid rgba(6,182,212,.2);
+}
+
+.net-quiz-options{
+  display: grid;
+  gap: 12px;
+}
+
+.net-quiz-option{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 2px solid rgba(148,163,184,.2);
+  background: rgba(255,255,255,.9);
+  color: #0f172a;
+  font-weight: 600;
+  text-align: left;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.net-quiz-option:hover{
+  transform: translateX(4px);
+  border-color: rgba(6,182,212,.35);
+  box-shadow: 0 14px 30px rgba(6,182,212,.12);
+}
+
+.net-quiz-option-letter{
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  background: rgba(15,118,110,.12);
+  color: rgba(15,118,110,.95);
+  flex-shrink: 0;
+}
+
+.net-quiz-option-text{
+  flex: 1;
+  font-size: 1rem;
+}
+
+.net-quiz-option-status{
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  background: rgba(148,163,184,.18);
+  color: rgba(15,23,42,.6);
+  flex-shrink: 0;
+}
+
+.net-quiz-option.is-selected{
+  border-color: rgba(6,182,212,.55);
+  background: linear-gradient(135deg, rgba(6,182,212,.12), rgba(16,185,129,.08));
+  box-shadow: 0 16px 36px rgba(6,182,212,.18);
+}
+
+.net-quiz-option.is-correct{
+  border-color: rgba(16,185,129,.6);
+  background: linear-gradient(135deg, rgba(16,185,129,.14), rgba(6,182,212,.08));
+  box-shadow: 0 18px 40px rgba(16,185,129,.2);
+  animation: quizPulse .6s ease;
+}
+
+.net-quiz-option.is-wrong{
+  border-color: rgba(239,68,68,.6);
+  background: linear-gradient(135deg, rgba(248,113,113,.16), rgba(248,113,113,.08));
+  box-shadow: 0 18px 40px rgba(239,68,68,.18);
+  animation: quizShake .4s ease;
+}
+
+.net-quiz-option.is-correct .net-quiz-option-status{
+  background: rgba(16,185,129,.9);
+  color: #fff;
+}
+.net-quiz-option.is-correct .net-quiz-option-status::after{
+  content: "✓";
+}
+
+.net-quiz-option.is-wrong .net-quiz-option-status{
+  background: rgba(239,68,68,.9);
+  color: #fff;
+}
+.net-quiz-option.is-wrong .net-quiz-option-status::after{
+  content: "✕";
+}
+
+.net-quiz-feedback{
+  border-radius: 18px;
+  border: 2px solid rgba(6,182,212,.18);
+  background: linear-gradient(135deg, rgba(255,255,255,.9), rgba(6,182,212,.06));
+  box-shadow: 0 18px 40px rgba(2,6,23,.08);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .3s ease, transform .3s ease;
+}
+
+.net-quiz-feedback.is-show{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.net-quiz-feedback.is-correct{
+  border-color: rgba(16,185,129,.35);
+  background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(6,182,212,.08));
+}
+
+.net-quiz-feedback.is-wrong{
+  border-color: rgba(239,68,68,.35);
+  background: linear-gradient(135deg, rgba(248,113,113,.12), rgba(248,113,113,.06));
+}
+
+.net-quiz-feedback-ico{
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(6,182,212,.18);
+  color: #0f766e;
+  font-weight: 900;
+}
+
+.net-quiz-feedback.is-correct .net-quiz-feedback-ico{
+  background: rgba(16,185,129,.25);
+  color: #0f766e;
+}
+
+.net-quiz-feedback.is-wrong .net-quiz-feedback-ico{
+  background: rgba(248,113,113,.25);
+  color: #b91c1c;
+}
+
+.net-quiz-xp-earned{
+  color: #0f766e;
+  font-weight: 800;
+}
+
+.net-quiz-primary{
+  border-radius: 14px;
+  padding: .65rem 1.35rem;
+  font-weight: 700;
+  box-shadow: 0 12px 30px rgba(6,182,212,.22);
+}
+
+.net-quiz-secondary{
+  border-radius: 14px;
+  padding: .65rem 1.35rem;
+  font-weight: 700;
+}
+
+.net-quiz-progress-card{
+  border-radius: 22px;
+  border: 1px solid rgba(6,182,212,.16);
+  background: rgba(255,255,255,.8);
+  box-shadow: 0 18px 50px rgba(2,6,23,.08);
+}
+
+.net-quiz-progress-bars{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18px, 1fr));
+  gap: 8px;
+}
+
+.net-quiz-progress-bar{
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(148,163,184,.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.net-quiz-progress-bar.is-current{
+  background: linear-gradient(135deg, rgba(6,182,212,.55), rgba(16,185,129,.35));
+  box-shadow: 0 0 0 2px rgba(6,182,212,.15);
+}
+
+.net-quiz-progress-bar.is-correct{
+  background: linear-gradient(135deg, rgba(16,185,129,.8), rgba(6,182,212,.6));
+}
+
+.net-quiz-progress-bar.is-wrong{
+  background: linear-gradient(135deg, rgba(248,113,113,.8), rgba(239,68,68,.6));
+}
+
+.net-quiz-results{
+  border-radius: 28px;
+  border: 1px solid rgba(6,182,212,.16);
+  box-shadow: 0 24px 70px rgba(2,6,23,.14);
+}
+
+.net-quiz-result-badge{
+  width: 96px;
+  height: 96px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  background: linear-gradient(135deg, rgba(16,185,129,.18), rgba(6,182,212,.18));
+  box-shadow: 0 18px 45px rgba(6,182,212,.18);
+}
+
+.net-quiz-stat{
+  border-radius: 18px;
+  padding: 16px 18px;
+  background: rgba(255,255,255,.9);
+  border: 1px solid rgba(6,182,212,.14);
+  box-shadow: 0 12px 30px rgba(2,6,23,.08);
+}
+
+.net-quiz-stat-value{
+  font-weight: 900;
+  font-size: 1.6rem;
+  color: #0f172a;
+}
+
+.net-quiz-stat-label{
+  font-size: .85rem;
+  color: rgba(15,23,42,.6);
+}
+
+@keyframes quizPulse{
+  0%{ transform: scale(1); }
+  50%{ transform: scale(1.02); }
+  100%{ transform: scale(1); }
+}
+
+@keyframes quizShake{
+  0%{ transform: translateX(0); }
+  30%{ transform: translateX(-3px); }
+  60%{ transform: translateX(3px); }
+  100%{ transform: translateX(0); }
+}
+
+.net-quiz-enter{
+  animation: quizCardIn .35s ease;
+}
+
+@keyframes quizCardIn{
+  0%{ opacity: 0; transform: translateY(8px) scale(.98); }
+  100%{ opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 768px){
+  .net-quiz-shell,
+  .net-quiz-card,
+  .net-quiz-progress-card,
+  .net-quiz-results{
+    border-radius: 20px;
+  }
+  .net-quiz-option{
+    padding: 14px;
+  }
+  .net-quiz-option-text{
+    font-size: .95rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .net-quiz-option,
+  .net-quiz-enter,
+  .net-quiz-feedback,
+  .net-quiz-option.is-correct,
+  .net-quiz-option.is-wrong{
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* =========================================================
    8) course.html (Single course + Khan-style sidebar)
 ========================================================= */
 
