@@ -61,6 +61,13 @@ lesson.js – Lesson page
     if (node) node.replaceChildren();
   }
 
+  function makeIcon(className) {
+    const icon = document.createElement("i");
+    icon.className = className;
+    icon.setAttribute("aria-hidden", "true");
+    return icon;
+  }
+
   function appendTextWithBreaks(node, text) {
     if (!node) return;
     const parts = String(text || "").split(/\n/);
@@ -145,15 +152,19 @@ lesson.js – Lesson page
     if (!status) return;
     const isDone = state.completedLessons.has(Number(state.lessonNumber));
     const activityState = getActivityState();
+    const setChip = (cls, iconCls, label) => {
+      status.className = `net-status-chip ${cls}`;
+      status.replaceChildren(makeIcon(iconCls), document.createTextNode(` ${label}`));
+    };
     if (isDone) {
-      status.textContent = "Completed";
+      setChip("net-status-chip--completed", "bi bi-check2-circle", "Completed");
       return;
     }
     if (activityState.doneCount > 0) {
-      status.textContent = "In progress";
+      setChip("net-status-chip--progress", "bi bi-arrow-repeat", "In progress");
       return;
     }
-    status.textContent = "Not started";
+    setChip("net-status-chip--active", "bi bi-play-circle", "Not started");
   }
 
   async function finalizeLessonCompletion() {
@@ -548,6 +559,8 @@ lesson.js – Lesson page
     // Course content
     if (typeof COURSE_CONTENT === "undefined") {
       setText("lessonTitle", "Course content unavailable");
+      document.body.classList.remove("net-loading");
+      document.body.classList.add("net-loaded");
       return;
     }
     let resolved = resolveCourseByParam(state.courseContentId || state.courseId);
@@ -560,6 +573,8 @@ lesson.js – Lesson page
     state.course = resolved.course;
     if (!state.course) {
       setText("lessonTitle", "Course not found");
+      document.body.classList.remove("net-loading");
+      document.body.classList.add("net-loaded");
       return;
     }
 
@@ -584,6 +599,8 @@ lesson.js – Lesson page
     const flatLessons = flattenLessons(state.course);
     if (!flatLessons.length) {
       setText("lessonTitle", "Lesson content unavailable");
+      document.body.classList.remove("net-loading");
+      document.body.classList.add("net-loaded");
       return;
     }
 
@@ -1353,8 +1370,10 @@ lesson.js – Lesson page
     const course = state.course;
 
     setText("lessonCourseTitle", course.title || "Course");
+    setText("breadcrumbCourse", course.title || "Course");
     setText("lessonDifficulty", capitalize(course.difficulty || "novice"));
     setText("lessonUnitTitle", state.lessonEntry?.unitTitle || "Unit");
+    setText("breadcrumbModule", state.lessonEntry?.unitTitle || "Module");
 
     const difficultyPill = getById("lessonDifficulty");
     if (difficultyPill) {
@@ -1365,6 +1384,8 @@ lesson.js – Lesson page
     }
 
     setText("lessonTitle", lessonData.title || "Lesson");
+    const crumbLesson = lessonData.title ? lessonData.title : `Lesson ${state.lessonNumber || ""}`;
+    setText("breadcrumbLesson", crumbLesson);
     setText("lessonSubtitle", lessonData.learn || course.description || "");
 
     const metaTime = state.itemsForLesson[0]?.duration || lessonData.duration || "—";
@@ -1384,6 +1405,9 @@ lesson.js – Lesson page
         objList.appendChild(li);
       });
     }
+
+    document.body.classList.remove("net-loading");
+    document.body.classList.add("net-loaded");
 
     // Content + activity progress
     const blocks = Array.isArray(lessonData.blocks) ? lessonData.blocks : [];

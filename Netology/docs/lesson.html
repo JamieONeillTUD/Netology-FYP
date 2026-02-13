@@ -26,7 +26,7 @@ lesson.html – Netology Lesson Page
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="net-bg net-landing net-lesson-page">
+<body class="net-bg net-landing net-lesson-page net-loading">
 
   <!-- AI Prompt: Explain the Slide Sidebar Backdrop section in clear, simple terms. -->
   <!-- Slide Sidebar Backdrop -->
@@ -154,6 +154,27 @@ lesson.html – Netology Lesson Page
   <!-- AI Prompt: Explain the Main section in clear, simple terms. -->
   <!-- Main -->
   <main class="container my-4 net-lesson-shell" role="main">
+    <section class="net-card p-4 net-loading-only" aria-label="Loading lesson">
+      <div class="net-skel net-w-60 mb-3"></div>
+      <div class="net-skel net-w-90 mb-2"></div>
+      <div class="net-skel net-w-80 mb-2"></div>
+      <div class="net-skel net-w-60"></div>
+    </section>
+
+    <div class="net-loading-hide">
+      <div class="mb-3">
+        <nav class="net-breadcrumb" aria-label="Breadcrumb">
+          <a href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
+          <i class="bi bi-chevron-right"></i>
+          <a href="courses.html">Courses</a>
+          <i class="bi bi-chevron-right"></i>
+          <span id="breadcrumbCourse">Course</span>
+          <i class="bi bi-chevron-right"></i>
+          <span id="breadcrumbModule">Module</span>
+          <i class="bi bi-chevron-right"></i>
+          <span id="breadcrumbLesson">Lesson</span>
+        </nav>
+      </div>
     <div class="mb-3">
       <a href="course.html" class="link-teal d-inline-flex align-items-center gap-2 fw-semibold" id="backToCourse">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
@@ -165,12 +186,12 @@ lesson.html – Netology Lesson Page
     <!-- Lesson Hero -->
     <section class="net-card net-lesson-hero p-4 p-lg-4 mb-4" aria-label="Lesson overview">
       <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <div class="net-lesson-kicker" id="lessonCourseTitle">Course</div>
+        <div class="net-lesson-kicker net-section-eyebrow" id="lessonCourseTitle">Course</div>
         <span class="net-pill-badge badge text-bg-light border px-3 py-2" id="lessonDifficulty">Difficulty</span>
         <span class="badge text-bg-light border" id="lessonUnitTitle">Unit</span>
       </div>
-      <h1 class="net-course-title mb-2" id="lessonTitle">Lesson title</h1>
-      <p class="text-muted mb-3" id="lessonSubtitle">Lesson summary</p>
+      <h1 class="net-course-title net-section-title mb-2" id="lessonTitle">Lesson title</h1>
+      <p class="text-muted net-section-sub mb-3" id="lessonSubtitle">Lesson summary</p>
 
       <div class="net-lesson-meta d-flex flex-wrap gap-3">
         <span class="d-inline-flex align-items-center gap-1">
@@ -279,6 +300,7 @@ lesson.html – Netology Lesson Page
           <div class="small text-muted">This lesson completes automatically when all activities are done.</div>
         </section>
       </div>
+    </div>
     </div>
   </main>
 

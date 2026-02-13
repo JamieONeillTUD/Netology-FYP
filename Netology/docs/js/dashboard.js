@@ -35,7 +35,49 @@ Works with:
     icon.className = className;
     return icon;
   };
+  const makeStatusChip = (status) => {
+    const chip = document.createElement("span");
+    const icon = document.createElement("i");
+    let label = "Active";
+    let cls = "net-status-chip net-status-chip--active";
+    let iconCls = "bi bi-play-circle";
+    if (status === "completed") {
+      label = "Completed";
+      cls = "net-status-chip net-status-chip--completed";
+      iconCls = "bi bi-check2-circle";
+    } else if (status === "progress") {
+      label = "In progress";
+      cls = "net-status-chip net-status-chip--progress";
+      iconCls = "bi bi-arrow-repeat";
+    }
+    chip.className = cls;
+    icon.className = iconCls;
+    icon.setAttribute("aria-hidden", "true");
+    chip.append(icon, document.createTextNode(label));
+    return chip;
+  };
   const BASE_XP = 100;
+
+  const animateCount = (el, target) => {
+    if (!el) return;
+    const to = Number(target || 0);
+    const from = Number(el.dataset.count || el.textContent || 0);
+    if (!Number.isFinite(to) || !Number.isFinite(from) || from === to) {
+      el.textContent = String(to);
+      el.dataset.count = String(to);
+      return;
+    }
+    const start = performance.now();
+    const duration = 450;
+    const tick = (now) => {
+      const pct = Math.min(1, (now - start) / duration);
+      const value = Math.round(from + (to - from) * pct);
+      el.textContent = String(value);
+      if (pct < 1) requestAnimationFrame(tick);
+      else el.dataset.count = String(to);
+    };
+    requestAnimationFrame(tick);
+  };
 
   function parseJsonSafe(str, fallback) {
     // LocalStorage can contain invalid JSON; fail gracefully.
@@ -1020,6 +1062,10 @@ Works with:
 
     const content = getCourseIndex();
     const apiCourses = await fetchContinueCourses(email);
+    const startedList = getStartedCourses(email)
+      .filter((c) => c && c.id)
+      .sort((a, b) => Number(b.lastViewed || 0) - Number(a.lastViewed || 0));
+    const startedMap = new Map(startedList.map((entry) => [String(entry.id), Number(entry.lastLesson || 0)]));
     if (Array.isArray(apiCourses) && apiCourses.length) {
       box.className = "dash-continue-list";
       clearChildren(box);
@@ -1050,7 +1096,8 @@ Works with:
           pct,
           done,
           required,
-          xpReward
+          xpReward,
+          lastLesson: startedMap.get(String(entry.id))
         });
         box.appendChild(item);
       });
@@ -1058,10 +1105,7 @@ Works with:
     }
 
     // Fallback: use local started courses
-    const started = getStartedCourses(email)
-      .filter((c) => c && c.id)
-      .sort((a, b) => Number(b.lastViewed || 0) - Number(a.lastViewed || 0))
-      .slice(0, 3);
+    const started = startedList.slice(0, 3);
 
     if (started.length) {
       box.className = "dash-continue-list";
@@ -1086,7 +1130,8 @@ Works with:
           pct,
           done,
           required,
-          xpReward
+          xpReward,
+          lastLesson: entry.lastLesson
         });
         box.appendChild(item);
       });
@@ -1098,13 +1143,15 @@ Works with:
     box.appendChild(makeEl("div", "text-muted small", "No started courses yet. Pick a course to begin."));
   }
 
-  function buildContinueItem({ id, title, category, diff, pct, done, required, xpReward }) {
+  function buildContinueItem({ id, title, category, diff, pct, done, required, xpReward, lastLesson }) {
     const item = document.createElement("div");
-    item.className = "dash-continue-item";
+    item.className = "dash-continue-item net-card net-card-fixed net-card-compact net-card--course net-focus-card";
     item.setAttribute("data-course-id", String(id));
+    item.tabIndex = 0;
+    item.setAttribute("role", "button");
 
     const left = document.createElement("div");
-    left.className = "flex-grow-1";
+    left.className = "flex-grow-1 net-card-body";
 
     const titleEl = makeEl("div", "fw-semibold", title);
     const meta = makeEl("div", "dash-continue-meta", `${category} • ${prettyDiff(diff)}`);
@@ -1118,25 +1165,41 @@ Works with:
     meter.appendChild(meterFill);
 
     const count = makeEl("div", "small text-muted mt-1", `${done}/${required || 0} items`);
-    left.append(titleEl, meta, meter, count);
+    const chipRow = document.createElement("div");
+    chipRow.className = "d-flex flex-wrap gap-2 mt-2";
+    chipRow.appendChild(makeStatusChip("progress"));
+    left.append(titleEl, meta, meter, count, chipRow);
 
     const right = document.createElement("div");
-    right.className = "text-end";
-    right.append(
-      makeEl("div", "small text-muted", "Suggested")
-    );
+    right.className = "text-end net-card-footer";
+    right.append(makeEl("div", "small text-muted", "Suggested"));
 
     const xpWrap = makeEl("div", "fw-semibold net-xp-accent");
     xpWrap.append(makeIcon("bi bi-lightning-charge-fill me-1"), document.createTextNode(String(xpReward || 0)));
     right.appendChild(xpWrap);
 
-    const btn = makeEl("button", "btn btn-teal btn-sm mt-2", "Continue");
+    const btnLabel = lastLesson ? "Resume" : "Continue";
+    const btn = makeEl("button", "btn btn-teal btn-sm mt-2", btnLabel);
     btn.type = "button";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (lastLesson) {
+        window.location.href = `lesson.html?course_id=${encodeURIComponent(id)}&lesson=${encodeURIComponent(lastLesson)}`;
+      } else {
+        window.location.href = `course.html?id=${encodeURIComponent(id)}`;
+      }
+    });
     right.appendChild(btn);
 
     item.append(left, right);
     item.addEventListener("click", () => {
       window.location.href = `course.html?id=${encodeURIComponent(id)}`;
+    });
+    item.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        window.location.href = `course.html?id=${encodeURIComponent(id)}`;
+      }
     });
     return item;
   }
@@ -1168,11 +1231,11 @@ Works with:
       completed = Math.max(apiSummary?.coursesDone || 0, localSummary?.coursesDone || 0);
     }
 
-    if (getById("statInProgress")) getById("statInProgress").textContent = String(inProgress);
-    if (getById("statCompleted")) getById("statCompleted").textContent = String(completed);
-    if (getById("statLessons")) getById("statLessons").textContent = String(lessonsDone);
-    if (getById("statQuizzes")) getById("statQuizzes").textContent = String(quizzesDone);
-    if (getById("statChallenges")) getById("statChallenges").textContent = String(challengesDone);
+    animateCount(getById("statInProgress"), inProgress);
+    animateCount(getById("statCompleted"), completed);
+    animateCount(getById("statLessons"), lessonsDone);
+    animateCount(getById("statQuizzes"), quizzesDone);
+    animateCount(getById("statChallenges"), challengesDone);
 
     // Login streak + streak badge progress
     const loginLog = email ? getLoginLog(email) : [];

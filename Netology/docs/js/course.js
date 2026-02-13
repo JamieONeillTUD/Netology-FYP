@@ -228,6 +228,25 @@ What this file does:
     localStorage.setItem(LOG_KEY(email), JSON.stringify(list));
   }
 
+  function getProgressLog(email) {
+    if (!email) return [];
+    return parseJsonSafe(localStorage.getItem(LOG_KEY(email))) || [];
+  }
+
+  function computeStreak(log) {
+    if (!Array.isArray(log) || !log.length) return 0;
+    const days = new Set(log.map((e) => e?.date).filter(Boolean));
+    let streak = 0;
+    const d = new Date();
+    for (;;) {
+      const key = d.toISOString().slice(0, 10);
+      if (!days.has(key)) break;
+      streak += 1;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
+  }
+
   function trackCourseStart(email, courseId, lessonNumber) {
     if (!email || !courseId) return;
     const raw = localStorage.getItem(STARTED_KEY(email));
@@ -426,9 +445,12 @@ What this file does:
 
     // derived
     buildLearnFlatList();
+    restoreLastModule();
 
     // render
     renderAll();
+    document.body.classList.remove("net-loading");
+    document.body.classList.add("net-loaded");
 
     // Seed toast flags so existing completions don't spam on first load
     seedCompletionToastFlags();
@@ -1084,6 +1106,24 @@ What this file does:
     return `netology_course_done:${email}:${state.courseId}`;
   }
 
+  function lastModuleKey() {
+    const email = state.user?.email || "guest";
+    return `netology_course_last_module:${email}:${state.courseId}`;
+  }
+
+  function restoreLastModule() {
+    const last = localStorage.getItem(lastModuleKey());
+    if (last) {
+      state.expandedModules.clear();
+      state.expandedModules.add(last);
+    }
+  }
+
+  function persistLastModule(id) {
+    if (!id) return;
+    localStorage.setItem(lastModuleKey(), id);
+  }
+
   function showCompletionToast({ title, message, mini = true, duration = 4200 }) {
     if (typeof window.showCelebrateToast !== "function") return;
     window.showCelebrateToast({
@@ -1132,11 +1172,30 @@ What this file does:
   function renderHero() {
     setText("courseTitle", state.course.title);
     setText("courseDescription", state.course.description);
+    setText("breadcrumbCourse", state.course.title || "Course");
 
     const moduleCount = state.course.modules.length || state.course.total_lessons || 0;
     setText("metaModules", `${moduleCount} lessons`);
     setText("metaTime", state.course.estimatedTime || "—");
     setText("metaXP", `${state.course.totalXP} XP Total`);
+
+    const streakBadge = getById("courseStreakBadge");
+    if (streakBadge) {
+      const streak = computeStreak(getProgressLog(state.user?.email || ""));
+      streakBadge.replaceChildren(
+        makeIcon("bi bi-fire"),
+        document.createTextNode(` Streak: ${streak} day${streak === 1 ? "" : "s"}`)
+      );
+    }
+
+    const xpHint = getById("courseXpHint");
+    if (xpHint) {
+      const toNext = Math.max(0, Number(state.stats.xpNext || 0));
+      xpHint.replaceChildren(
+        makeIcon("bi bi-lightning-charge-fill"),
+        document.createTextNode(` ${toNext} XP to next level`)
+      );
+    }
 
     // difficulty pill class
     const pill = getById("difficultyPill");
@@ -1190,7 +1249,9 @@ What this file does:
         activePill.classList.toggle("d-none", !(prog.done > 0));
       }
       if (continueBtn) {
-        setButtonIconText(continueBtn, "bi bi-chevron-right ms-1", "Continue");
+        const prog = computeProgress();
+        const label = prog.done > 0 ? "Resume" : "Start";
+        setButtonIconText(continueBtn, "bi bi-chevron-right ms-1", label);
       }
     }
 
@@ -1295,14 +1356,14 @@ What this file does:
 
       const headerBadge = document.createElement("span");
       if (modProg.completed) {
-        headerBadge.className = "badge bg-success";
-        headerBadge.append(makeIcon("bi bi-check2-circle me-1"), document.createTextNode("Completed"));
+        headerBadge.className = "net-status-chip net-status-chip--completed";
+        headerBadge.append(makeIcon("bi bi-check2-circle"), document.createTextNode(" Completed"));
       } else if (modProg.done > 0) {
-        headerBadge.className = "badge bg-info text-dark";
-        headerBadge.append(makeIcon("bi bi-play-fill me-1"), document.createTextNode("Active"));
+        headerBadge.className = "net-status-chip net-status-chip--progress";
+        headerBadge.append(makeIcon("bi bi-arrow-repeat"), document.createTextNode(" In progress"));
       } else {
-        headerBadge.className = "badge text-bg-light border";
-        headerBadge.textContent = `${modProg.done}/${modProg.total} items`;
+        headerBadge.className = "net-status-chip net-status-chip--active";
+        headerBadge.append(makeIcon("bi bi-grid-1x2"), document.createTextNode(` ${modProg.done}/${modProg.total} items`));
       }
       infoRow.appendChild(headerBadge);
 
@@ -1562,6 +1623,14 @@ What this file does:
         }
 
         btn.setAttribute("aria-expanded", state.expandedModules.has(id) ? "true" : "false");
+
+        if (state.expandedModules.has(id)) {
+          persistLastModule(id);
+        } else if (state.expandedModules.size) {
+          persistLastModule(Array.from(state.expandedModules)[0]);
+        } else {
+          localStorage.removeItem(lastModuleKey());
+        }
       });
     });
 

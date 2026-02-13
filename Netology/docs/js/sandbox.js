@@ -3514,6 +3514,9 @@ Reworked to match the Figma AI version:
     await initChallenge();
     await initTutorial();
 
+    document.body.classList.remove("net-loading");
+    document.body.classList.add("net-loaded");
+
     window.addEventListener("beforeunload", () => {
       saveLessonSessionToDb();
     });

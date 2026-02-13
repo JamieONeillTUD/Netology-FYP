@@ -29,7 +29,7 @@ sandbox.html – Interactive networking sandbox.
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="net-bg net-landing">
+<body class="net-bg net-landing net-loading">
 
   <!-- AI Prompt: Explain the Slide Sidebar Backdrop section in clear, simple terms. -->
   <!-- Slide Sidebar Backdrop -->
@@ -167,6 +167,14 @@ sandbox.html – Interactive networking sandbox.
   <!-- AI Prompt: Explain the Main section in clear, simple terms. -->
   <!-- Main -->
   <main class="container my-4 net-sbx">
+    <section class="net-card p-4 net-loading-only" aria-label="Loading sandbox">
+      <div class="net-skel net-w-60 mb-3"></div>
+      <div class="net-skel net-w-90 mb-2"></div>
+      <div class="net-skel net-w-80 mb-2"></div>
+      <div class="net-skel net-w-60"></div>
+    </section>
+
+    <div class="net-loading-hide">
     <!-- AI Prompt: Explain the Sandbox Toolbar section in clear, simple terms. -->
     <!-- Sandbox Toolbar -->
     <section class="net-card net-pop sbx-toolbar">
@@ -435,6 +443,7 @@ sandbox.html – Interactive networking sandbox.
         </div>
       </div>
     </section>
+    </div>
   </main>
 
   <!-- AI Prompt: Explain the Footer section in clear, simple terms. -->

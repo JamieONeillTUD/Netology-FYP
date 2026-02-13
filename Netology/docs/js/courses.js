@@ -581,7 +581,7 @@ function buildCourseCardElement(course, lock, progress) {
         : "bi-leaf-fill";
 
   const article = document.createElement("article");
-  article.className = `net-coursecard net-coursecard--library ${lock.locked ? "is-locked" : ""}`.trim();
+  article.className = `net-coursecard net-coursecard--library net-card--course net-focus-card ${lock.locked ? "is-locked" : ""}`.trim();
   article.tabIndex = 0;
   article.setAttribute("role", "button");
   article.setAttribute("aria-label", `Open course ${course.title || ""}`);

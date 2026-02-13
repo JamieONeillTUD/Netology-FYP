@@ -65,11 +65,14 @@ async function initQuizPage() {
     return;
   }
 
+  const moduleTitle = resolved.course ? resolveUnitTitle(resolved.course, lessonNumber) : "";
   const state = createQuizState({
     courseId,
     lessonNumber,
     email: user.email,
-    model: quizModel
+    model: quizModel,
+    courseTitle: resolved.course?.title || "",
+    moduleTitle
   });
 
   const savedAttempt = readAttempt(state);
@@ -195,6 +198,34 @@ function resolveCourseContent(courseId, contentId, titleHint) {
   return { course: null, id: null, fallback: false };
 }
 
+function resolveUnitTitle(course, lessonNumber) {
+  if (!course || !Array.isArray(course.units)) return "";
+  let counter = 1;
+  for (let i = 0; i < course.units.length; i += 1) {
+    const unit = course.units[i];
+    const unitTitle = unit.title || unit.name || `Module ${i + 1}`;
+    if (Array.isArray(unit.lessons) && unit.lessons.length) {
+      for (let j = 0; j < unit.lessons.length; j += 1) {
+        if (counter === lessonNumber) return unitTitle;
+        counter += 1;
+      }
+      continue;
+    }
+    if (Array.isArray(unit.sections)) {
+      for (const sec of unit.sections) {
+        const items = Array.isArray(sec.items) ? sec.items : [];
+        for (const item of items) {
+          if (String(item.type || "").toLowerCase() === "learn") {
+            if (counter === lessonNumber) return unitTitle;
+            counter += 1;
+          }
+        }
+      }
+    }
+  }
+  return "";
+}
+
 function wireBackLinks(backUrl) {
   const backTop = document.getElementById("backToCourseTop");
   const backBtn = document.getElementById("backToCourseBtn");
@@ -206,6 +237,11 @@ function renderHeader(state) {
   setText("quizTitle", state.title);
   setText("quizMeta", `Lesson ${state.lessonNumber} • ${state.questions.length} questions`);
   setText("quizXpLabel", `${state.maxXp} XP`);
+  setText("breadcrumbCourse", state.courseTitle || "Course");
+  setText("breadcrumbModule", state.moduleTitle || "Module");
+  setText("breadcrumbQuiz", `Lesson ${state.lessonNumber}`);
+  document.body.classList.remove("net-loading");
+  document.body.classList.add("net-loaded");
 }
 
 function wireActionButtons(state) {
@@ -218,11 +254,13 @@ function wireActionButtons(state) {
   if (retryBtn) retryBtn.addEventListener("click", () => retryQuiz(state));
 }
 
-function createQuizState({ courseId, lessonNumber, email, model }) {
+function createQuizState({ courseId, lessonNumber, email, model, courseTitle, moduleTitle }) {
   return {
     courseId,
     lessonNumber,
     email,
+    courseTitle,
+    moduleTitle,
     title: model.title,
     maxXp: model.xp,
     questions: model.questions,

@@ -70,6 +70,8 @@ progress.js – Progress detail lists for dashboard stats.
 
     const type = getTypeParam();
     setActiveNav(type);
+    wireNavPersistence();
+    localStorage.setItem("netology_progress_type", type);
 
     const list = getById("progressList");
     const empty = getById("progressEmpty");
@@ -95,6 +97,9 @@ progress.js – Progress detail lists for dashboard stats.
       const cfg = SECTION_CONFIG[type] || SECTION_CONFIG.courses;
       showEmpty(cfg.empty || "No progress to show yet.");
     }
+
+    document.body.classList.remove("net-loading");
+    document.body.classList.add("net-loaded");
   }
 
   function showEmpty(message) {
@@ -134,6 +139,15 @@ progress.js – Progress detail lists for dashboard stats.
     });
   }
 
+  function wireNavPersistence() {
+    document.querySelectorAll(".net-progress-nav-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const t = btn.getAttribute("data-type");
+        if (t) localStorage.setItem("netology_progress_type", t);
+      });
+    });
+  }
+
   function setNavCounts(counts) {
     document.querySelectorAll(".net-progress-nav-btn").forEach((btn) => {
       const t = btn.getAttribute("data-type");
@@ -144,11 +158,10 @@ progress.js – Progress detail lists for dashboard stats.
         badge.className = "net-progress-nav-count";
         btn.appendChild(badge);
       }
-      if (t === "courses") {
-        badge.textContent = String((counts["in-progress"] || 0) + (counts["completed-courses"] || 0));
-      } else {
-        badge.textContent = String(counts[t] || 0);
-      }
+      const value = t === "courses"
+        ? (counts["in-progress"] || 0) + (counts["completed-courses"] || 0)
+        : (counts[t] || 0);
+      animateCount(badge, value);
       badge.classList.remove("is-animated");
       void badge.offsetWidth;
       badge.classList.add("is-animated");
@@ -168,6 +181,10 @@ progress.js – Progress detail lists for dashboard stats.
     if (raw === "quizzes") return "quizzes";
     if (raw === "tutorials") return "tutorials";
     if (raw === "challenges") return "challenges";
+    const stored = String(localStorage.getItem("netology_progress_type") || "").trim().toLowerCase();
+    if (stored === "courses" || stored === "lessons" || stored === "quizzes" || stored === "tutorials" || stored === "challenges") {
+      return stored;
+    }
     return "courses";
   }
 
@@ -178,6 +195,55 @@ progress.js – Progress detail lists for dashboard stats.
   function setText(id, value) {
     const node = getById(id);
     if (node) node.textContent = value;
+  }
+
+  function animateCount(el, target) {
+    if (!el) return;
+    const to = Number(target || 0);
+    const from = Number(el.dataset.count || el.textContent || 0);
+    if (!Number.isFinite(to) || !Number.isFinite(from) || from === to) {
+      el.textContent = String(to);
+      el.dataset.count = String(to);
+      return;
+    }
+    const start = performance.now();
+    const duration = 420;
+    const tick = (now) => {
+      const pct = Math.min(1, (now - start) / duration);
+      const value = Math.round(from + (to - from) * pct);
+      el.textContent = String(value);
+      if (pct < 1) requestAnimationFrame(tick);
+      else el.dataset.count = String(to);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function makeStatusChip(status) {
+    const chip = document.createElement("span");
+    const icon = document.createElement("i");
+    let label = "Active";
+    let cls = "net-status-chip net-status-chip--active";
+    let iconCls = "bi bi-play-circle";
+
+    if (status === "completed") {
+      label = "Completed";
+      cls = "net-status-chip net-status-chip--completed";
+      iconCls = "bi bi-check2-circle";
+    } else if (status === "locked") {
+      label = "Locked";
+      cls = "net-status-chip net-status-chip--locked";
+      iconCls = "bi bi-lock-fill";
+    } else if (status === "progress") {
+      label = "In progress";
+      cls = "net-status-chip net-status-chip--progress";
+      iconCls = "bi bi-arrow-repeat";
+    }
+
+    chip.className = cls;
+    icon.className = iconCls;
+    icon.setAttribute("aria-hidden", "true");
+    chip.append(icon, document.createTextNode(label));
+    return chip;
   }
 
   function totalXpForLevel(level) {
@@ -494,8 +560,7 @@ progress.js – Progress detail lists for dashboard stats.
 
     courses.forEach((c) => {
       const card = document.createElement("div");
-      const variant = viewType === "completed-courses" ? "green" : "teal";
-      card.className = `net-card p-4 mb-3 net-progress-card net-progress-card--${variant} net-progress-card--course`;
+      card.className = "net-card net-progress-card net-card-fixed net-card--course net-focus-card mb-3";
       const link = buildCourseLink(c.id, c.contentId);
       const progress = Number(c.progress_pct || 0);
       const lastLesson = startedMap?.get(String(c.id));
@@ -530,7 +595,11 @@ progress.js – Progress detail lists for dashboard stats.
       progIcon.className = "bi bi-bar-chart me-1";
       progressLine.append(progIcon, document.createTextNode(`${progress}% complete`));
 
-      textWrap.append(title, desc, progressLine);
+      const chipRow = document.createElement("div");
+      chipRow.className = "d-flex flex-wrap gap-2 mt-2";
+      chipRow.appendChild(makeStatusChip(viewType === "completed-courses" ? "completed" : "progress"));
+
+      textWrap.append(title, desc, progressLine, chipRow);
 
       if (viewType === "in-progress" && lastLesson) {
         const hint = document.createElement("div");
@@ -549,15 +618,22 @@ progress.js – Progress detail lists for dashboard stats.
         : link;
       const actionIcon = document.createElement("i");
       actionIcon.className = "bi bi-arrow-right-circle me-2";
-      action.append(actionIcon, document.createTextNode(viewType === "in-progress" ? "Continue" : "Open course"));
+      const actionLabel = viewType === "in-progress"
+        ? (lastLesson ? "Resume lesson" : "Resume course")
+        : "Review course";
+      action.append(actionIcon, document.createTextNode(actionLabel));
 
       row.append(left);
-      card.appendChild(row);
 
-      const ctaRow = document.createElement("div");
-      ctaRow.className = "net-progress-cta-row mt-3";
-      ctaRow.appendChild(action);
-      card.appendChild(ctaRow);
+      const body = document.createElement("div");
+      body.className = "net-card-body";
+      body.appendChild(row);
+
+      const footer = document.createElement("div");
+      footer.className = "net-card-footer net-progress-cta-row";
+      footer.appendChild(action);
+
+      card.append(body, footer);
       list.appendChild(card);
     });
   }
@@ -1001,14 +1077,14 @@ progress.js – Progress detail lists for dashboard stats.
     wrap.setAttribute("data-progress-section", id);
 
     const head = document.createElement("div");
-    head.className = "net-card p-4 net-progress-section-head";
+    head.className = "net-card p-4 net-progress-section-head net-section-head";
 
     const title = document.createElement("div");
-    title.className = "net-progress-section-title";
+    title.className = "net-progress-section-title net-section-title";
     title.textContent = cfg?.title || "";
 
     const sub = document.createElement("div");
-    sub.className = "small text-muted";
+    sub.className = "net-section-sub";
     sub.textContent = cfg?.subtitle || "";
 
     head.append(title, sub);
@@ -1125,7 +1201,12 @@ progress.js – Progress detail lists for dashboard stats.
       "teal";
     groups.forEach((group) => {
       const card = document.createElement("div");
-      card.className = `net-card p-4 mb-3 net-progress-card net-progress-card--${variant} net-progress-card--activity`;
+      const cardType =
+        type === "quizzes" ? "net-card--quiz" :
+        type === "challenges" ? "net-card--challenge" :
+        type === "tutorials" ? "net-card--tutorial" :
+        "net-card--lesson";
+      card.className = `net-card net-progress-card net-card-fixed net-focus-card mb-3 ${cardType}`;
 
       const header = document.createElement("div");
       header.className = "d-flex align-items-start justify-content-between flex-wrap gap-3 mb-2 net-progress-group-head";
@@ -1147,6 +1228,10 @@ progress.js – Progress detail lists for dashboard stats.
       sub.className = "small text-muted";
       sub.textContent = `${group.items.length} ${label.toLowerCase()}${group.items.length === 1 ? "" : "s"}`;
       titleWrap.append(title, sub);
+      const statusRow = document.createElement("div");
+      statusRow.className = "d-flex flex-wrap gap-2 mt-2";
+      statusRow.appendChild(makeStatusChip(mode === "review" ? "completed" : "progress"));
+      titleWrap.appendChild(statusRow);
       left.append(pill, titleWrap);
 
       const openLink = document.createElement("a");
@@ -1159,13 +1244,13 @@ progress.js – Progress detail lists for dashboard stats.
       header.append(left, openLink);
 
       const listEl = document.createElement("ul");
-      listEl.className = "net-progress-items";
+      listEl.className = "net-progress-items net-card-body";
 
       group.items.forEach((item) => {
         const li = document.createElement("li");
         const link = document.createElement("a");
         link.href = item.link;
-        link.className = `net-progress-item net-progress-item--${variant}`;
+        link.className = `net-progress-item net-progress-item--${variant} net-focus-card`;
 
         const pill = document.createElement("span");
         pill.className = "net-progress-item-pill";
@@ -1189,7 +1274,7 @@ progress.js – Progress detail lists for dashboard stats.
         cta.className = "net-progress-item-cta";
         const ctaIcon = document.createElement("i");
         ctaIcon.className = "bi bi-arrow-right";
-        const verb = mode === "review" ? "Review" : "Continue";
+        const verb = mode === "review" ? "Review" : "Resume";
         const ctaLabel =
           type === "quizzes" ? `${verb} Quiz` :
           type === "challenges" ? `${verb} Challenge` :
