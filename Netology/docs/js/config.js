@@ -14,16 +14,17 @@ window.API_BASE = window.API_BASE || "https://netology-fyp.onrender.com";
    Preview mode seeding (demo user)
 ========================================================= */
 // Preview mode (for Live Server + direct link testing)
-// - Activate by adding ?preview=1 once, or when on localhost
-// - Seeds a lightweight demo user so protected pages don't redirect
+// - Only activates on localhost — never on the live GitHub Pages site
+// - Activate by adding ?preview=1 to the URL when running locally
 (() => {
   try {
+    const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    if (!isLocalhost) return;  // safety: never run in production
+
     const params = new URLSearchParams(window.location.search);
-    const wantsPreview = params.has("preview") || localStorage.getItem("netology_preview") === "1";
+    const wantsPreview = params.has("preview");
 
     if (wantsPreview) {
-      localStorage.setItem("netology_preview", "1");
-
       const existing = localStorage.getItem("user") || localStorage.getItem("netology_user");
       if (!existing) {
         const demoUser = {

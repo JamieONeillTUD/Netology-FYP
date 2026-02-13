@@ -37,7 +37,7 @@
       <a class="net-sidelink is-active" href="account.html"><i class="bi bi-person-circle"></i> My Profile</a>
       <a class="net-sidelink" href="courses.html"><i class="bi bi-journal-bookmark"></i> Courses</a>
       <a class="net-sidelink" href="sandbox.html"><i class="bi bi-diagram-3"></i> Network Sandbox</a>
-      <a class="net-sidelink" href="account.html"><i class="bi bi-gear"></i> Settings</a>
+      <a class="net-sidelink" href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
     </nav>
 
     <div class="net-sidefoot">
@@ -67,7 +67,7 @@
 
         <div class="net-topnav-left">
           <button class="net-hambtn" id="openSidebarBtn" type="button" aria-label="Open menu">
-            <i class="bi bi-list" aria-hidden="true"></i>
+            <span class="net-hambtn-bars" aria-hidden="true"><span></span><span></span><span></span></span>
             <span class="visually-hidden">Open menu</span>
           </button>
         </div>
@@ -115,7 +115,7 @@
     </div>
   </header>
 
-  <main class="container my-4 net-account-shell">
+  <main class="container my-4 net-account-shell net-shell--wide">
     <!-- AI Prompt: Explain the Hero section in clear, simple terms. -->
     <!-- Hero -->
     <section class="net-card net-account-hero p-4 p-lg-5 mb-4">
@@ -154,7 +154,7 @@
           </div>
 
           <div class="dash-progress-box dash-progress-ringbox">
-            <div class="net-ring net-ring--arc" aria-label="Level progress ring">
+            <div class="net-ring" aria-label="Level progress ring">
               <svg viewBox="0 0 140 140" aria-hidden="true">
                 <defs>
                   <linearGradient id="netAccountGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -316,7 +316,7 @@
     </section>
 
     <!-- Preferences + Security -->
-    <section class="net-account-grid mb-4">
+    <section class="net-account-grid mb-4" id="preferences">
       <div class="net-card p-4">
         <div class="fw-semibold mb-2">Preferences</div>
         <div class="small text-muted mb-3">Personalise your experience</div>
@@ -342,7 +342,7 @@
         <div class="small text-muted mb-3">Keep your account safe</div>
         <div class="small text-muted mb-3">Last login: <span id="lastLoginText">—</span></div>
         <div class="d-flex flex-wrap gap-2">
-          <a href="forgot.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--gray" data-tip="Update your password">Change password</a>
+          <a href="forgot.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--gray" data-tip="Reset your password via email">Reset password</a>
           <button class="btn btn-outline-danger btn-sm dash-action-btn" data-tip="Sign out of Netology" id="logoutBtn" type="button">Log out</button>
         </div>
       </div>
@@ -386,7 +386,7 @@
   </main>
 
   <footer class="text-center border-top py-3 bg-white">
-    <p class="small text-muted mb-0">2025 – Jamie O’Neill – TU857/4</p>
+    <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
   </footer>
 
   <script src="js/config.js"></script>

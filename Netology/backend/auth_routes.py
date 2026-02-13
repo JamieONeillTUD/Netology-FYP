@@ -64,29 +64,6 @@ def _clean_start_level(level_value: str) -> str:
     return "novice"
 
 
-def _extract_start_level(reasons_text: str) -> str:
-    """
-    Reads start_level back from reasons text.
-    Format we store:
-      start_level=novice; career, certification
-    """
-    txt = (reasons_text or "").strip()
-    if txt.lower().startswith("start_level="):
-        # Split "start_level=xxx; rest..."
-        first = txt.split(";", 1)[0]
-        if "=" in first:
-            return _clean_start_level(first.split("=", 1)[1])
-    return "novice"
-
-
-def _strip_start_level(reasons_text: str) -> str:
-    """Returns reasons without the start_level prefix (for display)."""
-    txt = (reasons_text or "").strip()
-    if txt.lower().startswith("start_level=") and ";" in txt:
-        return txt.split(";", 1)[1].strip()
-    return txt
-
-
 def ensure_user_preferences_table():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -179,13 +156,9 @@ def register():
         # "Starting level" preference (unlocking only)
         start_level = _clean_start_level(data.get("level") or "novice")
 
-        # Reasons (checkbox list)
+        # Reasons (checkbox list) — stored cleanly, no start_level prefix needed
         reasons_list = request.form.getlist("reasons")
-        reasons_only = ", ".join([r.strip() for r in reasons_list if r.strip()])
-
-        # Store start_level in reasons (no DB schema change)
-        # Example: "start_level=intermediate; career, certification"
-        reasons = f"start_level={start_level}; {reasons_only}".strip()
+        reasons = ", ".join([r.strip() for r in reasons_list if r.strip()])
 
         # AI Prompt: Explain the Server-side validation (simple + strict) section in clear, simple terms.
         # -------------------------------------------------
@@ -245,16 +218,16 @@ def register():
                 "message": "That username is already taken. Please choose another."
             }), 409
 
-        # Insert user (includes dob column you added)
+        # Insert user — start_level stored in its own column now
         cur.execute(
             """
             INSERT INTO users
             (first_name, last_name, username, email, password_hash, level,
-             numeric_level, reasons, xp, dob)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             numeric_level, reasons, xp, dob, start_level)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (first_name, last_name, username, email, hashed_password, level_label,
-             numeric_level, reasons, xp, dob),
+             numeric_level, reasons, xp, dob, start_level),
         )
 
         conn.commit()
@@ -293,10 +266,9 @@ def login():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Also fetch reasons so we can return start_level preference
         cur.execute(
             """
-            SELECT first_name, last_name, password_hash, level, xp, numeric_level, username, reasons
+            SELECT first_name, last_name, password_hash, level, xp, numeric_level, username, start_level
             FROM users
             WHERE email = %s
             """,
@@ -317,8 +289,8 @@ def login():
             calc_level, xp_into_level, next_level_xp = get_level_progress(xp)
             rank = rank_for_level(calc_level)
 
-            # Start level preference from reasons
-            start_level = _extract_start_level(user[7])
+            # Start level preference — now read from its own column
+            start_level = _clean_start_level(user[7])
 
             return jsonify({
                 "success": True,
@@ -378,10 +350,9 @@ def user_info():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Include reasons to read start_level
         cur.execute(
             """
-            SELECT first_name, last_name, xp, username, reasons, email
+            SELECT first_name, last_name, xp, username, reasons, email, start_level
             FROM users
             WHERE email = %s
             """,
@@ -403,8 +374,8 @@ def user_info():
             calc_level, xp_into_level, next_level_xp = get_level_progress(xp)
             rank = rank_for_level(calc_level)
 
-            start_level = _extract_start_level(reasons_text)
-            clean_reasons = _strip_start_level(reasons_text)
+            # start_level now read directly from its own column
+            start_level = _clean_start_level(user[6])
 
             return jsonify({
                 "success": True,
@@ -424,8 +395,8 @@ def user_info():
                 # Unlocking preference
                 "start_level": start_level,
 
-                # Optional: clean reasons (nice for account page display)
-                "reasons": clean_reasons
+                # Reasons for display on account page
+                "reasons": reasons_text
             })
 
         return jsonify({"success": False, "message": "User not found."}), 404

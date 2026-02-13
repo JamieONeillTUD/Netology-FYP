@@ -625,26 +625,28 @@ def complete_course():
         return jsonify({"success": False, "message": "Email and course_id required."}), 400
 
     try:
-        # Fetch XP reward for this course
+        # Fetch XP reward and check if already completed
         conn = get_db_connection()
         cur = conn.cursor()
 
         cur.execute("SELECT xp_reward FROM courses WHERE id = %s AND is_active = TRUE;", (course_id,))
         row = cur.fetchone()
-        cur.close(); conn.close()
 
         if not row:
+            cur.close(); conn.close()
             return jsonify({"success": False, "message": "Course not found."}), 404
 
         xp_reward = row[0]
 
-        # Award full XP
-        xp_added, new_level = add_xp_to_user(email, xp_reward, action="Course Completed")
+        # Check if already completed — only award XP once
+        cur.execute("""
+            SELECT completed FROM user_courses
+            WHERE user_email = %s AND course_id = %s;
+        """, (email, course_id))
+        existing = cur.fetchone()
+        already_done = existing and existing[0]
 
         # Mark course completed (100%)
-        conn = get_db_connection()
-        cur = conn.cursor()
-
         cur.execute("""
             INSERT INTO user_courses (user_email, course_id, progress, completed)
             VALUES (%s, %s, 100, TRUE)
@@ -655,12 +657,19 @@ def complete_course():
         conn.commit()
         cur.close(); conn.close()
 
+        # Award full XP only if not previously completed
+        if not already_done:
+            xp_added, new_level = add_xp_to_user(email, xp_reward, action="Course Completed")
+        else:
+            xp_added, new_level = (0, 0)
+
         return jsonify({
             "success": True,
             "progress_pct": 100,
             "completed": True,
             "xp_added": xp_added,
-            "new_level": new_level
+            "new_level": new_level,
+            "already_completed": bool(already_done)
         })
 
     except Exception as e:

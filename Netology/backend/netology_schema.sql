@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     reasons TEXT,
     xp INTEGER DEFAULT 0,
     dob DATE,
+    start_level VARCHAR(20) DEFAULT 'novice',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -28,9 +29,21 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS numeric_level INTEGER DEFAULT 1;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reasons TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS dob DATE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS start_level VARCHAR(20) DEFAULT 'novice';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE users ALTER COLUMN numeric_level SET DEFAULT 1;
 ALTER TABLE users ALTER COLUMN level SET DEFAULT 'Novice';
+
+-- Migrate start_level out of the reasons text field into its own column.
+-- Safe to run multiple times (only updates rows that still have the old format).
+UPDATE users
+SET start_level = CASE
+    WHEN reasons LIKE 'start_level=advanced%'     THEN 'advanced'
+    WHEN reasons LIKE 'start_level=intermediate%' THEN 'intermediate'
+    ELSE 'novice'
+END
+WHERE reasons LIKE 'start_level=%'
+  AND (start_level IS NULL OR start_level = 'novice');
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_key ON users(email);
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_key ON users(username);

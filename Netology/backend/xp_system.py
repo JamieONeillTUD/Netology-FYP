@@ -94,29 +94,32 @@ def add_xp_to_user(email, xp_amount, action="Lesson Completed"):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get current XP for this user
-        cur.execute("SELECT xp FROM users WHERE email = %s;", (email,))
+        # Atomically increment XP and return the new total (avoids race conditions)
+        cur.execute("""
+            UPDATE users
+            SET xp = xp + %s
+            WHERE email = %s
+            RETURNING xp;
+        """, (int(xp_amount), email))
         row = cur.fetchone()
 
         if not row:
             cur.close(); conn.close()
             return (0, 1)
 
-        current_xp = int(row[0] or 0)
-        new_xp = current_xp + int(xp_amount)
+        new_xp = int(row[0] or 0)
 
-        # Calculate updated level + rank
+        # Calculate updated level + rank from the actual new XP value
         new_level, _, _ = get_level_progress(new_xp)
         new_rank = rank_for_level(new_level)
 
-        # Save updated XP and levels to database
+        # Update level labels
         cur.execute("""
             UPDATE users
-            SET xp = %s,
-                numeric_level = %s,
+            SET numeric_level = %s,
                 level = %s
             WHERE email = %s;
-        """, (new_xp, new_level, new_rank, email))
+        """, (new_level, new_rank, email))
 
         # Log the XP gain
         cur.execute("""

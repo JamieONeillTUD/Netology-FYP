@@ -214,31 +214,38 @@ def save_topology():
 @topology.route("/load-topologies", methods=["GET"])
 def load_topologies():
     email = request.args.get("email")
+    if not email:
+        return jsonify({"success": False, "message": "Email required."}), 400
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
 
-    cur.execute("""
-        SELECT id, name, devices, connections, created_at
-        FROM saved_topologies
-        WHERE user_email = %s
-        ORDER BY created_at DESC
-    """, (email,))
+        cur.execute("""
+            SELECT id, name, devices, connections, created_at
+            FROM saved_topologies
+            WHERE user_email = %s
+            ORDER BY created_at DESC
+        """, (email,))
 
-    rows = cur.fetchall()
-    cur.close(); conn.close()
+        rows = cur.fetchall()
+        cur.close(); conn.close()
 
-    topologies = []
-    for r in rows:
-        topologies.append({
-            "id": r[0],
-            "name": r[1],
-            "devices": r[2],
-            "connections": r[3],
-            "created_at": r[4]
-        })
+        topologies = []
+        for r in rows:
+            topologies.append({
+                "id": r[0],
+                "name": r[1],
+                "devices": r[2],
+                "connections": r[3],
+                "created_at": r[4]
+            })
 
-    return jsonify({"success": True, "topologies": topologies})
+        return jsonify({"success": True, "topologies": topologies})
+
+    except Exception as e:
+        print("Load topologies error:", e)
+        return jsonify({"success": False, "message": "Could not load topologies."}), 500
 
 # Loading a specific topology by ID
 # AI Prompt: Explain the Load single topology section in clear, simple terms.
@@ -275,11 +282,17 @@ def load_topology(tid):
 # =========================================================
 @topology.route("/delete-topology/<int:tid>", methods=["DELETE"])
 def delete_topology(tid):
+    data = request.get_json(silent=True) or {}
+    email = data.get("email")
+    if not email:
+        return jsonify({"success": False, "message": "Email required."}), 400
+
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        cur.execute("DELETE FROM saved_topologies WHERE id = %s", (tid,))
+        # Only delete if this topology belongs to the requesting user
+        cur.execute("DELETE FROM saved_topologies WHERE id = %s AND user_email = %s", (tid, email))
         conn.commit()
 
         cur.close(); conn.close()

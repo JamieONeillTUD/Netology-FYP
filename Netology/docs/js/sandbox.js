@@ -208,11 +208,7 @@ Reworked to match the Figma AI version:
 
     guide.append(head, body, hint, actions);
 
-    if (stageEl) {
-      stageEl.appendChild(guide);
-    } else {
-      stageWrap.appendChild(guide);
-    }
+    document.body.appendChild(guide);
 
     guideUI = {
       el: guide,
@@ -2976,7 +2972,12 @@ Reworked to match the Figma AI version:
 
   async function deleteTopology(id) {
     if (!confirm("Delete this topology?")) return;
-    await fetch(`${API_BASE}/delete-topology/${id}`, { method: "DELETE" });
+    const user = getLoggedInUser();
+    await fetch(`${API_BASE}/delete-topology/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: user?.email || "" }),
+    });
     await refreshTopologyList();
     showToast({
       variant: "info",

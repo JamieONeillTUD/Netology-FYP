@@ -465,21 +465,17 @@ Works with:
   }
 
   // Welcome ring
-  // Your HTML uses the course-style ring (r=58, dasharray ~364.42)
+  // Match the course ring (full circle, r=58)
   function setWelcomeRing(progressPct) {
     const ring = getById("welcomeRing");
     if (!ring) return;
     const track = ring.parentElement?.querySelector(".net-ring-track");
 
     const r = 58;
-    const CIRC = 2 * Math.PI * r; // ~364.42
-    const arc = 0.5; // 180deg arc (clear rainbow-style arch)
-    const dash = CIRC * arc;
-    const gap = CIRC - dash;
+    const CIRC = 2 * Math.PI * r;
     const pct = Math.max(0, Math.min(100, Number(progressPct) || 0));
-    const offset = dash * (1 - (pct / 100));
-
-    const dashArray = `${dash.toFixed(2)} ${gap.toFixed(2)}`;
+    const offset = CIRC * (1 - (pct / 100));
+    const dashArray = `${CIRC.toFixed(2)}`;
     ring.style.strokeDasharray = dashArray;
     ring.style.strokeDashoffset = `${offset.toFixed(2)}`;
 
@@ -1042,6 +1038,80 @@ Works with:
     });
   }
 
+  function setupKpiCarousel() {
+    const carousel = getById("kpiCarousel");
+    const track = getById("kpiTrack");
+    const dotsWrap = getById("kpiDots");
+    if (!carousel || !track || !dotsWrap) return;
+
+    const slides = Array.from(track.querySelectorAll(".dash-kpi-slide"));
+    const dots = Array.from(dotsWrap.querySelectorAll(".dash-kpi-dot[data-kpi-dot]"));
+    if (!slides.length || dots.length !== slides.length) return;
+
+    let activeIndex = 0;
+    let timer = null;
+    const intervalMs = 8000;
+
+    function setActive(nextIndex) {
+      const max = slides.length;
+      activeIndex = ((Number(nextIndex) || 0) % max + max) % max;
+      track.style.transform = `translateX(-${activeIndex * 100}%)`;
+      dots.forEach((dot, idx) => {
+        dot.classList.toggle("is-active", idx === activeIndex);
+        dot.setAttribute("aria-current", idx === activeIndex ? "true" : "false");
+      });
+      slides.forEach((slide, idx) => {
+        slide.setAttribute("aria-hidden", idx === activeIndex ? "false" : "true");
+        slide.tabIndex = idx === activeIndex ? 0 : -1;
+      });
+    }
+
+    function startAuto() {
+      if (timer) clearInterval(timer);
+      timer = window.setInterval(() => setActive(activeIndex + 1), intervalMs);
+    }
+
+    function stopAuto() {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
+    }
+
+    dots.forEach((dot) => {
+      dot.addEventListener("click", () => {
+        const idx = Number(dot.getAttribute("data-kpi-dot") || 0);
+        setActive(idx);
+        startAuto();
+      });
+    });
+
+    carousel.addEventListener("mouseenter", stopAuto);
+    carousel.addEventListener("mouseleave", startAuto);
+    carousel.addEventListener("focusin", stopAuto);
+    carousel.addEventListener("focusout", () => {
+      if (!carousel.contains(document.activeElement)) startAuto();
+    });
+    carousel.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setActive(activeIndex + 1);
+        startAuto();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setActive(activeIndex - 1);
+        startAuto();
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopAuto();
+      else startAuto();
+    });
+
+    setActive(0);
+    startAuto();
+  }
+
   // AI Prompt: Explain the Continue learning section in clear, simple terms.
   // -----------------------------
   // Continue learning
@@ -1145,13 +1215,10 @@ Works with:
 
   function buildContinueItem({ id, title, category, diff, pct, done, required, xpReward, lastLesson }) {
     const item = document.createElement("div");
-    item.className = "dash-continue-item net-card net-card-fixed net-card-compact net-card--course net-focus-card";
+    item.className = "dash-continue-item dash-continue-item--wide net-card net-card-fixed net-card-compact net-card--course net-focus-card";
     item.setAttribute("data-course-id", String(id));
     item.tabIndex = 0;
     item.setAttribute("role", "button");
-
-    const left = document.createElement("div");
-    left.className = "flex-grow-1 net-card-body";
 
     const titleEl = makeEl("div", "fw-semibold", title);
     const meta = makeEl("div", "dash-continue-meta", `${category} • ${prettyDiff(diff)}`);
@@ -1164,22 +1231,10 @@ Works with:
     meterFill.style.width = `${pct}%`;
     meter.appendChild(meterFill);
 
-    const count = makeEl("div", "small text-muted mt-1", `${done}/${required || 0} items`);
-    const chipRow = document.createElement("div");
-    chipRow.className = "d-flex flex-wrap gap-2 mt-2";
-    chipRow.appendChild(makeStatusChip("progress"));
-    left.append(titleEl, meta, meter, count, chipRow);
-
-    const right = document.createElement("div");
-    right.className = "text-end net-card-footer";
-    right.append(makeEl("div", "small text-muted", "Suggested"));
-
-    const xpWrap = makeEl("div", "fw-semibold net-xp-accent");
-    xpWrap.append(makeIcon("bi bi-lightning-charge-fill me-1"), document.createTextNode(String(xpReward || 0)));
-    right.appendChild(xpWrap);
+    const count = makeEl("div", "small text-muted", `${done}/${required || 0} items`);
 
     const btnLabel = lastLesson ? "Resume" : "Continue";
-    const btn = makeEl("button", "btn btn-teal btn-sm mt-2", btnLabel);
+    const btn = makeEl("button", "btn btn-teal btn-sm", btnLabel);
     btn.type = "button";
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1189,9 +1244,21 @@ Works with:
         window.location.href = `course.html?id=${encodeURIComponent(id)}`;
       }
     });
-    right.appendChild(btn);
+    const topRow = makeEl("div", "dash-continue-row");
+    const titleWrap = makeEl("div", "dash-continue-title");
+    titleWrap.append(titleEl, meta);
 
-    item.append(left, right);
+    const actions = makeEl("div", "dash-continue-actions");
+    const xpWrap = makeEl("div", "fw-semibold net-xp-accent");
+    xpWrap.append(makeIcon("bi bi-lightning-charge-fill me-1"), document.createTextNode(String(xpReward || 0)));
+    actions.append(xpWrap, btn);
+
+    topRow.append(titleWrap, actions);
+
+    const progress = makeEl("div", "dash-continue-progress");
+    progress.append(meter, count);
+
+    item.append(topRow, progress);
     item.addEventListener("click", () => {
       window.location.href = `course.html?id=${encodeURIComponent(id)}`;
     });
@@ -1269,65 +1336,72 @@ Works with:
     taskPool.push({
       id: "lesson-focus",
       title: lessonsDone < 5 ? "Complete 2 lessons" : "Complete 1 lesson",
-      progress: lessonsDone % 5,
+      progress: Math.min(lessonsDone, lessonsDone < 5 ? 2 : 1),
       target: lessonsDone < 5 ? 2 : 1,
       unit: "lessons",
       xp: lessonsDone < 5 ? 50 : 25,
       tip: "Lessons unlock quizzes and sandbox challenges."
     });
 
-    if (quizzesDone < 3) {
-      taskPool.push({
-        id: "quiz-focus",
-        title: "Pass a quiz",
-        progress: quizzesDone % 3,
-        target: 1,
-        unit: "quiz",
-        xp: 40,
-        tip: "Quizzes reinforce key concepts."
-      });
+    taskPool.push({
+      id: "quiz-focus",
+      title: "Pass a quiz",
+      progress: Math.min(quizzesDone, 1),
+      target: 1,
+      unit: "quiz",
+      xp: 40,
+      tip: "Quizzes reinforce key concepts."
+    });
+
+    taskPool.push({
+      id: "sandbox-focus",
+      title: "Build 1 topology",
+      progress: Math.min(challengesDone, 1),
+      target: 1,
+      unit: "topology",
+      xp: 60,
+      tip: "Sandbox practice accelerates mastery."
+    });
+
+    taskPool.push({
+      id: "resume-course",
+      title: "Resume an in-progress course",
+      progress: Math.min(inProgress, 1),
+      target: 1,
+      unit: "course",
+      xp: 35,
+      tip: "Pick up where you left off."
+    });
+
+    taskPool.push({
+      id: "finish-course",
+      title: "Finish 1 course",
+      progress: Math.min(completed, 1),
+      target: 1,
+      unit: "course",
+      xp: 75,
+      tip: "Complete a full course to lock in your progress."
+    });
+
+    function seededShuffle(list, seedStr) {
+      const seed = Array.from(seedStr).reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) >>> 0, 7);
+      let t = seed || 1;
+      const rng = () => {
+        t += 0x6D2B79F5;
+        let r = Math.imul(t ^ (t >>> 15), 1 | t);
+        r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+        return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+      };
+      return [...list].sort(() => rng() - 0.5);
     }
 
-    if (challengesDone < 2) {
-      taskPool.push({
-        id: "sandbox-focus",
-        title: "Build 1 topology",
-        progress: challengesDone % 2,
-        target: 1,
-        unit: "topology",
-        xp: 60,
-        tip: "Sandbox practice accelerates mastery."
-      });
-    }
-
-    if (inProgress > 0) {
-      taskPool.push({
-        id: "finish-module",
-        title: "Continue an in‑progress course",
-        progress: inProgress,
-        target: Math.max(1, Math.min(3, inProgress)),
-        unit: "courses",
-        xp: 35,
-        tip: "Pick up where you left off."
-      });
-    }
-
-    // deterministic daily shuffle
-    const seed = Array.from(`${email}:${dateKey()}`).reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) >>> 0, 7);
-    let t = seed || 1;
-    const rng = () => {
-      t += 0x6D2B79F5;
-      let r = Math.imul(t ^ (t >>> 15), 1 | t);
-      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-    };
-    const shuffled = taskPool.sort(() => rng() - 0.5).slice(0, 3);
-
-    const taskWrap = getById("weeklyTasks");
-    if (taskWrap) {
-      clearChildren(taskWrap);
-      shuffled.forEach((t) => {
+    function renderTaskList(targetEl, list) {
+      if (!targetEl) return;
+      clearChildren(targetEl);
+      list.forEach((t) => {
         const item = makeEl("div", "dash-task");
+        const isDone = Number(t.progress || 0) >= Number(t.target || 0);
+        if (isDone) item.classList.add("is-done");
         item.setAttribute("data-tip", `${t.tip} (+${t.xp} XP)`);
 
         const left = document.createElement("div");
@@ -1335,14 +1409,28 @@ Works with:
         const meta = makeEl("div", "small text-muted", `${t.progress}/${t.target} ${t.unit}`);
         left.append(title, meta);
 
-        const xp = makeEl("div", "dash-task-xp", `+${t.xp} XP`);
-        item.append(left, xp);
-        taskWrap.appendChild(item);
+        const status = makeEl("div", "dash-task-xp");
+        if (isDone) {
+          status.classList.add("is-done");
+          status.append(makeIcon("bi bi-check2-circle"), document.createTextNode(" Completed"));
+        } else {
+          status.textContent = `+${t.xp} XP`;
+        }
+
+        item.append(left, status);
+        targetEl.appendChild(item);
       });
     }
 
+    const TASKS_PER_PANEL = 5;
+    const dailyTasks = seededShuffle(taskPool, `${email || "guest"}:${dateKey()}:daily`).slice(0, TASKS_PER_PANEL);
+    const weeklyTasks = seededShuffle(taskPool, `${email || "guest"}:${weekKey()}:weekly`).slice(0, TASKS_PER_PANEL);
+
+    renderTaskList(getById("dailyTasks"), dailyTasks);
+    renderTaskList(getById("weeklyTasks"), weeklyTasks);
+
     if (email) {
-      shuffled.forEach((t) => {
+      weeklyTasks.forEach((t) => {
         awardWeeklyTaskXp(email, t).catch(() => {});
       });
     }
@@ -1440,9 +1528,6 @@ Works with:
       getById("focusText").textContent = loginStreak > 0
         ? "Log in tomorrow to keep your streak"
         : "Log in today to start a streak";
-    }
-    if (getById("focusXp")) {
-      getById("focusXp").textContent = nextLoginBadge ? `+${nextLoginBadge.xp} XP` : "XP varies";
     }
 
     renderRecentActivity();
@@ -1581,6 +1666,7 @@ Works with:
     safeStep("setupUserDropdown", setupUserDropdown);
     safeStep("setupLogout", setupLogout);
     safeStep("setupGoalToggle", setupGoalToggle);
+    safeStep("setupKpiCarousel", setupKpiCarousel);
 
     // Fast first paint using cached user data
     const cachedUser = getCurrentUser();

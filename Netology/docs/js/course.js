@@ -343,6 +343,7 @@ What this file does:
       lesson: new Set(),     // lesson_number
       quiz: new Set(),       // lesson_number
       challenge: new Set(),  // lesson_number
+      tutorial: new Set(),   // lesson_number (sandbox tutorial)
     },
 
     expandedModules: new Set(),
@@ -442,6 +443,7 @@ What this file does:
 
     // lock logic
     computeLockState();
+    refreshTutorialCompletions();
 
     // derived
     buildLearnFlatList();
@@ -469,6 +471,7 @@ What this file does:
       await loadUserStats(state.user.email);
       await loadCompletions(state.user.email, state.courseId);
     }
+    refreshTutorialCompletions();
     computeLockState();
     renderAll();
     const after = computeProgress();
@@ -753,6 +756,7 @@ What this file does:
               applyCompletionsPayload(data.completions);
               mergeLocalCompletions(email, courseId);
               cacheCompletionsToLS(email, courseId);
+              refreshTutorialCompletions();
               return;
             }
             if (data.lessons || data.quizzes || data.challenges) {
@@ -763,6 +767,7 @@ What this file does:
               });
               mergeLocalCompletions(email, courseId);
               cacheCompletionsToLS(email, courseId);
+              refreshTutorialCompletions();
               return;
             }
           }
@@ -776,6 +781,7 @@ What this file does:
     const cached = parseJsonSafe(localStorage.getItem(LS_KEY(email, courseId)));
     if (cached) applyCompletionsPayload(cached);
     mergeLocalCompletions(email, courseId);
+    refreshTutorialCompletions();
   }
 
   function applyCompletionsPayload(payload) {
@@ -1054,10 +1060,45 @@ What this file does:
     const required = [];
     state.course.modules.forEach((m) => {
       m.items.forEach((it) => {
-        if (it.type === "learn" || it.type === "quiz" || it.type === "challenge") required.push(it);
+        if (it.type === "learn" || it.type === "quiz" || it.type === "challenge" || it.type === "sandbox") {
+          required.push(it);
+        }
       });
     });
     return required;
+  }
+
+  function tutorialProgressKey(email, courseId, lessonNumber) {
+    if (!courseId || !lessonNumber) return null;
+    const who = email || "guest";
+    return `netology_tutorial_progress:${who}:${courseId}:${lessonNumber}`;
+  }
+
+  function isTutorialCompleted(it) {
+    const lessonNum = Number(it.lesson_number || 0);
+    if (!lessonNum) return false;
+    const steps = Array.isArray(it.steps) ? it.steps : [];
+    if (!steps.length) return false;
+    const key = tutorialProgressKey(state.user?.email, state.courseId, lessonNum);
+    if (!key) return false;
+    const stored = parseJsonSafe(localStorage.getItem(key), null) || {};
+    const checked = Array.isArray(stored.checked) ? stored.checked : [];
+    for (let i = 0; i < steps.length; i += 1) {
+      if (!checked[i]) return false;
+    }
+    return true;
+  }
+
+  function refreshTutorialCompletions() {
+    state.completed.tutorial = new Set();
+    state.course.modules.forEach((m) => {
+      m.items.forEach((it) => {
+        if (it.type !== "sandbox") return;
+        const lessonNum = Number(it.lesson_number || 0);
+        if (!lessonNum) return;
+        if (isTutorialCompleted(it)) state.completed.tutorial.add(lessonNum);
+      });
+    });
   }
 
   function isItemCompleted(it) {
@@ -1067,7 +1108,8 @@ What this file does:
     if (it.type === "learn") return state.completed.lesson.has(n);
     if (it.type === "quiz") return state.completed.quiz.has(n);
     if (it.type === "challenge") return state.completed.challenge.has(n);
-    return false; // sandbox optional
+    if (it.type === "sandbox" || it.type === "practice") return state.completed.tutorial.has(n);
+    return false;
   }
 
   function computeProgress() {
@@ -1081,10 +1123,19 @@ What this file does:
   }
 
   function computeModuleCompletion(module) {
-    const required = module.items.filter((it) => it.type === "learn" || it.type === "quiz" || it.type === "challenge");
+    const required = module.items.filter((it) =>
+      it.type === "learn" || it.type === "quiz" || it.type === "challenge" || it.type === "sandbox"
+    );
     const done = required.filter(isItemCompleted).length;
     const total = required.length || 0;
     return { done, total, completed: total > 0 && done === total };
+  }
+
+  function getModuleTutorialStatus(module) {
+    const tutorials = module.items.filter((it) => it.type === "sandbox");
+    const total = tutorials.length;
+    const done = tutorials.filter(isItemCompleted).length;
+    return { total, done, completed: total > 0 && done === total };
   }
 
   function findModuleForLesson(lessonNumber) {
@@ -1354,6 +1405,8 @@ What this file does:
       modLabel.style.letterSpacing = ".04em";
       infoRow.appendChild(modLabel);
 
+      const tutorialStatus = getModuleTutorialStatus(m);
+
       const headerBadge = document.createElement("span");
       if (modProg.completed) {
         headerBadge.className = "net-status-chip net-status-chip--completed";
@@ -1366,6 +1419,12 @@ What this file does:
         headerBadge.append(makeIcon("bi bi-grid-1x2"), document.createTextNode(` ${modProg.done}/${modProg.total} items`));
       }
       infoRow.appendChild(headerBadge);
+      if (tutorialStatus.completed) {
+        const tutorialBadge = document.createElement("span");
+        tutorialBadge.className = "net-status-chip net-status-chip--completed net-status-chip--mini";
+        tutorialBadge.append(makeIcon("bi bi-diagram-3"), document.createTextNode(" Tutorial completed"));
+        infoRow.appendChild(tutorialBadge);
+      }
 
       const title = makeEl("div", "fw-semibold fs-5", m.title || "");
       info.append(infoRow, title);

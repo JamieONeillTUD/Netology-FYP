@@ -571,10 +571,7 @@ function buildCourseCardElement(course, lock, progress) {
   const time = course.estimated_time || course.estimatedTime || "—";
   const totalXP = Number(course.totalXP || course.total_xp || course.xpReward || course.xp_reward || 0);
 
-  const btnLabel = lock.locked ? `Level ${lock.required} required` : "Open";
-  const btnClass = lock.locked ? "btn btn-outline-secondary" : "btn btn-teal";
   const courseLink = `course.html?id=${encodeURIComponent(course.id)}`;
-  const sandboxLink = `sandbox.html?course_id=${encodeURIComponent(course.id)}`;
   const diffIcon =
     diffLabel.toLowerCase() === "advanced" ? "bi-shield-lock-fill"
       : diffLabel.toLowerCase() === "intermediate" ? "bi-lightning-charge-fill"
@@ -696,33 +693,6 @@ function buildCourseCardElement(course, lock, progress) {
     body.appendChild(lockLine);
   }
 
-  const cta = document.createElement("div");
-  cta.className = "d-flex gap-2 flex-wrap course-cta";
-
-  const openBtn = document.createElement("button");
-  openBtn.className = `${btnClass} btn-sm`;
-  openBtn.type = "button";
-  openBtn.title = "Open this course to view modules and lessons";
-  openBtn.textContent = btnLabel;
-  if (lock.locked) {
-    openBtn.disabled = true;
-  } else {
-    openBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      window.location.href = courseLink;
-    });
-  }
-
-  const sandboxBtn = document.createElement("a");
-  sandboxBtn.className = "btn btn-soft btn-sm net-btn-icon";
-  sandboxBtn.href = sandboxLink;
-  sandboxBtn.title = "Open the sandbox for a network simulation challenge";
-  const sandboxIcon = document.createElement("i");
-  sandboxIcon.className = "bi bi-diagram-3 me-1";
-  sandboxBtn.append(sandboxIcon, document.createTextNode("Sandbox"));
-
-  cta.append(openBtn, sandboxBtn);
-  body.appendChild(cta);
   article.appendChild(body);
 
   return article;

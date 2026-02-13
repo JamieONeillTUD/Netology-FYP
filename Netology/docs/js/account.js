@@ -779,12 +779,9 @@ function setAccountRing(progressPct) {
 
   const r = 58;
   const CIRC = 2 * Math.PI * r;
-  const arc = 0.5;
-  const dash = CIRC * arc;
-  const gap = CIRC - dash;
   const pct = Math.max(0, Math.min(100, Number(progressPct) || 0));
-  const offset = dash * (1 - (pct / 100));
-  const dashArray = `${dash.toFixed(2)} ${gap.toFixed(2)}`;
+  const offset = CIRC * (1 - (pct / 100));
+  const dashArray = `${CIRC.toFixed(2)}`;
 
   ring.style.strokeDasharray = dashArray;
   ring.style.strokeDashoffset = `${offset.toFixed(2)}`;
