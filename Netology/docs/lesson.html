@@ -86,59 +86,55 @@ lesson.html – Netology Lesson Page
     </div>
   </aside>
 
-  <!-- AI Prompt: Explain the Top Nav section in clear, simple terms. -->
-  <!-- Top Nav -->
+  <!-- AI Prompt: Explain the TOP NAV (no search now) section in clear, simple terms. -->
+  <!-- TOP NAV (no search now) -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
       <div class="net-topnav-inner">
 
         <!-- Left -->
         <div class="net-topnav-left">
-          <button class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
+          <button class="net-hambtn"
                   id="openSidebarBtn"
                   type="button"
                   aria-label="Open menu">
-            <i class="bi bi-list me-2" aria-hidden="true"></i>
-            Menu
+            <i class="bi bi-list" aria-hidden="true"></i>
+            <span class="visually-hidden">Open menu</span>
           </button>
-
-          <div class="d-none d-lg-flex align-items-center gap-2 text-white-75 small">
-            <i class="bi bi-journal-text" aria-hidden="true"></i>
-            Lesson
-          </div>
         </div>
 
         <!-- Center brand -->
         <div class="net-topnav-center">
-          <a href="dashboard.html" id="brandHome" class="net-topnav-brand" aria-label="Netology home">
+          <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
             <h2 class="net-brand-text">Netology</h2>
           </a>
         </div>
 
-        <!-- Right -->
+        <!-- Right (dropdown only) -->
         <div class="net-topnav-right position-relative">
-          <div class="d-none d-md-flex align-items-center gap-2">
-            <a class="btn btn-outline-light btn-sm d-inline-flex align-items-center"
-               id="topSandboxLink"
-               href="sandbox.html"
-               aria-label="Open sandbox">
-              <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i> Sandbox
-            </a>
-          </div>
 
           <!-- User dropdown -->
           <div class="position-relative">
-            <button class="net-userbtn" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
+            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
-              <span class="net-user-name d-none d-sm-inline" id="topUserName">Student</span>
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
+            <!-- Dropdown shows details -->
             <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
               <div class="net-ddhead">
-                <div class="fw-semibold text-truncate" id="ddName">Student</div>
-                <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="net-avatar-sm" id="ddAvatar" aria-hidden="true">S</div>
+                  <div class="min-width-0">
+                    <div class="fw-semibold text-truncate" id="ddName">Student</div>
+                    <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  <span class="badge text-bg-light border" id="ddLevel">Level 1</span>
+                  <span class="badge text-bg-light border" id="ddRank">Novice</span>
+                </div>
               </div>
               <a href="account.html"><i class="bi bi-person-circle"></i> My Account</a>
               <a href="account.html"><i class="bi bi-gear"></i> Settings</a>
@@ -150,6 +146,7 @@ lesson.html – Netology Lesson Page
           </div>
 
         </div>
+
       </div>
     </div>
   </header>
@@ -185,6 +182,17 @@ lesson.html – Netology Lesson Page
           <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
           <span id="lessonMetaXP">0</span> XP
         </span>
+      </div>
+
+      <div class="net-lesson-nextup">
+        <div class="net-lesson-nextup-label">
+          <div class="net-lesson-nextup-title">Next up</div>
+          <div class="net-lesson-nextup-sub" id="nextUpTitle">Loading next lesson…</div>
+        </div>
+        <div class="net-lesson-nextup-actions">
+          <a class="btn btn-outline-secondary btn-sm" id="prevLessonLink" href="#">Previous lesson</a>
+          <a class="btn btn-teal btn-sm" id="nextLessonLink" href="#">Next lesson</a>
+        </div>
       </div>
     </section>
 
@@ -268,19 +276,7 @@ lesson.html – Netology Lesson Page
             <span class="text-muted">Status</span>
             <span id="lessonStatus">Not started</span>
           </div>
-          <div class="d-grid gap-2">
-            <button class="btn btn-teal" id="lessonCompleteBtn" type="button">
-              <i class="bi bi-check2-circle me-1"></i> Mark Complete
-            </button>
-          </div>
-        </section>
-
-        <section class="net-card p-4">
-          <div class="fw-semibold mb-3">Next up</div>
-          <div class="d-grid gap-2">
-            <a class="btn btn-outline-secondary btn-sm" id="prevLessonLink" href="#">Previous lesson</a>
-            <a class="btn btn-outline-secondary btn-sm" id="nextLessonLink" href="#">Next lesson</a>
-          </div>
+          <div class="small text-muted">This lesson completes automatically when all activities are done.</div>
         </section>
       </div>
     </div>

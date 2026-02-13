@@ -156,6 +156,15 @@ Reworked to match the Figma AI version:
     return icon;
   }
 
+  function setStatusBox(box, className, iconClass, text) {
+    if (!box) return;
+    box.className = className;
+    clearChildren(box);
+    const icon = makeIcon(`bi ${iconClass} me-1`);
+    icon.setAttribute("aria-hidden", "true");
+    box.append(icon, document.createTextNode(text));
+  }
+
   function makeSvgEl(tag) {
     return document.createElementNS("http://www.w3.org/2000/svg", tag);
   }
@@ -2462,10 +2471,9 @@ Reworked to match the Figma AI version:
     renderInspector();
     const resultBox = getById("pingResult");
     if (resultBox) {
-      resultBox.className = `sbx-ping-result ${result.success ? "is-success" : "is-fail"}`;
-      clearChildren(resultBox);
-      const strong = makeEl("strong", null, `${result.success ? "✔" : "❌"} ${result.message}`);
-      resultBox.appendChild(strong);
+      const cls = `sbx-ping-result ${result.success ? "is-success" : "is-fail"}`;
+      const icon = result.success ? "bi-check-circle" : "bi-x-circle";
+      setStatusBox(resultBox, cls, icon, String(result.message || ""));
     }
     updatePingOverview(meta, result);
   }
@@ -2705,13 +2713,11 @@ Reworked to match the Figma AI version:
     if (!resultBox) return;
 
     if (!validation.ok) {
-      resultBox.className = "small text-danger fw-semibold";
-      resultBox.textContent = `❌ ${validation.reason}`;
+      setStatusBox(resultBox, "small text-danger fw-semibold", "bi-x-circle", String(validation.reason || "Validation failed."));
       return;
     }
 
-    resultBox.className = "small text-success fw-semibold";
-    resultBox.textContent = "✅ Passed! Saving + awarding XP…";
+    setStatusBox(resultBox, "small text-success fw-semibold", "bi-check2-circle", "Passed! Saving + awarding XP…");
 
     try {
       await saveLessonSessionToDb();
@@ -2731,9 +2737,9 @@ Reworked to match the Figma AI version:
       const xpData = await xpRes.json();
       if (xpData.success) {
         if (xpData.already_completed) {
-          resultBox.textContent = "✅ Passed! Challenge already completed.";
+          setStatusBox(resultBox, "small text-success fw-semibold", "bi-check2-circle", "Passed! Challenge already completed.");
         } else {
-          resultBox.textContent = `✅ Passed! +${xpData.xp_added} XP earned.`;
+          setStatusBox(resultBox, "small text-success fw-semibold", "bi-check2-circle", `Passed! +${xpData.xp_added} XP earned.`);
         }
         markChallengeCompletion(
           user.email,
@@ -2743,8 +2749,7 @@ Reworked to match the Figma AI version:
         );
         await refreshUserFromServer(user.email);
       } else {
-        resultBox.className = "small text-warning fw-semibold";
-        resultBox.textContent = "✅ Passed, but XP award failed.";
+        setStatusBox(resultBox, "small text-warning fw-semibold", "bi-exclamation-triangle", "Passed, but XP award failed.");
       }
 
       if (returnBox) {
@@ -2755,8 +2760,7 @@ Reworked to match the Figma AI version:
       }
     } catch (e) {
       console.error("Challenge validate error", e);
-      resultBox.className = "small text-warning fw-semibold";
-      resultBox.textContent = "✅ Passed, but could not save/award XP.";
+      setStatusBox(resultBox, "small text-warning fw-semibold", "bi-exclamation-triangle", "Passed, but could not save/award XP.");
     }
   }
 

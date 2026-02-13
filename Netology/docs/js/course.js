@@ -430,6 +430,9 @@ What this file does:
     // render
     renderAll();
 
+    // Seed toast flags so existing completions don't spam on first load
+    seedCompletionToastFlags();
+
     // wire after render
     wireCourseActions();
 
@@ -449,6 +452,34 @@ What this file does:
     const after = computeProgress();
     if (options.showToast && (after.pct !== before.pct || after.done !== before.done)) {
       showCourseProgressToast(after);
+    }
+
+    if (state.user?.email) {
+      state.course.modules.forEach((m) => {
+        if (computeModuleCompletion(m).completed) {
+          const key = moduleToastKey(m);
+          if (localStorage.getItem(key) !== "1") {
+            showCompletionToast({
+              title: "Module completed",
+              message: m.title || "Module finished"
+            });
+            localStorage.setItem(key, "1");
+          }
+        }
+      });
+
+      if (after.pct === 100) {
+        const key = courseToastKey();
+          if (localStorage.getItem(key) !== "1") {
+            showCompletionToast({
+              title: "Course completed",
+              message: state.course?.title || "Course finished",
+              mini: false,
+              duration: 20000
+            });
+            localStorage.setItem(key, "1");
+          }
+      }
     }
   }
 
@@ -1034,6 +1065,49 @@ What this file does:
     return { done, total, completed: total > 0 && done === total };
   }
 
+  function findModuleForLesson(lessonNumber) {
+    const target = Number(lessonNumber || 0);
+    if (!target) return null;
+    for (const mod of state.course.modules) {
+      if (mod.items.some((it) => Number(it.lesson_number) === target)) return mod;
+    }
+    return null;
+  }
+
+  function moduleToastKey(module) {
+    const email = state.user?.email || "guest";
+    return `netology_module_done:${email}:${state.courseId}:${module.id}`;
+  }
+
+  function courseToastKey() {
+    const email = state.user?.email || "guest";
+    return `netology_course_done:${email}:${state.courseId}`;
+  }
+
+  function showCompletionToast({ title, message, mini = true, duration = 4200 }) {
+    if (typeof window.showCelebrateToast !== "function") return;
+    window.showCelebrateToast({
+      title,
+      message,
+      sub: "Great work staying consistent.",
+      mini,
+      confetti: !mini,
+      duration
+    });
+  }
+
+  function seedCompletionToastFlags() {
+    if (!state.user?.email) return;
+    state.course.modules.forEach((m) => {
+      if (computeModuleCompletion(m).completed) {
+        localStorage.setItem(moduleToastKey(m), "1");
+      }
+    });
+    if (computeProgress().pct === 100) {
+      localStorage.setItem(courseToastKey(), "1");
+    }
+  }
+
   function buildLearnFlatList() {
     const list = [];
     state.course.modules.forEach((m) => m.items.forEach((it) => { if (it.type === "learn") list.push(it); }));
@@ -1390,7 +1464,17 @@ What this file does:
     setText("sideXPEarned", xpEarned);
 
     const next = getRequiredItems().find((it) => !isItemCompleted(it));
-    setText("nextStepText", next ? `${capitalize(next.type)}: ${next.title}` : "All done 🎉");
+    const nextStepEl = getById("nextStepText");
+    if (nextStepEl) {
+      if (next) {
+        nextStepEl.textContent = `${capitalize(next.type)}: ${next.title}`;
+      } else {
+        clearChildren(nextStepEl);
+        const icon = makeIcon("bi bi-check2-circle me-1");
+        icon.setAttribute("aria-hidden", "true");
+        nextStepEl.append(icon, document.createTextNode("All done"));
+      }
+    }
 
     const nextBtn = getById("nextStepBtn");
     const jumpBtn = getById("jumpToFirstIncompleteBtn");
@@ -1858,6 +1942,9 @@ What this file does:
   async function completeItem(type, lessonNumber, xp) {
     const t = String(type).toLowerCase();
     const n = Number(lessonNumber);
+    const moduleForLesson = findModuleForLesson(n);
+    const moduleWasDone = moduleForLesson ? computeModuleCompletion(moduleForLesson).completed : false;
+    const courseWasDone = computeProgress().pct === 100;
     const already =
       (t === "learn" && state.completed.lesson.has(n)) ||
       (t === "quiz" && state.completed.quiz.has(n)) ||
@@ -1917,7 +2004,35 @@ What this file does:
     }
 
     const prog = computeProgress();
-    if (prog.pct === 100) showAria("Course completed! 🎉");
+    if (prog.pct === 100) showAria("Course completed!");
+
+    if (moduleForLesson && !moduleWasDone) {
+      const now = computeModuleCompletion(moduleForLesson);
+      if (now.completed) {
+        const key = moduleToastKey(moduleForLesson);
+        if (localStorage.getItem(key) !== "1") {
+          showCompletionToast({
+            title: "Module completed",
+            message: moduleForLesson.title || "Module finished",
+            icon: "bi-check2-circle"
+          });
+          localStorage.setItem(key, "1");
+        }
+      }
+    }
+
+    if (!courseWasDone && prog.pct === 100) {
+      const key = courseToastKey();
+      if (localStorage.getItem(key) !== "1") {
+        showCompletionToast({
+          title: "Course completed",
+          message: state.course?.title || "Course finished",
+          icon: "bi-trophy",
+          mini: false
+        });
+        localStorage.setItem(key, "1");
+      }
+    }
   }
 
   async function tryBackendComplete(type, lessonNumber, xp) {
@@ -1969,9 +2084,20 @@ What this file does:
     const existing = document.getElementById("courseProgressToast");
     if (existing) existing.remove();
 
+    const stack = (() => {
+      let existingStack = document.getElementById("netToastStack");
+      if (!existingStack) {
+        existingStack = document.createElement("div");
+        existingStack.id = "netToastStack";
+        existingStack.className = "net-toast-stack";
+        document.body.appendChild(existingStack);
+      }
+      return existingStack;
+    })();
+
     const popup = document.createElement("div");
     popup.id = "courseProgressToast";
-    popup.className = "net-toast net-toast-enter";
+    popup.className = "net-toast net-toast-enter in-stack";
     popup.setAttribute("role", "status");
     popup.setAttribute("aria-live", "polite");
     popup.dataset.type = "success";
@@ -1990,12 +2116,13 @@ What this file does:
     const inner = makeEl("div", "net-toast-inner");
     const icon = makeEl("div", "net-toast-icon");
     icon.setAttribute("aria-hidden", "true");
+    const iconEl = makeIcon("bi bi-check2-circle");
+    iconEl.setAttribute("aria-hidden", "true");
+    icon.appendChild(iconEl);
 
     const body = makeEl("div", "net-toast-body");
     const title = makeEl("div", "net-toast-title");
-    const star = makeIcon("bi bi-stars me-2");
-    star.setAttribute("aria-hidden", "true");
-    title.append(star, document.createTextNode("Course progress updated"));
+    title.textContent = "Course progress updated";
     const subEl = makeEl("div", "net-toast-sub", sub);
 
     body.append(title, subEl);
@@ -2018,7 +2145,7 @@ What this file does:
     inner.append(icon, body, closeBtn);
     popup.appendChild(inner);
 
-    document.body.appendChild(popup);
+    stack.appendChild(popup);
 
     const removeToast = () => {
       popup.classList.remove("net-toast-enter");

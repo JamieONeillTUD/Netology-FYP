@@ -594,6 +594,21 @@ function submitAnswer(state) {
       b.classList.remove("is-correct", "is-wrong");
       if (idx === Number(q.correctAnswer)) b.classList.add("is-correct");
       if (idx === Number(state.selected) && !correct) b.classList.add("is-wrong");
+      const status = b.querySelector(".net-quiz-option-status");
+      if (status) {
+        status.replaceChildren();
+        if (b.classList.contains("is-correct")) {
+          const ico = document.createElement("i");
+          ico.className = "bi bi-check-lg";
+          ico.setAttribute("aria-hidden", "true");
+          status.appendChild(ico);
+        } else if (b.classList.contains("is-wrong")) {
+          const ico = document.createElement("i");
+          ico.className = "bi bi-x-lg";
+          ico.setAttribute("aria-hidden", "true");
+          status.appendChild(ico);
+        }
+      }
     });
   }
 
@@ -655,6 +670,24 @@ async function finishQuiz(state) {
     await refreshUserFromServer(state.email);
   }
   renderResults(state, payload);
+
+  if (!payload.alreadyCompleted && typeof window.showCelebrateToast === "function") {
+    const passed = payload.percentage >= RESULTS_PASS_PCT;
+    const perfect = payload.percentage === 100;
+    const title = perfect ? "Perfect quiz score" : (passed ? "Quiz completed" : "Quiz attempt saved");
+    const message = perfect
+      ? "Outstanding accuracy."
+      : (passed ? "Nice work — keep going." : "Review the lesson and try again.");
+    window.showCelebrateToast({
+      title,
+      message,
+      sub: `Score ${payload.correctCount}/${payload.total}`,
+      xp: payload.earnedXP || 0,
+      mini: true,
+      type: passed ? "success" : "info",
+      duration: 20000
+    });
+  }
 }
 
 function renderResultsFromSaved(state, saved, backUrl) {
@@ -692,16 +725,22 @@ function renderResults(state, result) {
   const title = document.getElementById("resultsTitle");
   const sub = document.getElementById("resultsSubtitle");
 
+  if (badge) {
+    badge.replaceChildren();
+    const ico = document.createElement("i");
+    ico.setAttribute("aria-hidden", "true");
+    if (perfect) ico.className = "bi bi-trophy-fill";
+    else if (passed) ico.className = "bi bi-check2-circle";
+    else ico.className = "bi bi-lightbulb";
+    badge.appendChild(ico);
+  }
   if (perfect) {
-    if (badge) badge.textContent = "🏆";
-    if (title) title.textContent = "Perfect Score! 🎉";
+    if (title) title.textContent = "Perfect Score!";
     if (sub) sub.textContent = "Outstanding work — you got everything correct.";
   } else if (passed) {
-    if (badge) badge.textContent = "✅";
     if (title) title.textContent = "Quiz Passed!";
     if (sub) sub.textContent = "Nice job — keep going to the next lesson.";
   } else {
-    if (badge) badge.textContent = "🧠";
     if (title) title.textContent = "Keep Practicing!";
     if (sub) sub.textContent = "Review the lesson and retry — you’ll get it.";
   }
@@ -731,11 +770,19 @@ function showFeedback(correct, explanation, xpEarned) {
 
   if (correct) {
     box.classList.add("is-correct");
-    icon.textContent = "✓";
-    title.textContent = "Correct ✅";
+    icon.replaceChildren();
+    const ico = document.createElement("i");
+    ico.className = "bi bi-check-lg";
+    ico.setAttribute("aria-hidden", "true");
+    icon.appendChild(ico);
+    title.textContent = "Correct";
   } else {
     box.classList.add("is-wrong");
-    icon.textContent = "✕";
+    icon.replaceChildren();
+    const ico = document.createElement("i");
+    ico.className = "bi bi-x-lg";
+    ico.setAttribute("aria-hidden", "true");
+    icon.appendChild(ico);
     title.textContent = "Incorrect";
   }
 

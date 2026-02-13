@@ -2596,12 +2596,12 @@ body.net-auth-v2 footer{
   background: rgba(16,185,129,.9);
   color: #fff;
 }.net-quiz-option.is-correct .net-quiz-option-status::after{
-  content: "✓";
+  content: "";
 }.net-quiz-option.is-wrong .net-quiz-option-status{
   background: rgba(239,68,68,.9);
   color: #fff;
 }.net-quiz-option.is-wrong .net-quiz-option-status::after{
-  content: "✕";
+  content: "";
 }.net-quiz-feedback{
   border-radius: 18px;
   border: 2px solid rgba(6,182,212,.18);
@@ -3722,19 +3722,19 @@ body.net-auth-v2 footer{
 }.net-toast[data-type="success"] .net-toast-icon{
   background: linear-gradient(135deg, #10b981, #14b8a6);
 }.net-toast[data-type="success"] .net-toast-icon::before{
-  content: "✓";
+  content: "";
   font-weight: 950;
   font-size: 18px;
 }.net-toast[data-type="error"] .net-toast-icon{
   background: linear-gradient(135deg, #ef4444, #f97316);
 }.net-toast[data-type="error"] .net-toast-icon::before{
-  content: "!";
+  content: "";
   font-weight: 950;
   font-size: 18px;
 }.net-toast[data-type="info"] .net-toast-icon{
   background: linear-gradient(135deg, #14b8a6, #06b6d4);
 }.net-toast[data-type="info"] .net-toast-icon::before{
-  content: "i";
+  content: "";
   font-weight: 950;
   font-size: 18px;
 }.net-toast-enter{ animation: netToastIn .24s ease both; }.net-toast-exit{ animation: netToastOut .22s ease both; }@keyframes netToastIn{
@@ -3745,6 +3745,94 @@ body.net-auth-v2 footer{
   to   { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.985); }
 }@media (max-width: 575.98px){.net-toast{ top: 12px; }.net-toast-text{ font-size: .92rem; }}@media (prefers-reduced-motion: reduce){.net-toast-enter,
   .net-toast-exit{ animation: none !important; }
+}
+
+/* Celebration toasts */
+.net-toast-stack{
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(520px, calc(100% - 24px));
+  z-index: 9999;
+  pointer-events: none;
+}.net-toast.in-stack{
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: 100%;
+  pointer-events: auto;
+}.net-toast--celebrate{
+  border-color: rgba(14,165,233,.35);
+  box-shadow: 0 26px 70px rgba(2, 6, 23, .16);
+  overflow: hidden;
+}.net-toast--celebrate::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(20,184,166,.20), transparent 45%),
+    radial-gradient(circle at 80% 30%, rgba(99,102,241,.18), transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(14,165,233,.18), transparent 55%);
+  opacity: .6;
+  animation: netToastSpark 1.4s ease-out;
+  pointer-events: none;
+}.net-toast--celebrate .net-toast-icon{
+  background: linear-gradient(135deg, #14b8a6, #06b6d4);
+}.net-toast--celebrate .net-toast-icon::before{
+  content: "";
+}.net-toast--celebrate .net-toast-icon i{
+  font-size: 18px;
+  color: #fff;
+}.net-toast--mini{
+  border-radius: 16px;
+}.net-toast--mini .net-toast-inner{
+  padding: 10px 12px;
+}.net-toast--mini .net-toast-icon{
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}.net-toast--mini .net-toast-title{
+  font-size: .95rem;
+}.net-toast--mini .net-toast-sub{
+  font-size: .82rem;
+}.net-toast-xp-row{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  color: rgba(15, 118, 110, .98);
+}.net-toast-xp-row i{
+  font-size: 14px;
+}@keyframes netToastSpark{
+  0%{ opacity: 0; transform: translateY(-6px); }
+  100%{ opacity: .6; transform: translateY(0); }
+}
+
+.net-toast-confetti{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}.net-toast-confetti-piece{
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 14px;
+  border-radius: 4px;
+  opacity: .85;
+  animation: netToastConfetti 1.4s ease-in forwards;
+}.net-toast-confetti-piece.is-teal{ background: #14b8a6; }
+.net-toast-confetti-piece.is-cyan{ background: #06b6d4; }
+.net-toast-confetti-piece.is-amber{ background: #f59e0b; }
+.net-toast-confetti-piece.is-violet{ background: #6366f1; }
+@keyframes netToastConfetti{
+  0%{ transform: translateY(0) rotate(0deg); opacity: .9; }
+  100%{ transform: translateY(140px) rotate(220deg); opacity: 0; }
 }
 
 /* Utility colors + layout shell */
@@ -3995,6 +4083,7 @@ body.net-course-page.net-landing::after{
 }.net-lesson-hero{
   position: relative;
   overflow: hidden;
+  padding-bottom: 92px;
 }.net-lesson-hero::before{
   content:"";
   position:absolute;
@@ -4012,19 +4101,71 @@ body.net-course-page.net-landing::after{
 }.net-lesson-meta{
   color: rgba(15, 23, 42, .7);
   font-weight: 600;
-}.net-lesson-content p{
+}.net-lesson-nextup{
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, .10);
+  background: rgba(255,255,255,.92);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.net-lesson-nextup-label{
+  display: grid;
+  gap: 2px;
+}
+.net-lesson-nextup-title{
+  font-weight: 800;
+  color: rgba(15, 23, 42, .9);
+}
+.net-lesson-nextup-sub{
+  font-size: .85rem;
+  color: rgba(15, 23, 42, .55);
+}
+.net-lesson-nextup-actions{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 992px){
+  .net-lesson-nextup{
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+.net-lesson-content p{
   line-height: 1.6;
   color: rgba(15, 23, 42, .86);
 }
+/* AI Prompt: Explain the Lesson content sections section in clear, simple terms. */
+/* Lesson content sections */
+.net-lesson-sections{
+  display: grid;
+  gap: 1rem;
+}
+.net-lesson-section{
+  display: grid;
+  gap: .7rem;
+}
+.net-lesson-section-title{
+  font-weight: 800;
+  color: rgba(15,23,42,.88);
+  font-size: 1rem;
+}
 /* AI Prompt: Explain the Lesson interaction blocks section in clear, simple terms. */
 /* Lesson interaction blocks */
-}.net-lesson-block{
+.net-lesson-block{
   margin-bottom: 1.1rem;
   padding: 14px 16px;
   border-radius: 16px;
   border: 1px solid rgba(6,182,212,.14);
   background: rgba(255,255,255,.92);
   box-shadow: 0 12px 24px rgba(2,6,23,.06);
+}.net-lesson-block.is-complete{
+  border-color: rgba(16,185,129,.3);
+  background: rgba(16,185,129,.08);
 }.net-lesson-block--check{
   background: linear-gradient(135deg, rgba(20,184,166,.08), rgba(56,189,248,.06));
   border-color: rgba(14,116,144,.18);

@@ -27,6 +27,9 @@ lesson.js – Lesson page
     practiceItem: null,
     quizItem: null,
     completedLessons: new Set(),
+    activityIds: [],
+    activityProgress: { completed: [] },
+    readCompletionHandler: null,
   };
 
   let completionTimer = null;
@@ -96,6 +99,133 @@ lesson.js – Lesson page
     icon.setAttribute("aria-hidden", "true");
     const text = document.createTextNode(` ${label}`);
     btn.append(icon, text);
+  }
+
+  function lessonActivityKey(email, courseId, lessonNumber) {
+    const keyEmail = email || "guest";
+    return `netology_lesson_activity:${keyEmail}:${courseId}:${lessonNumber}`;
+  }
+
+  function loadLessonActivityProgress() {
+    const key = lessonActivityKey(state.user?.email || "guest", state.courseId, state.lessonNumber);
+    const data = parseJsonSafe(localStorage.getItem(key)) || {};
+    const completed = Array.isArray(data.completed) ? data.completed : [];
+    return { completed };
+  }
+
+  function saveLessonActivityProgress(progress) {
+    const key = lessonActivityKey(state.user?.email || "guest", state.courseId, state.lessonNumber);
+    localStorage.setItem(key, JSON.stringify(progress || { completed: [] }));
+  }
+
+  function getBlockId(block, idx) {
+    if (block && block.id) return String(block.id);
+    return `${block?.type || "block"}-${idx}`;
+  }
+
+  function getActivityIds(blocks) {
+    const ids = [];
+    (blocks || []).forEach((block, idx) => {
+      const type = String(block?.type || "").toLowerCase();
+      if (type === "check" || type === "activity") ids.push(getBlockId(block, idx));
+    });
+    return ids;
+  }
+
+  function getActivityState() {
+    const total = state.activityIds.length;
+    const completedSet = new Set(state.activityProgress.completed || []);
+    const doneCount = state.activityIds.filter((id) => completedSet.has(id)).length;
+    const allDone = total > 0 && doneCount >= total;
+    return { total, doneCount, allDone };
+  }
+
+  function updateLessonStatus() {
+    const status = getById("lessonStatus");
+    if (!status) return;
+    const isDone = state.completedLessons.has(Number(state.lessonNumber));
+    const activityState = getActivityState();
+    if (isDone) {
+      status.textContent = "Completed";
+      return;
+    }
+    if (activityState.doneCount > 0) {
+      status.textContent = "In progress";
+      return;
+    }
+    status.textContent = "Not started";
+  }
+
+  async function finalizeLessonCompletion() {
+    if (!state.user?.email) return;
+    if (state.completedLessons.has(Number(state.lessonNumber))) return;
+
+    const earnedXp = getEarnedLessonXP();
+    const completion = await completeLesson(state.user.email, state.courseId, state.lessonNumber, earnedXp);
+    const xpAwarded = Number(completion?.xpAdded ?? earnedXp);
+    markLessonCompletionLocal(state.user.email, state.courseId, state.lessonNumber, xpAwarded);
+    trackCourseStart(state.user.email, state.courseId, state.lessonNumber);
+    state.completedLessons.add(Number(state.lessonNumber));
+    if (completion?.usedBackend) {
+      await refreshUserFromServer(state.user.email);
+    } else {
+      refreshUserFromStorage();
+    }
+    renderLesson();
+    const { nextInUnit } = getLessonNeighbors();
+    if (typeof window.showCelebrateToast === "function") {
+      window.showCelebrateToast({
+        title: "Lesson completed",
+        message: state.lessonEntry?.lesson?.title || "Lesson progress saved.",
+        sub: nextInUnit ? "Next lesson unlocked." : "Return to the course to continue.",
+        xp: xpAwarded || 0,
+        mini: true,
+        duration: 20000
+      });
+    }
+    showCompletionToast(nextInUnit);
+  }
+
+  function markActivityDone(blockId) {
+    const progress = loadLessonActivityProgress();
+    progress.completed = Array.isArray(progress.completed) ? progress.completed : [];
+    if (!progress.completed.includes(blockId)) {
+      progress.completed.push(blockId);
+      saveLessonActivityProgress(progress);
+      state.activityProgress = progress;
+      updateLessonStatus();
+      const activityState = getActivityState();
+      if (activityState.allDone) {
+        finalizeLessonCompletion();
+      }
+    }
+  }
+
+  function enableReadCompletion(contentEl) {
+    if (!contentEl) return;
+    if (state.readCompletionHandler) {
+      window.removeEventListener("scroll", state.readCompletionHandler);
+      state.readCompletionHandler = null;
+    }
+    const handler = () => {
+      const rect = contentEl.getBoundingClientRect();
+      const viewH = window.innerHeight || 0;
+      if (rect.bottom <= viewH + 120) {
+        window.removeEventListener("scroll", handler);
+        state.readCompletionHandler = null;
+        finalizeLessonCompletion();
+      }
+    };
+    state.readCompletionHandler = handler;
+    window.addEventListener("scroll", handler, { passive: true });
+    handler();
+  }
+
+  function disableReadCompletion() {
+    if (state.readCompletionHandler) {
+      window.removeEventListener("scroll", state.readCompletionHandler);
+      state.readCompletionHandler = null;
+    }
   }
 
   function getCurrentUser() {
@@ -501,7 +631,7 @@ lesson.js – Lesson page
   ========================================================= */
 
   function wireBrandRouting() {
-    const brand = getById("brandHome");
+    const brand = getById("topBrand") || getById("brandHome");
     const sideBrand = getById("sideBrandHome");
     const back = getById("backToCourse");
 
@@ -518,6 +648,9 @@ lesson.js – Lesson page
     setText("ddName", "Guest");
     setText("ddEmail", "Sign in to track progress");
     setText("topAvatar", "G");
+    setText("ddAvatar", "G");
+    setText("ddLevel", "Level —");
+    setText("ddRank", "Novice");
 
     setText("sideAvatar", "G");
     setText("sideUserName", "Guest");
@@ -616,6 +749,9 @@ lesson.js – Lesson page
     setText("ddName", name);
     setText("ddEmail", email || "email@example.com");
     setText("topAvatar", name.charAt(0).toUpperCase());
+    setText("ddAvatar", name.charAt(0).toUpperCase());
+    setText("ddLevel", `Level ${progress.level}`);
+    setText("ddRank", rankForLevel(progress.level));
 
     setText("sideAvatar", name.charAt(0).toUpperCase());
     setText("sideUserName", name);
@@ -813,7 +949,8 @@ lesson.js – Lesson page
     return wrap;
   }
 
-  function renderCheckBlock(block, idx) {
+  function renderCheckBlock(block, idx, opts = {}) {
+    const { isDone, onComplete } = opts;
     const wrap = createBlockWrap("check");
     const title = createBlockTitle(block.title || "Quick check");
     const question = document.createElement("div");
@@ -832,6 +969,7 @@ lesson.js – Lesson page
       btn.className = "net-lesson-option";
       btn.textContent = String(opt ?? "");
       btn.addEventListener("click", () => {
+        if (isDone) return;
         selectedIndex = optIdx;
         optionButtons.forEach((b, bIdx) => {
           b.classList.toggle("is-selected", bIdx === optIdx);
@@ -854,7 +992,21 @@ lesson.js – Lesson page
     feedback.className = "net-lesson-feedback";
     feedback.setAttribute("aria-live", "polite");
 
+    const applyCompletedState = () => {
+      wrap.classList.add("is-complete");
+      checkBtn.textContent = "Completed";
+      checkBtn.disabled = true;
+      optionButtons.forEach((btn) => (btn.disabled = true));
+    };
+
+    if (isDone) {
+      applyCompletedState();
+      feedback.textContent = "Completed";
+      feedback.classList.add("is-correct");
+    }
+
     checkBtn.addEventListener("click", () => {
+      if (isDone) return;
       if (selectedIndex === null) {
         feedback.textContent = "Choose an answer first.";
         feedback.classList.remove("is-correct", "is-wrong");
@@ -877,6 +1029,11 @@ lesson.js – Lesson page
         explain.textContent = String(block.explanation || "");
         feedback.appendChild(explain);
       }
+
+      if (isCorrect) {
+        applyCompletedState();
+        if (onComplete) onComplete();
+      }
     });
 
     actionRow.append(checkBtn, feedback);
@@ -884,7 +1041,8 @@ lesson.js – Lesson page
     return wrap;
   }
 
-  function renderSelectActivity(block) {
+  function renderSelectActivity(block, opts = {}) {
+    const { isDone, onComplete } = opts;
     const wrap = createBlockWrap("activity");
     const title = createBlockTitle(block.title || "Mini activity");
     const prompt = document.createElement("div");
@@ -903,6 +1061,7 @@ lesson.js – Lesson page
       btn.className = "net-lesson-option";
       btn.textContent = String(opt ?? "");
       btn.addEventListener("click", () => {
+        if (isDone) return;
         selectedIndex = optIdx;
         optionButtons.forEach((b, bIdx) => {
           b.classList.toggle("is-selected", bIdx === optIdx);
@@ -925,7 +1084,21 @@ lesson.js – Lesson page
     feedback.className = "net-lesson-feedback";
     feedback.setAttribute("aria-live", "polite");
 
+    const applyCompletedState = () => {
+      wrap.classList.add("is-complete");
+      checkBtn.textContent = "Completed";
+      checkBtn.disabled = true;
+      optionButtons.forEach((btn) => (btn.disabled = true));
+    };
+
+    if (isDone) {
+      applyCompletedState();
+      feedback.textContent = "Completed";
+      feedback.classList.add("is-correct");
+    }
+
     checkBtn.addEventListener("click", () => {
+      if (isDone) return;
       if (selectedIndex === null) {
         feedback.textContent = "Pick an option to continue.";
         feedback.classList.remove("is-correct", "is-wrong");
@@ -946,6 +1119,11 @@ lesson.js – Lesson page
         note.textContent = String(block.explanation || "");
         feedback.appendChild(note);
       }
+
+      if (isCorrect) {
+        applyCompletedState();
+        if (onComplete) onComplete();
+      }
     });
 
     actionRow.append(checkBtn, feedback);
@@ -953,7 +1131,8 @@ lesson.js – Lesson page
     return wrap;
   }
 
-  function renderDragActivity(block) {
+  function renderDragActivity(block, opts = {}) {
+    const { isDone, onComplete } = opts;
     const wrap = createBlockWrap("activity");
     const title = createBlockTitle(block.title || "Mini activity");
     const prompt = document.createElement("div");
@@ -1060,6 +1239,14 @@ lesson.js – Lesson page
       return correct;
     }
 
+    function lockDragActivity() {
+      itemMap.forEach((chip) => {
+        chip.setAttribute("draggable", "false");
+        chip.classList.add("is-locked");
+      });
+      resetBtn.disabled = true;
+    }
+
     function updateDragFeedback() {
       const correct = countCorrect();
       if (!items.length) return;
@@ -1067,6 +1254,11 @@ lesson.js – Lesson page
         feedback.textContent = "All matched correctly!";
         feedback.classList.add("is-correct");
         feedback.classList.remove("is-wrong");
+        if (!wrap.classList.contains("is-complete")) {
+          wrap.classList.add("is-complete");
+          lockDragActivity();
+          if (onComplete) onComplete();
+        }
         return;
       }
       feedback.textContent = `${correct}/${items.length} placed correctly.`;
@@ -1075,6 +1267,7 @@ lesson.js – Lesson page
     }
 
     resetBtn.addEventListener("click", () => {
+      if (isDone) return;
       itemMap.forEach((chip) => pool.appendChild(chip));
       feedback.textContent = "";
       feedback.classList.remove("is-correct", "is-wrong");
@@ -1083,33 +1276,76 @@ lesson.js – Lesson page
 
     actionRow.append(resetBtn, feedback);
     dragArea.append(pool, targetsWrap);
+    if (isDone) {
+      wrap.classList.add("is-complete");
+      feedback.textContent = "Completed";
+      feedback.classList.add("is-correct");
+      lockDragActivity();
+    }
+
     wrap.append(title, prompt, dragArea, actionRow);
     return wrap;
   }
 
-  function renderActivityBlock(block) {
+  function renderActivityBlock(block, opts = {}) {
     const mode = String(block.mode || block.activity || "select").toLowerCase();
-    if (mode === "drag") return renderDragActivity(block);
-    return renderSelectActivity(block);
+    if (mode === "drag") return renderDragActivity(block, opts);
+    return renderSelectActivity(block, opts);
+  }
+
+  function getSectionTitle(type) {
+    if (type === "check") return "Quick checks";
+    if (type === "activity") return "Mini activities";
+    if (type === "explain") return "Explain";
+    return "Core ideas";
   }
 
   function renderLessonBlocks(container, blocks) {
+    const progress = state.activityProgress || { completed: [] };
+    const completed = new Set(progress.completed || []);
+
+    let currentSection = null;
+    let currentType = null;
+    const sectionWrap = document.createElement("div");
+    sectionWrap.className = "net-lesson-sections";
+
     blocks.forEach((block, idx) => {
       const type = String(block?.type || "text").toLowerCase();
+      if (type !== currentType) {
+        currentType = type;
+        currentSection = document.createElement("section");
+        currentSection.className = "net-lesson-section";
+        const title = document.createElement("div");
+        title.className = "net-lesson-section-title";
+        title.textContent = getSectionTitle(type);
+        currentSection.appendChild(title);
+        sectionWrap.appendChild(currentSection);
+      }
+
       let node = null;
       if (type === "text") {
         node = createBlockWrap("text");
         addParagraphs(node, block.text || block.content || "");
       } else if (type === "check") {
-        node = renderCheckBlock(block, idx);
+        const blockId = getBlockId(block, idx);
+        node = renderCheckBlock(block, idx, {
+          isDone: completed.has(blockId),
+          onComplete: () => markActivityDone(blockId),
+        });
       } else if (type === "explain") {
         node = renderExplainBlock(block);
       } else if (type === "activity") {
-        node = renderActivityBlock(block);
+        const blockId = getBlockId(block, idx);
+        node = renderActivityBlock(block, {
+          isDone: completed.has(blockId),
+          onComplete: () => markActivityDone(blockId),
+        });
       }
 
-      if (node) container.appendChild(node);
+      if (node && currentSection) currentSection.appendChild(node);
     });
+
+    container.appendChild(sectionWrap);
   }
 
   function renderLesson() {
@@ -1149,14 +1385,30 @@ lesson.js – Lesson page
       });
     }
 
-    // Content
+    // Content + activity progress
+    const blocks = Array.isArray(lessonData.blocks) ? lessonData.blocks : [];
+    state.activityIds = getActivityIds(blocks);
+    state.activityProgress = loadLessonActivityProgress();
+
     const content = getById("lessonContent");
     if (content) {
       clearChildren(content);
-      if (Array.isArray(lessonData.blocks) && lessonData.blocks.length) {
-        renderLessonBlocks(content, lessonData.blocks);
+      if (blocks.length) {
+        renderLessonBlocks(content, blocks);
+        disableReadCompletion();
       } else {
-        addParagraphs(content, lessonData.content || lessonData.learn);
+        const section = document.createElement("section");
+        section.className = "net-lesson-section";
+        const title = document.createElement("div");
+        title.className = "net-lesson-section-title";
+        title.textContent = "Core ideas";
+        section.appendChild(title);
+        addParagraphs(section, lessonData.content || lessonData.learn);
+        const wrap = document.createElement("div");
+        wrap.className = "net-lesson-sections";
+        wrap.appendChild(section);
+        content.appendChild(wrap);
+        enableReadCompletion(content);
       }
     }
 
@@ -1229,20 +1481,14 @@ lesson.js – Lesson page
       }
     }
 
-    // Status
-    const status = getById("lessonStatus");
-    if (status) {
-      const done = state.completedLessons.has(Number(state.lessonNumber));
-      status.textContent = done ? "Completed" : "Not started";
-      const completeBtn = getById("lessonCompleteBtn");
-      if (completeBtn) {
-        completeBtn.disabled = done;
-        setButtonIconText(completeBtn, "bi bi-check2-circle me-1", done ? "Completed" : "Mark Complete");
-      }
+    updateLessonStatus();
+    const activityState = getActivityState();
+    if (activityState.allDone && !state.completedLessons.has(Number(state.lessonNumber))) {
+      finalizeLessonCompletion();
     }
 
     // Progress + prev/next
-    const { flat, idx, prev, next } = getLessonNeighbors();
+    const { flat, idx, prev, next, nextInUnit } = getLessonNeighbors();
 
     const totalLessons = flat.length || 0;
     const completedCount = state.completedLessons.size || 0;
@@ -1266,10 +1512,26 @@ lesson.js – Lesson page
 
     const prevLink = getById("prevLessonLink");
     const nextLink = getById("nextLessonLink");
+    const nextUpTitle = getById("nextUpTitle");
+    if (nextUpTitle) {
+      const unitLabel = nextInUnit?.unitTitle || next?.unitTitle || "";
+      const lessonLabel = nextInUnit?.lessonNumber || next?.lessonNumber || "";
+      const prefix = [unitLabel, lessonLabel ? `Lesson ${lessonLabel}` : ""]
+        .filter(Boolean)
+        .join(" • ");
+
+      if (nextInUnit?.lesson?.title) {
+        nextUpTitle.textContent = `${prefix} • ${nextInUnit.lesson.title}`;
+      } else if (next?.lesson?.title) {
+        nextUpTitle.textContent = `${prefix} • ${next.lesson.title}`;
+      } else {
+        nextUpTitle.textContent = "End of unit reached";
+      }
+    }
     if (prevLink) {
       if (prev) {
         prevLink.href = lessonUrl(prev.lessonNumber);
-        prevLink.textContent = `Previous: ${prev.lesson.title}`;
+        prevLink.textContent = "Previous lesson";
       } else {
         prevLink.classList.add("disabled");
         prevLink.textContent = "No previous lesson";
@@ -1278,7 +1540,7 @@ lesson.js – Lesson page
     if (nextLink) {
       if (next) {
         nextLink.href = lessonUrl(next.lessonNumber);
-        nextLink.textContent = `Next: ${next.lesson.title}`;
+        nextLink.textContent = "Next lesson";
       } else {
         nextLink.classList.add("disabled");
         nextLink.textContent = "No next lesson";
@@ -1294,7 +1556,6 @@ lesson.js – Lesson page
   function wireActions() {
     const practiceBtn = getById("lessonPracticeBtn");
     const challengeBtn = getById("lessonChallengeBtn");
-    const completeBtn = getById("lessonCompleteBtn");
 
     practiceBtn?.addEventListener("click", () => {
       if (state.practiceItem) {
@@ -1348,28 +1609,6 @@ lesson.js – Lesson page
       window.location.href = `sandbox.html?${params.toString()}`;
     });
 
-    completeBtn?.addEventListener("click", async () => {
-      if (!state.user?.email) {
-        alert("Sign in to save progress.");
-        return;
-      }
-      if (state.completedLessons.has(Number(state.lessonNumber))) return;
-
-      const earnedXp = getEarnedLessonXP();
-      const completion = await completeLesson(state.user.email, state.courseId, state.lessonNumber, earnedXp);
-      const xpAwarded = Number(completion?.xpAdded ?? earnedXp);
-      markLessonCompletionLocal(state.user.email, state.courseId, state.lessonNumber, xpAwarded);
-      trackCourseStart(state.user.email, state.courseId, state.lessonNumber);
-      state.completedLessons.add(Number(state.lessonNumber));
-      if (completion?.usedBackend) {
-        await refreshUserFromServer(state.user.email);
-      } else {
-        refreshUserFromStorage();
-      }
-      renderLesson();
-      const { nextInUnit } = getLessonNeighbors();
-      showCompletionToast(nextInUnit);
-    });
   }
 
   async function completeLesson(email, courseId, lessonNumber, xp) {
@@ -1428,9 +1667,20 @@ lesson.js – Lesson page
     const existing = document.getElementById("lessonToast");
     if (existing) existing.remove();
 
+    const stack = (() => {
+      let existingStack = document.getElementById("netToastStack");
+      if (!existingStack) {
+        existingStack = document.createElement("div");
+        existingStack.id = "netToastStack";
+        existingStack.className = "net-toast-stack";
+        document.body.appendChild(existingStack);
+      }
+      return existingStack;
+    })();
+
     const popup = document.createElement("div");
     popup.id = "lessonToast";
-    popup.className = "net-toast net-toast-enter";
+    popup.className = "net-toast net-toast-enter in-stack";
     popup.setAttribute("role", "status");
     popup.setAttribute("aria-live", "polite");
     popup.dataset.type = "success";
@@ -1448,6 +1698,9 @@ lesson.js – Lesson page
     const icon = document.createElement("div");
     icon.className = "net-toast-icon";
     icon.setAttribute("aria-hidden", "true");
+    const iconEl = document.createElement("i");
+    iconEl.className = "bi bi-check2-circle";
+    icon.appendChild(iconEl);
 
     const body = document.createElement("div");
     body.className = "net-toast-body";
@@ -1464,7 +1717,7 @@ lesson.js – Lesson page
       const count = document.createElement("span");
       count.id = countdownId;
       count.className = "net-toast-countdown";
-      count.textContent = "5";
+      count.textContent = "20";
       const suffix = document.createTextNode("s");
       sub.append(prefix, count, suffix);
     } else {
@@ -1505,7 +1758,7 @@ lesson.js – Lesson page
     inner.append(icon, body, closeBtn);
     popup.appendChild(inner);
 
-    document.body.appendChild(popup);
+    stack.appendChild(popup);
 
     closeBtn?.addEventListener("click", () => {
       clearCompletionToastTimers();
@@ -1519,7 +1772,7 @@ lesson.js – Lesson page
         window.location.href = lessonUrl(nextInUnit.lessonNumber);
       });
 
-      const duration = 5000;
+      const duration = 20000;
       const start = Date.now();
       const bar = document.getElementById(barId);
       const counter = document.getElementById(countdownId);

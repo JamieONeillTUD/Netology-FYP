@@ -211,7 +211,11 @@ function wireLoginSubmit(form) {
           last_name: data.last_name,
           username: data.username,
           level: data.level,     // keep existing field (backwards compatible)
+          rank: data.rank || data.level,
+          numeric_level: Number.isFinite(Number(data.numeric_level)) ? Number(data.numeric_level) : undefined,
           xp: data.xp,
+          xp_into_level: Number.isFinite(Number(data.xp_into_level)) ? Number(data.xp_into_level) : undefined,
+          next_level_xp: Number.isFinite(Number(data.next_level_xp)) ? Number(data.next_level_xp) : undefined,
 
           // NEW: dashboard uses this to unlock content tiers
           unlock_tier: unlockTier
@@ -224,7 +228,7 @@ function wireLoginSubmit(form) {
         // Login streak tracking + badge awards
         recordLoginDay(email);
         const streak = computeLoginStreak(getLoginLog(email));
-        awardLoginStreakBadges(email, streak);
+        await awardLoginStreakBadges(email, streak);
 
         // Once used, clear the pending value
         if (pendingTier) localStorage.removeItem("unlock_tier_pending");
@@ -659,17 +663,58 @@ function saveBadges(email, badges) {
   localStorage.setItem(`netology_badges:${email}`, JSON.stringify(badges));
 }
 
+function totalXpForLevel(level) {
+  const lvl = Math.max(1, Number(level) || 1);
+  return 100 * (lvl - 1) * lvl / 2;
+}
+
+function levelFromTotalXp(totalXp) {
+  const xp = Math.max(0, Number(totalXp) || 0);
+  const t = xp / 100;
+  const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
+  return Math.max(1, lvl);
+}
+
+function xpForNextLevel(level) {
+  const lvl = Math.max(1, Number(level) || 1);
+  return 100 * lvl;
+}
+
+function rankForLevel(level) {
+  if (Number(level) >= 5) return "Advanced";
+  if (Number(level) >= 3) return "Intermediate";
+  return "Novice";
+}
+
+function applyXpToUser(user, addXP) {
+  const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
+  const level = levelFromTotalXp(nextTotal);
+  const levelStart = totalXpForLevel(level);
+  const currentLevelXP = Math.max(0, nextTotal - levelStart);
+  const xpNext = xpForNextLevel(level);
+  const rank = rankForLevel(level);
+  return {
+    ...user,
+    xp: nextTotal,
+    numeric_level: level,
+    xp_into_level: currentLevelXP,
+    next_level_xp: xpNext,
+    level: rank,
+    rank
+  };
+}
+
 function bumpUserXP(email, delta) {
   if (!delta) return;
   const rawUser = parseJsonSafe(localStorage.getItem("user"), null);
   if (rawUser && rawUser.email === email) {
-    rawUser.xp = Math.max(0, Number(rawUser.xp || 0) + delta);
-    localStorage.setItem("user", JSON.stringify(rawUser));
+    const updated = applyXpToUser(rawUser, delta);
+    localStorage.setItem("user", JSON.stringify(updated));
   }
   const rawNet = parseJsonSafe(localStorage.getItem("netology_user"), null);
   if (rawNet && rawNet.email === email) {
-    rawNet.xp = Math.max(0, Number(rawNet.xp || 0) + delta);
-    localStorage.setItem("netology_user", JSON.stringify(rawNet));
+    const updated = applyXpToUser(rawNet, delta);
+    localStorage.setItem("netology_user", JSON.stringify(updated));
   }
 }
 
@@ -682,21 +727,47 @@ function loginBadgeDefs() {
   ];
 }
 
-function awardLoginStreakBadges(email, streak) {
+async function awardAchievementRemote(email, def) {
+  if (!email || !API_BASE) return { awarded: false, xp_added: 0 };
+  try {
+    const res = await fetch(`${API_BASE}/award-achievement`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        achievement_id: def.id,
+        name: def.name,
+        description: def.description,
+        tier: def.tier || "bronze",
+        xp: def.xp || 0
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    return data || { awarded: false, xp_added: 0 };
+  } catch {
+    return { awarded: false, xp_added: 0 };
+  }
+}
+
+async function awardLoginStreakBadges(email, streak) {
   if (!email) return;
   const defs = loginBadgeDefs();
   const badges = getBadges(email);
   const earned = new Set(badges.map((b) => b.id));
   let changed = false;
 
-  defs.forEach((def) => {
+  for (const def of defs) {
     if (streak >= def.target && !earned.has(def.id)) {
-      badges.push({ id: def.id, name: def.name, description: def.description, xp: def.xp, earnedAt: dateKey() });
-      earned.add(def.id);
-      bumpUserXP(email, def.xp);
-      changed = true;
+      const result = await awardAchievementRemote(email, def);
+      if (result?.awarded) {
+        badges.push({ id: def.id, name: def.name, description: def.description, xp: def.xp, earnedAt: dateKey() });
+        earned.add(def.id);
+        const xpAdded = Number(result.xp_added || def.xp || 0);
+        if (xpAdded > 0) bumpUserXP(email, xpAdded);
+        changed = true;
+      }
     }
-  });
+  }
 
   if (changed) saveBadges(email, badges);
 }
@@ -722,12 +793,19 @@ function setInvalid(el, isInvalid) {
 ========================================================= */
 
 function showPopup(message, type) {
-  const old = getById("alertBox");
-  if (old) old.remove();
+  const stack = (() => {
+    let existing = document.getElementById("netToastStack");
+    if (!existing) {
+      existing = document.createElement("div");
+      existing.id = "netToastStack";
+      existing.className = "net-toast-stack";
+      document.body.appendChild(existing);
+    }
+    return existing;
+  })();
 
   const popup = document.createElement("div");
-  popup.id = "alertBox";
-  popup.className = "net-toast net-toast-enter";
+  popup.className = "net-toast net-toast-enter in-stack";
   popup.setAttribute("role", "status");
   popup.setAttribute("aria-live", "polite");
   popup.dataset.type = type || "info";
@@ -738,6 +816,10 @@ function showPopup(message, type) {
   const icon = document.createElement("div");
   icon.className = "net-toast-icon";
   icon.setAttribute("aria-hidden", "true");
+  const iconEl = document.createElement("i");
+  const iconType = type === "error" ? "bi-x-circle" : type === "success" ? "bi-check2-circle" : "bi-info-circle";
+  iconEl.className = `bi ${iconType}`;
+  icon.appendChild(iconEl);
 
   const text = document.createElement("div");
   text.className = "net-toast-text";
@@ -756,7 +838,7 @@ function showPopup(message, type) {
   inner.append(icon, text, closeBtn);
   popup.appendChild(inner);
 
-  document.body.appendChild(popup);
+  stack.appendChild(popup);
 
   const dismiss = () => {
     popup.classList.remove("net-toast-enter");

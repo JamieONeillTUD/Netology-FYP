@@ -44,6 +44,12 @@ function xpForNextLevel(level) {
   return BASE_XP * lvl;
 }
 
+function rankForLevel(level) {
+  if (Number(level) >= 5) return "Advanced";
+  if (Number(level) >= 3) return "Intermediate";
+  return "Novice";
+}
+
 function computeXPFromTotal(totalXP) {
   const level = levelFromXP(totalXP);
   const levelStart = totalXpForLevel(level);
@@ -238,13 +244,35 @@ function bumpUserXP(email, delta) {
   if (!delta) return;
   const rawUser = parseJsonSafe(localStorage.getItem("user"), null);
   if (rawUser && rawUser.email === email) {
-    rawUser.xp = Math.max(0, Number(rawUser.xp || 0) + delta);
-    localStorage.setItem("user", JSON.stringify(rawUser));
+    const nextTotal = Math.max(0, Number(rawUser.xp || 0) + delta);
+    const stats = computeXPFromTotal(nextTotal);
+    const rank = rankForLevel(stats.level);
+    const updated = {
+      ...rawUser,
+      xp: stats.totalXP,
+      numeric_level: stats.level,
+      xp_into_level: stats.currentLevelXP,
+      next_level_xp: stats.xpNext,
+      rank,
+      level: rank
+    };
+    localStorage.setItem("user", JSON.stringify(updated));
   }
   const rawNet = parseJsonSafe(localStorage.getItem("netology_user"), null);
   if (rawNet && rawNet.email === email) {
-    rawNet.xp = Math.max(0, Number(rawNet.xp || 0) + delta);
-    localStorage.setItem("netology_user", JSON.stringify(rawNet));
+    const nextTotal = Math.max(0, Number(rawNet.xp || 0) + delta);
+    const stats = computeXPFromTotal(nextTotal);
+    const rank = rankForLevel(stats.level);
+    const updated = {
+      ...rawNet,
+      xp: stats.totalXP,
+      numeric_level: stats.level,
+      xp_into_level: stats.currentLevelXP,
+      next_level_xp: stats.xpNext,
+      rank,
+      level: rank
+    };
+    localStorage.setItem("netology_user", JSON.stringify(updated));
   }
 }
 
@@ -300,7 +328,18 @@ async function awardAchievementBadges(email, loginStreak) {
       const result = await awardAchievementRemote(email, def);
       if (result?.awarded) {
         earned.add(def.id);
-        bumpUserXP(email, def.xp);
+        const xpAdded = Number(result.xp_added || def.xp || 0);
+        if (xpAdded > 0) bumpUserXP(email, xpAdded);
+        if (typeof window.showCelebrateToast === "function") {
+          window.showCelebrateToast({
+            title: "Achievement unlocked",
+            message: def.name,
+            sub: def.description,
+            xp: xpAdded || def.xp,
+            icon: "bi-award",
+            mini: false
+          });
+        }
       }
     }
   }
@@ -698,12 +737,12 @@ async function renderQuizHistory(email) {
 ========================================================= */
 
 function rankFromUser(user, numericLevel) {
+  if (numericLevel >= 5) return "Advanced";
+  if (numericLevel >= 3) return "Intermediate";
   const raw = String(user?.unlock_tier || user?.rank || user?.level_name || user?.level || "").toLowerCase();
   if (raw.includes("advanced")) return "Advanced";
   if (raw.includes("intermediate")) return "Intermediate";
   if (raw.includes("novice")) return "Novice";
-  if (numericLevel >= 5) return "Advanced";
-  if (numericLevel >= 3) return "Intermediate";
   return "Novice";
 }
 
@@ -955,12 +994,31 @@ async function loadStats(email, user) {
     const serverLevel = Number(data.numeric_level);
     const xpInto = Number(data.xp_into_level);
     const nextXp = Number(data.next_level_xp);
-    let stats = computeXPFromTotal(totalXP);
+    const baseStats = computeXPFromTotal(totalXP);
+    const level = Number.isFinite(serverLevel) && serverLevel > 0 ? serverLevel : baseStats.level;
+    const levelStart = totalXpForLevel(level);
+    let stats = {
+      level,
+      currentLevelXP: Math.max(0, totalXP - levelStart),
+      xpNext: xpForNextLevel(level),
+      pct: 0,
+      toNext: 0,
+      totalXP
+    };
+    stats.pct = Math.max(0, Math.min(100, (stats.currentLevelXP / Math.max(stats.xpNext, 1)) * 100));
+    stats.toNext = Math.max(0, stats.xpNext - stats.currentLevelXP);
     if (Number.isFinite(xpInto) && Number.isFinite(nextXp) && nextXp > 0) {
-      const level = Number.isFinite(serverLevel) && serverLevel > 0 ? serverLevel : stats.level;
-      const pct = Math.max(0, Math.min(100, (xpInto / nextXp) * 100));
-      const toNext = Math.max(0, nextXp - xpInto);
-      stats = { level, currentLevelXP: xpInto, xpNext: nextXp, pct, toNext, totalXP };
+      const matchesTotal = Math.abs((levelStart + xpInto) - totalXP) <= 1;
+      if (matchesTotal) {
+        stats = {
+          level,
+          currentLevelXP: xpInto,
+          xpNext: nextXp,
+          pct: Math.max(0, Math.min(100, (xpInto / nextXp) * 100)),
+          toNext: Math.max(0, nextXp - xpInto),
+          totalXP
+        };
+      }
     }
     const unlockTier = String(data.start_level || user?.unlock_tier || user?.unlock_level || user?.unlockTier || "novice")
       .trim()
@@ -975,10 +1033,10 @@ async function loadStats(email, user) {
       username: data.username || user?.username,
       xp: totalXP,
       numeric_level: Number.isFinite(serverLevel) && serverLevel > 0 ? serverLevel : stats.level,
-      xp_into_level: Number.isFinite(xpInto) ? xpInto : stats.currentLevelXP,
-      next_level_xp: Number.isFinite(nextXp) ? nextXp : stats.xpNext,
-      level: data.rank || data.level || user?.level,
-      rank: data.rank || data.level || user?.rank,
+      xp_into_level: stats.currentLevelXP,
+      next_level_xp: stats.xpNext,
+      level: data.rank || data.level || rankForLevel(stats.level),
+      rank: data.rank || data.level || rankForLevel(stats.level),
       unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
     };
     localStorage.setItem("user", JSON.stringify(mergedUser));

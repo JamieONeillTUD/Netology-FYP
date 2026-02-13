@@ -595,6 +595,44 @@ def award_achievement():
         return jsonify({"success": False, "message": "Could not award achievement."}), 500
 
 
+@auth.route("/award-xp", methods=["POST"])
+def award_xp():
+    data = request.get_json(silent=True) or {}
+    email = _norm_email(data.get("email"))
+    action = (data.get("action") or "").strip()
+    xp = int(data.get("xp") or 0)
+
+    if not email or not action or xp <= 0:
+        return jsonify({"success": False, "message": "Email, action, and positive XP are required."}), 400
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Idempotency: only award once per action key
+        cur.execute("SELECT 1 FROM xp_log WHERE user_email = %s AND action = %s LIMIT 1;", (email, action))
+        exists = cur.fetchone() is not None
+
+        xp_added = 0
+        new_level = 0
+        if not exists:
+            xp_added, new_level = add_xp_to_user(email, xp, action=action)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "awarded": (not exists),
+            "xp_added": xp_added,
+            "new_level": new_level
+        })
+    except Exception as e:
+        print("Award XP error:", e)
+        return jsonify({"success": False, "message": "Could not award XP."}), 500
+
+
 # AI Prompt: Explain the Login Activity (streak tracking) section in clear, simple terms.
 # =========================================================
 # Login Activity (streak tracking)

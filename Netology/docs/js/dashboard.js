@@ -111,6 +111,8 @@ Works with:
   }
 
   function getUserRank(user) {
+    const lvl = userNumericLevel(user);
+    if (Number.isFinite(lvl)) return rankForLevel(lvl);
     const raw = String(user?.unlock_tier || user?.rank || user?.level_name || user?.level || "novice").toLowerCase();
     if (raw.includes("advanced")) return "Advanced";
     if (raw.includes("intermediate")) return "Intermediate";
@@ -125,17 +127,53 @@ Works with:
     const nextXp = Number(user?.next_level_xp);
     const fallbackLevel = levelFromXP(totalXP);
     const level = Number.isFinite(serverLevel) && serverLevel > 0 ? serverLevel : fallbackLevel;
-    if (Number.isFinite(xpInto) && Number.isFinite(nextXp) && nextXp > 0) {
-      const progressPct = Math.max(0, Math.min(100, (xpInto / nextXp) * 100));
-      const toNext = Math.max(0, nextXp - xpInto);
-      return { totalXP, currentLevelXP: xpInto, xpNext: nextXp, progressPct, toNext, level };
-    }
     const levelStart = totalXpForLevel(level);
-    const currentLevelXP = Math.max(0, totalXP - levelStart);
+    const fallbackCurrent = Math.max(0, totalXP - levelStart);
+    const fallbackNext = xpForNextLevel(level);
+    const fallbackPct = Math.max(0, Math.min(100, (fallbackCurrent / Math.max(fallbackNext, 1)) * 100));
+    const fallbackToNext = Math.max(0, fallbackNext - fallbackCurrent);
+    const fallback = {
+      totalXP,
+      currentLevelXP: fallbackCurrent,
+      xpNext: fallbackNext,
+      progressPct: fallbackPct,
+      toNext: fallbackToNext,
+      level
+    };
+
+    if (Number.isFinite(xpInto) && Number.isFinite(nextXp) && nextXp > 0) {
+      const matchesTotal = Math.abs((levelStart + xpInto) - totalXP) <= 1;
+      if (matchesTotal) {
+        const progressPct = Math.max(0, Math.min(100, (xpInto / nextXp) * 100));
+        const toNext = Math.max(0, nextXp - xpInto);
+        return { totalXP, currentLevelXP: xpInto, xpNext: nextXp, progressPct, toNext, level };
+      }
+    }
+    return fallback;
+  }
+
+  function rankForLevel(level) {
+    if (Number(level) >= 5) return "Advanced";
+    if (Number(level) >= 3) return "Intermediate";
+    return "Novice";
+  }
+
+  function applyXpToUser(user, addXP) {
+    const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
+    const level = levelFromXP(nextTotal);
+    const levelStart = totalXpForLevel(level);
+    const currentLevelXP = Math.max(0, nextTotal - levelStart);
     const xpNext = xpForNextLevel(level);
-    const progressPct = Math.max(0, Math.min(100, (currentLevelXP / Math.max(xpNext, 1)) * 100));
-    const toNext = Math.max(0, xpNext - currentLevelXP);
-    return { totalXP, currentLevelXP, xpNext, progressPct, toNext, level };
+    const rank = rankForLevel(level);
+    return {
+      ...user,
+      xp: nextTotal,
+      numeric_level: level,
+      xp_into_level: currentLevelXP,
+      next_level_xp: xpNext,
+      rank,
+      level: rank
+    };
   }
 
   function prettyDiff(diff) {
@@ -152,6 +190,15 @@ Works with:
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
+  }
+
+  function weekKey(date = new Date()) {
+    const tmp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const day = tmp.getUTCDay() || 7;
+    tmp.setUTCDate(tmp.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
+    return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
   }
 
   function getLoginLog(email) {
@@ -265,17 +312,34 @@ Works with:
     }
   }
 
+  async function awardXpOnce(email, action, xp) {
+    const base = String(window.API_BASE || "").replace(/\/$/, "");
+    if (!email || !base || !action || !xp) return { awarded: false, xp_added: 0 };
+    try {
+      const res = await fetch(`${base}/award-xp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, action, xp: Number(xp || 0) })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data && typeof data.success !== "undefined") return data;
+      return { success: false, awarded: false, xp_added: 0 };
+    } catch {
+      return { success: false, awarded: false, xp_added: 0 };
+    }
+  }
+
   function bumpUserXP(email, delta) {
     if (!delta) return;
     const rawUser = parseJsonSafe(localStorage.getItem("user"), null);
     if (rawUser && rawUser.email === email) {
-      rawUser.xp = Math.max(0, Number(rawUser.xp || 0) + delta);
-      localStorage.setItem("user", JSON.stringify(rawUser));
+      const updated = applyXpToUser(rawUser, delta);
+      localStorage.setItem("user", JSON.stringify(updated));
     }
     const rawNet = parseJsonSafe(localStorage.getItem("netology_user"), null);
     if (rawNet && rawNet.email === email) {
-      rawNet.xp = Math.max(0, Number(rawNet.xp || 0) + delta);
-      localStorage.setItem("netology_user", JSON.stringify(rawNet));
+      const updated = applyXpToUser(rawNet, delta);
+      localStorage.setItem("netology_user", JSON.stringify(updated));
     }
   }
 
@@ -293,6 +357,7 @@ Works with:
     const defs = loginBadgeDefs();
     const badges = getBadges(email);
     const earned = new Set(badges.map((b) => b.id));
+    let didAward = false;
 
     for (const def of defs) {
       if (streak >= def.target && !earned.has(def.id)) {
@@ -305,9 +370,55 @@ Works with:
         });
         if (result?.awarded) {
           earned.add(def.id);
-          bumpUserXP(email, def.xp);
+          const xpAdded = Number(result.xp_added || def.xp || 0);
+          if (xpAdded > 0) bumpUserXP(email, xpAdded);
+          didAward = true;
+          if (typeof window.showCelebrateToast === "function") {
+            window.showCelebrateToast({
+              title: "Streak badge unlocked",
+              message: def.title,
+              sub: def.desc,
+              xp: xpAdded || def.xp,
+              icon: "bi-award",
+              mini: true
+            });
+          }
         }
       }
+    }
+
+    if (didAward) {
+      safeStep("fillUserUI", fillUserUI);
+      scheduleDashboardRefresh();
+    }
+  }
+
+  async function awardWeeklyTaskXp(email, task) {
+    if (!email || !task || task.progress < task.target) return;
+    const wk = weekKey();
+    const localKey = `netology_weekly_award:${email}:${wk}:${task.id}`;
+    if (localStorage.getItem(localKey) === "1") return;
+
+    const action = `weekly:${wk}:${task.id}`;
+    const result = await awardXpOnce(email, action, task.xp);
+    if (result?.success && result?.awarded) {
+      const xpAdded = Number(result.xp_added || task.xp || 0);
+      if (xpAdded > 0) bumpUserXP(email, xpAdded);
+      localStorage.setItem(localKey, "1");
+      safeStep("fillUserUI", fillUserUI);
+      if (typeof window.showCelebrateToast === "function") {
+        window.showCelebrateToast({
+          title: "Weekly goal complete",
+          message: task.title,
+          sub: "Keep the momentum going.",
+          xp: xpAdded || task.xp,
+          icon: "bi-calendar-check",
+          mini: true
+        });
+      }
+      scheduleDashboardRefresh();
+    } else if (result?.success && result?.awarded === false) {
+      localStorage.setItem(localKey, "1");
     }
   }
 
@@ -1167,6 +1278,12 @@ Works with:
       });
     }
 
+    if (email) {
+      shuffled.forEach((t) => {
+        awardWeeklyTaskXp(email, t).catch(() => {});
+      });
+    }
+
     const nextLoginBadge = streakDefs.find((d) => !earnedBadgeIds.has(d.id));
     if (getById("weeklyGoalText")) {
       if (!nextLoginBadge) {
@@ -1424,6 +1541,16 @@ Works with:
           requestAnimationFrame(() => {
             pill.classList.add("is-animate");
             window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
+          });
+        }
+        if (typeof window.showCelebrateToast === "function") {
+          window.showCelebrateToast({
+            title: "Daily check-in recorded",
+            message: `Streak: ${streak} day${streak === 1 ? "" : "s"}`,
+            sub: "Come back tomorrow to keep it going.",
+            icon: "bi-sunrise",
+            mini: true,
+            type: "info"
           });
         }
       }
