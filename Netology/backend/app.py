@@ -7,61 +7,59 @@ Date: 10/11/2025
 Python (Flask)
 -------------------------------------------
 app.py – Main entry point for backend server.
-
-Create and configure the Flask application
-Enable CORS (allows frontend and backend communication)
-Register route blueprints (User Authentication and Courses)
-Uses files from the frontend directory 
 """
 
+import os
 from flask import Flask, redirect
 from flask_cors import CORS
+from dotenv import load_dotenv
+
 from auth_routes import auth, bcrypt as auth_bcrypt
 from course_routes import courses
-from topology_routes import topology
-from dotenv import load_dotenv
+
 load_dotenv()
 
- 
-# AI Prompt: Explain the App setup section in clear, simple terms.
 # =========================================================
 # App setup
 # =========================================================
-# Create Flask App
-# static_folder points to where your HTML/CSS/JS is
 app = Flask(
     __name__,
-    static_folder="../docs",     # your frontend folder
-    static_url_path=""           # serve static at /
+    static_folder="../docs",  # your frontend folder
+    static_url_path=""        # serve static at /
 )
 
-# AI Prompt: Explain the CORS configuration section in clear, simple terms.
 # =========================================================
 # CORS configuration
 # =========================================================
-# Enables the frontend to send requests to this backend.
-CORS(app, resources={r"/*": {"origins": ["https://jamieoneilltud.github.io"]}})
+# Allow both GitHub Pages + your Render domain.
+# (You can tighten this later if you want.)
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://jamieoneilltud.github.io",
+            "https://netology-fyp.onrender.com"
+        ]
+    }
+})
 
-
-# AI Prompt: Explain the Auth + Blueprint registration section in clear, simple terms.
 # =========================================================
 # Auth + Blueprints
 # =========================================================
-# Setup Password Hashing (bcrypt)
 auth_bcrypt.init_app(app)
 
-# Register Blueprint Routes
-# Blueprints organize routes into there own sections.
-app.register_blueprint(auth)        
-app.register_blueprint(courses)     # /courses routes
-app.register_blueprint(topology)   # /topology routes
+app.register_blueprint(auth)
+app.register_blueprint(courses)  # /courses routes
 
+# Topology routes (optional: don't crash if file is missing)
+try:
+    from topology_routes import topology
+    app.register_blueprint(topology)  # /topology routes
+except Exception as e:
+    print("WARNING: topology_routes not loaded:", e)
 
-# AI Prompt: Explain the Core routes section in clear, simple terms.
 # =========================================================
 # Core routes
 # =========================================================
-# Default Route
 @app.route("/")
 def home():
     return redirect("/index.html")
@@ -70,10 +68,9 @@ def home():
 def healthz():
     return {"ok": True}
 
-# AI Prompt: Explain the Run server section in clear, simple terms.
 # =========================================================
-# Run server
+# Run server (Render fix)
 # =========================================================
-# Run Server
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
