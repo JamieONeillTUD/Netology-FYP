@@ -2078,6 +2078,112 @@ body.net-auth-v2.net-landing::before {
   gap: 12px;
 }
 
+/* ==========================================================
+   Dashboard-specific theme overrides (moved from dashboard.html)
+   Scoped to pages using `body.net-landing` to avoid global
+   collisions. These styles control the topnav, hero tip and
+   tooltip/button theming requested by the user.
+   ========================================================== */
+
+:root { --net-grad-cool: linear-gradient(90deg, #06b6d4 0%, #7c3aed 100%); --net-grad-cool-accent: #7c3aed; }
+:root { --net-cta-grad: linear-gradient(90deg, var(--net-teal), var(--net-green)); --net-cta-accent: var(--net-green-dk); }
+
+body.net-landing .net-topnav {
+  background: var(--net-cta-grad);
+  background-size: 200% 200%;
+  animation: net-nav-gradient 6s ease infinite;
+  color: #fff;
+  box-shadow: var(--net-shadow);
+}
+
+@keyframes net-nav-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Daily tip and carousel indicators */
+body.net-landing #dailyTip {
+  background: transparent;
+  color: rgba(255,255,255,0.95);
+  padding: 0;
+  border-radius: 0;
+  display: inline-block;
+  transition: opacity .8s ease, transform .8s ease;
+  opacity: 1;
+  transform: translateY(0);
+}
+body.net-landing #dailyTip.is-hidden { opacity: 0; transform: translateY(6px); }
+body.net-landing .daily-indicators { display:flex; gap:8px; justify-content:center; margin-bottom:12px; margin-top:8px; }
+body.net-landing .daily-indicator { width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,0.25); border:0; cursor:pointer; transition: transform .18s ease, background .18s ease; }
+body.net-landing .daily-indicator.active { background:rgba(255,255,255,1); transform:scale(1.12); }
+
+/* Keep hero content box stable when text changes */
+body.net-landing .hero-inner { min-height: 160px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+body.net-landing .hero-inner .display-6 { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.net-landing #dailyTip { display: block; max-width: 720px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Small page-scoped tweaks */
+body.net-landing #courseName { display:none; }
+body.net-landing #welcomeName { color: #06b6d4; }
+
+/* Sidebar and dropdown backgrounds should match the topnav color (color only) */
+body.net-landing #slideSidebar,
+body.net-landing .net-dd {
+  background: rgba(255,255,255,0.86);
+  backdrop-filter: blur(8px);
+}
+
+/* Themed tooltip bubbles */
+.tooltip .tooltip-inner {
+  background: var(--net-cta-grad);
+  color: #ffffff;
+  border-radius: 10px;
+  padding: .45rem .7rem;
+  font-weight: 600;
+  box-shadow: 0 8px 22px rgba(2,6,23,0.32);
+  max-width: 300px;
+  text-align: center;
+  line-height: 1.15;
+  transition: transform .18s cubic-bezier(.2,.8,.2,1), opacity .18s ease;
+}
+.tooltip.bs-tooltip-top .tooltip-arrow::before { border-top-color: var(--net-cta-accent) !important; }
+.tooltip.bs-tooltip-bottom .tooltip-arrow::before { border-bottom-color: var(--net-cta-accent) !important; }
+.tooltip.bs-tooltip-start .tooltip-arrow::before { border-left-color: var(--net-cta-accent) !important; }
+.tooltip.bs-tooltip-end .tooltip-arrow::before { border-right-color: var(--net-cta-accent) !important; }
+.tooltip .tooltip-inner { opacity: 0; }
+.tooltip.bs-tooltip-top .tooltip-inner { transform: translateY(-8px); }
+.tooltip.bs-tooltip-bottom .tooltip-inner { transform: translateY(8px); }
+.tooltip.bs-tooltip-start .tooltip-inner { transform: translateX(-8px); }
+.tooltip.bs-tooltip-end .tooltip-inner { transform: translateX(8px); }
+.tooltip.show .tooltip-inner { transform: translate(0,0) !important; opacity: 1 !important; }
+
+/* Hero button variants (green / cool) */
+.net-hero-btn {
+  background: var(--net-grad-cool) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 12px 34px rgba(124,58,237,0.16), 0 4px 12px rgba(2,6,23,.08) !important;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.net-hero-btn:hover { transform: translateY(-3px); box-shadow: 0 18px 44px rgba(124,58,237,0.18), 0 6px 18px rgba(2,6,23,.12) !important; }
+.net-hero-btn.btn-outline-light {
+  background: linear-gradient(90deg, rgba(6,182,212,0.08), rgba(124,58,237,0.06)) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.net-hero-btn--green {
+  background: linear-gradient(90deg, var(--net-teal), var(--net-green)) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 12px 34px rgba(16,185,129,0.14), 0 4px 12px rgba(2,6,23,.08) !important;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.net-hero-btn--green:hover { transform: translateY(-3px); box-shadow: 0 18px 44px rgba(16,185,129,0.18), 0 6px 18px rgba(2,6,23,.12) !important; }
+.net-hero-btn--green.btn-outline-light { background: linear-gradient(90deg, rgba(16,185,129,0.08), rgba(13,148,136,0.06)) !important; border: 1px solid rgba(255,255,255,.12) !important; }
+
+
 .net-topnav-left,
 .net-topnav-right {
   display: flex;

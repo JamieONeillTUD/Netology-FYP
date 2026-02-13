@@ -74,9 +74,104 @@ Works with:
   function setDailyTip() {
     const tipEl = getById("dailyTip");
     if (!tipEl) return;
-    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
-    const tip = DAILY_TIPS[dayOfYear % DAILY_TIPS.length];
+    const controls = getById("dailyTipControls");
+    const courseCarousel = getById("courseCarousel");
+    const courseNameEl = getById("courseName");
+    const prevBtn = getById("coursePrev");
+    const nextBtn = getById("courseNext");
+
+    const courseIndex = getCourseIndex();
+    const courseList = Object.keys(courseIndex || {}).map((k) => courseIndex[k]).filter(Boolean);
+    const fadeDuration = 820; // ms to match CSS
+
+    const updateTipTooltip = (text) => {
+      try {
+        tipEl.setAttribute('title', text);
+        if (window.bootstrap && window.bootstrap.Tooltip) {
+          const existing = bootstrap.Tooltip.getInstance(tipEl);
+          if (existing) existing.dispose();
+          new bootstrap.Tooltip(tipEl);
+        }
+      } catch (e) { }
+    };
+
+    if (courseList.length > 0) {
+      // show carousel area and indicators
+      if (controls) { controls.innerHTML = ""; controls.setAttribute('aria-hidden', 'false'); }
+      if (courseCarousel) courseCarousel.setAttribute('aria-hidden', 'false');
+
+      const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+      let idx = dayOfYear % courseList.length;
+
+      const showByIndex = (i) => {
+        const entry = courseList[i];
+        if (!entry) return;
+        const title = entry.title || entry.name || "Course";
+        const desc = (entry.description || "").split("\n")[0] || "Click to view course details.";
+        // update visible course name and tip description with fade
+        if (courseNameEl) {
+          courseNameEl.classList.add('is-hidden');
+          window.setTimeout(() => {
+            courseNameEl.textContent = title;
+            courseNameEl.classList.remove('is-hidden');
+          }, fadeDuration - 10);
+        }
+        tipEl.classList.add('is-hidden');
+        window.setTimeout(() => {
+          tipEl.textContent = desc;
+          updateTipTooltip(desc);
+          tipEl.classList.remove('is-hidden');
+        }, fadeDuration - 10);
+        // update indicators
+        if (controls) {
+          const dots = controls.querySelectorAll('.daily-indicator');
+          dots.forEach((d, j) => d.classList.toggle('active', j === i));
+        }
+      };
+
+      // build indicators and prev/next handlers
+      if (controls) {
+        controls.innerHTML = "";
+        courseList.forEach((c, i) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'daily-indicator' + (i === idx ? ' active' : '');
+          btn.setAttribute('aria-label', `Show ${c.title || c.name || 'course'}`);
+          btn.dataset.index = String(i);
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            idx = Number(btn.dataset.index || 0);
+            showByIndex(idx);
+            if (window.__dashCourseTicker) clearInterval(window.__dashCourseTicker);
+            window.__dashCourseTicker = setInterval(() => { idx = (idx + 1) % courseList.length; showByIndex(idx); }, 8000);
+          });
+          controls.appendChild(btn);
+        });
+      }
+
+      if (prevBtn) {
+        prevBtn.onclick = (e) => { e.stopPropagation(); idx = (idx - 1 + courseList.length) % courseList.length; showByIndex(idx); if (window.__dashCourseTicker) { clearInterval(window.__dashCourseTicker); window.__dashCourseTicker = setInterval(() => { idx = (idx + 1) % courseList.length; showByIndex(idx); }, 8000); } };
+      }
+      if (nextBtn) {
+        nextBtn.onclick = (e) => { e.stopPropagation(); idx = (idx + 1) % courseList.length; showByIndex(idx); if (window.__dashCourseTicker) { clearInterval(window.__dashCourseTicker); window.__dashCourseTicker = setInterval(() => { idx = (idx + 1) % courseList.length; showByIndex(idx); }, 8000); } };
+      }
+
+      // show initial
+      showByIndex(idx);
+
+      // start auto-rotate
+      if (window.__dashCourseTicker) clearInterval(window.__dashCourseTicker);
+      window.__dashCourseTicker = setInterval(() => { idx = (idx + 1) % courseList.length; showByIndex(idx); }, 8000);
+      return;
+    }
+
+    // fallback: hide carousel area and indicators, show static daily tip
+    if (controls) { controls.innerHTML = ''; controls.setAttribute('aria-hidden', 'true'); }
+    if (courseCarousel) courseCarousel.setAttribute('aria-hidden', 'true');
+    const dayOfYear2 = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+    const tip = DAILY_TIPS[dayOfYear2 % DAILY_TIPS.length];
     tipEl.textContent = tip;
+    try { updateTipTooltip(tip); } catch (e) {}
   }
 
   const animateCount = (el, target) => {

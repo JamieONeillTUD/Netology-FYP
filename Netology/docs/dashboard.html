@@ -34,29 +34,7 @@ Updates requested:
 
   <!-- AI Prompt: Explain the Tiny topbar-size reduction (kept here so you don't have to touch CSS yet) section in clear, simple terms. -->
   <!-- Tiny topbar-size reduction (kept here so you don't have to touch CSS yet) -->
-  <style>
-    .net-topnav .container-fluid {
-      padding-top: .55rem;
-      padding-bottom: .55rem;
-    }
-
-    .net-topnav-inner {
-      min-height: 54px;
-    }
-
-    .net-logo-sm {
-      width: 56px;
-      height: 56px;
-    }
-
-    .net-brand-text {
-      font-size: 1.7rem;
-    }
-
-    .net-userbtn {
-      padding: 7px 9px;
-    }
-  </style>
+  <!-- Dashboard styles moved to `css/style.css` (scoped to body.net-landing) -->
 </head>
 
 <body class="net-bg net-landing">
@@ -208,28 +186,30 @@ Updates requested:
     <section class="net-dash-hero p-4 p-md-5 mb-4 rounded-4 position-relative overflow-hidden shadow-sm">
       <!-- CTA Mode Animated Icons -->
       <div class="net-cta-icons" aria-hidden="true">
-        <i class="bi bi-diagram-3" style="top: 10%; left: 5%;"></i>
-        <i class="bi bi-wifi" style="top: 60%; left: 80%;"></i>
-        <i class="bi bi-lightning-charge-fill" style="top: 20%; left: 40%;"></i>
-        <i class="bi bi-award" style="top: 70%; left: 15%;"></i>
-        <i class="bi bi-gear-fill" style="top: 15%; left: 85%;"></i>
+        <i class="bi bi-diagram-3" style="top: 10%; left: 5%;" data-bs-toggle="tooltip" title="Ethernet & Switching Basics: build a switched network and learn frame forwarding."></i>
+        <i class="bi bi-wifi" style="top: 60%; left: 80%;" data-bs-toggle="tooltip" title="Wireless vs switching: how switches and APs interact at layer 2/3."></i>
+        <i class="bi bi-lightning-charge-fill" style="top: 20%; left: 40%;" data-bs-toggle="tooltip" title="Speed & Duplex: understand link negotiation and throughput."></i>
+        <i class="bi bi-award" style="top: 70%; left: 15%;" data-bs-toggle="tooltip" title="Performance: measure latency, collisions (legacy), and error handling."></i>
+        <i class="bi bi-gear-fill" style="top: 15%; left: 85%;" data-bs-toggle="tooltip" title="Configuration: VLANs, trunking, and basic switch management."></i>
       </div>
 
-      <div class="position-relative z-2 text-center mx-auto" style="max-width: 800px;">
-        <h1 class="display-6 fw-bold text-white mb-2">Welcome back, <span id="welcomeName">Student</span>!</h1>
-        <div class="d-flex align-items-center justify-content-center gap-2 text-white-75 mb-4">
+      <div class="position-relative z-2 text-center mx-auto hero-inner" style="max-width: 800px;">
+          <h1 class="display-6 fw-bold text-white mb-2">Welcome back, <span id="welcomeName">Student</span>!</h1>
+        <div class="d-flex align-items-center justify-content-center gap-2 text-white-75 mb-2">
           <i class="bi bi-lightbulb-fill text-warning"></i>
-          <span id="dailyTip" class="fst-italic text-center">Loading your daily insight...</span>
+          <span id="dailyTip" class="fst-italic text-center" data-bs-toggle="tooltip" title="">Loading your daily insight...</span>
         </div>
+        <div id="dailyTipControls" class="daily-indicators" role="tablist" aria-label="Course indicators" aria-hidden="true"></div>
         <div class="d-flex flex-wrap justify-content-center gap-3">
-          <a href="courses.html" class="btn btn-light fw-bold rounded-pill px-4 py-2 net-hero-btn">
-            <i class="bi bi-play-fill me-1"></i>Resume Learning
+          <a href="courses.html" class="btn btn-light fw-bold rounded-pill px-4 py-2 net-hero-btn net-hero-btn--green" data-bs-toggle="tooltip" title="Browse your unlocked courses and resume learning">
+            <i class="bi bi-play-fill me-1"></i>Start Learning
           </a>
-          <a href="sandbox.html" class="btn btn-outline-light fw-bold rounded-pill px-4 py-2 net-hero-btn">
+          <a href="sandbox.html" class="btn fw-bold rounded-pill px-4 py-2 net-hero-btn net-hero-btn--green" data-bs-toggle="tooltip" title="Browse your unlocked courses and resume learning">
             <i class="bi bi-diagram-3 me-1"></i>Open Sandbox
           </a>
         </div>
       </div>
+      
     </section>
 
     <!-- FOCUS AREAS -->
@@ -239,9 +219,10 @@ Updates requested:
     <!-- STATS ROW -->
     <div class="row g-3 mb-4">
       <!-- Rank -->
-      <div class="col-6 col-md-3">
+        <div class="col-6 col-md-3">
         <div
-          class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border">
+          class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border"
+          data-bs-toggle="tooltip" title="Your current rank derived from your XP and level.">
           <div class="d-flex align-items-center justify-content-between mb-2">
             <span class="small text-muted fw-bold text-uppercase ls-1">Rank</span>
             <div class="net-icon-box bg-purple-sub text-purple rounded-circle p-2">
@@ -258,11 +239,11 @@ Updates requested:
       <!-- XP -->
       <div class="col-6 col-md-3">
         <div
-          class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border">
+          class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border"
+          data-bs-toggle="tooltip" title="Your numeric level and progress towards the next level.">
           <div class="d-flex align-items-center justify-content-between mb-2">
             <span class="small text-muted fw-bold text-uppercase ls-1">Level</span>
-            <div class="net-icon-box bg-blue-sub text-blue rounded-circle p-2" data-bs-toggle="tooltip"
-              title="Your total experience points earned from all activities.">
+            <div class="net-icon-box bg-blue-sub text-blue rounded-circle p-2">
               <i class="bi bi-lightning-charge-fill"></i>
             </div>
           </div>
@@ -276,11 +257,11 @@ Updates requested:
       <!-- Streak -->
       <div class="col-6 col-md-3">
         <div
-          class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border">
+          class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border"
+          data-bs-toggle="tooltip" title="Consecutive days you've logged in (streak).">
           <div class="d-flex align-items-center justify-content-between mb-2">
             <span class="small text-muted fw-bold text-uppercase ls-1">Streak</span>
-            <div class="net-icon-box bg-orange-sub text-orange rounded-circle p-2" data-bs-toggle="tooltip"
-              title="Consecutive days you have logged in.">
+            <div class="net-icon-box bg-orange-sub text-orange rounded-circle p-2">
               <i class="bi bi-fire"></i>
             </div>
           </div>
@@ -288,7 +269,7 @@ Updates requested:
             <div class="h4 fw-bolder mb-0 text-dark" id="heroStreak">0</div>
             <div class="small text-muted mb-2">Days active</div>
             <!-- New Weekly Calendar -->
-            <div id="streakCalendar" class="net-streak-calendar" data-bs-toggle="tooltip"
+            <div id="streakCalendar" class="net-streak-calendar"
               title="Your activity for the last 7 days">
               <!-- JS will populate: Mon T W T F S Sun pills -->
             </div>
@@ -299,7 +280,7 @@ Updates requested:
       <!-- Stats Carousel (Replacing Active Courses) -->
       <div class="col-6 col-md-3">
         <div class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 border position-relative overflow-hidden"
-          id="statsCarouselCard">
+          id="statsCarouselCard" data-bs-toggle="tooltip" title="Quick activity breakdown: courses, lessons, quizzes, sandbox.">
 
           <div class="net-stats-carousel">
             <!-- Slides Container -->
@@ -427,7 +408,7 @@ Updates requested:
             </div>
           </div>
 
-          <div id="weeklyPanel" class="dash-panel" hidden>
+            <div id="weeklyPanel" class="dash-panel" hidden>
             <div class="dash-tasklist" id="weeklyTasks">
               <div class="small text-muted">Loading weekly challenges…</div>
             </div>
