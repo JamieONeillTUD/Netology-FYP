@@ -67,6 +67,27 @@ lesson.js – Lesson page
     });
   }
 
+  function addParagraphs(node, content) {
+    if (!node) return;
+    if (Array.isArray(content)) {
+      content.forEach((p) => {
+        const para = document.createElement("p");
+        para.textContent = String(p ?? "");
+        node.appendChild(para);
+      });
+      return;
+    }
+    if (typeof content === "string") {
+      const para = document.createElement("p");
+      appendTextWithBreaks(para, content);
+      node.appendChild(para);
+      return;
+    }
+    const para = document.createElement("p");
+    para.textContent = "Lesson content not available.";
+    node.appendChild(para);
+  }
+
   function setButtonIconText(btn, iconClass, label) {
     if (!btn) return;
     btn.replaceChildren();
@@ -761,6 +782,336 @@ lesson.js – Lesson page
      Render
   ========================================================= */
 
+  function createBlockWrap(type) {
+    const wrap = document.createElement("div");
+    wrap.className = `net-lesson-block net-lesson-block--${type}`;
+    return wrap;
+  }
+
+  function createBlockTitle(text) {
+    const title = document.createElement("div");
+    title.className = "net-lesson-block-title";
+    title.textContent = text;
+    return title;
+  }
+
+  function renderExplainBlock(block) {
+    const wrap = createBlockWrap("explain");
+    const details = document.createElement("details");
+    details.className = "net-lesson-explain";
+
+    const summary = document.createElement("summary");
+    summary.textContent = block.title || "Explain";
+    details.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "net-lesson-explain-body";
+    addParagraphs(body, block.content || block.text || "");
+    details.appendChild(body);
+
+    wrap.appendChild(details);
+    return wrap;
+  }
+
+  function renderCheckBlock(block, idx) {
+    const wrap = createBlockWrap("check");
+    const title = createBlockTitle(block.title || "Quick check");
+    const question = document.createElement("div");
+    question.className = "net-lesson-check-question";
+    question.textContent = block.question || "";
+
+    const options = Array.isArray(block.options) ? block.options : [];
+    const optionsWrap = document.createElement("div");
+    optionsWrap.className = "net-lesson-options";
+    let selectedIndex = null;
+    const optionButtons = [];
+
+    options.forEach((opt, optIdx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "net-lesson-option";
+      btn.textContent = String(opt ?? "");
+      btn.addEventListener("click", () => {
+        selectedIndex = optIdx;
+        optionButtons.forEach((b, bIdx) => {
+          b.classList.toggle("is-selected", bIdx === optIdx);
+          b.classList.remove("is-correct", "is-wrong");
+        });
+        feedback.textContent = "";
+        feedback.classList.remove("is-correct", "is-wrong");
+      });
+      optionButtons.push(btn);
+      optionsWrap.appendChild(btn);
+    });
+
+    const actionRow = document.createElement("div");
+    actionRow.className = "net-lesson-actions";
+    const checkBtn = document.createElement("button");
+    checkBtn.type = "button";
+    checkBtn.className = "btn btn-teal btn-sm";
+    checkBtn.textContent = "Check answer";
+    const feedback = document.createElement("div");
+    feedback.className = "net-lesson-feedback";
+    feedback.setAttribute("aria-live", "polite");
+
+    checkBtn.addEventListener("click", () => {
+      if (selectedIndex === null) {
+        feedback.textContent = "Choose an answer first.";
+        feedback.classList.remove("is-correct", "is-wrong");
+        return;
+      }
+      const correctIndex = Number(block.correctIndex ?? block.correctAnswer ?? -1);
+      const isCorrect = selectedIndex === correctIndex;
+      feedback.textContent = isCorrect ? "Correct!" : "Not quite. Try again.";
+      feedback.classList.toggle("is-correct", isCorrect);
+      feedback.classList.toggle("is-wrong", !isCorrect);
+
+      optionButtons.forEach((b, bIdx) => {
+        b.classList.toggle("is-correct", bIdx === correctIndex && isCorrect);
+        b.classList.toggle("is-wrong", bIdx === selectedIndex && !isCorrect);
+      });
+
+      if (block.explanation) {
+        const explain = document.createElement("div");
+        explain.className = "net-lesson-feedback-note";
+        explain.textContent = String(block.explanation || "");
+        feedback.appendChild(explain);
+      }
+    });
+
+    actionRow.append(checkBtn, feedback);
+    wrap.append(title, question, optionsWrap, actionRow);
+    return wrap;
+  }
+
+  function renderSelectActivity(block) {
+    const wrap = createBlockWrap("activity");
+    const title = createBlockTitle(block.title || "Mini activity");
+    const prompt = document.createElement("div");
+    prompt.className = "net-lesson-activity-prompt";
+    prompt.textContent = block.prompt || "";
+
+    const options = Array.isArray(block.options) ? block.options : [];
+    const optionsWrap = document.createElement("div");
+    optionsWrap.className = "net-lesson-options";
+    let selectedIndex = null;
+    const optionButtons = [];
+
+    options.forEach((opt, optIdx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "net-lesson-option";
+      btn.textContent = String(opt ?? "");
+      btn.addEventListener("click", () => {
+        selectedIndex = optIdx;
+        optionButtons.forEach((b, bIdx) => {
+          b.classList.toggle("is-selected", bIdx === optIdx);
+          b.classList.remove("is-correct", "is-wrong");
+        });
+        feedback.textContent = "";
+        feedback.classList.remove("is-correct", "is-wrong");
+      });
+      optionButtons.push(btn);
+      optionsWrap.appendChild(btn);
+    });
+
+    const actionRow = document.createElement("div");
+    actionRow.className = "net-lesson-actions";
+    const checkBtn = document.createElement("button");
+    checkBtn.type = "button";
+    checkBtn.className = "btn btn-soft btn-sm";
+    checkBtn.textContent = "Submit choice";
+    const feedback = document.createElement("div");
+    feedback.className = "net-lesson-feedback";
+    feedback.setAttribute("aria-live", "polite");
+
+    checkBtn.addEventListener("click", () => {
+      if (selectedIndex === null) {
+        feedback.textContent = "Pick an option to continue.";
+        feedback.classList.remove("is-correct", "is-wrong");
+        return;
+      }
+      const correctIndex = Number(block.correctIndex ?? block.correctAnswer ?? -1);
+      const isCorrect = selectedIndex === correctIndex;
+      feedback.textContent = isCorrect ? "Nice work!" : "Not yet. Try again.";
+      feedback.classList.toggle("is-correct", isCorrect);
+      feedback.classList.toggle("is-wrong", !isCorrect);
+      optionButtons.forEach((b, bIdx) => {
+        b.classList.toggle("is-correct", bIdx === correctIndex && isCorrect);
+        b.classList.toggle("is-wrong", bIdx === selectedIndex && !isCorrect);
+      });
+      if (block.explanation) {
+        const note = document.createElement("div");
+        note.className = "net-lesson-feedback-note";
+        note.textContent = String(block.explanation || "");
+        feedback.appendChild(note);
+      }
+    });
+
+    actionRow.append(checkBtn, feedback);
+    wrap.append(title, prompt, optionsWrap, actionRow);
+    return wrap;
+  }
+
+  function renderDragActivity(block) {
+    const wrap = createBlockWrap("activity");
+    const title = createBlockTitle(block.title || "Mini activity");
+    const prompt = document.createElement("div");
+    prompt.className = "net-lesson-activity-prompt";
+    prompt.textContent = block.prompt || "";
+
+    const dragArea = document.createElement("div");
+    dragArea.className = "net-lesson-drag-area";
+
+    const pool = document.createElement("div");
+    pool.className = "net-lesson-drag-pool";
+
+    const targetsWrap = document.createElement("div");
+    targetsWrap.className = "net-lesson-drag-zones";
+
+    const items = Array.isArray(block.items) ? block.items : [];
+    const targets = Array.isArray(block.targets) ? block.targets : [];
+    const itemMap = new Map();
+    const itemData = new Map();
+
+    items.forEach((item) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "net-lesson-drag-item";
+      chip.textContent = String(item.label || item.text || "");
+      chip.setAttribute("draggable", "true");
+      chip.dataset.itemId = String(item.id || item.label || "");
+
+      chip.addEventListener("dragstart", (event) => {
+        event.dataTransfer.setData("text/plain", chip.dataset.itemId);
+        chip.classList.add("is-dragging");
+      });
+
+      chip.addEventListener("dragend", () => {
+        chip.classList.remove("is-dragging");
+      });
+
+      itemMap.set(chip.dataset.itemId, chip);
+      itemData.set(chip.dataset.itemId, item);
+      pool.appendChild(chip);
+    });
+
+    targets.forEach((target) => {
+      const zone = document.createElement("div");
+      zone.className = "net-lesson-dropzone";
+      zone.dataset.targetId = String(target.id || target.label || "");
+
+      const label = document.createElement("div");
+      label.className = "net-lesson-dropzone-title";
+      label.textContent = String(target.label || "");
+
+      const zoneItems = document.createElement("div");
+      zoneItems.className = "net-lesson-dropzone-items";
+
+      zone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        zone.classList.add("is-hover");
+      });
+
+      zone.addEventListener("dragleave", () => {
+        zone.classList.remove("is-hover");
+      });
+
+      zone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        zone.classList.remove("is-hover");
+        const itemId = event.dataTransfer.getData("text/plain");
+        const chip = itemMap.get(itemId);
+        if (!chip) return;
+        zoneItems.appendChild(chip);
+        updateDragFeedback();
+      });
+
+      zone.append(label, zoneItems);
+      targetsWrap.appendChild(zone);
+    });
+
+    const actionRow = document.createElement("div");
+    actionRow.className = "net-lesson-actions";
+    const resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.className = "btn btn-outline-secondary btn-sm";
+    resetBtn.textContent = "Reset";
+
+    const feedback = document.createElement("div");
+    feedback.className = "net-lesson-feedback";
+    feedback.setAttribute("aria-live", "polite");
+
+    function countCorrect() {
+      let correct = 0;
+      itemMap.forEach((chip, itemId) => {
+        const zone = chip.closest(".net-lesson-dropzone");
+        if (!zone) {
+          chip.classList.remove("is-correct", "is-wrong");
+          return;
+        }
+        const targetId = zone.dataset.targetId;
+        const item = itemData.get(itemId);
+        const isCorrect = item && String(item.targetId || "") === String(targetId || "");
+        chip.classList.toggle("is-correct", isCorrect);
+        chip.classList.toggle("is-wrong", !isCorrect);
+        if (isCorrect) correct += 1;
+      });
+      return correct;
+    }
+
+    function updateDragFeedback() {
+      const correct = countCorrect();
+      if (!items.length) return;
+      if (correct === items.length) {
+        feedback.textContent = "All matched correctly!";
+        feedback.classList.add("is-correct");
+        feedback.classList.remove("is-wrong");
+        return;
+      }
+      feedback.textContent = `${correct}/${items.length} placed correctly.`;
+      feedback.classList.remove("is-correct");
+      feedback.classList.remove("is-wrong");
+    }
+
+    resetBtn.addEventListener("click", () => {
+      itemMap.forEach((chip) => pool.appendChild(chip));
+      feedback.textContent = "";
+      feedback.classList.remove("is-correct", "is-wrong");
+      itemMap.forEach((chip) => chip.classList.remove("is-correct", "is-wrong"));
+    });
+
+    actionRow.append(resetBtn, feedback);
+    dragArea.append(pool, targetsWrap);
+    wrap.append(title, prompt, dragArea, actionRow);
+    return wrap;
+  }
+
+  function renderActivityBlock(block) {
+    const mode = String(block.mode || block.activity || "select").toLowerCase();
+    if (mode === "drag") return renderDragActivity(block);
+    return renderSelectActivity(block);
+  }
+
+  function renderLessonBlocks(container, blocks) {
+    blocks.forEach((block, idx) => {
+      const type = String(block?.type || "text").toLowerCase();
+      let node = null;
+      if (type === "text") {
+        node = createBlockWrap("text");
+        addParagraphs(node, block.text || block.content || "");
+      } else if (type === "check") {
+        node = renderCheckBlock(block, idx);
+      } else if (type === "explain") {
+        node = renderExplainBlock(block);
+      } else if (type === "activity") {
+        node = renderActivityBlock(block);
+      }
+
+      if (node) container.appendChild(node);
+    });
+  }
+
   function renderLesson() {
     const lessonData = state.lessonEntry?.lesson || {};
     const course = state.course;
@@ -800,19 +1151,12 @@ lesson.js – Lesson page
 
     // Content
     const content = getById("lessonContent");
-    const c = lessonData.content || lessonData.learn;
     if (content) {
       clearChildren(content);
-      if (Array.isArray(c)) {
-        c.forEach((p) => {
-          const para = document.createElement("p");
-          para.textContent = String(p ?? "");
-          content.appendChild(para);
-        });
-      } else if (typeof c === "string") {
-        appendTextWithBreaks(content, c);
+      if (Array.isArray(lessonData.blocks) && lessonData.blocks.length) {
+        renderLessonBlocks(content, lessonData.blocks);
       } else {
-        content.textContent = "Lesson content not available.";
+        addParagraphs(content, lessonData.content || lessonData.learn);
       }
     }
 

@@ -3343,7 +3343,230 @@ body.net-auth-v2 footer{
 }.sbx-challenge-sub{
   font-size: .82rem;
   color: #047857;
-}.sbx-step-check{
+}
+/* AI Prompt: Explain the Sandbox tutorial guidance section in clear, simple terms. */
+/* Sandbox tutorial guidance */
+.sbx-tutorial{
+  display: grid;
+  gap: 12px;
+}
+.sbx-tutorial-current{
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(59,130,246,.08);
+  border: 1px solid rgba(59,130,246,.18);
+}
+.sbx-tutorial-step-label{
+  font-size: .75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: rgba(59,130,246,.9);
+  margin-bottom: 4px;
+}
+.sbx-tutorial-step-text{
+  font-weight: 700;
+  color: var(--net-ink-2);
+  margin-bottom: 6px;
+}
+.sbx-tutorial-status{
+  font-size: .76rem;
+  font-weight: 700;
+  color: #f97316;
+  margin-bottom: 6px;
+}
+.sbx-tutorial-status.is-done{
+  color: #0f766e;
+}
+.sbx-tutorial-hint{
+  font-size: .78rem;
+  color: rgba(15,23,42,.72);
+  margin-bottom: 6px;
+}
+.sbx-tutorial-reqs{
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+.sbx-tutorial-req{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .78rem;
+  color: rgba(15,23,42,.7);
+}
+.sbx-tutorial-req.is-ok{
+  color: #0f766e;
+}
+.sbx-tutorial-actions{
+  display: flex;
+  gap: 8px;
+}
+.sbx-tutorial-step-list{
+  display: grid;
+  gap: 8px;
+}
+.sbx-tutorial-step{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148,163,184,.2);
+  background: #fff;
+  font-size: .78rem;
+  color: rgba(15,23,42,.7);
+}
+.sbx-tutorial-step.is-current{
+  border-color: rgba(59,130,246,.3);
+  background: rgba(59,130,246,.06);
+  color: rgba(15,23,42,.9);
+}
+.sbx-tutorial-step.is-done{
+  border-color: rgba(16,185,129,.3);
+  background: rgba(16,185,129,.08);
+  color: #0f766e;
+}
+.sbx-tutorial-step-badge{
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(15,23,42,.08);
+  font-weight: 700;
+  color: rgba(15,23,42,.7);
+}
+.sbx-tutorial-step.is-current .sbx-tutorial-step-badge{
+  background: rgba(59,130,246,.2);
+  color: #1d4ed8;
+}
+.sbx-tutorial-step.is-done .sbx-tutorial-step-badge{
+  background: rgba(16,185,129,.2);
+  color: #0f766e;
+}
+.sbx-tutorial-step-copy{
+  flex: 1;
+}
+.sbx-tutorial-tips{
+  font-size: .78rem;
+  color: rgba(15,23,42,.6);
+  border-radius: 12px;
+  border: 1px dashed rgba(59,130,246,.2);
+  padding: 8px 10px;
+  background: rgba(59,130,246,.04);
+}
+/* AI Prompt: Explain the Sandbox guide pop-up section in clear, simple terms. */
+/* Sandbox guide pop-up */
+.sbx-guide{
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: min(340px, 88vw);
+  border-radius: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(59,130,246,.2);
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 16px 36px rgba(2,6,23,.12);
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(-8px) scale(.98);
+  transition: opacity .25s ease, transform .25s ease, max-height .3s ease;
+}
+.sbx-guide--float{
+  backdrop-filter: blur(8px);
+}
+.sbx-guide.is-min{
+  max-height: 44px;
+  padding: 8px 10px;
+}
+.sbx-guide.is-min .sbx-guide-body,
+.sbx-guide.is-min .sbx-guide-hint,
+.sbx-guide.is-min .sbx-guide-actions{
+  display: none;
+}
+.sbx-guide-controls{
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+.sbx-guide-btn{
+  border: 0;
+  background: rgba(59,130,246,.12);
+  color: #1d4ed8;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+}
+.sbx-guide-btn:hover{
+  background: rgba(59,130,246,.2);
+}
+.sbx-guide.is-show{
+  opacity: 1;
+  max-height: 240px;
+  transform: translateY(0) scale(1);
+}
+.sbx-guide.is-anim{
+  animation: sbxGuidePop .45s ease;
+}
+.sbx-guide-head{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.sbx-guide-badge{
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(59,130,246,.15);
+  color: #1d4ed8;
+}
+.sbx-guide-step{
+  font-size: .75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: rgba(59,130,246,.9);
+}
+.sbx-guide-body{
+  font-weight: 700;
+  color: var(--net-ink-2);
+  margin-bottom: 4px;
+}
+.sbx-guide-hint{
+  font-size: .78rem;
+  color: rgba(15,23,42,.68);
+  margin-bottom: 8px;
+}
+.sbx-guide-actions{
+  display: flex;
+  gap: 8px;
+}
+@keyframes sbxGuidePop{
+  0%{ transform: translateY(-8px) scale(.98); }
+  60%{ transform: translateY(0) scale(1.02); }
+  100%{ transform: translateY(0) scale(1); }
+}
+/* AI Prompt: Explain the Sandbox guidance highlights section in clear, simple terms. */
+/* Sandbox guidance highlights */
+.sbx-guided{
+  position: relative;
+  z-index: 15;
+  box-shadow: 0 0 0 2px rgba(59,130,246,.35), 0 12px 28px rgba(2,6,23,.18);
+  animation: sbxPulse 1.4s ease-in-out infinite;
+}
+@keyframes sbxPulse{
+  0%{ box-shadow: 0 0 0 2px rgba(59,130,246,.35), 0 12px 28px rgba(2,6,23,.18); }
+  50%{ box-shadow: 0 0 0 6px rgba(59,130,246,.15), 0 16px 34px rgba(2,6,23,.22); }
+  100%{ box-shadow: 0 0 0 2px rgba(59,130,246,.35), 0 12px 28px rgba(2,6,23,.18); }
+}
+.sbx-step-check{
   margin-top: 2px;
 }.sbx-bottom{
   border-radius: 20px;
@@ -3792,6 +4015,143 @@ body.net-course-page.net-landing::after{
 }.net-lesson-content p{
   line-height: 1.6;
   color: rgba(15, 23, 42, .86);
+}
+/* AI Prompt: Explain the Lesson interaction blocks section in clear, simple terms. */
+/* Lesson interaction blocks */
+}.net-lesson-block{
+  margin-bottom: 1.1rem;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(6,182,212,.14);
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 12px 24px rgba(2,6,23,.06);
+}.net-lesson-block--check{
+  background: linear-gradient(135deg, rgba(20,184,166,.08), rgba(56,189,248,.06));
+  border-color: rgba(14,116,144,.18);
+}.net-lesson-block--activity{
+  background: linear-gradient(135deg, rgba(15,118,110,.08), rgba(14,165,233,.06));
+  border-color: rgba(13,148,136,.18);
+}.net-lesson-block--explain{
+  background: linear-gradient(135deg, rgba(59,130,246,.08), rgba(14,165,233,.06));
+  border-color: rgba(37,99,235,.18);
+}.net-lesson-block-title{
+  font-weight: 700;
+  color: rgba(15,23,42,.9);
+  margin-bottom: .5rem;
+}.net-lesson-explain{
+  border-radius: 14px;
+  background: rgba(255,255,255,.9);
+  border: 1px solid rgba(148,163,184,.25);
+  padding: 10px 12px;
+}.net-lesson-explain summary{
+  cursor: pointer;
+  font-weight: 700;
+  color: rgba(15,23,42,.9);
+  list-style: none;
+}.net-lesson-explain summary::-webkit-details-marker{
+  display: none;
+}.net-lesson-explain summary::after{
+  content: "▾";
+  float: right;
+  color: rgba(59,130,246,.75);
+  transition: transform .2s ease;
+}.net-lesson-explain[open] summary::after{
+  transform: rotate(180deg);
+}.net-lesson-explain-body{
+  margin-top: .6rem;
+  color: rgba(15,23,42,.78);
+}.net-lesson-check-question,.net-lesson-activity-prompt{
+  font-weight: 600;
+  color: rgba(15,23,42,.86);
+  margin-bottom: .6rem;
+}.net-lesson-options{
+  display: grid;
+  gap: 10px;
+}.net-lesson-option{
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(148,163,184,.25);
+  background: rgba(255,255,255,.96);
+  font-weight: 600;
+  color: rgba(15,23,42,.85);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}.net-lesson-option:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(2,6,23,.08);
+  border-color: rgba(14,165,233,.32);
+}.net-lesson-option.is-selected{
+  border-color: rgba(13,148,136,.55);
+  background: rgba(13,148,136,.08);
+}.net-lesson-option.is-correct{
+  border-color: rgba(16,185,129,.6);
+  background: rgba(16,185,129,.12);
+}.net-lesson-option.is-wrong{
+  border-color: rgba(239,68,68,.6);
+  background: rgba(239,68,68,.12);
+}.net-lesson-actions{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: .75rem;
+}.net-lesson-feedback{
+  font-size: .85rem;
+  color: rgba(15,23,42,.7);
+  font-weight: 600;
+}.net-lesson-feedback.is-correct{
+  color: #0f766e;
+}.net-lesson-feedback.is-wrong{
+  color: #b91c1c;
+}.net-lesson-feedback-note{
+  margin-top: .35rem;
+  color: rgba(15,23,42,.68);
+  font-weight: 500;
+}.net-lesson-drag-area{
+  display: grid;
+  gap: 12px;
+}.net-lesson-drag-pool{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}.net-lesson-drag-item{
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(14,165,233,.35);
+  background: rgba(56,189,248,.12);
+  color: #0f766e;
+  font-weight: 600;
+  cursor: grab;
+}.net-lesson-drag-item.is-dragging{
+  opacity: .5;
+}.net-lesson-drag-item.is-correct{
+  border-color: rgba(16,185,129,.6);
+  background: rgba(16,185,129,.12);
+  color: #047857;
+}.net-lesson-drag-item.is-wrong{
+  border-color: rgba(239,68,68,.6);
+  background: rgba(239,68,68,.12);
+  color: #b91c1c;
+}.net-lesson-dropzone{
+  border-radius: 14px;
+  border: 1px dashed rgba(14,165,233,.35);
+  background: rgba(248,250,252,.8);
+  padding: 10px 12px;
+  min-height: 82px;
+  transition: border-color .15s ease, background .15s ease;
+}.net-lesson-dropzone.is-hover{
+  border-color: rgba(13,148,136,.6);
+  background: rgba(13,148,136,.08);
+}.net-lesson-dropzone-title{
+  font-size: .82rem;
+  font-weight: 700;
+  color: rgba(15,23,42,.7);
+  margin-bottom: .45rem;
+}.net-lesson-dropzone-items{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 30px;
 }.net-lesson-objectives{
   margin: 0;
   padding-left: 1.2rem;

@@ -92,10 +92,39 @@ const COURSE_CONTENT = {
                 duration: "12 min",
                 xp: 35,
                 steps: [
-                  "Add a router, a switch, and two PCs to the canvas.",
-                  "Connect both PCs to the switch, then connect the switch to the router.",
-                  "Add an Internet cloud and connect it to the router.",
-                  "Use device names to label which parts are LAN, WAN, and Internet."
+                  {
+                    text: "Add a router to the canvas.",
+                    checks: [{ type: "device", deviceType: "router", count: 1 }]
+                  },
+                  {
+                    text: "Add a switch to the canvas.",
+                    checks: [{ type: "device", deviceType: "switch", count: 1 }]
+                  },
+                  {
+                    text: "Add two PCs.",
+                    checks: [{ type: "device", deviceType: "pc", count: 2 }]
+                  },
+                  {
+                    text: "Connect each PC to the switch.",
+                    checks: [{ type: "connection", from: "pc", to: "switch", count: 2 }]
+                  },
+                  {
+                    text: "Connect the switch to the router.",
+                    checks: [{ type: "connection", from: "switch", to: "router", count: 1 }]
+                  },
+                  {
+                    text: "Add an Internet cloud.",
+                    checks: [{ type: "device", deviceType: "cloud", count: 1 }]
+                  },
+                  {
+                    text: "Connect the router to the Internet cloud.",
+                    checks: [{ type: "connection", from: "router", to: "cloud", count: 1 }]
+                  },
+                  {
+                    text: "Rename the router to include \"Gateway\" (example: Office Gateway).",
+                    checks: [{ type: "name_contains", deviceType: "router", contains: "Gateway", count: 1 }],
+                    hint: "Select the router and edit its name in the Properties panel."
+                  }
                 ],
                 tips: "LAN is the local group behind the switch; the router is the gateway to the WAN/Internet."
               },
@@ -125,16 +154,71 @@ const COURSE_CONTENT = {
           {
             title: "What is a network?",
             learn: "A network connects devices so they can communicate, share data, and access services.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "A network is any group of devices that exchange data using shared rules (protocols).",
+                  "Devices include laptops, phones, printers, servers, cameras, and cloud services.",
+                  "Networks are built from endpoints (users and servers) and infrastructure (switches, routers, Wi‑Fi).",
+                  "At home, your Wi‑Fi router connects devices and shares one Internet connection.",
+                  "At work, switches keep local traffic inside the office, while routers connect to other sites.",
+                  "Networks exist to share resources like files, printers, storage, and applications.",
+                  "Performance depends on bandwidth (capacity), latency (delay), and loss (reliability).",
+                  "Security is critical because shared access creates risk; allow the right traffic and block the wrong traffic.",
+                  "Real-world example: a hospital separates medical devices from guest Wi‑Fi to protect patient systems.",
+                  "If you can describe the devices, links, and rules, you can explain how data moves end to end."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why protocols matter",
+                content: [
+                  "Protocols are the rules that make communication possible.",
+                  "If devices did not agree on formats and timing, data would arrive unreadable.",
+                  "Think of protocols as a shared language for networks—TCP/IP is the global standard."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which example is a network?",
+                options: [
+                  "A single laptop working offline",
+                  "Two laptops sharing files over Wi‑Fi",
+                  "A printer with no power"
+                ],
+                correctIndex: 1,
+                explanation: "A network requires two or more devices communicating over a shared medium."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Match device roles",
+                mode: "drag",
+                prompt: "Drag each item to the correct role.",
+                targets: [
+                  { id: "endpoint", label: "Endpoint" },
+                  { id: "network", label: "Network device" },
+                  { id: "service", label: "Service" }
+                ],
+                items: [
+                  { id: "laptop", label: "Laptop", targetId: "endpoint" },
+                  { id: "switch", label: "Switch", targetId: "network" },
+                  { id: "dns", label: "DNS Server", targetId: "service" }
+                ]
+              }
+            ],
             content: [
-              "A network is any group of devices that can exchange data using shared rules (protocols).",
-              "Devices can be laptops, phones, printers, servers, cameras, and cloud services.",
-              "At home, a router and Wi-Fi access point connect your devices and share one Internet link.",
-              "In a business, switches connect staff devices while routers connect the LAN to other sites or the Internet.",
-              "Networks exist to share resources: files, printers, storage, applications, and cloud services.",
-              "Performance is shaped by bandwidth (how much data), latency (how fast), and loss (reliability).",
-              "Security matters because shared access creates risk; networks must allow the right traffic and block the wrong traffic.",
-              "Example: a hospital isolates medical devices from guest Wi-Fi to protect patient systems.",
-              "When you can describe the devices, links, and rules, you can explain how data moves end to end."
+              "A network is any group of devices that exchange data using shared rules (protocols).",
+              "Devices include laptops, phones, printers, servers, cameras, and cloud services.",
+              "Networks are built from endpoints (users and servers) and infrastructure (switches, routers, Wi‑Fi).",
+              "At home, your Wi‑Fi router connects devices and shares one Internet connection.",
+              "At work, switches keep local traffic inside the office, while routers connect to other sites.",
+              "Networks exist to share resources like files, printers, storage, and applications.",
+              "Performance depends on bandwidth (capacity), latency (delay), and loss (reliability).",
+              "Security is critical because shared access creates risk; allow the right traffic and block the wrong traffic.",
+              "Real-world example: a hospital separates medical devices from guest Wi‑Fi to protect patient systems.",
+              "If you can describe the devices, links, and rules, you can explain how data moves end to end."
             ],
             objectives: [
               "Define what a network is",
@@ -147,15 +231,63 @@ const COURSE_CONTENT = {
           {
             title: "LAN vs WAN vs Internet",
             learn: "LANs are local, WANs connect distant locations, and the Internet connects everything.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "A LAN (Local Area Network) covers a small area like a home, office, or school building.",
+                  "A WAN (Wide Area Network) connects multiple LANs over long distances using service providers.",
+                  "The Internet is a global network of networks that agree to use TCP/IP standards.",
+                  "Example: a company has a LAN in Dublin and a LAN in London; a WAN link connects them.",
+                  "LANs are usually faster and more predictable; WANs have higher latency and depend on carriers.",
+                  "Ownership differs: you manage the LAN, but the WAN is shared with an ISP or carrier.",
+                  "VPNs and SD‑WAN secure traffic across a WAN or the Internet.",
+                  "Knowing the scope helps you choose hardware, IP ranges, and troubleshooting steps."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why WANs feel slower",
+                content: [
+                  "WAN traffic travels farther and crosses provider networks.",
+                  "Each hop adds delay and reduces control over performance.",
+                  "That is why troubleshooting WANs starts with latency and carrier status."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "A connection between two offices in different cities is a:",
+                options: ["LAN", "WAN", "Personal Area Network"],
+                correctIndex: 1,
+                explanation: "WANs connect LANs over long distances."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Match the scope",
+                mode: "drag",
+                prompt: "Drag each scenario to the correct scope.",
+                targets: [
+                  { id: "lan", label: "LAN" },
+                  { id: "wan", label: "WAN" },
+                  { id: "internet", label: "Internet" }
+                ],
+                items: [
+                  { id: "school", label: "School computer lab", targetId: "lan" },
+                  { id: "hq-branch", label: "HQ linked to a branch office", targetId: "wan" },
+                  { id: "public", label: "Public websites and cloud apps", targetId: "internet" }
+                ]
+              }
+            ],
             content: [
               "A LAN (Local Area Network) covers a small area like a home, office, or school building.",
               "A WAN (Wide Area Network) connects multiple LANs over long distances using service providers.",
-              "The Internet is a global network of networks that all agree to use TCP/IP standards.",
-              "Example: a company has a LAN in Dublin and a LAN in London; a WAN link connects the two offices.",
-              "LANs are usually faster and more predictable; WANs have higher latency and rely on carriers.",
-              "Ownership differs: you control the LAN, but the WAN is shared with an ISP or carrier.",
-              "VPNs and SD-WAN overlays can secure traffic across a WAN or the Internet.",
-              "Knowing the scope helps you choose hardware, IP ranges, and the right troubleshooting steps."
+              "The Internet is a global network of networks that agree to use TCP/IP standards.",
+              "Example: a company has a LAN in Dublin and a LAN in London; a WAN link connects them.",
+              "LANs are usually faster and more predictable; WANs have higher latency and depend on carriers.",
+              "Ownership differs: you manage the LAN, but the WAN is shared with an ISP or carrier.",
+              "VPNs and SD‑WAN secure traffic across a WAN or the Internet.",
+              "Knowing the scope helps you choose hardware, IP ranges, and troubleshooting steps."
             ],
             objectives: [
               "Compare LANs and WANs",
@@ -167,11 +299,52 @@ const COURSE_CONTENT = {
           {
             title: "Network roles and services",
             learn: "Clients, servers, and shared services keep networks organized and reliable.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Networks are built around roles: clients request services, servers provide them, and peers share.",
+                  "Common services include DHCP for IP addresses, DNS for names, file and print services, and authentication.",
+                  "Central services make networks consistent so new devices can join without manual setup.",
+                  "Example: a coffee shop uses DHCP for guests, while a school uses DNS to reach learning portals.",
+                  "Directory services and AAA control who can access which resources and reduce admin overhead.",
+                  "Redundancy matters: two DNS servers prevent one failure from breaking name resolution.",
+                  "Understanding roles helps you troubleshoot quickly when a service fails even if the network is up.",
+                  "Benefit: clear roles improve reliability, security, and the overall user experience."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: What happens when DNS fails",
+                content: [
+                  "If DNS is down, devices can still reach services by IP address but not by name.",
+                  "That is why users say “the Internet is down” when only DNS is broken.",
+                  "A simple test is to ping an IP directly or use a known address like 8.8.8.8."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which service assigns IP addresses automatically?",
+                options: ["DNS", "DHCP", "NTP"],
+                correctIndex: 1,
+                explanation: "DHCP hands out IP addresses, subnet masks, and gateways."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Pick the right service",
+                mode: "select",
+                prompt: "A new laptop joins the Wi‑Fi and needs an IP address. Which service should handle this?",
+                options: ["DNS", "DHCP", "File Server"],
+                correctIndex: 1,
+                explanation: "DHCP is responsible for automatic IP configuration."
+              }
+            ],
             content: [
               "Networks are built around roles: clients request services, servers provide them, and peers share.",
               "Common services include DHCP for IP addresses, DNS for names, file and print services, and authentication.",
-              "Central services make networks consistent: new devices can join without manual setup.",
-              "Example: a coffee shop uses DHCP to onboard guests, while a school uses DNS to reach learning portals.",
+              "Central services make networks consistent so new devices can join without manual setup.",
+              "Example: a coffee shop uses DHCP for guests, while a school uses DNS to reach learning portals.",
               "Directory services and AAA control who can access which resources and reduce admin overhead.",
               "Redundancy matters: two DNS servers prevent one failure from breaking name resolution.",
               "Understanding roles helps you troubleshoot quickly when a service fails even if the network is up.",
@@ -187,11 +360,59 @@ const COURSE_CONTENT = {
           {
             title: "Topologies and traffic flow",
             learn: "Topology describes how devices are arranged and how traffic moves between them.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Topology describes how devices are arranged: star, tree, mesh, ring, or bus.",
+                  "Most modern LANs use a star topology with a switch at the center.",
+                  "Mesh designs add redundancy by giving multiple paths, but cost and complexity increase.",
+                  "Traffic types include unicast (one‑to‑one), broadcast (one‑to‑all), and multicast (one‑to‑many).",
+                  "Switches learn MAC addresses and forward unicast traffic only where it needs to go.",
+                  "Broadcasts are useful for discovery like ARP, but too many can slow a network.",
+                  "Example: a live video stream to many viewers can use multicast to save bandwidth.",
+                  "Knowing the topology helps you plan growth and isolate failures when a link goes down."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why broadcasts are limited",
+                content: [
+                  "Broadcasts go to every device in a LAN, so too many can overwhelm slow devices.",
+                  "Subnetting and VLANs keep broadcasts smaller and easier to manage.",
+                  "That is why large networks are segmented into smaller broadcast domains."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which traffic type reaches every device on the LAN?",
+                options: ["Unicast", "Broadcast", "Multicast"],
+                correctIndex: 1,
+                explanation: "Broadcasts are sent to all devices in the broadcast domain."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Match traffic types",
+                mode: "drag",
+                prompt: "Match each traffic type to the correct description.",
+                targets: [
+                  { id: "unicast", label: "Unicast" },
+                  { id: "broadcast", label: "Broadcast" },
+                  { id: "multicast", label: "Multicast" }
+                ],
+                items: [
+                  { id: "one", label: "One sender to one receiver", targetId: "unicast" },
+                  { id: "all", label: "One sender to everyone", targetId: "broadcast" },
+                  { id: "group", label: "One sender to a group", targetId: "multicast" }
+                ]
+              }
+            ],
             content: [
               "Topology describes how devices are arranged: star, tree, mesh, ring, or bus.",
               "Most modern LANs use a star topology with a switch at the center.",
               "Mesh designs add redundancy by giving multiple paths, but cost and complexity increase.",
-              "Traffic types include unicast (one-to-one), broadcast (one-to-all), and multicast (one-to-many).",
+              "Traffic types include unicast (one‑to‑one), broadcast (one‑to‑all), and multicast (one‑to‑many).",
               "Switches learn MAC addresses and forward unicast traffic only where it needs to go.",
               "Broadcasts are useful for discovery like ARP, but too many can slow a network.",
               "Example: a live video stream to many viewers can use multicast to save bandwidth.",
@@ -334,10 +555,30 @@ const COURSE_CONTENT = {
                 duration: "12 min",
                 xp: 35,
                 steps: [
-                  "Add one switch and two PCs to the canvas.",
-                  "Connect each PC to the switch with Ethernet.",
-                  "Pretend PC-A sends a frame to PC-B; explain how the switch learns the source MAC.",
-                  "Add a third PC and explain why unknown destinations are flooded."
+                  {
+                    text: "Add one switch to the canvas.",
+                    checks: [{ type: "device", deviceType: "switch", count: 1 }]
+                  },
+                  {
+                    text: "Add two PCs.",
+                    checks: [{ type: "device", deviceType: "pc", count: 2 }]
+                  },
+                  {
+                    text: "Connect each PC to the switch with Ethernet.",
+                    checks: [{ type: "connection", from: "pc", to: "switch", count: 2 }]
+                  },
+                  {
+                    text: "Add a third PC to create an unknown destination.",
+                    checks: [{ type: "device", deviceType: "pc", count: 3 }]
+                  },
+                  {
+                    text: "Explain how the switch learns the source MAC address.",
+                    hint: "Switches learn the source MAC from incoming frames.",
+                  },
+                  {
+                    text: "Explain why unknown destinations are flooded to all ports.",
+                    hint: "Switches flood until they learn where a MAC lives."
+                  }
                 ],
                 tips: "Switches learn MACs from source addresses and flood unknown destinations."
               },
@@ -367,6 +608,47 @@ const COURSE_CONTENT = {
           {
             title: "Switches, routers, and endpoints",
             learn: "Switches move frames inside a LAN; routers move packets between networks.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Switches operate at Layer 2, forwarding frames based on MAC addresses.",
+                  "Routers operate at Layer 3, forwarding packets based on IP addresses and routing tables.",
+                  "Endpoints are devices like laptops, servers, and phones that generate or consume data.",
+                  "In a small office, a switch connects endpoints while a router connects the LAN to the Internet.",
+                  "Switches keep traffic local when possible; routers act as the boundary between networks.",
+                  "The default gateway is the router address that sends traffic off the local subnet.",
+                  "Example: two PCs on the same switch communicate directly without the router.",
+                  "If local traffic works but Internet access fails, the gateway or router path is the likely issue."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why routers are boundaries",
+                content: [
+                  "Routers decide where packets go next using IP networks and routing tables.",
+                  "They separate broadcast domains and connect different subnets.",
+                  "That is why the default gateway matters for off‑subnet traffic."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which device connects different networks together?",
+                options: ["Switch", "Router", "Access Point"],
+                correctIndex: 1,
+                explanation: "Routers forward packets between networks."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Choose the path",
+                mode: "select",
+                prompt: "A PC needs to reach a website outside the LAN. Which device does it send traffic to first?",
+                options: ["Local switch", "Default gateway", "DNS server"],
+                correctIndex: 1,
+                explanation: "Off‑subnet traffic must go to the default gateway (router)."
+              }
+            ],
             content: [
               "Switches operate at Layer 2, forwarding frames based on MAC addresses.",
               "Routers operate at Layer 3, forwarding packets based on IP addresses and routing tables.",
@@ -387,10 +669,58 @@ const COURSE_CONTENT = {
           {
             title: "Ethernet frames and MAC addresses",
             learn: "Ethernet frames carry data on a LAN and use MAC addresses for delivery.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "An Ethernet frame includes destination MAC, source MAC, a type field, a payload, and an FCS.",
+                  "MAC addresses are 48‑bit identifiers, typically written like 00:1A:2B:3C:4D:5E.",
+                  "The first half (OUI) identifies the vendor; the second half is device‑specific.",
+                  "Switches learn MAC addresses by reading the source MAC of incoming frames.",
+                  "If the switch does not know the destination MAC, it floods the frame to all ports.",
+                  "MAC tables age out, which lets the network adapt when devices move ports.",
+                  "Example: when a laptop moves desks, the switch learns its new port automatically.",
+                  "Understanding frame fields helps you debug why traffic is or is not flowing."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why MAC addresses stay local",
+                content: [
+                  "MAC addresses are used inside a LAN to deliver frames to the right port.",
+                  "Routers strip the old frame and create a new one for the next hop.",
+                  "That is why MAC addresses do not travel across the Internet."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which field identifies who sent the frame?",
+                options: ["Destination MAC", "Source MAC", "FCS"],
+                correctIndex: 1,
+                explanation: "The source MAC identifies the sender."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Match frame fields",
+                mode: "drag",
+                prompt: "Match each frame field to its purpose.",
+                targets: [
+                  { id: "dest", label: "Destination MAC" },
+                  { id: "src", label: "Source MAC" },
+                  { id: "fcs", label: "FCS" }
+                ],
+                items: [
+                  { id: "where", label: "Where the frame should go", targetId: "dest" },
+                  { id: "who", label: "Who sent the frame", targetId: "src" },
+                  { id: "error", label: "Error detection", targetId: "fcs" }
+                ]
+              }
+            ],
             content: [
               "An Ethernet frame includes destination MAC, source MAC, a type field, a payload, and an FCS.",
-              "MAC addresses are 48-bit identifiers, typically written like 00:1A:2B:3C:4D:5E.",
-              "The first half (OUI) identifies the vendor; the second half is device-specific.",
+              "MAC addresses are 48‑bit identifiers, typically written like 00:1A:2B:3C:4D:5E.",
+              "The first half (OUI) identifies the vendor; the second half is device‑specific.",
               "Switches learn MAC addresses by reading the source MAC of incoming frames.",
               "If the switch does not know the destination MAC, it floods the frame to all ports.",
               "MAC tables age out, which lets the network adapt when devices move ports.",
@@ -407,6 +737,47 @@ const COURSE_CONTENT = {
           {
             title: "ARP and broadcast domains",
             learn: "ARP discovers MAC addresses for known IPs using broadcast messages.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "ARP (Address Resolution Protocol) maps an IP address to a MAC address on the LAN.",
+                  "When a device needs a MAC, it sends an ARP request as a broadcast.",
+                  "Only the device with that IP responds with its MAC address, and the sender caches it.",
+                  "ARP caches reduce repeated broadcasts but must be refreshed over time.",
+                  "Broadcasts stay within a broadcast domain, which is typically a single LAN or VLAN.",
+                  "Routers do not forward broadcast traffic, so they separate broadcast domains.",
+                  "Example: a PC ARPs for the gateway before sending traffic to the Internet.",
+                  "If ARP fails, devices can have the right IP but still fail to communicate."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why routers block broadcasts",
+                content: [
+                  "Broadcast traffic should stay local to reduce noise.",
+                  "Routers separate networks, so they block broadcasts by default.",
+                  "This keeps large networks stable and improves performance."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "An ARP request is sent as:",
+                options: ["Unicast", "Broadcast", "Multicast"],
+                correctIndex: 1,
+                explanation: "ARP requests are broadcast so all devices can hear them."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Choose the first step",
+                mode: "select",
+                prompt: "You know the IP but not the MAC. What should the device send first?",
+                options: ["ARP request", "DNS query", "ICMP echo reply"],
+                correctIndex: 0,
+                explanation: "ARP discovers the MAC address for a known IP on the LAN."
+              }
+            ],
             content: [
               "ARP (Address Resolution Protocol) maps an IP address to a MAC address on the LAN.",
               "When a device needs a MAC, it sends an ARP request as a broadcast.",
@@ -427,15 +798,63 @@ const COURSE_CONTENT = {
           {
             title: "Switching loops and STP basics",
             learn: "Redundant links can create loops; STP keeps Layer 2 stable.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Redundant links improve resilience, but unmanaged loops can break a LAN.",
+                  "Loops cause broadcast storms and MAC table flapping, which can overwhelm switches.",
+                  "Spanning Tree Protocol (STP) builds a loop‑free topology by blocking some links.",
+                  "STP elects a root switch and chooses the best paths to it.",
+                  "If a primary link fails, STP can reconverge and open a blocked path.",
+                  "Example: two switches with two links will have one link blocked to prevent loops.",
+                  "Using STP keeps redundancy without causing instability.",
+                  "Tip: enable PortFast on end‑device ports to reduce startup delays."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: What happens during reconvergence",
+                content: [
+                  "When a link fails, STP recalculates the best path to the root bridge.",
+                  "A previously blocked port can transition to forwarding.",
+                  "This restores connectivity without creating loops."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "STP primarily prevents:",
+                options: ["Layer 2 loops", "IP conflicts", "DHCP failures"],
+                correctIndex: 0,
+                explanation: "STP prevents Layer 2 loops and broadcast storms."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Match STP terms",
+                mode: "drag",
+                prompt: "Match the STP term to the description.",
+                targets: [
+                  { id: "root", label: "Root Bridge" },
+                  { id: "block", label: "Blocking Port" },
+                  { id: "portfast", label: "PortFast" }
+                ],
+                items: [
+                  { id: "rootdef", label: "Main switch for path decisions", targetId: "root" },
+                  { id: "blockdef", label: "Stops loops by not forwarding", targetId: "block" },
+                  { id: "pfdef", label: "Speeds up access ports", targetId: "portfast" }
+                ]
+              }
+            ],
             content: [
               "Redundant links improve resilience, but unmanaged loops can break a LAN.",
               "Loops cause broadcast storms and MAC table flapping, which can overwhelm switches.",
-              "Spanning Tree Protocol (STP) builds a loop-free topology by blocking some links.",
+              "Spanning Tree Protocol (STP) builds a loop‑free topology by blocking some links.",
               "STP elects a root switch and chooses the best paths to it.",
               "If a primary link fails, STP can reconverge and open a blocked path.",
               "Example: two switches with two links will have one link blocked to prevent loops.",
               "Using STP keeps redundancy without causing instability.",
-              "Tip: enable portfast on end-device ports to reduce startup delays."
+              "Tip: enable PortFast on end‑device ports to reduce startup delays."
             ],
             objectives: [
               "Explain why loops are harmful",
@@ -567,10 +986,36 @@ const COURSE_CONTENT = {
                 duration: "12 min",
                 xp: 35,
                 steps: [
-                  "Add a router, a switch, and two PCs.",
-                  "Connect the PCs to the switch and the switch to the router.",
-                  "Set PC IPs in the same /24 (example: 192.168.10.10 and 192.168.10.11).",
-                  "Set the default gateway on both PCs to the router (example: 192.168.10.1)."
+                  {
+                    text: "Add a router to the canvas.",
+                    checks: [{ type: "device", deviceType: "router", count: 1 }]
+                  },
+                  {
+                    text: "Add a switch.",
+                    checks: [{ type: "device", deviceType: "switch", count: 1 }]
+                  },
+                  {
+                    text: "Add two PCs.",
+                    checks: [{ type: "device", deviceType: "pc", count: 2 }]
+                  },
+                  {
+                    text: "Connect both PCs to the switch.",
+                    checks: [{ type: "connection", from: "pc", to: "switch", count: 2 }]
+                  },
+                  {
+                    text: "Connect the switch to the router.",
+                    checks: [{ type: "connection", from: "switch", to: "router", count: 1 }]
+                  },
+                  {
+                    text: "Set IP addresses on both PCs in the same /24 (example: 192.168.10.10 and 192.168.10.11).",
+                    checks: [{ type: "ip", deviceType: "pc", count: 2 }],
+                    hint: "Select a PC, open Properties, and enter the IP address."
+                  },
+                  {
+                    text: "Set the default gateway on both PCs (example: 192.168.10.1).",
+                    checks: [{ type: "gateway", deviceType: "pc", count: 2 }],
+                    hint: "The gateway should match the router’s LAN interface."
+                  }
                 ],
                 tips: "Devices in the same /24 talk directly; the gateway is used for off-subnet traffic."
               },
@@ -600,9 +1045,56 @@ const COURSE_CONTENT = {
           {
             title: "IPv4 addresses",
             learn: "IPv4 addresses uniquely identify devices so routers can deliver packets.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "An IPv4 address is a 32‑bit value written in dotted decimal, like 192.168.1.20.",
+                  "The address is split into a network portion and a host portion using the subnet mask.",
+                  "Devices on the same network portion can communicate directly without a router.",
+                  "Public IPs are reachable on the Internet; private IPs are used inside local networks.",
+                  "Private ranges include 10.0.0.0/8, 172.16.0.0/12, and 192.168.0.0/16.",
+                  "Most home networks use private IPs with NAT to share one public address.",
+                  "Address conflicts cause intermittent issues that look like random outages.",
+                  "Knowing IP basics is the foundation for routing and troubleshooting."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why private IPs exist",
+                content: [
+                  "Private IPs allow organizations to reuse address space safely.",
+                  "NAT translates private IPs to a public IP at the network edge.",
+                  "This makes the Internet scalable while keeping internal networks flexible."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which range is private?",
+                options: ["10.0.0.0/8", "8.8.8.0/24", "1.1.1.0/24"],
+                correctIndex: 0,
+                explanation: "10.0.0.0/8 is a private IPv4 range."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Match address types",
+                mode: "drag",
+                prompt: "Drag each address to the correct type.",
+                targets: [
+                  { id: "private", label: "Private" },
+                  { id: "public", label: "Public" }
+                ],
+                items: [
+                  { id: "addr1", label: "192.168.1.20", targetId: "private" },
+                  { id: "addr2", label: "8.8.8.8", targetId: "public" },
+                  { id: "addr3", label: "10.20.5.10", targetId: "private" }
+                ]
+              }
+            ],
             content: [
-              "An IPv4 address is a 32-bit value written in dotted decimal, like 192.168.1.20.",
-              "The address is split into a network portion and a host portion, based on the subnet mask.",
+              "An IPv4 address is a 32‑bit value written in dotted decimal, like 192.168.1.20.",
+              "The address is split into a network portion and a host portion using the subnet mask.",
               "Devices on the same network portion can communicate directly without a router.",
               "Public IPs are reachable on the Internet; private IPs are used inside local networks.",
               "Private ranges include 10.0.0.0/8, 172.16.0.0/12, and 192.168.0.0/16.",
@@ -619,7 +1111,48 @@ const COURSE_CONTENT = {
           },
           {
             title: "Subnet masks and gateways",
-            learn: "Subnet masks identify the local network; gateways forward off-subnet traffic.",
+            learn: "Subnet masks identify the local network; gateways forward off‑subnet traffic.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "A subnet mask tells a device which portion of an IP address is the network.",
+                  "A common mask is 255.255.255.0, also written as /24.",
+                  "If the destination IP is in the same subnet, traffic stays on the LAN.",
+                  "If the destination is outside the subnet, the device sends traffic to the default gateway.",
+                  "The default gateway is typically the router interface on that LAN.",
+                  "Wrong masks or gateways are one of the most common causes of connectivity issues.",
+                  "Example: a PC can reach printers but not the Internet because the gateway is wrong.",
+                  "Subnets keep broadcast traffic smaller and make large networks easier to manage."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Symptoms of a wrong mask",
+                content: [
+                  "A wrong mask makes the PC think distant hosts are local (or vice versa).",
+                  "This causes failed connections even if the IP looks correct.",
+                  "Always verify IP, mask, and gateway together."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which value tells a host what is local?",
+                options: ["Subnet mask", "DNS server", "MAC address"],
+                correctIndex: 0,
+                explanation: "The subnet mask defines which addresses are local."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Local or gateway?",
+                mode: "select",
+                prompt: "A host has 192.168.10.5/24 and wants 192.168.10.77. How should it send the traffic?",
+                options: ["Directly on the LAN", "To the default gateway", "To DNS"],
+                correctIndex: 0,
+                explanation: "Same /24 means the traffic is local."
+              }
+            ],
             content: [
               "A subnet mask tells a device which portion of an IP address is the network.",
               "A common mask is 255.255.255.0, also written as /24.",
@@ -639,7 +1172,55 @@ const COURSE_CONTENT = {
           },
           {
             title: "IP planning and common mistakes",
-            learn: "A simple IP plan prevents overlaps, conflicts, and hard-to-debug outages.",
+            learn: "A simple IP plan prevents overlaps, conflicts, and hard‑to‑debug outages.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Start with a simple plan that separates users, servers, printers, and guests.",
+                  "Reserve small blocks for infrastructure like routers, switches, and access points.",
+                  "Avoid overlapping ranges when multiple sites connect or when VLANs are added later.",
+                  "Use a consistent pattern, such as 10.10.x.0/24 for staff and 10.20.x.0/24 for guests.",
+                  "Document address assignments and keep track of static IPs to prevent conflicts.",
+                  "Remember that .0 is the network address and .255 is the broadcast address in a /24.",
+                  "Example: a printer with a static IP prevents users from losing access after DHCP changes.",
+                  "Good IP planning makes growth easy and reduces downtime."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Overlapping subnets",
+                content: [
+                  "Overlapping subnets cause ambiguous routing and broken connectivity.",
+                  "If two sites use the same range, VPNs and WAN links will drop traffic.",
+                  "Planning ahead prevents painful renumbering later."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Why should you document static IPs?",
+                options: ["To increase bandwidth", "To avoid address conflicts", "To speed up DNS"],
+                correctIndex: 1,
+                explanation: "Tracking static IPs prevents two devices from using the same address."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Match practice to benefit",
+                mode: "drag",
+                prompt: "Match each planning practice to its main benefit.",
+                targets: [
+                  { id: "conflict", label: "Avoid conflicts" },
+                  { id: "security", label: "Improve security" },
+                  { id: "clarity", label: "Improve clarity" }
+                ],
+                items: [
+                  { id: "static", label: "Document static IPs", targetId: "conflict" },
+                  { id: "guest", label: "Separate guest network", targetId: "security" },
+                  { id: "pattern", label: "Consistent subnet pattern", targetId: "clarity" }
+                ]
+              }
+            ],
             content: [
               "Start with a simple plan that separates users, servers, printers, and guests.",
               "Reserve small blocks for infrastructure like routers, switches, and access points.",
@@ -660,12 +1241,53 @@ const COURSE_CONTENT = {
           {
             title: "DHCP and DNS essentials",
             learn: "DHCP automates IP configuration and DNS translates names into addresses.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "DHCP (Dynamic Host Configuration Protocol) automatically assigns IP addresses to hosts.",
+                  "The DHCP process follows DORA: Discover, Offer, Request, Acknowledge.",
+                  "DHCP also distributes options like subnet mask, gateway, and DNS server.",
+                  "Reservations allow specific devices to always receive the same IP.",
+                  "DNS (Domain Name System) translates human‑friendly names like example.com into IP addresses.",
+                  "DNS caching speeds up lookups and reduces traffic to authoritative servers.",
+                  "If DNS is misconfigured, services may be up but unreachable by name.",
+                  "DHCP and DNS reduce manual configuration and improve consistency across devices."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Symptoms when DHCP fails",
+                content: [
+                  "Devices may assign themselves a fallback IP (like 169.254.x.x).",
+                  "Users report “Wi‑Fi connected, but no Internet.”",
+                  "Checking the IP, mask, and gateway quickly confirms the issue."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "In DHCP, the client sends a ___ first.",
+                options: ["Discover", "Offer", "Acknowledge"],
+                correctIndex: 0,
+                explanation: "The client starts the process with a Discover message."
+              },
+              {
+                type: "activity",
+                title: "Mini activity: Diagnose the issue",
+                mode: "select",
+                prompt: "Users can reach 8.8.8.8 but not example.com. Which service is likely the issue?",
+                options: ["DNS", "DHCP", "Switching"],
+                correctIndex: 0,
+                explanation: "If IP works but names fail, DNS is the culprit."
+              }
+            ],
             content: [
               "DHCP (Dynamic Host Configuration Protocol) automatically assigns IP addresses to hosts.",
               "The DHCP process follows DORA: Discover, Offer, Request, Acknowledge.",
               "DHCP also distributes options like subnet mask, gateway, and DNS server.",
               "Reservations allow specific devices to always receive the same IP.",
-              "DNS (Domain Name System) translates human-friendly names like example.com into IP addresses.",
+              "DNS (Domain Name System) translates human‑friendly names like example.com into IP addresses.",
               "DNS caching speeds up lookups and reduces traffic to authoritative servers.",
               "If DNS is misconfigured, services may be up but unreachable by name.",
               "DHCP and DNS reduce manual configuration and improve consistency across devices."

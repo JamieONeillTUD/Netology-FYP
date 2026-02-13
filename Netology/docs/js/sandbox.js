@@ -51,6 +51,8 @@ Reworked to match the Figma AI version:
   const clearConfirmBtn = getById("clearTopologyConfirm");
 
   const workspace = qs(".sbx-workspace");
+  const stageWrap = qs(".sbx-stage-wrap");
+  const stageEl = getById("sandboxStage");
   const leftPanel = getById("sbxLeftPanel");
   const rightPanel = getById("sbxRightPanel");
   const bottomPanel = getById("sbxBottomPanel");
@@ -118,6 +120,8 @@ Reworked to match the Figma AI version:
     saveModalOpen: false,
   };
 
+  let guideUI = null;
+
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
 
   // AI Prompt: Explain the Utilities section in clear, simple terms.
@@ -164,6 +168,115 @@ Reworked to match the Figma AI version:
     if (tipsEl) tipsEl.textContent = text;
   }
 
+  function ensureGuide() {
+    if (guideUI || !stageWrap) return guideUI;
+    const guide = document.createElement("div");
+    guide.className = "sbx-guide sbx-guide--float";
+    guide.setAttribute("role", "status");
+    guide.setAttribute("aria-live", "polite");
+
+    const head = makeEl("div", "sbx-guide-head");
+    const badge = makeEl("div", "sbx-guide-badge");
+    badge.appendChild(makeIcon("bi bi-compass"));
+    const stepLabel = makeEl("div", "sbx-guide-step");
+    const controls = makeEl("div", "sbx-guide-controls");
+    const minimizeBtn = makeEl("button", "sbx-guide-btn", "");
+    minimizeBtn.type = "button";
+    minimizeBtn.setAttribute("aria-label", "Minimize guide");
+    minimizeBtn.appendChild(makeIcon("bi bi-dash-lg"));
+    head.append(badge, stepLabel, controls);
+    controls.appendChild(minimizeBtn);
+
+    const body = makeEl("div", "sbx-guide-body");
+    const hint = makeEl("div", "sbx-guide-hint");
+
+    const actions = makeEl("div", "sbx-guide-actions");
+    const showBtn = makeEl("button", "btn btn-outline-secondary btn-sm", "Show me");
+    const closeBtn = makeEl("button", "btn btn-teal btn-sm", "Got it");
+    showBtn.type = "button";
+    closeBtn.type = "button";
+    actions.append(showBtn, closeBtn);
+
+    guide.append(head, body, hint, actions);
+
+    if (stageEl) {
+      stageEl.appendChild(guide);
+    } else {
+      stageWrap.appendChild(guide);
+    }
+
+    guideUI = {
+      el: guide,
+      stepEl: stepLabel,
+      bodyEl: body,
+      hintEl: hint,
+      showBtn,
+      closeBtn,
+      minimizeBtn,
+      lastKey: null,
+      dismissed: false,
+    };
+
+    closeBtn.addEventListener("click", () => {
+      guideUI.dismissed = true;
+      guide.classList.remove("is-show");
+    });
+
+    minimizeBtn.addEventListener("click", () => {
+      const isMin = guide.classList.toggle("is-min");
+      localStorage.setItem("netology_sbx_guide_min", isMin ? "1" : "0");
+      minimizeBtn.setAttribute("aria-label", isMin ? "Maximize guide" : "Minimize guide");
+      minimizeBtn.replaceChildren();
+      minimizeBtn.appendChild(makeIcon(`bi ${isMin ? "bi-plus-lg" : "bi-dash-lg"}`));
+    });
+
+    const initialMin = localStorage.getItem("netology_sbx_guide_min") === "1";
+    if (initialMin) {
+      guide.classList.add("is-min");
+      minimizeBtn.setAttribute("aria-label", "Maximize guide");
+      minimizeBtn.replaceChildren();
+      minimizeBtn.appendChild(makeIcon("bi bi-plus-lg"));
+    }
+
+    return guideUI;
+  }
+
+  function hideGuide() {
+    const guide = ensureGuide();
+    if (!guide) return;
+    guide.el.classList.remove("is-show", "is-anim");
+  }
+
+  function showGuide(step, stepIndex, totalSteps) {
+    const guide = ensureGuide();
+    if (!guide || !step) return;
+    const stepKey = `${state.tutorialMeta?.courseId || "tutorial"}:${state.tutorialMeta?.lesson || 0}:${stepIndex}`;
+    if (guide.lastKey !== stepKey) {
+      guide.dismissed = false;
+      guide.lastKey = stepKey;
+    }
+    if (guide.dismissed) return;
+
+    guide.stepEl.textContent = `Step ${stepIndex + 1} of ${totalSteps}`;
+    guide.bodyEl.textContent = step.text || "Follow the step on screen.";
+    const hintText = step.hint || step.tip || "";
+    if (hintText) {
+      guide.hintEl.textContent = hintText;
+      guide.hintEl.style.display = "";
+    } else {
+      guide.hintEl.textContent = "";
+      guide.hintEl.style.display = "none";
+    }
+
+    guide.el.classList.add("is-show");
+    guide.el.classList.remove("is-anim");
+    requestAnimationFrame(() => guide.el.classList.add("is-anim"));
+
+    guide.showBtn.onclick = () => {
+      applyTutorialFocus(step);
+    };
+  }
+
   function tutorialProgressKey(meta) {
     if (!meta) return null;
     return `netology_tutorial_progress:${meta.email || "guest"}:${meta.courseId}:${meta.lesson}`;
@@ -171,14 +284,297 @@ Reworked to match the Figma AI version:
 
   function loadTutorialProgress(meta) {
     const key = tutorialProgressKey(meta);
-    if (!key) return { checked: [] };
-    return parseJsonSafe(localStorage.getItem(key), { checked: [] }) || { checked: [] };
+    const fallback = { checked: [], current: 0 };
+    if (!key) return fallback;
+    const stored = parseJsonSafe(localStorage.getItem(key), fallback) || fallback;
+    const checked = Array.isArray(stored.checked) ? stored.checked : [];
+    const current = Number.isFinite(Number(stored.current)) ? Number(stored.current) : 0;
+    return { checked, current };
   }
 
   function saveTutorialProgress(meta, progress) {
     const key = tutorialProgressKey(meta);
     if (!key) return;
-    localStorage.setItem(key, JSON.stringify(progress || { checked: [] }));
+    localStorage.setItem(key, JSON.stringify(progress || { checked: [], current: 0 }));
+  }
+
+  function normalizeTutorialSteps(steps) {
+    return (steps || []).map((step) => {
+      if (typeof step === "string") return { text: step };
+      if (step && typeof step === "object") {
+        return {
+          ...step,
+          text: step.text || step.title || step.label || "",
+        };
+      }
+      return { text: "" };
+    });
+  }
+
+  function showLeftPanel() {
+    if (!leftPanel) return;
+    leftPanel.style.display = "";
+    workspace?.classList.remove("left-hidden");
+    if (leftToggle) leftToggle.querySelector("i").className = "bi bi-chevron-left";
+    if (leftOpenBtn) leftOpenBtn.style.display = "none";
+  }
+
+  function showRightPanel() {
+    if (!rightPanel) return;
+    rightPanel.style.display = "";
+    workspace?.classList.remove("right-hidden");
+    if (rightToggle) rightToggle.querySelector("i").className = "bi bi-chevron-right";
+    if (rightOpenBtn) rightOpenBtn.style.display = "none";
+  }
+
+  function setRightTab(tabId) {
+    const tabsWrap = getById("sbxRightTabs");
+    if (!tabsWrap || !rightPanel) return;
+    const target = qs(`.sbx-tab[data-tab="${tabId}"]`, tabsWrap);
+    if (!target) return;
+    state.rightTab = tabId;
+    qsa(".sbx-tab", tabsWrap).forEach((t) => t.classList.remove("is-active"));
+    target.classList.add("is-active");
+    qsa(".sbx-tabpanel", rightPanel).forEach((panel) => panel.classList.remove("is-active"));
+    getById(`panel${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`)?.classList.add("is-active");
+  }
+
+  const guidedEls = new Set();
+
+  function clearGuidedHighlights() {
+    guidedEls.forEach((el) => el.classList.remove("sbx-guided"));
+    guidedEls.clear();
+  }
+
+  function addGuided(el) {
+    if (!el) return;
+    el.classList.add("sbx-guided");
+    guidedEls.add(el);
+  }
+
+  function deriveFocusFromChecks(checks) {
+    const focus = {
+      deviceTypes: new Set(),
+      needsConnect: false,
+      needsConfigAuto: false,
+      needsConfigHint: false,
+    };
+    (checks || []).forEach((req) => {
+      if (req.type === "device") focus.deviceTypes.add(req.deviceType);
+      if (req.type === "connection") focus.needsConnect = true;
+      if (req.type === "ip" || req.type === "gateway") focus.needsConfigAuto = true;
+      if (req.type === "name_contains") focus.needsConfigHint = true;
+    });
+    return focus;
+  }
+
+  function applyTutorialFocus(step) {
+    if (!step) return;
+    clearGuidedHighlights();
+    const rightHidden = rightPanel && rightPanel.style.display === "none";
+    showRightPanel();
+    if (rightHidden) setRightTab("objectives");
+
+    const checks = Array.isArray(step.checks)
+      ? step.checks
+      : Array.isArray(step.requirements)
+        ? step.requirements
+        : step.require && typeof step.require === "object"
+          ? [step.require]
+          : [];
+    const focus = deriveFocusFromChecks(checks);
+
+    if (focus.deviceTypes.size) {
+      showLeftPanel();
+      focus.deviceTypes.forEach((type) => {
+        const btn = qs(`.sbx-device-card[data-device="${type}"]`);
+        addGuided(btn);
+      });
+    }
+
+    if (focus.needsConnect) {
+      addGuided(getById("toolConnectBtn"));
+      addGuided(qs('[data-conn-type="ethernet"]', connTypeGroup));
+    }
+
+    if (focus.needsConfigAuto || focus.needsConfigHint) {
+      addGuided(qs('.sbx-tab[data-tab="config"]', getById("sbxRightTabs")));
+      const configTab = qs('.sbx-subtab[data-subtab="general"]', getById("sbxConfigTabs"));
+      addGuided(configTab);
+    }
+
+    if (focus.needsConfigAuto && state.rightTab !== "config") {
+      setRightTab("config");
+    } else if (state.rightTab !== "objectives") {
+      addGuided(qs('.sbx-tab[data-tab="objectives"]', getById("sbxRightTabs")));
+    }
+  }
+
+  function normalizeTutorialProgress(meta, steps) {
+    const progress = loadTutorialProgress(meta);
+    progress.checked = Array.isArray(progress.checked) ? progress.checked : [];
+    progress.current = Number.isFinite(Number(progress.current)) ? Number(progress.current) : 0;
+    const total = steps.length || 0;
+    if (!total) return progress;
+    if (progress.current >= total) progress.current = total - 1;
+    const firstIncomplete = steps.findIndex((_, idx) => !progress.checked[idx]);
+    if (firstIncomplete >= 0 && progress.checked[progress.current]) {
+      progress.current = firstIncomplete;
+    }
+    return progress;
+  }
+
+  function findNextIncomplete(checked, total, startIdx) {
+    for (let i = startIdx + 1; i < total; i += 1) {
+      if (!checked[i]) return i;
+    }
+    return total > 0 ? total - 1 : 0;
+  }
+
+  function countDevicesOfType(type) {
+    return state.devices.filter((d) => d.type === type).length;
+  }
+
+  function countConnectionsBetween(fromType, toType) {
+    let total = 0;
+    state.connections.forEach((conn) => {
+      const from = findDevice(conn.from);
+      const to = findDevice(conn.to);
+      if (!from || !to) return;
+      const match =
+        (from.type === fromType && to.type === toType) ||
+        (from.type === toType && to.type === fromType);
+      if (match) total += 1;
+    });
+    return total;
+  }
+
+  function countDevicesWithIp(type) {
+    return state.devices.filter((d) => d.type === type && d.config?.ipAddress).length;
+  }
+
+  function countDevicesWithGateway(type) {
+    return state.devices.filter((d) => d.type === type && d.config?.defaultGateway).length;
+  }
+
+  function countDevicesNameContains(type, contains) {
+    const token = String(contains || "").toLowerCase();
+    return state.devices.filter((d) => {
+      if (type && d.type !== type) return false;
+      return String(d.name || "").toLowerCase().includes(token);
+    }).length;
+  }
+
+  function describeRequirement(req) {
+    if (req.label) return req.label;
+    if (req.type === "device") {
+      return `Add ${req.count || 1} ${DEVICE_TYPES[req.deviceType]?.label || req.deviceType}`;
+    }
+    if (req.type === "connection") {
+      const fromLabel = DEVICE_TYPES[req.from]?.label || req.from;
+      const toLabel = DEVICE_TYPES[req.to]?.label || req.to;
+      return `Connect ${req.count || 1} ${fromLabel} to ${toLabel}`;
+    }
+    if (req.type === "ip") {
+      return `Set IP on ${req.count || 1} ${DEVICE_TYPES[req.deviceType]?.label || req.deviceType}`;
+    }
+    if (req.type === "gateway") {
+      return `Set gateway on ${req.count || 1} ${DEVICE_TYPES[req.deviceType]?.label || req.deviceType}`;
+    }
+    if (req.type === "name_contains") {
+      return `Rename ${DEVICE_TYPES[req.deviceType]?.label || req.deviceType} with “${req.contains}”`;
+    }
+    return "Complete the requirement";
+  }
+
+  function evaluateRequirement(req) {
+    if (!req || !req.type) return { ok: false, label: "Complete the requirement" };
+    const count = Number(req.count || 1);
+    let ok = false;
+    if (req.type === "device") ok = countDevicesOfType(req.deviceType) >= count;
+    if (req.type === "connection") ok = countConnectionsBetween(req.from, req.to) >= count;
+    if (req.type === "ip") ok = countDevicesWithIp(req.deviceType) >= count;
+    if (req.type === "gateway") ok = countDevicesWithGateway(req.deviceType) >= count;
+    if (req.type === "name_contains") ok = countDevicesNameContains(req.deviceType, req.contains) >= count;
+    return { ok, label: describeRequirement(req) };
+  }
+
+  function evaluateTutorialStep(step) {
+    const checks = Array.isArray(step.checks)
+      ? step.checks
+      : Array.isArray(step.requirements)
+        ? step.requirements
+        : step.require && typeof step.require === "object"
+          ? [step.require]
+          : [];
+
+    if (!checks.length) {
+      return { ok: false, manual: true, details: [] };
+    }
+
+    const details = checks.map((req) => evaluateRequirement(req));
+    const ok = details.every((d) => d.ok);
+    return { ok, manual: false, details };
+  }
+
+  function completeTutorialStep(meta, steps, index) {
+    const progress = normalizeTutorialProgress(meta, steps);
+    progress.checked[index] = true;
+    progress.current = findNextIncomplete(progress.checked, steps.length, index);
+    saveTutorialProgress(meta, progress);
+    showToast({
+      title: "Step complete",
+      message: steps[index]?.text || "Step completed.",
+      variant: "success",
+      timeout: 2200,
+    });
+  }
+
+  function updateTutorialGuidance() {
+    if (!state.tutorialMeta) return;
+    const meta = state.tutorialMeta;
+    const steps = normalizeTutorialSteps(meta.steps || []);
+    if (!steps.length) return;
+
+    const progress = normalizeTutorialProgress(meta, steps);
+    const currentIndex = progress.current;
+    const currentStep = steps[currentIndex];
+    if (!currentStep) return;
+
+    const evaluation = evaluateTutorialStep(currentStep);
+    let nextProgress = progress;
+    if (evaluation.ok && !progress.checked[currentIndex]) {
+      progress.checked[currentIndex] = true;
+      progress.current = findNextIncomplete(progress.checked, steps.length, currentIndex);
+      saveTutorialProgress(meta, progress);
+      showToast({
+        title: "Step complete",
+        message: currentStep.text || "Step completed.",
+        variant: "success",
+        timeout: 2200,
+      });
+      if (state.rightTab === "config") setRightTab("objectives");
+      nextProgress = normalizeTutorialProgress(meta, steps);
+    } else if (progress.checked[currentIndex]) {
+      const nextIndex = findNextIncomplete(progress.checked, steps.length, currentIndex);
+      if (nextIndex !== progress.current) {
+        progress.current = nextIndex;
+        saveTutorialProgress(meta, progress);
+        nextProgress = normalizeTutorialProgress(meta, steps);
+      }
+    }
+
+    renderObjectives();
+    const activeStep = steps[nextProgress.current] || currentStep;
+    const tipText = activeStep.tip || activeStep.hint || activeStep.text || meta.tips;
+    if (tipText) setTip(tipText);
+
+    applyTutorialFocus(activeStep);
+    showGuide(activeStep, nextProgress.current, steps.length);
+  }
+
+  function notifyTutorialProgress() {
+    if (state.mode === "tutorial") updateTutorialGuidance();
   }
 
   function buildChallengeProgress(rules = {}) {
@@ -891,6 +1287,7 @@ Reworked to match the Figma AI version:
       rebuildMacTables();
       renderAll();
       setTip("Loaded your saved lesson session from the database.");
+      notifyTutorialProgress();
     } catch (e) {
       console.error("loadLessonSessionFromDb error:", e);
     }
@@ -1227,19 +1624,24 @@ Reworked to match the Figma AI version:
 
   function renderObjectives() {
     if (!objectivesBody) return;
+    if (!state.tutorialMeta) {
+      clearGuidedHighlights();
+      hideGuide();
+    }
     if (state.tutorialMeta) {
       const meta = state.tutorialMeta;
-      const progress = loadTutorialProgress(meta);
-      const total = (meta.steps || []).length;
-      const checked = (progress.checked || []).filter((v) => v).length;
+      const steps = normalizeTutorialSteps(meta.steps || []);
+      const progress = normalizeTutorialProgress(meta, steps);
+      const total = steps.length;
+      const checked = progress.checked.filter(Boolean).length;
       const pct = total ? Math.round((checked / total) * 100) : 0;
 
       clearChildren(objectivesBody);
-      const wrap = makeEl("div", "sbx-objectives");
+      const wrap = makeEl("div", "sbx-tutorial");
 
       const header = makeEl("div", "sbx-objectives-header");
       const title = makeEl("div", "fw-semibold", "Sandbox tutorial");
-      const sub = makeEl("div", "small text-muted", `Progress: ${checked}/${total} steps`);
+      const sub = makeEl("div", "small text-muted", total ? `Progress: ${checked}/${total} steps` : "No tutorial steps yet.");
       header.append(title, sub);
       wrap.appendChild(header);
 
@@ -1250,31 +1652,59 @@ Reworked to match the Figma AI version:
       wrap.appendChild(bar);
 
       if (total) {
-        const list = makeEl("div", "sbx-step-list");
-        (meta.steps || []).forEach((s, idx) => {
-          const row = makeEl("label", "sbx-step-row");
-          const cb = document.createElement("input");
-          cb.type = "checkbox";
-          cb.className = "sbx-step-check";
-          cb.checked = !!progress.checked?.[idx];
-          cb.addEventListener("change", () => {
-            const next = loadTutorialProgress(meta);
-            next.checked = Array.isArray(next.checked) ? next.checked : [];
-            next.checked[idx] = cb.checked;
-            saveTutorialProgress(meta, next);
-            renderObjectives();
+        const currentIndex = progress.current;
+        const currentStep = steps[currentIndex];
+        const evaluation = evaluateTutorialStep(currentStep);
+        const isDone = progress.checked[currentIndex] || evaluation.ok;
+
+        const currentCard = makeEl("div", "sbx-tutorial-current");
+        const stepLabel = makeEl("div", "sbx-tutorial-step-label", `Step ${currentIndex + 1} of ${total}`);
+        const stepText = makeEl("div", "sbx-tutorial-step-text", currentStep.text || "Follow the instruction.");
+        const status = makeEl("div", `sbx-tutorial-status ${isDone ? "is-done" : "is-waiting"}`, isDone ? "Ready to continue" : "Waiting for action");
+        currentCard.append(stepLabel, stepText, status);
+
+        if (currentStep.hint) {
+          currentCard.appendChild(makeEl("div", "sbx-tutorial-hint", currentStep.hint));
+        }
+
+        if (evaluation.details.length) {
+          const reqList = makeEl("div", "sbx-tutorial-reqs");
+          evaluation.details.forEach((req) => {
+            const row = makeEl("div", `sbx-tutorial-req ${req.ok ? "is-ok" : ""}`);
+            const icon = makeIcon(`bi ${req.ok ? "bi-check-circle-fill" : "bi-circle"}`);
+            row.append(icon, makeEl("span", null, req.label));
+            reqList.appendChild(row);
           });
-          const text = makeEl("span", "sbx-step-text", String(s || ""));
-          row.append(cb, text);
+          currentCard.appendChild(reqList);
+        }
+
+        const actionRow = makeEl("div", "sbx-tutorial-actions");
+        const primaryBtn = makeEl("button", "btn btn-teal btn-sm", evaluation.manual ? "Mark step complete" : "Continue");
+        primaryBtn.disabled = evaluation.manual ? false : !evaluation.ok;
+        primaryBtn.addEventListener("click", () => {
+          completeTutorialStep(meta, steps, currentIndex);
+          updateTutorialGuidance();
+        });
+        actionRow.appendChild(primaryBtn);
+        currentCard.appendChild(actionRow);
+        wrap.appendChild(currentCard);
+
+        const list = makeEl("div", "sbx-tutorial-step-list");
+        steps.forEach((step, idx) => {
+          const row = makeEl("div", `sbx-tutorial-step ${progress.checked[idx] ? "is-done" : ""} ${idx === currentIndex ? "is-current" : ""}`);
+          const badge = makeEl("div", "sbx-tutorial-step-badge", String(idx + 1));
+          const text = makeEl("div", "sbx-tutorial-step-copy", step.text || `Step ${idx + 1}`);
+          row.append(badge, text);
           list.appendChild(row);
         });
         wrap.appendChild(list);
+      } else {
+        wrap.appendChild(makeEl("div", "small text-muted", "Tutorial steps will appear here once configured."));
       }
 
       if (meta.tips) {
-        const tipsBlock = makeEl("div", "small text-muted mt-2");
-        const em = makeEl("em", null, meta.tips);
-        tipsBlock.appendChild(em);
+        const tipsBlock = makeEl("div", "sbx-tutorial-tips");
+        tipsBlock.appendChild(makeEl("em", null, meta.tips));
         wrap.appendChild(tipsBlock);
       }
 
@@ -1431,6 +1861,7 @@ Reworked to match the Figma AI version:
         device.name = e.target.value;
         addActionLog(`Renamed ${device.name}`);
         renderDevices();
+        notifyTutorialProgress();
         markDirtyAndSaveSoon();
       });
 
@@ -1439,6 +1870,7 @@ Reworked to match the Figma AI version:
         updateDeviceStatus(device);
         renderDevices();
         updateWarnings(device);
+        notifyTutorialProgress();
         markDirtyAndSaveSoon();
       });
 
@@ -1446,6 +1878,7 @@ Reworked to match the Figma AI version:
         device.config.subnetMask = e.target.value;
         updateDeviceStatus(device);
         updateWarnings(device);
+        notifyTutorialProgress();
         markDirtyAndSaveSoon();
       });
 
@@ -1453,6 +1886,7 @@ Reworked to match the Figma AI version:
         device.config.defaultGateway = e.target.value;
         updateDeviceStatus(device);
         updateWarnings(device);
+        notifyTutorialProgress();
         markDirtyAndSaveSoon();
       });
 
@@ -1461,6 +1895,7 @@ Reworked to match the Figma AI version:
         if (device.config.dhcpEnabled) {
           requestDHCP(device.id);
         }
+        notifyTutorialProgress();
         markDirtyAndSaveSoon();
       });
 
@@ -1835,6 +2270,7 @@ Reworked to match the Figma AI version:
     addActionLog(`Added ${device.name}`);
     pushHistory();
     renderAll();
+    notifyTutorialProgress();
     markDirtyAndSaveSoon();
   }
 
@@ -1848,6 +2284,7 @@ Reworked to match the Figma AI version:
     rebuildMacTables();
     pushHistory();
     renderAll();
+    notifyTutorialProgress();
     markDirtyAndSaveSoon();
   }
 
@@ -1881,6 +2318,7 @@ Reworked to match the Figma AI version:
     addActionLog(`Connected ${fromDevice?.name || "device"} to ${toDevice?.name || "device"}`);
     pushHistory();
     renderAll();
+    notifyTutorialProgress();
     markDirtyAndSaveSoon();
   }
 
@@ -1896,6 +2334,7 @@ Reworked to match the Figma AI version:
     addActionLog("Removed connection");
     pushHistory();
     renderAll();
+    notifyTutorialProgress();
     markDirtyAndSaveSoon();
   }
 
@@ -2981,6 +3420,12 @@ Reworked to match the Figma AI version:
 
     await loadLessonSessionFromDb();
     renderObjectives();
+    showToast({
+      title: "Challenge mode",
+      message: "No guided hints. Complete the checklist to pass.",
+      variant: "info",
+      timeout: 2600,
+    });
     return true;
   }
 
@@ -3026,6 +3471,7 @@ Reworked to match the Figma AI version:
 
     if (lessonSession.enabled) await loadLessonSessionFromDb();
     renderObjectives();
+    notifyTutorialProgress();
     return true;
   }
 
