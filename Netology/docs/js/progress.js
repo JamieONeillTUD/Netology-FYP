@@ -85,7 +85,7 @@ progress.js – Progress detail lists for dashboard stats.
 
     const completionsMapPromise = buildCompletionsMap(user.email, courses);
     const navCountsPromise = completionsMapPromise.then((map) => buildNavCounts(courses, content, user.email, map));
-    const totalsPromise = completionsMapPromise.then((map) => renderOverviewSections(list, courses, content, user.email, map));
+    const totalsPromise = completionsMapPromise.then((map) => renderSelectedSection(list, courses, content, user.email, map, type));
 
     const navCounts = await navCountsPromise;
     setNavCounts(navCounts);
@@ -95,7 +95,6 @@ progress.js – Progress detail lists for dashboard stats.
       const cfg = SECTION_CONFIG[type] || SECTION_CONFIG.courses;
       showEmpty(cfg.empty || "No progress to show yet.");
     }
-    scrollToSection(type);
   }
 
   function showEmpty(message) {
@@ -496,7 +495,7 @@ progress.js – Progress detail lists for dashboard stats.
     courses.forEach((c) => {
       const card = document.createElement("div");
       const variant = viewType === "completed-courses" ? "green" : "teal";
-      card.className = `net-card p-4 mb-3 net-progress-card net-progress-card--${variant}`;
+      card.className = `net-card p-4 mb-3 net-progress-card net-progress-card--${variant} net-progress-card--course`;
       const link = buildCourseLink(c.id, c.contentId);
       const progress = Number(c.progress_pct || 0);
       const lastLesson = startedMap?.get(String(c.id));
@@ -932,11 +931,11 @@ progress.js – Progress detail lists for dashboard stats.
     const doneCount = countGroupItems(doneGroups);
 
     const inCol = buildCourseColumn("In progress", inCount, "in-progress");
-    renderCompletionGroups(inGroups, inCol.body, type);
+    renderCompletionGroups(inGroups, inCol.body, type, "continue");
     if (!inGroups.length) renderEmptyColumn(inCol.body, "Nothing in progress yet.");
 
     const doneCol = buildCourseColumn("Completed", doneCount, "completed-courses");
-    renderCompletionGroups(doneGroups, doneCol.body, type);
+    renderCompletionGroups(doneGroups, doneCol.body, type, "review");
     if (!doneGroups.length) renderEmptyColumn(doneCol.body, "Nothing completed yet.");
 
     split.append(inCol.wrap, doneCol.wrap);
@@ -959,54 +958,39 @@ progress.js – Progress detail lists for dashboard stats.
     return (groups || []).reduce((sum, g) => sum + (g.items ? g.items.length : 0), 0);
   }
 
-  /* AI Prompt: Explain the Overview renderer (all sections) section in clear, simple terms. */
+  /* AI Prompt: Explain the Single-section renderer section in clear, simple terms. */
   /* =========================================================
-     Overview renderer (all sections)
+     Single-section renderer
   ========================================================= */
-  async function renderOverviewSections(list, courses, content, email, completionsMap) {
+  async function renderSelectedSection(list, courses, content, email, completionsMap, type) {
     const totals = { inTotal: 0, doneTotal: 0 };
     const startedMap = getStartedCourses(email);
     if (list) list.replaceChildren();
 
-    const coursesSection = buildProgressSection("courses", SECTION_CONFIG.courses);
-    list.appendChild(coursesSection.wrap);
-    const coursesWithProgress = await buildCourseProgressList(courses, content, email, completionsMap);
-    const inProgress = coursesWithProgress.filter((c) => c.status === "in-progress");
-    const completed = coursesWithProgress.filter((c) => c.status === "completed");
-    const inXp = inProgress.reduce((sum, c) => sum + Number(c.earnedXp || 0), 0);
-    const doneXp = completed.reduce((sum, c) => sum + Number(c.earnedXp || 0), 0);
-    renderCourseSplit(inProgress, completed, coursesSection.body, startedMap, { inXp, doneXp });
-    totals.inTotal += inProgress.length;
-    totals.doneTotal += completed.length;
+    const cfg = SECTION_CONFIG[type] || SECTION_CONFIG.courses;
+    const section = buildProgressSection(type, cfg);
+    list.appendChild(section.wrap);
 
-    const lessonSplit = await buildSplitGroups("lessons", courses, content, email, startedMap, completionsMap);
-    totals.inTotal += countGroupItems(lessonSplit.inGroups);
-    totals.doneTotal += countGroupItems(lessonSplit.doneGroups);
-    const lessonsSection = buildProgressSection("lessons", SECTION_CONFIG.lessons);
-    list.appendChild(lessonsSection.wrap);
-    renderSplitGroups(lessonSplit.inGroups, lessonSplit.doneGroups, lessonsSection.body, "lessons");
+    if (type === "courses") {
+      const coursesWithProgress = await buildCourseProgressList(courses, content, email, completionsMap);
+      const inProgress = coursesWithProgress.filter((c) => c.status === "in-progress");
+      const completed = coursesWithProgress.filter((c) => c.status === "completed");
+      const inXp = inProgress.reduce((sum, c) => sum + Number(c.earnedXp || 0), 0);
+      const doneXp = completed.reduce((sum, c) => sum + Number(c.earnedXp || 0), 0);
+      totals.inTotal += inProgress.length;
+      totals.doneTotal += completed.length;
+      if (totals.inTotal || totals.doneTotal) {
+        renderCourseSplit(inProgress, completed, section.body, startedMap, { inXp, doneXp });
+      }
+      return totals;
+    }
 
-    const quizSplit = await buildSplitGroups("quizzes", courses, content, email, startedMap, completionsMap);
-    totals.inTotal += countGroupItems(quizSplit.inGroups);
-    totals.doneTotal += countGroupItems(quizSplit.doneGroups);
-    const quizzesSection = buildProgressSection("quizzes", SECTION_CONFIG.quizzes);
-    list.appendChild(quizzesSection.wrap);
-    renderSplitGroups(quizSplit.inGroups, quizSplit.doneGroups, quizzesSection.body, "quizzes");
-
-    const tutorialSplit = await buildSplitGroups("tutorials", courses, content, email, startedMap, completionsMap);
-    totals.inTotal += countGroupItems(tutorialSplit.inGroups);
-    totals.doneTotal += countGroupItems(tutorialSplit.doneGroups);
-    const tutorialsSection = buildProgressSection("tutorials", SECTION_CONFIG.tutorials);
-    list.appendChild(tutorialsSection.wrap);
-    renderSplitGroups(tutorialSplit.inGroups, tutorialSplit.doneGroups, tutorialsSection.body, "tutorials");
-
-    const challengeSplit = await buildSplitGroups("challenges", courses, content, email, startedMap, completionsMap);
-    totals.inTotal += countGroupItems(challengeSplit.inGroups);
-    totals.doneTotal += countGroupItems(challengeSplit.doneGroups);
-    const challengesSection = buildProgressSection("challenges", SECTION_CONFIG.challenges);
-    list.appendChild(challengesSection.wrap);
-    renderSplitGroups(challengeSplit.inGroups, challengeSplit.doneGroups, challengesSection.body, "challenges");
-
+    const split = await buildSplitGroups(type, courses, content, email, startedMap, completionsMap);
+    totals.inTotal += countGroupItems(split.inGroups);
+    totals.doneTotal += countGroupItems(split.doneGroups);
+    if (totals.inTotal || totals.doneTotal) {
+      renderSplitGroups(split.inGroups, split.doneGroups, section.body, type);
+    }
     return totals;
   }
 
@@ -1123,7 +1107,7 @@ progress.js – Progress detail lists for dashboard stats.
   /* =========================================================
      Render: completion groups
   ========================================================= */
-  function renderCompletionGroups(groups, list, type) {
+  function renderCompletionGroups(groups, list, type, mode = "continue") {
     const icon =
       type === "challenges" ? "bi-flag" :
       type === "quizzes" ? "bi-patch-question" :
@@ -1141,10 +1125,10 @@ progress.js – Progress detail lists for dashboard stats.
       "teal";
     groups.forEach((group) => {
       const card = document.createElement("div");
-      card.className = `net-card p-4 mb-3 net-progress-card net-progress-card--${variant}`;
+      card.className = `net-card p-4 mb-3 net-progress-card net-progress-card--${variant} net-progress-card--activity`;
 
       const header = document.createElement("div");
-      header.className = "d-flex align-items-start justify-content-between flex-wrap gap-3 mb-2";
+      header.className = "d-flex align-items-start justify-content-between flex-wrap gap-3 mb-2 net-progress-group-head";
 
       const left = document.createElement("div");
       left.className = "d-flex align-items-start gap-3";
@@ -1201,7 +1185,19 @@ progress.js – Progress detail lists for dashboard stats.
         meta.textContent = item.meta ? String(item.meta) : `${label} ${item.number}`;
 
         textWrap.append(title, meta);
-        link.append(pill, textWrap);
+        const cta = document.createElement("span");
+        cta.className = "net-progress-item-cta";
+        const ctaIcon = document.createElement("i");
+        ctaIcon.className = "bi bi-arrow-right";
+        const verb = mode === "review" ? "Review" : "Continue";
+        const ctaLabel =
+          type === "quizzes" ? `${verb} Quiz` :
+          type === "challenges" ? `${verb} Challenge` :
+          type === "tutorials" ? `${verb} Tutorial` :
+          `${verb} Lesson`;
+        cta.append(ctaIcon, document.createTextNode(` ${ctaLabel}`));
+
+        link.append(pill, textWrap, cta);
         li.appendChild(link);
         listEl.appendChild(li);
       });

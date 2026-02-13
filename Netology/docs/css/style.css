@@ -1480,10 +1480,22 @@ body.net-auth-v2 footer{
   border: 1px solid rgba(6,182,212,.14);
   background: linear-gradient(135deg, rgba(15,185,177,.12), rgba(255,255,255,.96));
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  width: 100%;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
 }.net-progress-card:hover{
   transform: translateY(-2px);
   box-shadow: 0 18px 44px rgba(2, 6, 23, .10);
   border-color: rgba(6,182,212,.28);
+}.net-progress-card--course{
+  background: linear-gradient(135deg, rgba(15,185,177,.16), rgba(255,255,255,.98));
+  border-color: rgba(6,182,212,.24);
+  box-shadow: 0 20px 48px rgba(6,182,212,.12);
+}.net-progress-card--activity{
+  background: rgba(255,255,255,.95);
+  border-color: rgba(148,163,184,.28);
+  box-shadow: 0 16px 34px rgba(2, 6, 23, .08);
 }.net-progress-card--green{
   background: linear-gradient(135deg, rgba(34,197,94,.12), rgba(255,255,255,.96));
   border-color: rgba(34,197,94,.2);
@@ -1536,6 +1548,7 @@ body.net-auth-v2 footer{
   width: 100%;
   max-width: 820px;
   justify-content: center;
+  height: 88px;
 }.net-progress-page .net-progress-item-text{
   align-items: center;
   text-align: center;
@@ -1557,6 +1570,15 @@ body.net-auth-v2 footer{
   display: grid;
   gap: 12px;
   justify-items: center;
+}.net-progress-group-head{
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}.net-progress-group-head .d-flex.align-items-start{
+  justify-content: center;
+}.net-progress-group-head .btn{
+  align-self: center;
 }.net-progress-empty-col{
   width: 100%;
   max-width: 520px;
@@ -1651,9 +1673,7 @@ body.net-auth-v2 footer{
   gap: 12px;
   border: 1px solid rgba(6,182,212,.16);
   background: rgba(255,255,255,.96);
-  position: sticky;
-  top: 156px;
-  z-index: 4;
+  position: static;
 }.net-progress-col-title{
   display: inline-flex;
   align-items: center;
@@ -3978,13 +3998,29 @@ body.net-sigma .sb-tool{
   padding: 8px 18px;
   box-shadow: 0 12px 24px rgba(2,6,23,.12);
 }.net-progress-items{
-  gap: 10px;
+  display: grid;
+  gap: 12px;
 }.net-progress-item{
-  border-radius: 16px;
-  padding: 14px 16px;
-  background: rgba(255,255,255,.94);
-  border: 1px solid rgba(148,163,184,.25);
-  box-shadow: 0 10px 20px rgba(2, 6, 23, .06);
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 16px 18px 16px 22px;
+  min-height: 88px;
+  height: 88px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(6,182,212,.16);
+  box-shadow: 0 14px 34px rgba(2, 6, 23, .08);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}.net-progress-item::before{
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: linear-gradient(180deg, rgba(20,184,166,.9), rgba(6,182,212,.6));
+}.net-progress-item:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 44px rgba(2, 6, 23, .12);
+  border-color: rgba(6,182,212,.3);
 }.net-progress-item-pill{
   width: 44px;
   height: 44px;
@@ -3995,6 +4031,32 @@ body.net-sigma .sb-tool{
   font-weight: 700;
 }.net-progress-item-meta{
   font-size: .86rem;
+  color: rgba(15, 23, 42, .6);
+}.net-progress-item-text{
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}.net-progress-item-cta{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15,185,177,.12);
+  border: 1px solid rgba(15,185,177,.22);
+  color: rgba(15,118,110,.95);
+  font-weight: 700;
+  font-size: .75rem;
+  white-space: nowrap;
+}.net-progress-item-cta i{
+  font-size: .9rem;
+}.net-progress-item--blue::before{
+  background: linear-gradient(180deg, rgba(56,189,248,.9), rgba(59,130,246,.6));
+}.net-progress-item--violet::before{
+  background: linear-gradient(180deg, rgba(139,92,246,.9), rgba(99,102,241,.6));
+}.net-progress-item--green::before{
+  background: linear-gradient(180deg, rgba(34,197,94,.9), rgba(16,185,129,.6));
 }.net-progress-empty-col{
   border-radius: 16px;
   padding: 14px 16px;
@@ -4007,4 +4069,25 @@ body.net-sigma .sb-tool{
 .net-progress-page .net-progress-item,
 .net-progress-page .net-progress-section-head{
   animation: net-progress-rise .35s ease both;
+}
+.net-progress-item{
+  height: 88px;
+}
+.net-progress-item-title,
+.net-progress-item-meta{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.net-progress-group-head{
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+.net-progress-group-head .d-flex.align-items-start{
+  justify-content: center;
+}
+.net-progress-group-head .btn{
+  align-self: center;
 }
