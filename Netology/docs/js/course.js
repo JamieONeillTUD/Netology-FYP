@@ -238,7 +238,7 @@ What this file does:
     const days = new Set(log.map((e) => e?.date).filter(Boolean));
     let streak = 0;
     const d = new Date();
-    for (;;) {
+    for (; ;) {
       const key = d.toISOString().slice(0, 10);
       if (!days.has(key)) break;
       streak += 1;
@@ -495,15 +495,15 @@ What this file does:
 
       if (after.pct === 100) {
         const key = courseToastKey();
-          if (localStorage.getItem(key) !== "1") {
-            showCompletionToast({
-              title: "Course completed",
-              message: state.course?.title || "Course finished",
-              mini: false,
-              duration: 20000
-            });
-            localStorage.setItem(key, "1");
-          }
+        if (localStorage.getItem(key) !== "1") {
+          showCompletionToast({
+            title: "Course completed",
+            message: state.course?.title || "Course finished",
+            mini: false,
+            duration: 20000
+          });
+          localStorage.setItem(key, "1");
+        }
       }
     }
   }
@@ -511,13 +511,13 @@ What this file does:
   // Ensure back/forward navigation refreshes progress (bfcache-safe)
   window.addEventListener("pageshow", (event) => {
     if (event.persisted) {
-      refreshCourseState({ showToast: true }).catch(() => {});
+      refreshCourseState({ showToast: true }).catch(() => { });
     }
   });
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
-      refreshCourseState({ showToast: true }).catch(() => {});
+      refreshCourseState({ showToast: true }).catch(() => { });
     }
   });
 
@@ -977,9 +977,9 @@ What this file does:
         const t = String(li.type || "learn").toLowerCase();
         pushItem(
           t === "quiz" ? "quiz" :
-          t === "sandbox" || t === "practice" ? "sandbox" :
-          t === "challenge" ? "challenge" :
-          "learn",
+            t === "sandbox" || t === "practice" ? "sandbox" :
+              t === "challenge" ? "challenge" :
+                "learn",
           li
         );
       });
@@ -1010,16 +1010,16 @@ What this file does:
       if (!it.xp) {
         it.xp =
           it.type === "quiz" ? 60 :
-          it.type === "challenge" ? 80 :
-          it.type === "sandbox" ? 30 :
-          40;
+            it.type === "challenge" ? 80 :
+              it.type === "sandbox" ? 30 :
+                40;
       }
       if (!it.duration || it.duration === "—") {
         it.duration =
           it.type === "quiz" ? "5–10 min" :
-          it.type === "challenge" ? "10–15 min" :
-          it.type === "sandbox" ? "10 min" :
-          "8–12 min";
+            it.type === "challenge" ? "10–15 min" :
+              it.type === "sandbox" ? "10 min" :
+                "8–12 min";
       }
     });
 
@@ -1268,17 +1268,13 @@ What this file does:
 
       // disable primary actions
       const continueBtn = getById("continueBtn");
-      const openSandboxBtn = getById("openSandboxBtn");
       continueBtn && (continueBtn.disabled = true);
-      openSandboxBtn && (openSandboxBtn.disabled = true);
     } else {
       lockedPill?.classList.add("d-none");
       lockedExplainer?.classList.add("d-none");
 
       const continueBtn = getById("continueBtn");
-      const openSandboxBtn = getById("openSandboxBtn");
       continueBtn && (continueBtn.disabled = false);
-      openSandboxBtn && (openSandboxBtn.disabled = false);
     }
 
     // completed?
@@ -1336,11 +1332,10 @@ What this file does:
     }
 
     // sandbox buttons carry course context
-      const contentId = state.courseContentId || state.courseId;
-      const q = `course_id=${encodeURIComponent(state.courseId)}&content_id=${encodeURIComponent(contentId)}`;
+    const contentId = state.courseContentId || state.courseId;
+    const q = `course_id=${encodeURIComponent(state.courseId)}&content_id=${encodeURIComponent(contentId)}`;
     const topSandbox = getById("topSandboxLink");
     const sidebarSandboxBtn = getById("sidebarSandboxBtn");
-    const openSandboxBtn = getById("openSandboxBtn");
 
     if (topSandbox) {
       topSandbox.setAttribute("href", `sandbox.html?${q}`);
@@ -1349,10 +1344,6 @@ What this file does:
     if (sidebarSandboxBtn) {
       sidebarSandboxBtn.setAttribute("title", "Open the sandbox to build and test a network simulation");
       sidebarSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
-    }
-    if (openSandboxBtn) {
-      openSandboxBtn.setAttribute("title", "Open the sandbox to build and test a network simulation");
-      openSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
     }
   }
 
@@ -1487,9 +1478,9 @@ What this file does:
 
         const hint =
           it.type === "quiz" ? "Quiz" :
-          it.type === "challenge" ? "Sandbox challenge" :
-          (it.type === "sandbox" || it.type === "practice") ? "Sandbox tutorial" :
-          "Lesson";
+            it.type === "challenge" ? "Sandbox challenge" :
+              (it.type === "sandbox" || it.type === "practice") ? "Sandbox tutorial" :
+                "Lesson";
 
         const row = document.createElement("button");
         row.className = `net-lesson-row px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${locked ? "is-locked" : ""} ${completed ? "is-complete" : ""}`.trim();

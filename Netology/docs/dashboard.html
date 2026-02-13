@@ -18,13 +18,14 @@ Updates requested:
 
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Dashboard</title>
 
   <!-- REQUIRED: Render API base -->
-<!-- Bootstrap + Icons -->
+  <!-- Bootstrap + Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
@@ -34,11 +35,27 @@ Updates requested:
   <!-- AI Prompt: Explain the Tiny topbar-size reduction (kept here so you don't have to touch CSS yet) section in clear, simple terms. -->
   <!-- Tiny topbar-size reduction (kept here so you don't have to touch CSS yet) -->
   <style>
-    .net-topnav .container-fluid{ padding-top:.55rem; padding-bottom:.55rem; }
-    .net-topnav-inner{ min-height: 54px; }
-    .net-logo-sm{ width: 56px; height: 56px; }
-    .net-brand-text{ font-size: 1.7rem; }
-    .net-userbtn{ padding: 7px 9px; }
+    .net-topnav .container-fluid {
+      padding-top: .55rem;
+      padding-bottom: .55rem;
+    }
+
+    .net-topnav-inner {
+      min-height: 54px;
+    }
+
+    .net-logo-sm {
+      width: 56px;
+      height: 56px;
+    }
+
+    .net-brand-text {
+      font-size: 1.7rem;
+    }
+
+    .net-userbtn {
+      padding: 7px 9px;
+    }
   </style>
 </head>
 
@@ -121,10 +138,7 @@ Updates requested:
 
         <!-- Left -->
         <div class="net-topnav-left">
-          <button class="net-hambtn"
-                  id="openSidebarBtn"
-                  type="button"
-                  aria-label="Open menu">
+          <button class="net-hambtn" id="openSidebarBtn" type="button" aria-label="Open menu">
             <span class="net-hambtn-bars" aria-hidden="true"><span></span><span></span><span></span></span>
             <span class="visually-hidden">Open menu</span>
           </button>
@@ -143,7 +157,8 @@ Updates requested:
 
           <!-- User dropdown -->
           <div class="position-relative">
-            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
+            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu"
+              aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
@@ -181,7 +196,7 @@ Updates requested:
 
   <!-- AI Prompt: Explain the MAIN section in clear, simple terms. -->
   <!-- MAIN -->
-  
+
 
   <!-- AI Prompt: Explain the MAIN section in clear, simple terms. -->
   <!-- MAIN -->
@@ -189,191 +204,182 @@ Updates requested:
 
     <!-- AI Prompt: Explain the HERO / OVERVIEW section in clear, simple terms. -->
     <!-- HERO / OVERVIEW -->
-    <section class="dash-hero net-card net-pop p-3 p-lg-4 mb-3">
-      <div class="row g-4 align-items-stretch">
+    <!-- HERO BANNER -->
+    <section class="net-dash-hero p-4 p-md-5 mb-4 rounded-4 position-relative overflow-hidden shadow-sm">
+      <!-- CTA Mode Animated Icons -->
+      <div class="net-cta-icons" aria-hidden="true">
+        <i class="bi bi-diagram-3" style="top: 10%; left: 5%;"></i>
+        <i class="bi bi-wifi" style="top: 60%; left: 80%;"></i>
+        <i class="bi bi-lightning-charge-fill" style="top: 20%; left: 40%;"></i>
+        <i class="bi bi-award" style="top: 70%; left: 15%;"></i>
+        <i class="bi bi-gear-fill" style="top: 15%; left: 85%;"></i>
+      </div>
 
-        <!-- AI Prompt: Explain the Left: Welcome + quick actions + stats section in clear, simple terms. -->
-        <!-- Left: Welcome + quick actions + stats -->
-        <div class="col-12 col-lg-7 d-flex">
-          <div class="w-100 d-flex flex-column justify-content-start dash-left-stack">
-
-            <div class="dash-intro">
-              <div class="dash-welcome-card">
-                <div class="dash-welcome-kicker">Dashboard overview</div>
-                <h1 class="display-6 fw-bold dash-welcome-title">
-                  Hi, <span id="welcomeName" class="net-gradient-text">Student</span>
-                </h1>
-                <p class="dash-welcome-sub">
-                  Pick up where you left off and keep momentum across lessons, quizzes, and sandbox labs.
-                </p>
-              </div>
-            </div>
-
-            <div class="dash-actions">
-              <a href="courses.html" class="btn btn-teal btn-sm dash-action-btn" data-tip="Browse the full course catalog">
-                <i class="bi bi-journal-bookmark"></i>Browse Courses
-              </a>
-              <a href="sandbox.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--blue" data-tip="Build and test topologies">
-                <i class="bi bi-diagram-3"></i>Open Sandbox
-              </a>
-              <a href="account.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--gray" data-tip="View your profile and badges">
-                <i class="bi bi-person-circle"></i>View Profile
-              </a>
-            </div>
-
-            <!-- AI Prompt: Explain the Stats (dashboard.js fills IDs) section in clear, simple terms. -->
-            <!-- Stats label + carousel -->
-            <div class="dash-kpi-label-row">
-              <span class="dash-welcome-kicker">
-                <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>Progress highlights
-              </span>
-              <span class="dash-kpi-label-hint">Swipe to see more</span>
-            </div>
-            <div class="dash-kpi-carousel" id="kpiCarousel" aria-label="Progress highlights" tabindex="0">
-              <div class="dash-kpi-viewport">
-                <div class="dash-kpi-track" id="kpiTrack">
-                  <a class="dash-kpi-slide dash-stat dash-stat--green dash-stat--kpi dash-stat-link"
-                     href="progress.html?type=lessons"
-                     aria-label="View completed lessons">
-                    <div class="dash-stat-head">
-                      <div class="dash-stat-ico"><i class="bi bi-check2-circle"></i></div>
-                      <div class="dash-stat-label">Lessons</div>
-                    </div>
-                    <div class="dash-stat-value" id="statLessons">0</div>
-                    <div class="small text-muted">Completed</div>
-                  </a>
-
-                  <a class="dash-kpi-slide dash-stat dash-stat--blue dash-stat--kpi dash-stat-link"
-                     href="progress.html?type=quizzes"
-                     aria-label="View completed quizzes">
-                    <div class="dash-stat-head">
-                      <div class="dash-stat-ico"><i class="bi bi-patch-check"></i></div>
-                      <div class="dash-stat-label">Quizzes</div>
-                    </div>
-                    <div class="dash-stat-value" id="statQuizzes">0</div>
-                    <div class="small text-muted">Passed</div>
-                  </a>
-
-                  <a class="dash-kpi-slide dash-stat dash-stat--violet dash-stat--kpi dash-stat-link"
-                     href="progress.html?type=challenges"
-                     aria-label="View completed challenges">
-                    <div class="dash-stat-head">
-                      <div class="dash-stat-ico"><i class="bi bi-flag"></i></div>
-                      <div class="dash-stat-label">Challenges</div>
-                    </div>
-                    <div class="dash-stat-value" id="statChallenges">0</div>
-                    <div class="small text-muted">Completed</div>
-                  </a>
-
-                  <a class="dash-kpi-slide dash-stat dash-stat--amber dash-stat--kpi dash-stat-link"
-                     href="progress.html?type=in-progress"
-                     aria-label="View courses in progress">
-                    <div class="dash-stat-head">
-                      <div class="dash-stat-ico"><i class="bi bi-journal-text"></i></div>
-                      <div class="dash-stat-label">In Progress</div>
-                    </div>
-                    <div class="dash-stat-value" id="statInProgress">0</div>
-                    <div class="small text-muted">Active courses</div>
-                  </a>
-
-                  <a class="dash-kpi-slide dash-stat dash-stat--teal dash-stat--kpi dash-stat-link"
-                     href="progress.html?type=completed-courses"
-                     aria-label="View completed courses">
-                    <div class="dash-stat-head">
-                      <div class="dash-stat-ico"><i class="bi bi-award"></i></div>
-                      <div class="dash-stat-label">Completed</div>
-                    </div>
-                    <div class="dash-stat-value" id="statCompleted">0</div>
-                    <div class="small text-muted">Finished courses</div>
-                  </a>
-                </div>
-              </div>
-
-              <div class="dash-kpi-dots" id="kpiDots" aria-label="Progress slide navigation">
-                <button type="button" class="dash-kpi-dot is-active" data-kpi-dot="0" aria-label="Show lessons"></button>
-                <button type="button" class="dash-kpi-dot" data-kpi-dot="1" aria-label="Show quizzes"></button>
-                <button type="button" class="dash-kpi-dot" data-kpi-dot="2" aria-label="Show challenges"></button>
-                <button type="button" class="dash-kpi-dot" data-kpi-dot="3" aria-label="Show in progress"></button>
-                <button type="button" class="dash-kpi-dot" data-kpi-dot="4" aria-label="Show completed courses"></button>
-              </div>
-            </div>
-
-          </div>
+      <div class="position-relative z-2 text-center mx-auto" style="max-width: 800px;">
+        <h1 class="display-6 fw-bold text-white mb-2">Welcome back, <span id="welcomeName">Student</span>!</h1>
+        <div class="d-flex align-items-center justify-content-center gap-2 text-white-75 mb-4">
+          <i class="bi bi-lightbulb-fill text-warning"></i>
+          <span id="dailyTip" class="fst-italic text-center">Loading your daily insight...</span>
         </div>
-
-        <!-- AI Prompt: Explain the Right: XP ring + progress summary section in clear, simple terms. -->
-        <!-- Right: XP ring + progress summary -->
-        <div class="col-12 col-lg-5 d-flex">
-          <div class="dash-progress net-card w-100 p-4">
-            <div class="dash-progress-head">
-              <div class="fw-semibold net-gradient-text">Your level</div>
-              <div class="small net-level-hint" id="welcomeLevelHint">100 XP to next level</div>
-            </div>
-
-            <div class="dash-progress-grid">
-              <div class="dash-progress-box dash-progress-ringbox">
-                <div class="net-ring" aria-label="Level progress ring">
-                  <svg viewBox="0 0 140 140" aria-hidden="true">
-                    <defs>
-                      <linearGradient id="netDashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#14b8a6"></stop>
-                        <stop offset="100%" stop-color="#06b6d4"></stop>
-                      </linearGradient>
-                    </defs>
-
-                    <circle class="net-ring-track" cx="70" cy="70" r="58" stroke-width="10" fill="none"></circle>
-                    <circle id="welcomeRing"
-                            class="net-ring-fill"
-                            cx="70" cy="70" r="58"
-                            stroke="url(#netDashGrad)"
-                            stroke-width="10"
-                            stroke-linecap="round"
-                            fill="none"
-                            stroke-dasharray="364.42"
-                            stroke-dashoffset="364.42"></circle>
-                  </svg>
-
-                  <div class="net-ring-center">
-                    <div class="net-ring-pct net-gradient-text" id="welcomeLevel">1</div>
-                  </div>
-                </div>
-
-                <div class="dash-xp-row">
-                  <div class="net-xp-pill" id="welcomeXpText">0/100 XP</div>
-                </div>
-                <div class="progress mt-2" style="height:10px;">
-                  <div class="progress-bar net-progress net-progress-fill" id="welcomeXpBar" style="width:0%"></div>
-                </div>
-              </div>
-
-              <div class="dash-progress-box dash-progress-activity">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                  <div class="fw-semibold net-green-text">Recent activity</div>
-                  <span class="dash-activity-range">Last 7 days</span>
-                </div>
-                <div class="dash-activity-list" id="recentActivityList">
-                  <div class="small text-muted">No recent activity yet.</div>
-                </div>
-              </div>
-            </div>
-
-          </div>
+        <div class="d-flex flex-wrap justify-content-center gap-3">
+          <a href="courses.html" class="btn btn-light fw-bold rounded-pill px-4 py-2 net-hero-btn">
+            <i class="bi bi-play-fill me-1"></i>Resume Learning
+          </a>
+          <a href="sandbox.html" class="btn btn-outline-light fw-bold rounded-pill px-4 py-2 net-hero-btn">
+            <i class="bi bi-diagram-3 me-1"></i>Open Sandbox
+          </a>
         </div>
       </div>
     </section>
+
+    <!-- FOCUS AREAS -->
+    <div class="mb-3">
+      <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Your Focus</h5>
+    </div>
+    <!-- STATS ROW -->
+    <div class="row g-3 mb-4">
+      <!-- Rank -->
+      <div class="col-6 col-md-3">
+        <div
+          class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted fw-bold text-uppercase ls-1">Rank</span>
+            <div class="net-icon-box bg-purple-sub text-purple rounded-circle p-2">
+              <i class="bi bi-trophy-fill"></i>
+            </div>
+          </div>
+          <div>
+            <div class="h4 fw-bolder mb-0 text-dark" id="heroRank">...</div>
+            <div class="small text-muted" id="heroLevel">Level ...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- XP -->
+      <div class="col-6 col-md-3">
+        <div
+          class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted fw-bold text-uppercase ls-1">Level</span>
+            <div class="net-icon-box bg-blue-sub text-blue rounded-circle p-2" data-bs-toggle="tooltip"
+              title="Your total experience points earned from all activities.">
+              <i class="bi bi-lightning-charge-fill"></i>
+            </div>
+          </div>
+          <div class="text-center w-100" style="margin-top: -10px;">
+            <!-- Arc Gauge injected by dashboard.js -->
+            <div id="heroXP" class="visually-hidden">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Streak -->
+      <div class="col-6 col-md-3">
+        <div
+          class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted fw-bold text-uppercase ls-1">Streak</span>
+            <div class="net-icon-box bg-orange-sub text-orange rounded-circle p-2" data-bs-toggle="tooltip"
+              title="Consecutive days you have logged in.">
+              <i class="bi bi-fire"></i>
+            </div>
+          </div>
+          <div>
+            <div class="h4 fw-bolder mb-0 text-dark" id="heroStreak">0</div>
+            <div class="small text-muted mb-2">Days active</div>
+            <!-- New Weekly Calendar -->
+            <div id="streakCalendar" class="net-streak-calendar" data-bs-toggle="tooltip"
+              title="Your activity for the last 7 days">
+              <!-- JS will populate: Mon T W T F S Sun pills -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Carousel (Replacing Active Courses) -->
+      <div class="col-6 col-md-3">
+        <div class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 border position-relative overflow-hidden"
+          id="statsCarouselCard">
+
+          <div class="net-stats-carousel">
+            <!-- Slides Container -->
+            <div class="net-carousel-track" id="statsTrack">
+              <!-- Slide 1: Active Courses -->
+              <div class="net-carousel-slide is-active" data-index="0">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-bold text-uppercase ls-1">Active</span>
+                  <div class="net-icon-box bg-teal-sub text-teal rounded-circle p-2">
+                    <i class="bi bi-journal-album"></i>
+                  </div>
+                </div>
+                <div>
+                  <div class="h4 fw-bolder mb-0 text-dark" id="heroActive">0</div>
+                  <div class="small text-muted">Courses</div>
+                </div>
+              </div>
+              <!-- Slide 2: Lessons -->
+              <div class="net-carousel-slide" data-index="1">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-bold text-uppercase ls-1">Lessons</span>
+                  <div class="net-icon-box bg-blue-sub text-blue rounded-circle p-2">
+                    <i class="bi bi-book-half"></i>
+                  </div>
+                </div>
+                <div>
+                  <div class="h4 fw-bolder mb-0 text-dark" id="statLessons">0</div>
+                  <div class="small text-muted">Completed</div>
+                </div>
+              </div>
+              <!-- Slide 3: Quizzes -->
+              <div class="net-carousel-slide" data-index="2">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-bold text-uppercase ls-1">Quizzes</span>
+                  <div class="net-icon-box bg-purple-sub text-purple rounded-circle p-2">
+                    <i class="bi bi-patch-check"></i>
+                  </div>
+                </div>
+                <div>
+                  <div class="h4 fw-bolder mb-0 text-dark" id="statQuizzes">0</div>
+                  <div class="small text-muted">Passed</div>
+                </div>
+              </div>
+              <!-- Slide 4: Challenges -->
+              <div class="net-carousel-slide" data-index="3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-bold text-uppercase ls-1">Sandbox</span>
+                  <div class="net-icon-box bg-orange-sub text-orange rounded-circle p-2">
+                    <i class="bi bi-diagram-3"></i>
+                  </div>
+                </div>
+                <div>
+                  <div class="h4 fw-bolder mb-0 text-dark" id="statChallenges">0</div>
+                  <div class="small text-muted">Topologies</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Indicators -->
+            <div class="net-carousel-indicators" id="statsIndicators">
+              <button class="net-indicator active" data-slide="0" aria-label="Slide 1"></button>
+              <button class="net-indicator" data-slide="1" aria-label="Slide 2"></button>
+              <button class="net-indicator" data-slide="2" aria-label="Slide 3"></button>
+              <button class="net-indicator" data-slide="3" aria-label="Slide 4"></button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
 
     <!-- AI Prompt: Explain the MAIN GRID section in clear, simple terms. -->
     <!-- MAIN GRID -->
     <section class="dash-grid">
       <div class="dash-main">
-        <!-- Continue Learning -->
+        <!-- CONTINUE LEARNING -->
         <section class="dash-card net-card net-pop p-4 mb-4">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <div class="fw-semibold d-flex align-items-center gap-2">
-              <i class="bi bi-trending-up text-teal" aria-hidden="true"></i>
-              Continue Learning
-            </div>
-            <a href="courses.html" class="small link-teal">Browse</a>
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Continue Learning</h5>
+            <a href="courses.html" class="text-decoration-none small fw-bold net-link-hover">View All</a>
           </div>
           <div class="text-muted small mb-3">Your next lesson is one click away.</div>
 
@@ -386,10 +392,7 @@ Updates requested:
 
         <section class="dash-card net-card net-pop p-4 mb-4">
           <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="fw-semibold d-flex align-items-center gap-2">
-              <i class="bi bi-award text-teal" aria-hidden="true"></i>
-              Achievement targets
-            </div>
+            <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Achievements</h5>
             <span class="small text-muted">Next up</span>
           </div>
           <div class="dash-achieve">
@@ -405,20 +408,17 @@ Updates requested:
       <aside class="dash-side">
         <section class="dash-card net-card net-pop p-4 mb-4">
           <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="fw-semibold d-flex align-items-center gap-2">
-              <i class="bi bi-bullseye text-teal" aria-hidden="true"></i>
-              Focus
-            </div>
-            <div class="dash-toggle" role="tablist" aria-label="Weekly goals and achievements">
-              <button class="dash-toggle-btn is-active" type="button" data-panel="dailyPanel">
-                <span class="dash-toggle-dot"></span>
-                Daily
-              </button>
-              <button class="dash-toggle-btn" type="button" data-panel="weeklyPanel">
-                <span class="dash-toggle-dot"></span>
-                Weekly
-              </button>
-            </div>
+            <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Focus</h5>
+          </div>
+          <div class="dash-toggle" role="tablist" aria-label="Weekly goals and achievements">
+            <button class="dash-toggle-btn is-active" type="button" data-panel="dailyPanel">
+              <span class="dash-toggle-dot"></span>
+              DAILY
+            </button>
+            <button class="dash-toggle-btn" type="button" data-panel="weeklyPanel">
+              <span class="dash-toggle-dot"></span>
+              WEEKLY
+            </button>
           </div>
 
           <div id="dailyPanel" class="dash-panel is-active">
@@ -437,28 +437,6 @@ Updates requested:
       </aside>
     </section>
 
-    <!-- AI Prompt: Explain the CTA section in clear, simple terms. -->
-    <!-- CTA -->
-    <section class="mt-4">
-      <div class="net-cta net-pop p-4 p-lg-5 text-white net-cta-animated">
-        <div class="net-cta-icons" aria-hidden="true">
-          <i class="bi bi-diagram-3"></i>
-          <i class="bi bi-wifi"></i>
-          <i class="bi bi-lightning-charge-fill"></i>
-          <i class="bi bi-award"></i>
-        </div>
-        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
-          <div>
-            <h2 class="h4 fw-bold mb-1">Ready to practise?</h2>
-            <p class="mb-0 text-white-75">Open the sandbox and build real network topologies.</p>
-          </div>
-          <a href="sandbox.html" class="btn btn-light fw-semibold d-inline-flex align-items-center net-cta-btn">
-            <i class="bi bi-diagram-3 me-2"></i>
-            Open Sandbox
-          </a>
-        </div>
-      </div>
-    </section>
   </main>
 
   <footer class="net-footer-wide text-center border-top py-4 bg-white mt-4" role="contentinfo">
@@ -477,4 +455,5 @@ Updates requested:
   <script src="js/dashboard.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

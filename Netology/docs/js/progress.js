@@ -98,8 +98,104 @@ progress.js – Progress detail lists for dashboard stats.
       showEmpty(cfg.empty || "No progress to show yet.");
     }
 
+    renderHeroStats(user);
+
     document.body.classList.remove("net-loading");
     document.body.classList.add("net-loaded");
+  }
+
+  function renderHeroStats(user) {
+    const hero = getById("progressHero");
+    if (!hero) return;
+
+    hero.innerHTML = "";
+
+    // Calculate stats
+    const totalXP = Number(user?.xp || 0);
+    const { level, currentLevelXP, xpNext, xpProgressPct, toNext } = computeXPFromTotal(totalXP);
+    const rank = rankForLevel(level);
+    const loginLog = getLoginLog(user.email);
+    const streak = computeLoginStreak(loginLog);
+
+    const row = document.createElement("div");
+    row.className = "d-flex flex-wrap align-items-center justify-content-between gap-4";
+
+    // Level & Rank Column
+    const levelCol = document.createElement("div");
+    levelCol.className = "d-flex align-items-center gap-3";
+
+    const badge = document.createElement("div");
+    badge.className = `net-hero-badge net-badge-${rank === "Advanced" ? "adv" : rank === "Intermediate" ? "int" : "nov"}`;
+    badge.textContent = `${level}`;
+
+    const meta = document.createElement("div");
+    const rankLabel = document.createElement("div");
+    rankLabel.className = "fw-bold fs-5";
+    rankLabel.textContent = rank;
+    const levelLabel = document.createElement("div");
+    levelLabel.className = "small text-muted";
+    levelLabel.textContent = "Current Rank";
+    meta.append(rankLabel, levelLabel);
+    levelCol.append(badge, meta);
+
+    // XP Progress Column (Wide)
+    const xpCol = document.createElement("div");
+    xpCol.className = "flex-grow-1 d-none d-md-block";
+    xpCol.style.maxWidth = "420px";
+
+    const xpHeader = document.createElement("div");
+    xpHeader.className = "d-flex justify-content-between text-muted small mb-1";
+    xpHeader.innerHTML = `<span><i class="bi bi-star-fill text-warning me-1"></i>${totalXP.toLocaleString()} Total XP</span><span>Next Level: ${toNext} XP</span>`;
+
+    const barBg = document.createElement("div");
+    barBg.className = "progress";
+    barBg.style.height = "12px";
+    const barFill = document.createElement("div");
+    barFill.className = "progress-bar net-progress-fill";
+    barFill.style.width = `${xpProgressPct}%`;
+    barBg.appendChild(barFill);
+
+    xpCol.append(xpHeader, barBg);
+
+    // Streak Column
+    const streakCol = document.createElement("div");
+    streakCol.className = "d-flex align-items-center gap-3";
+    const fireIcon = document.createElement("div");
+    fireIcon.className = "net-streak-icon";
+    fireIcon.innerHTML = '<i class="bi bi-fire"></i>';
+
+    const streakMeta = document.createElement("div");
+    const streakNum = document.createElement("div");
+    streakNum.className = "fw-bold fs-4 lh-1";
+    streakNum.textContent = streak;
+    const streakLabel = document.createElement("div");
+    streakLabel.className = "small text-muted";
+    streakLabel.textContent = "Day Streak";
+    streakMeta.append(streakNum, streakLabel);
+
+    streakCol.append(fireIcon, streakMeta);
+
+    row.append(levelCol, xpCol, streakCol);
+    hero.appendChild(row);
+  }
+
+  function getLoginLog(email) {
+    if (!email) return [];
+    return parseJsonSafe(localStorage.getItem(`netology_login_log:${email}`), []) || [];
+  }
+
+  function computeLoginStreak(log) {
+    if (!log.length) return 0;
+    const days = new Set(log.sort().reverse());
+    let streak = 0;
+    const d = new Date();
+    for (; ;) {
+      const key = d.toISOString().slice(0, 10);
+      if (!days.has(key)) break;
+      streak += 1;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
   }
 
   function showEmpty(message) {
@@ -560,80 +656,87 @@ progress.js – Progress detail lists for dashboard stats.
 
     courses.forEach((c) => {
       const card = document.createElement("div");
-      card.className = "net-card net-progress-card net-card-fixed net-card--course net-focus-card mb-3";
-      const link = buildCourseLink(c.id, c.contentId);
-      const progress = Number(c.progress_pct || 0);
+      card.className = "net-card net-coursecard-enhanced mb-3";
+
+      // Determine click action
+      const contentId = c.contentId;
       const lastLesson = startedMap?.get(String(c.id));
+      const link = (viewType === "in-progress" && lastLesson)
+        ? buildLessonLink(c.id, contentId, lastLesson)
+        : buildCourseLink(c.id, contentId);
 
-      const row = document.createElement("div");
-      row.className = "d-flex align-items-start gap-3 flex-wrap";
-
-      const left = document.createElement("div");
-      left.className = "d-flex align-items-start gap-3";
-
-      const pill = document.createElement("div");
-      pill.className = "net-progress-pill";
-      const pillIcon = document.createElement("i");
-      pillIcon.className =
-        viewType === "completed-courses"
-          ? "bi bi-check2-circle"
-          : "bi bi-play-circle";
-      pill.appendChild(pillIcon);
-
-      const textWrap = document.createElement("div");
-      const title = document.createElement("div");
-      title.className = "fw-semibold";
-      title.textContent = String(c.title || "Course");
-
-      const desc = document.createElement("div");
-      desc.className = "small text-muted";
-      desc.textContent = String(c.description || "No description available.");
-
-      const progressLine = document.createElement("div");
-      progressLine.className = "small text-muted mt-2";
-      const progIcon = document.createElement("i");
-      progIcon.className = "bi bi-bar-chart me-1";
-      progressLine.append(progIcon, document.createTextNode(`${progress}% complete`));
-
-      const chipRow = document.createElement("div");
-      chipRow.className = "d-flex flex-wrap gap-2 mt-2";
-      chipRow.appendChild(makeStatusChip(viewType === "completed-courses" ? "completed" : "progress"));
-
-      textWrap.append(title, desc, progressLine, chipRow);
-
-      if (viewType === "in-progress" && lastLesson) {
-        const hint = document.createElement("div");
-        hint.className = "small text-muted mt-1";
-        const hintIcon = document.createElement("i");
-        hintIcon.className = "bi bi-play-circle me-1";
-        hint.append(hintIcon, document.createTextNode(`Continue from lesson ${lastLesson}`));
-        textWrap.append(hint);
-      }
-      left.append(pill, textWrap);
-
-      const action = document.createElement("a");
-      action.className = "btn btn-teal btn-sm net-progress-cta";
-      action.href = (viewType === "in-progress" && lastLesson)
-        ? buildLessonLink(c.id, c.contentId, lastLesson)
-        : link;
-      const actionIcon = document.createElement("i");
-      actionIcon.className = "bi bi-arrow-right-circle me-2";
-      const actionLabel = viewType === "in-progress"
-        ? (lastLesson ? "Resume lesson" : "Resume course")
-        : "Review course";
-      action.append(actionIcon, document.createTextNode(actionLabel));
-
-      row.append(left);
-
+      // Card Content
       const body = document.createElement("div");
-      body.className = "net-card-body";
-      body.appendChild(row);
+      body.className = "d-flex flex-column flex-md-row gap-4 p-4";
 
-      const footer = document.createElement("div");
-      footer.className = "net-card-footer net-progress-cta-row";
-      footer.appendChild(action);
+      // Icon / Visual (Left)
+      const visual = document.createElement("div");
+      visual.className = "net-course-visual";
+      const icon = document.createElement("i");
+      icon.className = viewType === "completed-courses" ? "bi bi-check-circle-fill" : "bi bi-journal-album";
+      visual.appendChild(icon);
 
-      card.append(body, footer);
+      // Info (Center)
+      const info = document.createElement("div");
+      info.className = "flex-grow-1";
+
+      const header = document.createElement("div");
+      header.className = "d-flex align-items-center gap-2 mb-1";
+      const diffBadge = document.createElement("span");
+      const diff = String(c.difficulty || "novice").toLowerCase();
+      diffBadge.className = `net-diffbadge net-badge-${diff === "intermediate" ? "int" : diff === "advanced" ? "adv" : "nov"}`;
+      diffBadge.textContent = diff.charAt(0).toUpperCase() + diff.slice(1);
+      header.appendChild(diffBadge);
+
+      const title = document.createElement("h3");
+      title.className = "h5 fw-bold mb-2";
+      title.textContent = c.title || "Course";
+
+      const desc = document.createElement("p");
+      desc.className = "text-muted small mb-3";
+      desc.style.maxWidth = "600px";
+      desc.textContent = c.description || "No description available.";
+
+      const stats = document.createElement("div");
+      stats.className = "d-flex flex-wrap gap-3 small text-muted";
+      if (c.estimated_time) {
+        stats.innerHTML += `<span><i class="bi bi-clock me-1"></i>${c.estimated_time}</span>`;
+      }
+
+      // Progress Bar
+      const progress = Number(c.progress_pct || 0);
+      const progWrap = document.createElement("div");
+      progWrap.className = "mt-3";
+      progWrap.style.maxWidth = "280px";
+      const progInfo = document.createElement("div");
+      progInfo.className = "d-flex justify-content-between small mb-1";
+      progInfo.innerHTML = `<span>Progress</span><span class="fw-semibold">${progress}%</span>`;
+
+      const bar = document.createElement("div");
+      bar.className = "net-meter";
+      const fill = document.createElement("div");
+      fill.className = "net-meter-fill";
+      fill.style.width = `${progress}%`;
+      bar.appendChild(fill);
+      progWrap.append(progInfo, bar);
+
+      info.append(header, title, desc, stats, progWrap);
+
+      // Actions (Right)
+      const actions = document.createElement("div");
+      actions.className = "d-flex flex-column align-items-md-end justify-content-center gap-2 min-w-150";
+
+      const primaryBtn = document.createElement("a");
+      primaryBtn.className = "btn btn-teal";
+      primaryBtn.href = link;
+      primaryBtn.innerHTML = viewType === "in-progress"
+        ? `<i class="bi bi-play-fill me-1"></i> Resume`
+        : `<i class="bi bi-eye me-1"></i> Review`;
+
+      actions.appendChild(primaryBtn);
+
+      body.append(visual, info, actions);
+      card.appendChild(body);
       list.appendChild(card);
     });
   }
@@ -779,9 +882,9 @@ progress.js – Progress detail lists for dashboard stats.
         if (!it.xp) {
           it.xp =
             it.type === "quiz" ? 60 :
-            it.type === "challenge" ? 80 :
-            it.type === "sandbox" ? 30 :
-            40;
+              it.type === "challenge" ? 80 :
+                it.type === "sandbox" ? 30 :
+                  40;
         }
         items.push(it);
       });
@@ -891,7 +994,7 @@ progress.js – Progress detail lists for dashboard stats.
       const inItems = [];
       const doneSet = targetType === "quiz" ? completions.quiz
         : targetType === "challenge" ? completions.challenge
-        : completions.lesson;
+          : completions.lesson;
 
       items.forEach((it) => {
         const n = Number(it.lesson_number || 0);
@@ -1186,26 +1289,26 @@ progress.js – Progress detail lists for dashboard stats.
   function renderCompletionGroups(groups, list, type, mode = "continue") {
     const icon =
       type === "challenges" ? "bi-flag" :
-      type === "quizzes" ? "bi-patch-question" :
-      type === "tutorials" ? "bi-diagram-3" :
-      "bi-journal-check";
+        type === "quizzes" ? "bi-patch-question" :
+          type === "tutorials" ? "bi-diagram-3" :
+            "bi-journal-check";
     const label =
       type === "challenges" ? "Challenge" :
-      type === "quizzes" ? "Quiz" :
-      type === "tutorials" ? "Tutorial" :
-      "Lesson";
+        type === "quizzes" ? "Quiz" :
+          type === "tutorials" ? "Tutorial" :
+            "Lesson";
     const variant =
       type === "challenges" ? "violet" :
-      type === "quizzes" ? "blue" :
-      type === "tutorials" ? "teal" :
-      "teal";
+        type === "quizzes" ? "blue" :
+          type === "tutorials" ? "teal" :
+            "teal";
     groups.forEach((group) => {
       const card = document.createElement("div");
       const cardType =
         type === "quizzes" ? "net-card--quiz" :
-        type === "challenges" ? "net-card--challenge" :
-        type === "tutorials" ? "net-card--tutorial" :
-        "net-card--lesson";
+          type === "challenges" ? "net-card--challenge" :
+            type === "tutorials" ? "net-card--tutorial" :
+              "net-card--lesson";
       card.className = `net-card net-progress-card net-card-fixed net-focus-card mb-3 ${cardType}`;
 
       const header = document.createElement("div");
@@ -1277,9 +1380,9 @@ progress.js – Progress detail lists for dashboard stats.
         const verb = mode === "review" ? "Review" : "Resume";
         const ctaLabel =
           type === "quizzes" ? `${verb} Quiz` :
-          type === "challenges" ? `${verb} Challenge` :
-          type === "tutorials" ? `${verb} Tutorial` :
-          `${verb} Lesson`;
+            type === "challenges" ? `${verb} Challenge` :
+              type === "tutorials" ? `${verb} Tutorial` :
+                `${verb} Lesson`;
         cta.append(ctaIcon, document.createTextNode(` ${ctaLabel}`));
 
         link.append(pill, textWrap, cta);

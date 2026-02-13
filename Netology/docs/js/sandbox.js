@@ -1579,15 +1579,12 @@ Reworked to match the Figma AI version:
       const x2 = to.x + DEVICE_RADIUS;
       const y2 = to.y + DEVICE_RADIUS;
 
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", x1);
-      line.setAttribute("y1", y1);
-      line.setAttribute("x2", x2);
-      line.setAttribute("y2", y2);
-      line.setAttribute("stroke", meta.color);
-      line.setAttribute("stroke-width", meta.width || 2);
-      if (meta.dash) line.setAttribute("stroke-dasharray", meta.dash);
-      connectionLayer.appendChild(line);
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", `M ${x1} ${y1} L ${x2} ${y2}`);
+      path.setAttribute("stroke", meta.color);
+      path.setAttribute("stroke-width", meta.width || 2);
+      if (meta.dash) path.setAttribute("stroke-dasharray", meta.dash);
+      connectionLayer.appendChild(path);
 
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
