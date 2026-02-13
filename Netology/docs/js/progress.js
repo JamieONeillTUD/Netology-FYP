@@ -16,6 +16,8 @@ progress.js – Progress detail lists for dashboard stats.
   ========================================================= */
   const getApiBase = () => window.API_BASE || "";
   const BASE_XP = 100;
+  const completionCache = new Map();
+  const completionPromiseCache = new Map();
 
   const SECTION_CONFIG = {
     courses: {
@@ -67,9 +69,6 @@ progress.js – Progress detail lists for dashboard stats.
     wireChrome(user);
 
     const type = getTypeParam();
-    setText("progressTitle", "Progress overview");
-    setText("progressSubtitle", "Active and completed progress across every learning area.");
-    setText("progressBadge", "Overview");
     setActiveNav(type);
 
     const list = getById("progressList");
@@ -79,15 +78,19 @@ progress.js – Progress detail lists for dashboard stats.
 
     list.replaceChildren();
     empty.classList.add("d-none");
+    renderLoadingState(list);
 
     const courses = await fetchUserCourses(user.email);
     const content = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
 
-    const navCounts = await buildNavCounts(courses, content, user.email);
+    const completionsMapPromise = buildCompletionsMap(user.email, courses);
+    const navCountsPromise = completionsMapPromise.then((map) => buildNavCounts(courses, content, user.email, map));
+    const totalsPromise = completionsMapPromise.then((map) => renderOverviewSections(list, courses, content, user.email, map));
+
+    const navCounts = await navCountsPromise;
     setNavCounts(navCounts);
 
-    const totals = await renderOverviewSections(list, courses, content, user.email);
-    setText("progressMeta", `${totals.inTotal} in progress • ${totals.doneTotal} completed`);
+    const totals = await totalsPromise;
     if (!totals.inTotal && !totals.doneTotal) {
       const cfg = SECTION_CONFIG[type] || SECTION_CONFIG.courses;
       showEmpty(cfg.empty || "No progress to show yet.");
@@ -100,6 +103,29 @@ progress.js – Progress detail lists for dashboard stats.
     if (!empty) return;
     empty.classList.remove("d-none");
     empty.querySelector(".small")?.replaceChildren(document.createTextNode(message));
+  }
+
+  function renderLoadingState(list) {
+    if (!list) return;
+    const wrap = document.createElement("div");
+    wrap.className = "net-progress-loading";
+
+    for (let i = 0; i < 2; i += 1) {
+      const card = document.createElement("div");
+      card.className = "net-card p-4";
+
+      const line1 = document.createElement("div");
+      line1.className = "net-skel net-w-40 mb-2";
+      const line2 = document.createElement("div");
+      line2.className = "net-skel net-w-80 mb-2";
+      const line3 = document.createElement("div");
+      line3.className = "net-skel net-w-60";
+
+      card.append(line1, line2, line3);
+      wrap.appendChild(card);
+    }
+
+    list.replaceChildren(wrap);
   }
 
   function setActiveNav(type) {
@@ -401,7 +427,7 @@ progress.js – Progress detail lists for dashboard stats.
     return list;
   }
 
-  async function buildNavCounts(courses, content, email) {
+  async function buildNavCounts(courses, content, email, completionsMap) {
     const counts = {
       "in-progress": 0,
       "completed-courses": 0,
@@ -420,7 +446,7 @@ progress.js – Progress detail lists for dashboard stats.
       courses.map(async (course) => {
         const courseContent = resolveCourseContent(course, content);
         const required = countRequiredItems(courseContent);
-        const completions = await fetchCourseCompletions(email, course.id);
+        const completions = completionsMap?.get(String(course.id)) || await fetchCourseCompletions(email, course.id);
         const lessons = completions.lesson.size;
         const quizzes = completions.quiz.size;
         const challenges = completions.challenge.size;
@@ -596,13 +622,13 @@ progress.js – Progress detail lists for dashboard stats.
     return { wrap, body };
   }
 
-  async function buildCourseProgressList(courses, content, email) {
+  async function buildCourseProgressList(courses, content, email, completionsMap) {
     if (!Array.isArray(courses)) return [];
     return Promise.all(
       courses.map(async (course) => {
         const contentId = resolveContentIdByTitle(course.title, content) || course.id;
         const courseContent = resolveCourseContent(course, content);
-        const completions = await fetchCourseCompletions(email, course.id);
+        const completions = completionsMap?.get(String(course.id)) || await fetchCourseCompletions(email, course.id);
         const items = buildCourseItems(courseContent);
         const earnedXp = sumXpForCompletions(items, completions);
 
@@ -722,7 +748,7 @@ progress.js – Progress detail lists for dashboard stats.
   /* =========================================================
      Build completion groups
   ========================================================= */
-  async function buildCompletionGroups(type, courses, content, email) {
+  async function buildCompletionGroups(type, courses, content, email, completionsMap) {
     if (type === "tutorials") {
       return buildTutorialGroups(courses, content, email);
     }
@@ -733,7 +759,7 @@ progress.js – Progress detail lists for dashboard stats.
       const courseContent = resolveCourseContent(course, content);
       const titleMap = buildLessonTitleMap(courseContent);
 
-      const completions = await fetchCourseCompletions(email, courseId);
+      const completions = completionsMap?.get(String(courseId)) || await fetchCourseCompletions(email, courseId);
       let set = completions.lesson;
       if (type === "quizzes") set = completions.quiz;
       if (type === "challenges") set = completions.challenge;
@@ -764,7 +790,7 @@ progress.js – Progress detail lists for dashboard stats.
   /* =========================================================
      Split: in-progress vs completed groups
   ========================================================= */
-  async function buildSplitGroups(type, courses, content, email, startedMap) {
+  async function buildSplitGroups(type, courses, content, email, startedMap, completionsMap) {
     if (type === "tutorials") {
       return buildTutorialSplitGroups(courses, content, email);
     }
@@ -779,7 +805,7 @@ progress.js – Progress detail lists for dashboard stats.
       const courseContent = resolveCourseContent(course, content);
       const titleMap = buildLessonTitleMap(courseContent);
 
-      const completions = await fetchCourseCompletions(email, courseId);
+      const completions = completionsMap?.get(String(courseId)) || await fetchCourseCompletions(email, courseId);
       const doneCount = completions.lesson.size + completions.quiz.size + completions.challenge.size;
       const courseStarted = doneCount > 0 || (startedMap && startedMap.has(String(courseId)));
 
@@ -937,13 +963,14 @@ progress.js – Progress detail lists for dashboard stats.
   /* =========================================================
      Overview renderer (all sections)
   ========================================================= */
-  async function renderOverviewSections(list, courses, content, email) {
+  async function renderOverviewSections(list, courses, content, email, completionsMap) {
     const totals = { inTotal: 0, doneTotal: 0 };
     const startedMap = getStartedCourses(email);
+    if (list) list.replaceChildren();
 
     const coursesSection = buildProgressSection("courses", SECTION_CONFIG.courses);
     list.appendChild(coursesSection.wrap);
-    const coursesWithProgress = await buildCourseProgressList(courses, content, email);
+    const coursesWithProgress = await buildCourseProgressList(courses, content, email, completionsMap);
     const inProgress = coursesWithProgress.filter((c) => c.status === "in-progress");
     const completed = coursesWithProgress.filter((c) => c.status === "completed");
     const inXp = inProgress.reduce((sum, c) => sum + Number(c.earnedXp || 0), 0);
@@ -952,28 +979,28 @@ progress.js – Progress detail lists for dashboard stats.
     totals.inTotal += inProgress.length;
     totals.doneTotal += completed.length;
 
-    const lessonSplit = await buildSplitGroups("lessons", courses, content, email, startedMap);
+    const lessonSplit = await buildSplitGroups("lessons", courses, content, email, startedMap, completionsMap);
     totals.inTotal += countGroupItems(lessonSplit.inGroups);
     totals.doneTotal += countGroupItems(lessonSplit.doneGroups);
     const lessonsSection = buildProgressSection("lessons", SECTION_CONFIG.lessons);
     list.appendChild(lessonsSection.wrap);
     renderSplitGroups(lessonSplit.inGroups, lessonSplit.doneGroups, lessonsSection.body, "lessons");
 
-    const quizSplit = await buildSplitGroups("quizzes", courses, content, email, startedMap);
+    const quizSplit = await buildSplitGroups("quizzes", courses, content, email, startedMap, completionsMap);
     totals.inTotal += countGroupItems(quizSplit.inGroups);
     totals.doneTotal += countGroupItems(quizSplit.doneGroups);
     const quizzesSection = buildProgressSection("quizzes", SECTION_CONFIG.quizzes);
     list.appendChild(quizzesSection.wrap);
     renderSplitGroups(quizSplit.inGroups, quizSplit.doneGroups, quizzesSection.body, "quizzes");
 
-    const tutorialSplit = await buildSplitGroups("tutorials", courses, content, email, startedMap);
+    const tutorialSplit = await buildSplitGroups("tutorials", courses, content, email, startedMap, completionsMap);
     totals.inTotal += countGroupItems(tutorialSplit.inGroups);
     totals.doneTotal += countGroupItems(tutorialSplit.doneGroups);
     const tutorialsSection = buildProgressSection("tutorials", SECTION_CONFIG.tutorials);
     list.appendChild(tutorialsSection.wrap);
     renderSplitGroups(tutorialSplit.inGroups, tutorialSplit.doneGroups, tutorialsSection.body, "tutorials");
 
-    const challengeSplit = await buildSplitGroups("challenges", courses, content, email, startedMap);
+    const challengeSplit = await buildSplitGroups("challenges", courses, content, email, startedMap, completionsMap);
     totals.inTotal += countGroupItems(challengeSplit.inGroups);
     totals.doneTotal += countGroupItems(challengeSplit.doneGroups);
     const challengesSection = buildProgressSection("challenges", SECTION_CONFIG.challenges);
@@ -1189,24 +1216,53 @@ progress.js – Progress detail lists for dashboard stats.
      Completion lookup
   ========================================================= */
   async function fetchCourseCompletions(email, courseId) {
-    const api = getApiBase();
-    if (api && email && courseId) {
-      try {
-        const res = await fetch(`${api}/user-course-status?email=${encodeURIComponent(email)}&course_id=${encodeURIComponent(courseId)}`);
-        const data = await res.json();
-        if (data && data.success) {
-          return {
-            lesson: new Set((data.lessons || []).map(Number)),
-            quiz: new Set((data.quizzes || []).map(Number)),
-            challenge: new Set((data.challenges || []).map(Number))
-          };
-        }
-      } catch {
-        // ignore
-      }
-    }
+    const key = `${email || ""}:${courseId || ""}`;
+    if (completionCache.has(key)) return completionCache.get(key);
+    if (completionPromiseCache.has(key)) return completionPromiseCache.get(key);
 
-    return getCourseCompletionsLocal(email, courseId);
+    const promise = (async () => {
+      const api = getApiBase();
+      if (api && email && courseId) {
+        try {
+          const res = await fetch(`${api}/user-course-status?email=${encodeURIComponent(email)}&course_id=${encodeURIComponent(courseId)}`);
+          const data = await res.json();
+          if (data && data.success) {
+            const result = {
+              lesson: new Set((data.lessons || []).map(Number)),
+              quiz: new Set((data.quizzes || []).map(Number)),
+              challenge: new Set((data.challenges || []).map(Number))
+            };
+            completionCache.set(key, result);
+            completionPromiseCache.delete(key);
+            return result;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const local = getCourseCompletionsLocal(email, courseId);
+      completionCache.set(key, local);
+      completionPromiseCache.delete(key);
+      return local;
+    })();
+
+    completionPromiseCache.set(key, promise);
+    return promise;
+  }
+
+  async function buildCompletionsMap(email, courses) {
+    const map = new Map();
+    if (!email || !Array.isArray(courses) || !courses.length) return map;
+    await Promise.all(
+      courses.map(async (course) => {
+        const id = String(course.id || "");
+        if (!id) return;
+        const completions = await fetchCourseCompletions(email, id);
+        map.set(id, completions);
+      })
+    );
+    return map;
   }
 
   function getCourseCompletionsLocal(email, courseId) {

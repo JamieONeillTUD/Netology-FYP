@@ -8,22 +8,13 @@ dashboard.js – Dashboard interactions (UPDATED for your latest dashboard.html)
 
 Works with:
 - NO topbar search (topSearch removed)
-- Course search stays in the Courses section:
-    #courseSearch (desktop) + #mobileSearch (mobile)
-  These are fully synced.
 - Slide sidebar open/close (backdrop + ESC)
 - User dropdown toggle + click outside + ESC
 - Brand routing: dashboard if logged in, index if not
-- Course lock gating by numeric_level:
-    novice unlocked at level >= 1
-    intermediate unlocked at level >= 3
-    advanced unlocked at level >= 5
 - Welcome/Sidebar UI fill:
     sets name, email, avatar initial, level, XP bar, and updates the ring (#welcomeRing)
 - Continue Learning:
-    picks first unlocked course (simple but always works)
-- Courses grid:
-    shows unlocked courses as normal, locked courses show "Unlock at Level X" and are not clickable
+    surfaces in-progress courses using API or local progress
 */
 
 (function () {
@@ -45,20 +36,10 @@ Works with:
     return icon;
   };
   const BASE_XP = 100;
-  const COURSE_CACHE_TTL = 5 * 60 * 1000;
-  const COURSE_CACHE_VERSION = "db-only-v1";
 
   function parseJsonSafe(str, fallback) {
     // LocalStorage can contain invalid JSON; fail gracefully.
     try { return JSON.parse(str); } catch { return fallback; }
-  }
-
-  function escapeHtml(str) {
-    return String(str ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll("\"", "&quot;");
   }
 
   function onReady(fn) {
@@ -90,30 +71,6 @@ Works with:
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
-  }
-
-  function getCachedCourseIndex() {
-    // Small, time-boxed cache to speed up dashboard first paint.
-    try {
-      const ver = localStorage.getItem("netology_courses_cache_v");
-      if (ver !== COURSE_CACHE_VERSION) return { index: null, fresh: false };
-      const raw = localStorage.getItem("netology_courses_cache");
-      const ts = Number(localStorage.getItem("netology_courses_cache_ts") || 0);
-      const index = raw ? JSON.parse(raw) : null;
-      if (!index || typeof index !== "object") return { index: null, fresh: false };
-      const fresh = ts && (Date.now() - ts < COURSE_CACHE_TTL);
-      return { index, fresh };
-    } catch {
-      return { index: null, fresh: false };
-    }
-  }
-
-  function setCachedCourseIndex(index) {
-    try {
-      localStorage.setItem("netology_courses_cache", JSON.stringify(index));
-      localStorage.setItem("netology_courses_cache_ts", String(Date.now()));
-      localStorage.setItem("netology_courses_cache_v", COURSE_CACHE_VERSION);
-    } catch {}
   }
 
   function getCurrentUser() {
@@ -179,20 +136,6 @@ Works with:
     const progressPct = Math.max(0, Math.min(100, (currentLevelXP / Math.max(xpNext, 1)) * 100));
     const toNext = Math.max(0, xpNext - currentLevelXP);
     return { totalXP, currentLevelXP, xpNext, progressPct, toNext, level };
-  }
-
-  function difficultyRequiredLevel(diff) {
-    if (diff === "novice") return 1;
-    if (diff === "intermediate") return 3;
-    if (diff === "advanced") return 5;
-    return 1;
-  }
-
-  function unlockLevelFromTier(tier) {
-    const t = String(tier || "").toLowerCase();
-    if (t.includes("advanced")) return 5;
-    if (t.includes("intermediate")) return 3;
-    return 1;
   }
 
   function prettyDiff(diff) {
@@ -502,70 +445,31 @@ Works with:
     sideLogout?.addEventListener("click", doLogout);
   }
 
-  // AI Prompt: Explain the Courses data (from API / cache) section in clear, simple terms.
+  // AI Prompt: Explain the Courses data (from course content) section in clear, simple terms.
   // -----------------------------
-  // Courses data (from API / cache)
+  // Courses data (from course content)
   // -----------------------------
   function getCourseIndex() {
     if (window.__dashCourseIndex && Object.keys(window.__dashCourseIndex).length) {
       return window.__dashCourseIndex;
     }
-    const cached = getCachedCourseIndex();
-    if (cached.index) return cached.index;
-    return {};
-  }
-
-  function mergeCourseWithContent(apiCourse) {
-    const id = String(apiCourse.id || "");
-    const difficulty = (apiCourse.difficulty || "novice").toLowerCase();
-    const required_level = Number(apiCourse.required_level || 0) || difficultyRequiredLevel(difficulty);
-
-    return {
-      key: id,
-      id,
-      title: apiCourse.title || "Course",
-      description: apiCourse.description || "",
-      difficulty,
-      required_level,
-      xpReward: Number(apiCourse.xpReward || apiCourse.xp_reward || 0) || 0,
-      items: Number(apiCourse.total_lessons || apiCourse.totalLessons || 0) || 0,
-      category: apiCourse.category || "Core",
-      estimated_time: apiCourse.estimatedTime || apiCourse.estimated_time || "—",
-      total_lessons: Number(apiCourse.total_lessons || apiCourse.totalLessons || 0) || 0
-    };
-  }
-
-  async function fetchCoursesFromApi() {
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (!base) return [];
-
-    try {
-      const data = await fetchJson(`${base}/courses`);
-      if (!data || !data.success || !Array.isArray(data.courses)) return [];
-
+    const content = (window.COURSE_CONTENT && typeof window.COURSE_CONTENT === "object")
+      ? window.COURSE_CONTENT
+      : (typeof COURSE_CONTENT !== "undefined" ? COURSE_CONTENT : null);
+    if (content && typeof content === "object") {
       const index = {};
-      data.courses.forEach((c) => {
-        const id = String(c.id || "");
-        if (!id) return;
+      Object.keys(content).forEach((id) => {
+        const course = content[id] || {};
         index[id] = {
-          id,
-          title: c.title || "",
-          description: c.description || "",
-          difficulty: (c.difficulty || "novice").toLowerCase(),
-          category: c.category || "",
-          xpReward: Number(c.xp_reward || c.xpReward || 0) || 0,
-          total_lessons: Number(c.total_lessons || c.totalLessons || 0) || 0,
-          required_level: Number(c.required_level || 0) || 0,
-          estimated_time: c.estimated_time || c.estimatedTime || "—"
+          id: String(id),
+          key: String(id),
+          ...course
         };
       });
-
       window.__dashCourseIndex = index;
-      setCachedCourseIndex(index);
-      return Object.keys(index).map((k) => index[k]);
-    } catch {
-      return [];
+      return index;
     }
+    return {};
   }
 
   async function fetchContinueCourses(email) {
@@ -600,43 +504,6 @@ Works with:
     } catch {
       return null;
     }
-  }
-
-  function getCoursesFromContent() {
-    const cc = getCourseIndex();
-    const list = [];
-
-    for (const key of Object.keys(cc)) {
-      const c = cc[key] || {};
-      const id = c.id || key;
-      const title = c.title || "Course";
-      const description = c.description || c.about || "";
-      const difficulty = (c.difficulty || "novice").toLowerCase();
-      const required_level = Number(c.required_level) || difficultyRequiredLevel(difficulty);
-
-      const items = countRequiredItems(c);
-
-      const xpReward = Number(c.xpReward || c.xp_reward || c.totalXP || 0) || 0;
-      const category = c.category || "";
-      const estimatedTime = c.estimatedTime || "—";
-
-      list.push({
-        key,
-        id,
-        title,
-        description,
-        difficulty,
-        required_level,
-        xpReward,
-        items,
-        category,
-        estimatedTime,
-      });
-    }
-
-    const rank = { novice: 1, intermediate: 2, advanced: 3 };
-    list.sort((a, b) => (rank[a.difficulty] - rank[b.difficulty]) || a.title.localeCompare(b.title));
-    return list;
   }
 
   /* AI Prompt: Explain the Progress + Completions (local) section in clear, simple terms. */
@@ -693,11 +560,6 @@ Works with:
     return required;
   }
 
-  function getCourseContentById(courseId) {
-    if (typeof COURSE_CONTENT === "undefined") return null;
-    return COURSE_CONTENT[String(courseId)] || null;
-  }
-
   function getCourseCompletionsLocal(email, courseId) {
     if (!email || !courseId) {
       return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
@@ -729,61 +591,6 @@ Works with:
     }
 
     return base;
-  }
-
-  function computeCourseProgress(course, email) {
-    if (!course || !email) return { done: 0, total: 0, pct: 0 };
-    const id = course.id || course.key;
-    const content = getCourseContentById(id);
-    const completions = getCourseCompletions(email, id);
-
-    let total = 0;
-    let done = 0;
-
-    if (content) {
-      total = countRequiredItems(content);
-      done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
-    } else {
-      total = Number(course.total_lessons || course.items || 0) || 0;
-      done = completions.lesson.size;
-    }
-
-    if (!total) return { done, total, pct: 0 };
-    done = Math.min(done, total);
-    const pct = Math.max(0, Math.min(100, Math.round((done / total) * 100)));
-    return { done, total, pct };
-  }
-
-  function renderCourseProgress(progress) {
-    const pct = Number(progress?.pct || 0);
-    const wrap = document.createElement("div");
-    wrap.className = "net-course-progress";
-
-    const row = document.createElement("div");
-    row.className = "d-flex align-items-center justify-content-between small text-muted mb-2";
-
-    const label = document.createElement("span");
-    label.textContent = "Course progress";
-    const pctEl = document.createElement("span");
-    pctEl.className = "fw-semibold";
-    pctEl.textContent = `${pct}%`;
-
-    row.append(label, pctEl);
-
-    const meter = document.createElement("div");
-    meter.className = "net-meter";
-    meter.setAttribute("role", "progressbar");
-    meter.setAttribute("aria-valuenow", String(pct));
-    meter.setAttribute("aria-valuemin", "0");
-    meter.setAttribute("aria-valuemax", "100");
-
-    const fill = document.createElement("div");
-    fill.className = "net-meter-fill";
-    fill.style.width = `${pct}%`;
-    meter.appendChild(fill);
-
-    wrap.append(row, meter);
-    return wrap;
   }
 
   function getLocalProgressSummary(email) {
@@ -1052,228 +859,6 @@ Works with:
     });
   }
 
-  // AI Prompt: Explain the Render course cards section in clear, simple terms.
-  // -----------------------------
-  // Render course cards
-  // -----------------------------
-  function buildCourseCard(course, accessLevel, email) {
-    const locked = accessLevel < course.required_level;
-    const diff = course.difficulty;
-
-    const gradClass =
-      diff === "advanced" ? "net-grad-adv"
-      : diff === "intermediate" ? "net-grad-int"
-      : "net-grad-nov";
-
-    const badgeClass =
-      diff === "advanced" ? "net-badge-adv"
-      : diff === "intermediate" ? "net-badge-int"
-      : "net-badge-nov";
-
-    const diffIcon =
-      diff === "advanced" ? "bi-shield-lock-fill"
-      : diff === "intermediate" ? "bi-lightning-charge-fill"
-      : "bi-leaf-fill";
-
-    const card = document.createElement("div");
-    card.className = "net-coursecard net-coursecard--library";
-    if (locked) card.classList.add("is-locked");
-    card.setAttribute("data-diff", diff);
-    card.setAttribute("data-title", (course.title || "").toLowerCase());
-    card.setAttribute("data-category", (course.category || "").toLowerCase());
-    card.setAttribute("role", "button");
-    card.setAttribute("tabindex", "0");
-    card.setAttribute("aria-label", locked ? `${course.title} locked` : `${course.title} open course`);
-
-    const progress = computeCourseProgress(course, email);
-    if (locked) {
-      const overlay = document.createElement("div");
-      overlay.className = "net-course-lock";
-      overlay.setAttribute("aria-hidden", "true");
-      const overlayInner = document.createElement("div");
-      overlayInner.className = "net-course-lock-inner";
-      const lockIcon = makeIcon("bi bi-lock-fill me-1");
-      overlayInner.append(lockIcon, document.createTextNode(` Level ${course.required_level}+ to unlock`));
-      overlay.appendChild(overlayInner);
-      card.appendChild(overlay);
-    }
-
-    const bar = document.createElement("div");
-    bar.className = `net-coursebar ${gradClass}`;
-    card.appendChild(bar);
-
-    const body = document.createElement("div");
-    body.className = "p-4";
-
-    const header = document.createElement("div");
-    header.className = "d-flex align-items-start justify-content-between gap-2 mb-2";
-
-    const left = document.createElement("div");
-    const chipRow = document.createElement("div");
-    chipRow.className = "d-flex align-items-center gap-2 mb-2";
-    if (course.category) {
-      const cat = makeEl("span", "net-cat-chip", course.category);
-      chipRow.appendChild(cat);
-    }
-    if (locked) {
-      const lockBadge = makeEl("span", "net-lock-badge");
-      lockBadge.append(makeIcon("bi bi-lock-fill"), document.createTextNode("Locked"));
-      chipRow.appendChild(lockBadge);
-    }
-    if (chipRow.childNodes.length) left.appendChild(chipRow);
-
-    const title = makeEl("div", "fw-semibold fs-5", course.title || "Course");
-    left.appendChild(title);
-
-    const badge = makeEl("span", `net-diffbadge ${badgeClass}`);
-    badge.append(makeIcon(`bi ${diffIcon}`), document.createTextNode(` ${prettyDiff(diff)}`));
-
-    header.append(left, badge);
-    body.appendChild(header);
-
-    if (course.description) {
-      const desc = makeEl("div", "text-muted small mb-3", course.description);
-      body.appendChild(desc);
-    }
-
-    body.appendChild(renderCourseProgress(progress));
-
-    const meta = makeEl("div", "net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta");
-
-    const lessonsMeta = makeEl("span", "d-inline-flex align-items-center gap-1");
-    const lessonsIcon = makeIcon("bi bi-collection");
-    lessonsIcon.setAttribute("aria-hidden", "true");
-    lessonsMeta.append(lessonsIcon, document.createTextNode(` ${course.total_lessons || course.items || 0} lessons`));
-
-    const timeMeta = makeEl("span", "d-inline-flex align-items-center gap-1");
-    const timeIcon = makeIcon("bi bi-clock");
-    timeIcon.setAttribute("aria-hidden", "true");
-    timeMeta.append(timeIcon, document.createTextNode(` ${course.estimated_time || "—"}`));
-
-    const xpMeta = makeEl("span", "d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold");
-    const xpIcon = makeIcon("bi bi-lightning-charge-fill");
-    xpIcon.setAttribute("aria-hidden", "true");
-    xpMeta.append(xpIcon, document.createTextNode(` ${course.xpReward}`));
-
-    meta.append(lessonsMeta, timeMeta, xpMeta);
-    body.appendChild(meta);
-
-    if (locked) {
-      const lockLine = makeEl("div", "net-lockline mb-3");
-      lockLine.append(makeIcon("bi bi-lock me-2"), document.createTextNode(`Level ${course.required_level}+ to unlock`));
-      body.appendChild(lockLine);
-    }
-
-    const cta = makeEl("div", "d-flex gap-2 flex-wrap course-cta");
-    const openBtn = makeEl("button", `btn ${locked ? "btn-outline-secondary" : "btn-teal"} btn-sm`, locked ? `Level ${course.required_level} required` : "Open");
-    openBtn.type = "button";
-    openBtn.title = "Open this course to view modules and lessons";
-    if (locked) openBtn.disabled = true;
-    cta.appendChild(openBtn);
-
-    const sandboxBtn = document.createElement("a");
-    sandboxBtn.className = "btn btn-soft btn-sm net-btn-icon";
-    sandboxBtn.href = `sandbox.html?course_id=${encodeURIComponent(course.key)}`;
-    sandboxBtn.title = "Open the sandbox for a network simulation challenge";
-    sandboxBtn.append(makeIcon("bi bi-diagram-3 me-1"), document.createTextNode("Sandbox"));
-    cta.appendChild(sandboxBtn);
-
-    body.appendChild(cta);
-    card.appendChild(body);
-
-    function goCourse() {
-      if (locked) return;
-      window.location.href = `course.html?id=${encodeURIComponent(course.key)}`;
-    }
-
-    card.addEventListener("click", goCourse);
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        goCourse();
-      }
-    });
-
-    return { card, locked };
-  }
-
-  // AI Prompt: Explain the Search + filter section in clear, simple terms.
-  // -----------------------------
-  // Search + filter
-  // -----------------------------
-  function applyCourseFilters() {
-    const q = (window.__dashQuery || "").trim().toLowerCase();
-    const diff = window.__dashDiff || "all";
-
-    const grid = getById("coursesGrid");
-    if (!grid) return;
-
-    const cards = Array.from(grid.querySelectorAll(".net-coursecard"));
-    let shown = 0;
-
-    cards.forEach((el) => {
-      const title = el.getAttribute("data-title") || "";
-      const cat = el.getAttribute("data-category") || "";
-      const cdiff = el.getAttribute("data-diff") || "novice";
-
-      const matchQuery = !q || title.includes(q) || cat.includes(q);
-      const matchDiff = diff === "all" || cdiff === diff;
-
-      const show = matchQuery && matchDiff;
-      el.style.display = show ? "" : "none";
-      if (show) shown++;
-    });
-
-    // If nothing matches, show empty-state (but DON'T permanently destroy the grid content)
-    const emptyId = "dashEmptyState";
-    const existing = getById(emptyId);
-    if (existing) existing.remove();
-
-    if (shown === 0) {
-      const empty = document.createElement("div");
-      empty.id = emptyId;
-      empty.className = "net-empty";
-      empty.append(
-        makeIcon("bi bi-search"),
-        makeEl("div", "fw-bold", "No courses found"),
-        makeEl("div", "small text-muted", "Try a different search or filter.")
-      );
-      grid.appendChild(empty);
-    }
-  }
-
-  function setupCourseSearchAndChips() {
-    const desktop = getById("courseSearch");
-    const mobile = getById("mobileSearch");
-    const chips = Array.from(document.querySelectorAll(".net-chip[data-diff]"));
-
-    window.__dashQuery = "";
-    window.__dashDiff = "all";
-
-    function onSearchInput(from) {
-      const val = from?.value || "";
-      window.__dashQuery = val;
-
-      // sync the other input
-      if (from === desktop && mobile) mobile.value = val;
-      if (from === mobile && desktop) desktop.value = val;
-
-      applyCourseFilters();
-    }
-
-    desktop?.addEventListener("input", () => onSearchInput(desktop));
-    mobile?.addEventListener("input", () => onSearchInput(mobile));
-
-    chips.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        chips.forEach((b) => b.classList.remove("is-active"));
-        btn.classList.add("is-active");
-        window.__dashDiff = btn.getAttribute("data-diff") || "all";
-        applyCourseFilters();
-      });
-    });
-  }
-
   function setupGoalToggle() {
     const btns = Array.from(document.querySelectorAll(".dash-toggle-btn[data-panel]"));
     if (!btns.length) return;
@@ -1443,84 +1028,6 @@ Works with:
       window.location.href = `course.html?id=${encodeURIComponent(id)}`;
     });
     return item;
-  }
-
-  // AI Prompt: Explain the Render courses section in clear, simple terms.
-  // -----------------------------
-  // Render courses
-  // -----------------------------
-  async function renderCourses() {
-    const grid = getById("coursesGrid");
-    if (!grid) return;
-    const banner = getById("courseErrorBanner");
-
-    const user = getCurrentUser();
-    const uLevel = userNumericLevel(user);
-    const unlockLevel = unlockLevelFromTier(user?.unlock_tier);
-    const accessLevel = Math.max(uLevel, unlockLevel);
-    const email = user?.email || "";
-
-    let courses = [];
-
-    // Prefer fresh cache, then API, then stale cache.
-    const cached = getCachedCourseIndex();
-    if (cached.index && cached.fresh) {
-      courses = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k]));
-      window.__dashCourseIndex = cached.index;
-    } else {
-      const apiCourses = await fetchCoursesFromApi();
-      if (apiCourses.length) {
-        courses = apiCourses.map((c) => mergeCourseWithContent(c));
-
-        const index = {};
-        courses.forEach((c) => {
-          index[String(c.id)] = { ...c };
-        });
-        window.__dashCourseIndex = index;
-        setCachedCourseIndex(index);
-      } else if (cached.index) {
-        courses = Object.keys(cached.index).map((k) => mergeCourseWithContent(cached.index[k]));
-        window.__dashCourseIndex = cached.index;
-      } else {
-        courses = [];
-      }
-    }
-    if (!courses.length) {
-      clearChildren(grid);
-      const empty = makeEl("div", "net-empty");
-      empty.append(
-        makeIcon("bi bi-journal-x"),
-        makeEl("div", "fw-bold", "No courses available"),
-        makeEl("div", "small text-muted", "Please check back later.")
-      );
-      grid.appendChild(empty);
-      const lockNote = getById("lockNote");
-      if (lockNote) lockNote.style.display = "none";
-      if (banner) banner.classList.remove("d-none");
-      return;
-    }
-
-    if (banner) banner.classList.add("d-none");
-    clearChildren(grid);
-    let anyLocked = false;
-
-    courses.forEach((c) => {
-      const { card, locked } = buildCourseCard(c, accessLevel, email);
-      if (locked) anyLocked = true;
-      grid.appendChild(card);
-    });
-
-    applyCourseFilters();
-
-    const lockNote = getById("lockNote");
-    if (lockNote) {
-      if (anyLocked) {
-        lockNote.style.display = "";
-        lockNote.textContent = "Some courses are locked until you level up (Intermediate unlocks at Level 3, Advanced at Level 5).";
-      } else {
-        lockNote.style.display = "none";
-      }
-    }
   }
 
   // AI Prompt: Explain the Progress widgets (streak, goals, achievements) section in clear, simple terms.
@@ -1875,7 +1382,6 @@ Works with:
     const user = getCurrentUser();
 
     safeStep("fillUserUI", fillUserUI);
-    await safeStepAsync("renderCourses", renderCourses);
     await safeStepAsync("renderContinueLearning", renderContinueLearning);
 
     if (user?.email) {
@@ -1899,8 +1405,6 @@ Works with:
     // Fast first paint using cached user data
     const cachedUser = getCurrentUser();
     safeStep("fillUserUI", fillUserUI);
-    safeStep("setupCourseSearchAndChips", setupCourseSearchAndChips);
-    await safeStepAsync("renderCourses", renderCourses);
     await safeStepAsync("renderContinueLearning", renderContinueLearning);
     safeStep("renderProgressWidgets", renderProgressWidgets);
 
@@ -1926,7 +1430,6 @@ Works with:
     }
 
     safeStep("fillUserUI", fillUserUI);
-    await safeStepAsync("renderCourses", renderCourses);
     await safeStepAsync("renderContinueLearning", renderContinueLearning);
     if (user?.email) {
       await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
