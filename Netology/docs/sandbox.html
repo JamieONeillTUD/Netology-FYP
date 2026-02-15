@@ -164,7 +164,7 @@ sandbox.html – Interactive networking sandbox.
 
   <!-- AI Prompt: Explain the Main section in clear, simple terms. -->
   <!-- Main -->
-  <main class="container my-4 net-sbx">
+  <main class="container-fluid px-3 px-lg-4 py-2 net-sbx">
     <section class="net-card p-4 net-loading-only" aria-label="Loading sandbox">
       <div class="net-skel net-w-60 mb-3"></div>
       <div class="net-skel net-w-90 mb-2"></div>
@@ -174,58 +174,68 @@ sandbox.html – Interactive networking sandbox.
 
     <div class="net-loading-hide">
       <!-- AI Prompt: Explain the Sandbox Toolbar section in clear, simple terms. -->
-      <div class="sbx-workspace">
-        <!-- FLOATING TOOLBAR (New) -->
-        <div class="sbx-float-bar">
-          <div class="sbx-float-group">
-            <button class="sbx-float-btn is-active" id="toolSelectBtn" data-tool="select" type="button"
-              data-tooltip="Select">
-              <i class="bi bi-cursor-fill"></i>
-            </button>
-            <button class="sbx-float-btn" id="toolConnectBtn" data-tool="connect" type="button" data-tooltip="Connect">
-              <i class="bi bi-lightning-fill"></i>
-            </button>
-          </div>
-
-          <div class="sbx-float-sep"></div>
-
-          <div class="sbx-float-group" id="connTypeGroup">
-            <button class="sbx-float-btn is-active" data-conn-type="ethernet" type="button" data-tooltip="Ethernet">
-              <i class="bi bi-ethernet"></i>
-            </button>
-            <button class="sbx-float-btn" data-conn-type="fiber" type="button" data-tooltip="Fiber">
-              <i class="bi bi-activity"></i>
-            </button>
-            <button class="sbx-float-btn" data-conn-type="serial" type="button" data-tooltip="Serial">
-              <i class="bi bi-three-dots"></i>
-            </button>
-            <button class="sbx-float-btn" data-conn-type="wireless" type="button" data-tooltip="Wireless">
-              <i class="bi bi-wifi"></i>
-            </button>
-          </div>
-
-          <div class="sbx-float-sep"></div>
-
-          <div class="sbx-float-group">
-            <button class="sbx-float-btn" id="undoBtn" type="button" data-tooltip="Undo">
-              <i class="bi bi-arrow-counterclockwise"></i>
-            </button>
-            <button class="sbx-float-btn" id="redoBtn" type="button" data-tooltip="Redo">
-              <i class="bi bi-arrow-clockwise"></i>
-            </button>
-          </div>
-
-          <div class="sbx-float-sep"></div>
-
-          <div class="sbx-float-group">
-            <button class="sbx-float-btn" id="clearBtn" type="button" data-tooltip="Clear">
-              <i class="bi bi-trash3"></i>
-            </button>
-            <button class="sbx-float-btn" id="saveBtn" type="button" data-tooltip="Save">
-              <i class="bi bi-floppy"></i>
-            </button>
-          </div>
+      <!-- Toolbar -->
+      <div class="sbx-float-bar">
+        <span class="sbx-toolbar-title">Toolbar</span>
+        <div class="sbx-float-sep"></div>
+        <div class="sbx-float-group">
+          <button class="sbx-float-btn is-active" id="toolSelectBtn" data-tool="select" type="button"
+            data-tooltip="Select / Move (V)">
+            <i class="bi bi-cursor-fill"></i>
+          </button>
+          <button class="sbx-float-btn" id="toolConnectBtn" data-tool="connect" type="button"
+            data-tooltip="Connect devices (C)">
+            <i class="bi bi-lightning-fill"></i>
+          </button>
         </div>
+        <div class="sbx-float-sep"></div>
+        <div class="sbx-float-group" id="connTypeGroup">
+          <button class="sbx-float-btn is-active" data-conn-type="ethernet" type="button"
+            data-tooltip="Ethernet – standard cable link">
+            <i class="bi bi-ethernet"></i>
+          </button>
+          <button class="sbx-float-btn" data-conn-type="fiber" type="button"
+            data-tooltip="Fiber – high-speed optical link">
+            <i class="bi bi-activity"></i>
+          </button>
+          <button class="sbx-float-btn" data-conn-type="serial" type="button"
+            data-tooltip="Serial – WAN / point-to-point">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <button class="sbx-float-btn" data-conn-type="wireless" type="button"
+            data-tooltip="Wireless – 802.11 radio link">
+            <i class="bi bi-wifi"></i>
+          </button>
+        </div>
+        <div class="sbx-float-sep"></div>
+        <div class="sbx-float-group">
+          <button class="sbx-float-btn" id="undoBtn" type="button" data-tooltip="Undo (Ctrl+Z)">
+            <i class="bi bi-arrow-counterclockwise"></i>
+          </button>
+          <button class="sbx-float-btn" id="redoBtn" type="button" data-tooltip="Redo (Ctrl+Y)">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div class="sbx-float-sep"></div>
+        <div class="sbx-float-group">
+          <button class="sbx-float-btn" id="autoLayoutBtn" type="button" data-tooltip="Auto-layout">
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
+          <button class="sbx-float-btn" id="minimapToggleBtn" type="button" data-tooltip="Minimap">
+            <i class="bi bi-pip"></i>
+          </button>
+        </div>
+        <div class="sbx-float-sep"></div>
+        <div class="sbx-float-group">
+          <button class="sbx-float-btn" id="clearBtn" type="button" data-tooltip="Clear workspace">
+            <i class="bi bi-trash3"></i>
+          </button>
+          <button class="sbx-float-btn" id="saveBtn" type="button" data-tooltip="Save (Ctrl+S)">
+            <i class="bi bi-floppy"></i>
+          </button>
+        </div>
+      </div>
+      <div class="sbx-workspace">
         <!-- Left Panel -->
         <aside class="sbx-panel sbx-panel-left" id="sbxLeftPanel">
           <div class="sbx-panel-head">
@@ -239,22 +249,30 @@ sandbox.html – Interactive networking sandbox.
             </button>
           </div>
           <div class="sbx-panel-body" id="deviceLibrary">
+            <div class="sbx-device-search">
+              <i class="bi bi-search" aria-hidden="true"></i>
+              <input type="text" id="sbxDeviceFilter" placeholder="Filter devices..." aria-label="Filter device library">
+            </div>
             <div class="sbx-device-group" data-category="End Devices">
               <div class="sbx-device-group-title">End Devices</div>
               <div class="sbx-device-grid">
-                <button class="sbx-device-card" data-device="pc" type="button" data-tooltip="Add a PC">
+                <button class="sbx-device-card" data-device="pc" type="button" data-tooltip="Click or drag to add a PC">
+                  <span class="sbx-device-count" data-count-for="pc"></span>
                   <span class="sbx-device-icon"><i class="bi bi-pc-display"></i></span>
                   <span class="sbx-device-label">PC</span>
                 </button>
-                <button class="sbx-device-card" data-device="laptop" type="button" data-tooltip="Add a Laptop">
+                <button class="sbx-device-card" data-device="laptop" type="button" data-tooltip="Click or drag to add a Laptop">
+                  <span class="sbx-device-count" data-count-for="laptop"></span>
                   <span class="sbx-device-icon"><i class="bi bi-laptop"></i></span>
                   <span class="sbx-device-label">Laptop</span>
                 </button>
-                <button class="sbx-device-card" data-device="smartphone" type="button" data-tooltip="Add a Smartphone">
+                <button class="sbx-device-card" data-device="smartphone" type="button" data-tooltip="Click or drag to add a Smartphone">
+                  <span class="sbx-device-count" data-count-for="smartphone"></span>
                   <span class="sbx-device-icon"><i class="bi bi-phone"></i></span>
                   <span class="sbx-device-label">Smartphone</span>
                 </button>
-                <button class="sbx-device-card" data-device="printer" type="button" data-tooltip="Add a Printer">
+                <button class="sbx-device-card" data-device="printer" type="button" data-tooltip="Click or drag to add a Printer">
+                  <span class="sbx-device-count" data-count-for="printer"></span>
                   <span class="sbx-device-icon"><i class="bi bi-printer"></i></span>
                   <span class="sbx-device-label">Printer</span>
                 </button>
@@ -264,20 +282,24 @@ sandbox.html – Interactive networking sandbox.
             <div class="sbx-device-group" data-category="Network Devices">
               <div class="sbx-device-group-title">Network Devices</div>
               <div class="sbx-device-grid">
-                <button class="sbx-device-card" data-device="router" type="button" data-tooltip="Add a Router">
+                <button class="sbx-device-card" data-device="router" type="button" data-tooltip="Click or drag to add a Router">
+                  <span class="sbx-device-count" data-count-for="router"></span>
                   <span class="sbx-device-icon"><i class="bi bi-diagram-3"></i></span>
                   <span class="sbx-device-label">Router</span>
                 </button>
-                <button class="sbx-device-card" data-device="switch" type="button" data-tooltip="Add a Switch">
+                <button class="sbx-device-card" data-device="switch" type="button" data-tooltip="Click or drag to add a Switch">
+                  <span class="sbx-device-count" data-count-for="switch"></span>
                   <span class="sbx-device-icon"><i class="bi bi-hdd-network"></i></span>
                   <span class="sbx-device-label">Switch</span>
                 </button>
                 <button class="sbx-device-card" data-device="wireless-ap" type="button"
-                  data-tooltip="Add a Wireless AP">
+                  data-tooltip="Click or drag to add a Wireless AP">
+                  <span class="sbx-device-count" data-count-for="wireless-ap"></span>
                   <span class="sbx-device-icon"><i class="bi bi-wifi"></i></span>
                   <span class="sbx-device-label">Wireless AP</span>
                 </button>
-                <button class="sbx-device-card" data-device="firewall" type="button" data-tooltip="Add a Firewall">
+                <button class="sbx-device-card" data-device="firewall" type="button" data-tooltip="Click or drag to add a Firewall">
+                  <span class="sbx-device-count" data-count-for="firewall"></span>
                   <span class="sbx-device-icon"><i class="bi bi-shield-lock"></i></span>
                   <span class="sbx-device-label">Firewall</span>
                 </button>
@@ -287,11 +309,13 @@ sandbox.html – Interactive networking sandbox.
             <div class="sbx-device-group" data-category="Servers">
               <div class="sbx-device-group-title">Servers</div>
               <div class="sbx-device-grid">
-                <button class="sbx-device-card" data-device="server" type="button" data-tooltip="Add a Server">
+                <button class="sbx-device-card" data-device="server" type="button" data-tooltip="Click or drag to add a Server">
+                  <span class="sbx-device-count" data-count-for="server"></span>
                   <span class="sbx-device-icon"><i class="bi bi-server"></i></span>
                   <span class="sbx-device-label">Server</span>
                 </button>
-                <button class="sbx-device-card" data-device="cloud" type="button" data-tooltip="Add an Internet cloud">
+                <button class="sbx-device-card" data-device="cloud" type="button" data-tooltip="Click or drag to add an Internet cloud">
+                  <span class="sbx-device-count" data-count-for="cloud"></span>
                   <span class="sbx-device-icon"><i class="bi bi-cloud"></i></span>
                   <span class="sbx-device-label">Internet</span>
                 </button>
@@ -304,21 +328,32 @@ sandbox.html – Interactive networking sandbox.
         <section class="sbx-stage-wrap">
           <div class="sbx-stage-head">
             <div>
-              <div class="sbx-stage-title">Topology Workspace</div>
-              <div class="sbx-stage-sub">Place devices, connect them, and configure details.</div>
+              <div class="sbx-stage-title">Topology Canvas</div>
+              <div class="sbx-stage-sub">Drag devices from the library, connect them, and configure.</div>
             </div>
-            <div id="tips" class="sbx-tip" aria-live="polite">
+            <div id="tips" class="sbx-tip" aria-live="polite" role="status">
               Tip: Select a device to view and edit its settings.
             </div>
+          </div>
+
+          <!-- Quick Stats Bar -->
+          <div class="sbx-stats-bar" id="sbxStatsBar">
+            <span class="sbx-stat"><i class="bi bi-cpu" aria-hidden="true"></i> <span id="sbxStatDevices">0</span> devices</span>
+            <span class="sbx-stat"><i class="bi bi-bezier2" aria-hidden="true"></i> <span id="sbxStatConns">0</span> connections</span>
+            <span class="sbx-stat" id="sbxStatSelected" style="display:none"><i class="bi bi-cursor" aria-hidden="true"></i> <span id="sbxStatSelectedName">—</span></span>
           </div>
 
           <div class="sbx-stage" id="sandboxStage">
             <svg class="sbx-connections" id="sbxConnections" aria-hidden="true"></svg>
             <div class="sbx-devices" id="sbxDevices"></div>
+            <div class="sbx-minimap" id="sbxMinimap" aria-label="Topology overview">
+              <svg id="sbxMinimapSvg"></svg>
+            </div>
             <div class="sbx-empty" id="sbxEmptyState">
               <div class="sbx-empty-icon"><i class="bi bi-diagram-3"></i></div>
-              <div class="sbx-empty-title">Empty Canvas</div>
-              <div class="sbx-empty-sub">Add devices from the left panel to begin.</div>
+              <div class="sbx-empty-title">Start building your network</div>
+              <div class="sbx-empty-sub">Drag a device from the left panel, or click any device card to add it to the canvas.</div>
+              <div class="sbx-empty-hint"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Begin with a Router or Switch</div>
             </div>
           </div>
         </section>
@@ -368,8 +403,13 @@ sandbox.html – Interactive networking sandbox.
             <div class="sbx-tabpanel" id="panelObjectives">
               <div class="sbx-panel-content">
                 <div class="sbx-challenge-banner" id="challengeBanner" style="display:none;">
-                  <div class="sbx-challenge-title">Lesson Challenge</div>
-                  <div class="sbx-challenge-sub" id="challengeBannerText">Loading challenge…</div>
+                  <div class="sbx-challenge-head">
+                    <div class="sbx-challenge-icon"><i class="bi bi-mortarboard-fill"></i></div>
+                    <div>
+                      <div class="sbx-challenge-title">Lesson Challenge</div>
+                      <div class="sbx-challenge-sub" id="challengeBannerText">Loading challenge…</div>
+                    </div>
+                  </div>
                 </div>
                 <div id="sbxObjectivesBody">No active challenge.</div>
               </div>
@@ -412,9 +452,10 @@ sandbox.html – Interactive networking sandbox.
           <div class="sbx-bottom-panel is-active" id="sbxConsolePanel">
             <div class="sbx-console-output" id="sbxConsoleOutput"></div>
             <div class="sbx-console-input">
-              <input type="text" id="sbxConsoleInput" placeholder="Enter command..." autocomplete="off">
-              <button class="btn btn-teal btn-sm" id="sbxConsoleSend" type="button"
-                data-tooltip="Run command">Send</button>
+              <span class="sbx-console-prompt" aria-hidden="true">$</span>
+              <input type="text" id="sbxConsoleInput" placeholder="type a command, e.g. help, ping, show devices" autocomplete="off" aria-label="Console command input">
+              <button class="sbx-console-send" id="sbxConsoleSend" type="button"
+                data-tooltip="Run command (Enter)"><i class="bi bi-play-fill" aria-hidden="true"></i> Run</button>
             </div>
           </div>
           <div class="sbx-bottom-panel" id="sbxLogsPanel">
@@ -430,17 +471,17 @@ sandbox.html – Interactive networking sandbox.
 
   <!-- AI Prompt: Explain the Footer section in clear, simple terms. -->
   <!-- Footer -->
-  <footer class="text-center border-top py-3 mt-4 bg-white">
-    <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
+  <footer class="sbx-footer text-center py-2">
+    <p class="small text-muted mb-0">2026 – Jamie O'Neill – TU857/4</p>
   </footer>
 
   <!-- AI Prompt: Explain the Topology Manager Modal section in clear, simple terms. -->
   <!-- Topology Manager Modal -->
   <div class="modal fade" id="topologyModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-      <div class="modal-content">
+      <div class="modal-content sbx-modal">
 
-        <div class="modal-header bg-teal text-white">
+        <div class="modal-header sbx-modal-head-gradient">
           <h5 class="modal-title">Saved Topologies</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
             data-tooltip="Close modal"></button>
@@ -542,9 +583,9 @@ sandbox.html – Interactive networking sandbox.
   <!-- Ping Modal -->
   <div class="modal fade" id="pingModal" tabindex="-1">
     <div class="modal-dialog">
-      <div class="modal-content">
+      <div class="modal-content sbx-modal">
 
-        <div class="modal-header bg-primary text-white">
+        <div class="modal-header sbx-modal-head-gradient">
           <h5 class="modal-title">Ping Device</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
             data-tooltip="Close modal"></button>

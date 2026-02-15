@@ -1553,6 +1553,11 @@ Reworked to match the Figma AI version:
         el.appendChild(ip);
       }
 
+      // Device status indicator dot
+      const statusDot = document.createElement("div");
+      statusDot.className = "sbx-device-status " + (device.config?.ipAddress ? "is-configured" : "is-unconfigured");
+      el.appendChild(statusDot);
+
       deviceLayer.appendChild(el);
     });
   }
@@ -2201,6 +2206,14 @@ Reworked to match the Figma AI version:
     renderConsole();
     updatePingVisibility();
     updateSaveModalLive();
+    // Enhanced features
+    if (typeof updateDeviceCountBadges === "function") updateDeviceCountBadges();
+    if (typeof updateStatsBar === "function") updateStatsBar();
+    if (typeof updateMinimap === "function") updateMinimap();
+    if (typeof renderConnectionLabels === "function") renderConnectionLabels();
+    requestAnimationFrame(() => {
+      if (typeof updateDeviceStatusIndicators === "function") updateDeviceStatusIndicators();
+    });
   }
 
   // AI Prompt: Explain the History (Undo/Redo) section in clear, simple terms.
@@ -2638,7 +2651,7 @@ Reworked to match the Figma AI version:
 
     switch (cmd) {
       case "help":
-        addConsoleOutput("Commands: help, show devices, show connections, ping <src> <dst>, ipconfig, dhcp request, clear, save");
+        addConsoleOutput("Commands: help, show devices, show connections, ping <src> <dst>, traceroute <src> <dst>, ipconfig, dhcp request, clear, save");
         break;
       case "show":
         if (parts[1] === "devices") {
@@ -2686,6 +2699,30 @@ Reworked to match the Figma AI version:
         break;
       case "save":
         handleSaveTopology();
+        break;
+      case "traceroute":
+        if (parts.length >= 3) {
+          const src = state.devices.find((d) => d.name.toLowerCase() === parts[1]);
+          const dst = state.devices.find((d) => d.name.toLowerCase() === parts[2]);
+          if (src && dst) {
+            addConsoleOutput(`Traceroute from ${src.name} to ${dst.name}...`);
+            const path = findPath(src.id, dst.id);
+            if (path && path.length > 0) {
+              path.forEach((hop, i) => {
+                const dev = findDevice(hop);
+                const latency = (i + 1) * (Math.random() * 2 + 0.5).toFixed(1);
+                addConsoleOutput(`  ${i + 1}  ${dev?.name || "?"} (${dev?.config?.ipAddress || "no ip"})  ${latency}ms`);
+              });
+              addConsoleOutput(`Trace complete. ${path.length} hop(s).`);
+            } else {
+              addConsoleOutput("No route found.");
+            }
+          } else {
+            addConsoleOutput("Device not found.");
+          }
+        } else {
+          addConsoleOutput("Usage: traceroute <source> <destination>");
+        }
         break;
       default:
         addConsoleOutput("Unknown command. Type help.");
@@ -3477,7 +3514,419 @@ Reworked to match the Figma AI version:
     return true;
   }
 
-  // AI Prompt: Explain the Init section in clear, simple terms.
+  // ----------------------------------------
+  // NEW FEATURES
+  // ----------------------------------------
+
+  // --- Keyboard Shortcuts ---
+  function bindKeyboardShortcuts() {
+    document.addEventListener("keydown", (e) => {
+      const tag = e.target.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+      // Delete selected devices
+      if ((e.key === "Delete" || e.key === "Backspace") && state.selectedIds.length) {
+        e.preventDefault();
+        deleteDevices([...state.selectedIds]);
+        return;
+      }
+      // Ctrl+Z - Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        if (state.historyIndex > 0) { state.historyIndex--; restoreHistory(state.historyIndex); }
+        return;
+      }
+      // Ctrl+Y or Ctrl+Shift+Z - Redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        if (state.historyIndex < state.history.length - 1) { state.historyIndex++; restoreHistory(state.historyIndex); }
+        return;
+      }
+      // Ctrl+S - Save
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        handleSaveTopology();
+        return;
+      }
+      // Ctrl+D - Duplicate selected
+      if ((e.ctrlKey || e.metaKey) && e.key === "d" && state.selectedIds.length) {
+        e.preventDefault();
+        duplicateSelected();
+        return;
+      }
+      // V - Select tool
+      if (e.key === "v" || e.key === "V") {
+        state.tool = TOOL.SELECT;
+        qsa("[data-tool]").forEach((b) => b.classList.remove("is-active"));
+        getById("toolSelectBtn")?.classList.add("is-active");
+        state.connectFrom = null;
+        setTip("Select and drag devices.");
+        return;
+      }
+      // C - Connect tool
+      if (e.key === "c" || e.key === "C") {
+        state.tool = TOOL.CONNECT;
+        qsa("[data-tool]").forEach((b) => b.classList.remove("is-active"));
+        getById("toolConnectBtn")?.classList.add("is-active");
+        setTip("Select a device to start a connection.");
+        return;
+      }
+      // Escape - Deselect
+      if (e.key === "Escape") {
+        state.selectedIds = [];
+        state.connectFrom = null;
+        renderAll();
+        return;
+      }
+    });
+  }
+
+  // --- Duplicate Selected Device ---
+  function duplicateSelected() {
+    if (!state.selectedIds.length) return;
+    const device = findDevice(state.selectedIds[0]);
+    if (!device) return;
+    const offset = 40;
+    addDevice(device.type, { x: device.x + offset, y: device.y + offset });
+    addActionLog(`Duplicated ${device.name}`);
+  }
+
+  // --- Device Count Badges ---
+  function updateDeviceCountBadges() {
+    const counts = {};
+    state.devices.forEach((d) => { counts[d.type] = (counts[d.type] || 0) + 1; });
+    qsa("[data-count-for]").forEach((badge) => {
+      const type = badge.getAttribute("data-count-for");
+      const count = counts[type] || 0;
+      badge.textContent = count;
+      badge.classList.toggle("is-visible", count > 0);
+    });
+  }
+
+  // --- Quick Stats Bar ---
+  function updateStatsBar() {
+    const devEl = getById("sbxStatDevices");
+    const connEl = getById("sbxStatConns");
+    const selEl = getById("sbxStatSelected");
+    const selNameEl = getById("sbxStatSelectedName");
+    if (devEl) devEl.textContent = state.devices.length;
+    if (connEl) connEl.textContent = state.connections.length;
+    if (selEl && selNameEl) {
+      const sel = getSelectedDevice();
+      if (sel) {
+        selEl.style.display = "";
+        selNameEl.textContent = sel.name;
+      } else {
+        selEl.style.display = "none";
+      }
+    }
+  }
+
+  // --- Device Status Indicators ---
+  function updateDeviceStatusIndicators() {
+    qsa(".sbx-device-status").forEach((dot) => {
+      const deviceEl = dot.closest(".sbx-device");
+      if (!deviceEl) return;
+      const deviceId = deviceEl.getAttribute("data-id");
+      const device = findDevice(deviceId);
+      if (!device) return;
+      const hasIp = device.config && device.config.ipAddress;
+      dot.className = "sbx-device-status " + (hasIp ? "is-configured" : "is-unconfigured");
+    });
+  }
+
+  // --- Mouse Wheel Zoom ---
+  function bindMouseWheelZoom() {
+    stageEl.addEventListener("wheel", (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      state.zoom = clamp(state.zoom + delta, 0.5, 2);
+      updateZoomLabel();
+      renderConnections();
+    }, { passive: false });
+  }
+
+  // --- Right-Click Context Menu ---
+  let contextMenuEl = null;
+  function ensureContextMenu() {
+    if (contextMenuEl) return contextMenuEl;
+    contextMenuEl = document.createElement("div");
+    contextMenuEl.className = "sbx-context-menu";
+    contextMenuEl.innerHTML = `
+      <button class="sbx-context-item" data-action="rename"><i class="bi bi-pencil"></i> Rename<span class="sbx-context-shortcut">F2</span></button>
+      <button class="sbx-context-item" data-action="duplicate"><i class="bi bi-copy"></i> Duplicate<span class="sbx-context-shortcut">Ctrl+D</span></button>
+      <button class="sbx-context-item" data-action="ping"><i class="bi bi-broadcast-pin"></i> Ping from here</button>
+      <button class="sbx-context-item" data-action="interfaces"><i class="bi bi-ethernet"></i> Show interfaces</button>
+      <div class="sbx-context-sep"></div>
+      <button class="sbx-context-item is-danger" data-action="delete"><i class="bi bi-trash3"></i> Delete<span class="sbx-context-shortcut">Del</span></button>
+    `;
+    document.body.appendChild(contextMenuEl);
+    contextMenuEl.addEventListener("click", (e) => {
+      const item = e.target.closest("[data-action]");
+      if (!item) return;
+      const action = item.getAttribute("data-action");
+      const deviceId = contextMenuEl.dataset.deviceId;
+      hideContextMenu();
+      if (!deviceId) return;
+      switch (action) {
+        case "rename": {
+          const dev = findDevice(deviceId);
+          if (!dev) return;
+          const newName = prompt("Rename device:", dev.name);
+          if (newName && newName.trim()) {
+            dev.name = newName.trim();
+            pushHistory(); renderAll();
+            addActionLog(`Renamed to ${dev.name}`);
+          }
+          break;
+        }
+        case "duplicate": {
+          state.selectedIds = [deviceId];
+          duplicateSelected();
+          break;
+        }
+        case "ping": {
+          state.selectedIds = [deviceId];
+          getById("pingBtn")?.click();
+          break;
+        }
+        case "interfaces": {
+          state.selectedIds = [deviceId];
+          state.rightTab = "config";
+          state.configTab = "interfaces";
+          renderAll();
+          // Switch tabs visually
+          const tabsWrap = getById("sbxRightTabs");
+          if (tabsWrap) {
+            qsa(".sbx-tab", tabsWrap).forEach((t) => t.classList.remove("is-active"));
+            const configTab = qs('.sbx-tab[data-tab="config"]', tabsWrap);
+            if (configTab) configTab.classList.add("is-active");
+          }
+          qsa(".sbx-tabpanel", rightPanel).forEach((p) => p.classList.remove("is-active"));
+          getById("panelConfig")?.classList.add("is-active");
+          qsa(".sbx-subtab", getById("sbxConfigTabs")).forEach((s) => s.classList.remove("is-active"));
+          const intTab = qs('.sbx-subtab[data-subtab="interfaces"]', getById("sbxConfigTabs"));
+          if (intTab) intTab.classList.add("is-active");
+          break;
+        }
+        case "delete": {
+          deleteDevices([deviceId]);
+          break;
+        }
+      }
+    });
+    return contextMenuEl;
+  }
+
+  function showContextMenu(x, y, deviceId) {
+    const menu = ensureContextMenu();
+    menu.dataset.deviceId = deviceId;
+    menu.classList.add("is-visible");
+    menu.style.left = `${Math.min(x, window.innerWidth - 200)}px`;
+    menu.style.top = `${Math.min(y, window.innerHeight - 240)}px`;
+  }
+
+  function hideContextMenu() {
+    if (contextMenuEl) contextMenuEl.classList.remove("is-visible");
+  }
+
+  function bindContextMenu() {
+    document.addEventListener("click", (e) => {
+      if (contextMenuEl && !contextMenuEl.contains(e.target)) hideContextMenu();
+    });
+    document.addEventListener("contextmenu", (e) => {
+      if (contextMenuEl) hideContextMenu();
+    });
+  }
+
+  // --- Auto-Layout ---
+  function autoLayout() {
+    if (!state.devices.length) return;
+    const rect = stage.getBoundingClientRect();
+    const padding = 60;
+    const cols = Math.ceil(Math.sqrt(state.devices.length));
+    const cellW = Math.floor((rect.width - padding * 2) / cols);
+    const cellH = Math.floor(cellW * 0.9);
+
+    state.devices.forEach((d, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      d.x = padding + col * cellW + (cellW - DEVICE_SIZE) / 2;
+      d.y = padding + 40 + row * cellH + (cellH - DEVICE_SIZE) / 2;
+      if (state.snap) {
+        d.x = Math.round(d.x / GRID_SIZE) * GRID_SIZE;
+        d.y = Math.round(d.y / GRID_SIZE) * GRID_SIZE;
+      }
+    });
+
+    pushHistory();
+    renderAll();
+    addActionLog("Auto-layout applied");
+    showSbxToast("Auto-layout", "Devices arranged in a grid", "success");
+  }
+
+  // --- Minimap ---
+  let minimapVisible = false;
+  function toggleMinimap() {
+    minimapVisible = !minimapVisible;
+    const el = getById("sbxMinimap");
+    if (el) el.classList.toggle("is-visible", minimapVisible);
+    getById("minimapToggleBtn")?.classList.toggle("is-active", minimapVisible);
+    if (minimapVisible) updateMinimap();
+  }
+
+  function updateMinimap() {
+    if (!minimapVisible) return;
+    const svg = getById("sbxMinimapSvg");
+    if (!svg) return;
+    const rect = stage.getBoundingClientRect();
+    const scaleX = 160 / rect.width;
+    const scaleY = 100 / rect.height;
+    const scale = Math.min(scaleX, scaleY);
+
+    let html = "";
+    state.connections.forEach((c) => {
+      const from = findDevice(c.from);
+      const to = findDevice(c.to);
+      if (from && to) {
+        const x1 = (from.x + DEVICE_RADIUS) * scale;
+        const y1 = (from.y + DEVICE_RADIUS) * scale;
+        const x2 = (to.x + DEVICE_RADIUS) * scale;
+        const y2 = (to.y + DEVICE_RADIUS) * scale;
+        html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#94a3b8" stroke-width="1"/>`;
+      }
+    });
+    state.devices.forEach((d) => {
+      const cx = (d.x + DEVICE_RADIUS) * scale;
+      const cy = (d.y + DEVICE_RADIUS) * scale;
+      const selected = state.selectedIds.includes(d.id);
+      html += `<circle cx="${cx}" cy="${cy}" r="3" fill="${selected ? '#0d9488' : '#64748b'}"/>`;
+    });
+    svg.innerHTML = html;
+  }
+
+  // --- Multi-Select (Shift+Click) ---
+  // This is handled in the existing stage click handler. We patch it after bindStage.
+  function patchMultiSelect() {
+    // The existing pointerdown on .sbx-device in bindStage sets selectedIds = [id].
+    // We override by adding a capturing listener that detects shift.
+    deviceLayer.addEventListener("pointerdown", (e) => {
+      const deviceEl = e.target.closest(".sbx-device");
+      if (!deviceEl || !e.shiftKey) return;
+      e.stopPropagation();
+      const id = deviceEl.getAttribute("data-id");
+      if (!id) return;
+      if (state.selectedIds.includes(id)) {
+        state.selectedIds = state.selectedIds.filter((sid) => sid !== id);
+      } else {
+        state.selectedIds.push(id);
+      }
+      renderAll();
+    }, true); // capturing phase
+  }
+
+  // --- Device Search/Filter ---
+  function bindDeviceFilter() {
+    const input = getById("sbxDeviceFilter");
+    if (!input) return;
+    input.addEventListener("input", () => {
+      const query = input.value.toLowerCase().trim();
+      qsa(".sbx-device-card").forEach((card) => {
+        const label = card.querySelector(".sbx-device-label")?.textContent.toLowerCase() || "";
+        const type = card.getAttribute("data-device") || "";
+        const match = !query || label.includes(query) || type.includes(query);
+        card.style.display = match ? "" : "none";
+      });
+    });
+  }
+
+  // --- Traceroute Console Command ---
+  // Added inside executeCommand switch
+
+  // --- Connection Bandwidth Indicator ---
+  const BANDWIDTH_MAP = {
+    ethernet: "100 Mbps",
+    fiber: "1 Gbps",
+    serial: "1.5 Mbps",
+    wireless: "54 Mbps",
+    console: "9600 bps",
+  };
+
+  // --- Connection Labels on Canvas ---
+  function renderConnectionLabels() {
+    // Remove old labels
+    qsa(".sbx-conn-label", stageEl).forEach((el) => el.remove());
+    state.connections.forEach((c) => {
+      const from = findDevice(c.from);
+      const to = findDevice(c.to);
+      if (!from || !to) return;
+      const mx = ((from.x + DEVICE_RADIUS) + (to.x + DEVICE_RADIUS)) / 2;
+      const my = ((from.y + DEVICE_RADIUS) + (to.y + DEVICE_RADIUS)) / 2;
+      const label = document.createElement("div");
+      label.className = "sbx-conn-label";
+      label.textContent = (c.type || "ethernet").toUpperCase().slice(0, 3);
+      label.title = `${CONNECTION_TYPES[c.type]?.label || c.type} – ${BANDWIDTH_MAP[c.type] || ""}`;
+      label.style.left = `${mx}px`;
+      label.style.top = `${my - 12}px`;
+      stageEl.appendChild(label);
+    });
+  }
+
+  // renderAllEnhanced simply calls renderAll (enhanced features are already integrated)
+  function renderAllEnhanced() {
+    renderAll();
+  }
+
+  // --- Show sandbox toast helper (wraps existing logic) ---
+  function showSbxToast(title, message, variant = "info") {
+    if (!toastStack) return;
+    const toast = makeEl("div", `sbx-toast ${variant}`);
+    const icon = makeEl("div", "sbx-toast-icon");
+    icon.innerHTML = variant === "success" ? '<i class="bi bi-check-lg"></i>'
+      : variant === "error" ? '<i class="bi bi-x-lg"></i>'
+        : '<i class="bi bi-info-circle"></i>';
+    const titleEl = makeEl("div", "sbx-toast-title", title);
+    const msgEl = makeEl("div", "sbx-toast-message", message);
+    const close = makeEl("button", "sbx-toast-close");
+    close.innerHTML = "&times;";
+    const body = makeEl("div");
+    body.appendChild(titleEl);
+    if (message) body.appendChild(msgEl);
+    toast.appendChild(icon);
+    toast.appendChild(body);
+    toast.appendChild(close);
+    toastStack.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("is-show"));
+    const dismiss = () => {
+      toast.classList.remove("is-show");
+      toast.classList.add("is-leaving");
+      setTimeout(() => toast.remove(), 300);
+    };
+    close.addEventListener("click", dismiss);
+    setTimeout(dismiss, 3500);
+  }
+
+  // --- Patch right-click on devices in stage ---
+  function bindDeviceContextMenu() {
+    deviceLayer.addEventListener("contextmenu", (e) => {
+      const deviceEl = e.target.closest(".sbx-device");
+      if (!deviceEl) return;
+      e.preventDefault();
+      const id = deviceEl.getAttribute("data-id");
+      if (!id) return;
+      state.selectedIds = [id];
+      renderAll();
+      showContextMenu(e.clientX, e.clientY, id);
+    });
+  }
+
+  // --- Auto-layout and Minimap toolbar binding ---
+  function bindNewToolbarButtons() {
+    getById("autoLayoutBtn")?.addEventListener("click", autoLayout);
+    getById("minimapToggleBtn")?.addEventListener("click", toggleMinimap);
+  }
+
   // ----------------------------------------
   // Init
   // ----------------------------------------
@@ -3488,6 +3937,15 @@ Reworked to match the Figma AI version:
     bindToolbar();
     bindPanels();
     bindStage();
+
+    // New feature bindings
+    bindKeyboardShortcuts();
+    bindMouseWheelZoom();
+    bindContextMenu();
+    bindDeviceContextMenu();
+    bindNewToolbarButtons();
+    bindDeviceFilter();
+    patchMultiSelect();
 
     if (saveModalEl) {
       saveModalEl.addEventListener("shown.bs.modal", () => {
@@ -3507,7 +3965,7 @@ Reworked to match the Figma AI version:
     updateGrid();
     updateZoomLabel();
     setTip("Select a device to view and edit its settings.");
-    renderAll();
+    renderAllEnhanced();
 
     await initChallenge();
     await initTutorial();
