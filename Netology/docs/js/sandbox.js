@@ -125,6 +125,16 @@ Reworked to match the Figma AI version:
   let guideUI = null;
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
+  const ENDPOINTS = window.ENDPOINTS || {};
+  const apiGet = window.apiGet || (async (path, params = {}) => {
+    const base = API_BASE.trim();
+    const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+    });
+    const res = await fetch(url.toString());
+    return res.json();
+  });
 
   // AI Prompt: Explain the Utilities section in clear, simple terms.
   // ----------------------------------------
@@ -1250,7 +1260,8 @@ Reworked to match the Figma AI version:
 
     lessonSession.saving = true;
     try {
-      await fetch(`${API_BASE}/lesson-session/save`, {
+      const savePath = ENDPOINTS.sandbox?.lessonSessionSave || "/lesson-session/save";
+      await fetch(`${API_BASE}${savePath}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1284,9 +1295,12 @@ Reworked to match the Figma AI version:
     if (!lessonSessionReady()) return;
 
     try {
-      const url = `${API_BASE}/lesson-session/load?email=${encodeURIComponent(lessonSession.email)}&course_id=${encodeURIComponent(lessonSession.course_id)}&lesson_number=${encodeURIComponent(lessonSession.lesson_number)}`;
-      const res = await fetch(url);
-      const data = await res.json();
+      const loadPath = ENDPOINTS.sandbox?.lessonSessionLoad || "/lesson-session/load";
+      const data = await apiGet(loadPath, {
+        email: lessonSession.email,
+        course_id: lessonSession.course_id,
+        lesson_number: lessonSession.lesson_number
+      });
       if (!data.success || !data.found) return;
 
       state.devices = (data.devices || []).map(normalizeDevice);
@@ -1312,10 +1326,9 @@ Reworked to match the Figma AI version:
   }
 
   async function refreshUserFromServer(email) {
-    if (!API_BASE || !email) return null;
+    if (!email) return null;
     try {
-      const res = await fetch(`${API_BASE}/user-info?email=${encodeURIComponent(email)}`);
-      const data = await res.json();
+      const data = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", { email });
       if (!data || data.success === false) return null;
       updateUserStorage(data);
       fillIdentity(data);
@@ -3020,7 +3033,8 @@ Reworked to match the Figma AI version:
       await saveLessonSessionToDb();
       const earnedXp = Number(state.challengeMeta?.xp || 0);
 
-      const xpRes = await fetch(`${API_BASE}/complete-challenge`, {
+      const challengePath = ENDPOINTS.courses?.completeChallenge || "/complete-challenge";
+      const xpRes = await fetch(`${API_BASE}${challengePath}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3125,7 +3139,8 @@ Reworked to match the Figma AI version:
     }
 
     try {
-      const res = await fetch(`${API_BASE}/save-topology`, {
+      const saveTopoPath = ENDPOINTS.sandbox?.saveTopology || "/save-topology";
+      const res = await fetch(`${API_BASE}${saveTopoPath}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3197,8 +3212,7 @@ Reworked to match the Figma AI version:
     const user = getLoggedInUser();
     if (!user || !user.email) return;
 
-    const res = await fetch(`${API_BASE}/load-topologies?email=${encodeURIComponent(user.email)}`);
-    const data = await res.json();
+    const data = await apiGet(ENDPOINTS.sandbox?.loadTopologies || "/load-topologies", { email: user.email });
 
     const list = getById("topologyList");
     if (!list) return;
@@ -3240,8 +3254,9 @@ Reworked to match the Figma AI version:
   }
 
   async function loadTopologyById(id, name = "") {
-    const res = await fetch(`${API_BASE}/load-topology/${id}`);
-    const data = await res.json();
+    const loadPathTemplate = ENDPOINTS.sandbox?.loadTopology || "/load-topology/:topologyId";
+    const loadPath = loadPathTemplate.replace(":topologyId", encodeURIComponent(id));
+    const data = await apiGet(loadPath);
 
     if (!data.success) {
       showToast({
@@ -3274,7 +3289,9 @@ Reworked to match the Figma AI version:
   async function deleteTopology(id) {
     if (!confirm("Delete this topology?")) return;
     const user = getLoggedInUser();
-    await fetch(`${API_BASE}/delete-topology/${id}`, {
+    const deletePathTemplate = ENDPOINTS.sandbox?.deleteTopology || "/delete-topology/:topologyId";
+    const deletePath = deletePathTemplate.replace(":topologyId", encodeURIComponent(id));
+    await fetch(`${API_BASE}${deletePath}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: user?.email || "" }),

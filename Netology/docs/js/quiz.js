@@ -23,6 +23,18 @@ NOTE:
 const RESULTS_PASS_PCT = 70; // Used only for the results message/badge.
 const DEFAULT_QUIZ_XP = 40;
 const getApiBase = () => window.API_BASE || "";
+const apiGet = window.apiGet || (async (path, params = {}) => {
+  const base = String(getApiBase() || "").trim();
+  const url = base
+    ? new URL(base.replace(/\/$/, "") + path)
+    : new URL(path, window.location.origin);
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+  });
+  const res = await fetch(url.toString());
+  return res.json();
+});
+const ENDPOINTS = window.ENDPOINTS || {};
 
 document.addEventListener("DOMContentLoaded", () => {
   initQuizPage().catch((err) => {
@@ -104,11 +116,9 @@ function readUserFromStorage() {
 }
 
 async function refreshUserFromServer(email) {
-  const apiBase = getApiBase();
-  if (!apiBase || !email) return;
   try {
-    const res = await fetch(`${apiBase}/user-info?email=${encodeURIComponent(email)}`);
-    const data = await res.json();
+    if (!email) return;
+    const data = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", { email });
     if (!data || !data.success) return;
 
     const raw = readUserFromStorage();
@@ -154,11 +164,9 @@ function buildCourseUrl(courseId, lessonNumber, contentId) {
 }
 
 async function fetchCourseTitle(courseId) {
-  const api = getApiBase();
-  if (!api || !courseId) return "";
+  if (!courseId) return "";
   try {
-    const res = await fetch(`${api}/course?id=${encodeURIComponent(courseId)}`);
-    const data = await res.json();
+    const data = await apiGet(ENDPOINTS.courses?.courseDetails || "/course", { id: courseId });
     if (data && data.success && data.title) return data.title;
   } catch {
     // ignore
@@ -899,7 +907,8 @@ async function awardQuizXpOnce(state, earnedXP) {
   }
 
   try {
-    const res = await fetch(`${apiBase}/complete-quiz`, {
+    const endpoint = ENDPOINTS.courses?.completeQuiz || "/complete-quiz";
+    const res = await fetch(`${apiBase}${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

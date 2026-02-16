@@ -25,6 +25,26 @@ Notes:
 
 // Safety: ensure API base is never undefined
 const API_BASE = (window.API_BASE || "").replace(/\/$/, "");
+const ENDPOINTS = window.ENDPOINTS || {};
+const apiGet = window.apiGet || (async (path, params = {}) => {
+  const base = API_BASE.trim();
+  const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+  });
+  const res = await fetch(url.toString());
+  return res.json();
+});
+const apiPost = async (path, payload) => {
+  const base = API_BASE.trim();
+  const url = base ? `${base}${path}` : path;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {}),
+  });
+  return res.json();
+};
 
 const getById = (id) => document.getElementById(id);
 
@@ -244,7 +264,11 @@ function wireLoginSubmit(form) {
           next_level_xp: Number.isFinite(Number(data.next_level_xp)) ? Number(data.next_level_xp) : undefined,
 
           // NEW: dashboard uses this to unlock content tiers
-          unlock_tier: unlockTier
+          unlock_tier: unlockTier,
+
+          // Onboarding / guided tour flags
+          is_first_login: data.is_first_login,
+          onboarding_completed: data.onboarding_completed
         };
 
         localStorage.setItem("user", JSON.stringify(loginPayload));
@@ -907,14 +931,11 @@ class OnboardingTour {
 
   async init() {
     try {
-      const response = await fetch(`${API_BASE}/api/onboarding/steps`);
-      const data = await response.json();
+      const data = await apiGet(ENDPOINTS.onboarding?.steps || "/api/onboarding/steps");
       this.steps = data.steps;
       
-      await fetch(`${API_BASE}/api/onboarding/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_email: this.userEmail })
+      await apiPost(ENDPOINTS.onboarding?.start || "/api/onboarding/start", {
+        user_email: this.userEmail
       });
       
       this.isActive = true;
@@ -1016,10 +1037,8 @@ class OnboardingTour {
   }
 
   async completeTour() {
-    await fetch(`${API_BASE}/api/onboarding/complete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_email: this.userEmail })
+    await apiPost(ENDPOINTS.onboarding?.complete || "/api/onboarding/complete", {
+      user_email: this.userEmail
     });
     
     this.closeTour();
@@ -1028,10 +1047,8 @@ class OnboardingTour {
 
   async skipTour() {
     if (confirm('Skip the onboarding tour?')) {
-      await fetch(`${API_BASE}/api/onboarding/skip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_email: this.userEmail })
+      await apiPost(ENDPOINTS.onboarding?.skip || "/api/onboarding/skip", {
+        user_email: this.userEmail
       });
       
       this.closeTour();
@@ -1051,4 +1068,3 @@ function startOnboardingTour(userEmail) {
   window.onboardingTour = new OnboardingTour(userEmail);
   window.onboardingTour.init();
 }
-

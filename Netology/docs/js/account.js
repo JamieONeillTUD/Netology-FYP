@@ -18,6 +18,23 @@ Features:
 
   const getApiBase = () => window.API_BASE || "";
   const BASE_XP = 100;
+  const apiGet = window.apiGet || (async (path, params = {}) => {
+    const base = getApiBase().trim();
+    const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+    });
+    const res = await fetch(url.toString());
+    return res.json();
+  });
+  const listFrom = window.API_HELPERS?.list || ((data, ...keys) => {
+    if (Array.isArray(data)) return data;
+    for (const key of keys) {
+      if (Array.isArray(data?.[key])) return data[key];
+    }
+    return [];
+  });
+  const ENDPOINTS = window.ENDPOINTS || {};
 
   /* Initialization */
   document.addEventListener("DOMContentLoaded", () => {
@@ -79,24 +96,28 @@ Features:
   /* Load Profile Data */
   async function loadProfileData(user) {
     try {
-      const API_BASE = getApiBase();
-      
       // Fetch user details
-      const response = await fetch(`${API_BASE}/api/user?user_email=${encodeURIComponent(user.email)}`);
-      const userData = await response.json();
+      const userData = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", { email: user.email });
 
       // Calculate level and rank from XP
-      const totalXp = userData.xp || 0;
-      const level = levelFromXP(totalXp);
-      const rank = rankForLevel(level);
-      const currentLevelXp = totalXp - totalXpForLevel(level);
-      const nextLevelXp = xpForNextLevel(level);
+      const totalXp = Number(userData.xp || 0);
+      const level = Number.isFinite(Number(userData.numeric_level))
+        ? Number(userData.numeric_level)
+        : levelFromXP(totalXp);
+      const rank = userData.rank || rankForLevel(level);
+      const currentLevelXp = Number.isFinite(Number(userData.xp_into_level))
+        ? Number(userData.xp_into_level)
+        : totalXp - totalXpForLevel(level);
+      const nextLevelXp = Number.isFinite(Number(userData.next_level_xp))
+        ? Number(userData.next_level_xp)
+        : xpForNextLevel(level);
       const progressPct = Math.round((currentLevelXp / nextLevelXp) * 100);
+      const displayName = [userData.first_name, userData.last_name].filter(Boolean).join(" ") || "Student";
 
       // Update profile section
-      updateElement('profileName', escapeHtml(userData.name || 'Student'));
+      updateElement('profileName', escapeHtml(displayName));
       updateElement('profileEmail', escapeHtml(user.email));
-      updateElement('fullNameInput', escapeHtml(userData.name || 'Student'));
+      updateElement('fullNameInput', escapeHtml(displayName));
       updateElement('emailInput', user.email);
       updateElement('currentLevelInput', level);
       updateElement('currentRankInput', rank);
@@ -126,32 +147,34 @@ Features:
   /* Load Learning Statistics */
   async function loadLearningStats(user) {
     try {
-      const API_BASE = getApiBase();
-
       // Fetch progress
-      const progressResponse = await fetch(`${API_BASE}/api/user/progress?user_email=${encodeURIComponent(user.email)}`);
-      const courses = await progressResponse.json();
+      const coursesData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
+      const courses = listFrom(coursesData, "courses");
 
-      const completedCourses = courses.filter(c => c.completed).length;
+      const completedCourses = courses.filter(c => {
+        const status = (c.status || '').toLowerCase();
+        const pct = Number.isFinite(Number(c.progress_pct)) ? Number(c.progress_pct) : 0;
+        return status === 'completed' || pct >= 100;
+      }).length;
       updateElement('coursesCompletedDisplay', completedCourses);
       updateElement('coursesCompletedStat', completedCourses);
 
       // Fetch achievements
-      const achievementsResponse = await fetch(`${API_BASE}/api/user/achievements?user_email=${encodeURIComponent(user.email)}`);
-      const achievements = await achievementsResponse.json();
-      const unlockedCount = achievements.filter(a => a.unlocked).length;
+      const achievementsData = await apiGet(ENDPOINTS.achievements?.list || "/api/user/achievements", { user_email: user.email });
+      const unlocked = listFrom(achievementsData, "unlocked");
+      const locked = listFrom(achievementsData, "locked");
+      const unlockedCount = unlocked.length;
       updateElement('achievementsDisplay', unlockedCount);
       updateElement('achievementsStat', unlockedCount);
 
       // Fetch streaks
-      const streakResponse = await fetch(`${API_BASE}/api/user/streaks?user_email=${encodeURIComponent(user.email)}`);
-      const streakData = await streakResponse.json();
+      const streakData = await apiGet(ENDPOINTS.progress?.userStreaks || "/api/user/streaks", { user_email: user.email });
       updateElement('streakDisplay', `${streakData.current_streak || 0} days`);
       updateElement('streakStat', streakData.current_streak || 0);
 
       // Recent badges for profile sidebar
-      if (achievements.length > 0) {
-        const recentBadges = achievements.filter(a => a.unlocked).slice(0, 3);
+      if (unlocked.length > 0) {
+        const recentBadges = unlocked.slice(0, 3);
         const badgesHtml = recentBadges.map(b => `<span title="${escapeHtml(b.name)}" style="font-size: 1.2rem; cursor: help;">${b.icon || '⭐'}</span>`).join('');
         document.getElementById('recentBadgesSmall').innerHTML = badgesHtml || '<span class="text-muted small">No badges yet</span>';
       }
@@ -164,11 +187,12 @@ Features:
   /* Load Activity Data */
   async function loadActivityData(user) {
     try {
-      const API_BASE = getApiBase();
-
       // Fetch activity for heatmap
-      const actResponse = await fetch(`${API_BASE}/api/user/activity?user_email=${encodeURIComponent(user.email)}&range=90`);
-      const activityData = await actResponse.json();
+      const activityPayload = await apiGet(ENDPOINTS.progress?.userActivity || "/api/user/activity", {
+        user_email: user.email,
+        range: 90
+      });
+      const activityData = listFrom(activityPayload, "activity");
 
       if (activityData && Array.isArray(activityData)) {
         renderActivityHeatmap(activityData);
@@ -195,7 +219,7 @@ Features:
     const dataMap = {};
     activityData.forEach(item => {
       const date = item.date || item.activity_date;
-      const count = item.count || item.activity_count || 0;
+      const count = item.count || item.activity_count || item.logins || item.lessons || 0;
       if (date) dataMap[date] = Math.min(count, 4);
     });
 
@@ -235,7 +259,8 @@ Features:
           try {
             const user = getCurrentUser();
             const API_BASE = getApiBase();
-            fetch(`${API_BASE}/api/user/preferences`, {
+            const prefsEndpoint = ENDPOINTS.preferences?.update || "/api/user/preferences";
+            fetch(`${API_BASE}${prefsEndpoint}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -263,11 +288,8 @@ Features:
           const user = getCurrentUser();
           try {
             const API_BASE = getApiBase();
-            fetch(`${API_BASE}/api/auth/logout-all`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ user_email: user.email })
-            }).then(() => {
+            const logoutPath = ENDPOINTS.auth?.logout || "/logout";
+            fetch(`${API_BASE}${logoutPath}`, { method: 'GET' }).finally(() => {
               localStorage.removeItem('netology_user');
               window.location.href = 'login.html';
             });
@@ -285,16 +307,9 @@ Features:
           if (confirmation === 'DELETE') {
             const user = getCurrentUser();
             try {
-              const API_BASE = getApiBase();
-              fetch(`${API_BASE}/api/user`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_email: user.email })
-              }).then(() => {
-                localStorage.removeItem('netology_user');
-                alert('Your account has been deleted.');
-                window.location.href = 'index.html';
-              });
+              alert('Account deletion is not enabled in this deployment. Logging you out instead.');
+              localStorage.removeItem('netology_user');
+              window.location.href = 'index.html';
             } catch (err) {
               console.error('Delete error:', err);
             }
@@ -308,11 +323,8 @@ Features:
         const user = getCurrentUser();
         try {
           const API_BASE = getApiBase();
-          fetch(`${API_BASE}/api/auth/logout`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_email: user.email })
-          }).then(() => {
+          const logoutPath = ENDPOINTS.auth?.logout || "/logout";
+          fetch(`${API_BASE}${logoutPath}`, { method: 'GET' }).finally(() => {
             localStorage.removeItem('netology_user');
             window.location.href = 'login.html';
           });

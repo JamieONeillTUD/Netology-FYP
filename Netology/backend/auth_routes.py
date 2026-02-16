@@ -36,6 +36,8 @@ from xp_system import get_level_progress, rank_for_level, add_xp_to_user
 auth = Blueprint("auth", __name__)
 bcrypt = Bcrypt()
 
+_USERS_SCHEMA_OK = False
+
 
 # AI Prompt: Explain the Helper Functions (Jamie style: small + readable) section in clear, simple terms.
 # =========================================================
@@ -62,6 +64,55 @@ def _clean_start_level(level_value: str) -> str:
     if v in ("novice", "intermediate", "advanced"):
         return v
     return "novice"
+
+def ensure_users_schema():
+    """
+    Ensure users table has required columns for auth + onboarding.
+    Returns (ok: bool, error: str | None).
+    """
+    global _USERS_SCHEMA_OK
+    if _USERS_SCHEMA_OK:
+        return True, None
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Verify users table exists
+        cur.execute("SELECT to_regclass('public.users')")
+        exists = cur.fetchone()[0] is not None
+        if not exists:
+            return False, "users table missing"
+
+        # Safe migrations (idempotent)
+        stmts = [
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS level VARCHAR(50) DEFAULT 'Novice'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS numeric_level INTEGER DEFAULT 1",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS reasons TEXT",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS dob DATE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS start_level VARCHAR(20) DEFAULT 'novice'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_first_login BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMP",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        ]
+        for stmt in stmts:
+            cur.execute(stmt)
+
+        conn.commit()
+        _USERS_SCHEMA_OK = True
+        return True, None
+    except Exception as e:
+        print("Ensure users schema error:", e)
+        return False, str(e)
+    finally:
+        try:
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
 
 
 def ensure_user_preferences_table():
@@ -141,6 +192,13 @@ Stored:
 @auth.route("/register", methods=["POST"])
 def register():
     try:
+        ok, _err = ensure_users_schema()
+        if not ok:
+            return jsonify({
+                "success": False,
+                "message": "Database not ready. Check connection and run netology_schema.sql."
+            }), 500
+
         data = request.form
 
         # Get fields from form (wizard)
@@ -223,8 +281,9 @@ def register():
             """
             INSERT INTO users
             (first_name, last_name, username, email, password_hash, level,
-             numeric_level, reasons, xp, dob, start_level)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             numeric_level, reasons, xp, dob, start_level,
+             is_first_login, onboarding_completed)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, FALSE)
             """,
             (first_name, last_name, username, email, hashed_password, level_label,
              numeric_level, reasons, xp, dob, start_level),
@@ -263,6 +322,13 @@ def login():
     password = request.form.get("password") or ""
 
     try:
+        ok, _err = ensure_users_schema()
+        if not ok:
+            return jsonify({
+                "success": False,
+                "message": "Database not ready. Check connection and run netology_schema.sql."
+            }), 500
+
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -357,6 +423,13 @@ def user_info():
     email = _norm_email(request.args.get("email"))
 
     try:
+        ok, _err = ensure_users_schema()
+        if not ok:
+            return jsonify({
+                "success": False,
+                "message": "Database not ready. Check connection and run netology_schema.sql."
+            }), 500
+
         conn = get_db_connection()
         cur = conn.cursor()
 

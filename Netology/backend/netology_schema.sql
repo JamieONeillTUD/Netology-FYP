@@ -121,8 +121,24 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     weekly_summary BOOLEAN DEFAULT TRUE,
     streak_reminders BOOLEAN DEFAULT TRUE,
     new_course_alerts BOOLEAN DEFAULT FALSE,
+    theme VARCHAR(20) DEFAULT 'light',
+    font_preference VARCHAR(50) DEFAULT 'standard',
+    reduced_motion BOOLEAN DEFAULT FALSE,
+    notifications_enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Ensure preference columns exist (safe for existing DBs)
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS weekly_summary BOOLEAN DEFAULT TRUE;
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS streak_reminders BOOLEAN DEFAULT TRUE;
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS new_course_alerts BOOLEAN DEFAULT FALSE;
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS theme VARCHAR(20) DEFAULT 'light';
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS font_preference VARCHAR(50) DEFAULT 'standard';
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS reduced_motion BOOLEAN DEFAULT FALSE;
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 -- AI Prompt: Explain the USER ACHIEVEMENTS (PERSISTENT BADGES) section in clear, simple terms.
 -- =========================================================
@@ -139,6 +155,13 @@ CREATE TABLE IF NOT EXISTS user_achievements (
     earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_email, achievement_id)
 );
+
+-- Ensure achievement columns exist (safe for existing DBs)
+ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS name VARCHAR(150);
+ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS tier VARCHAR(20);
+ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 0;
+ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 -- AI Prompt: Explain the LOGIN ACTIVITY (STREAKS) section in clear, simple terms.
 -- =========================================================
@@ -268,7 +291,7 @@ CREATE TABLE IF NOT EXISTS lesson_slides (
 );
 
 CREATE TABLE IF NOT EXISTS user_slide_progress (
-    id SERIAL PRIMARY KEY,
+    id SERIAL,
     user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
     slide_id INTEGER NOT NULL REFERENCES lesson_slides(id) ON DELETE CASCADE,
     lesson_id INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
@@ -305,20 +328,6 @@ CREATE TABLE IF NOT EXISTS user_tour_progress (
 );
 
 -- =========================================================
--- USER PREFERENCES
--- =========================================================
-CREATE TABLE IF NOT EXISTS user_preferences (
-    id SERIAL PRIMARY KEY,
-    user_email VARCHAR(255) UNIQUE NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-    theme VARCHAR(20) DEFAULT 'light',
-    font_preference VARCHAR(50) DEFAULT 'standard',
-    reduced_motion BOOLEAN DEFAULT FALSE,
-    notifications_enabled BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =========================================================
 -- ACHIEVEMENTS SYSTEM
 -- =========================================================
 CREATE TABLE IF NOT EXISTS achievements (
@@ -333,13 +342,7 @@ CREATE TABLE IF NOT EXISTS achievements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS user_achievements (
-    id SERIAL PRIMARY KEY,
-    user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-    achievement_id VARCHAR(100) NOT NULL REFERENCES achievements(id) ON DELETE CASCADE,
-    earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_email, achievement_id)
-);
+-- (user_achievements table already defined above with richer fields)
 
 -- =========================================================
 -- DAILY ACTIVITY TRACKING (for heatmap)

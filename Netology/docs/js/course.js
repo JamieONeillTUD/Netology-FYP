@@ -38,18 +38,22 @@ What this file does:
 
   const API = () => (window.API_BASE || "").replace(/\/$/, "");
   const BASE_XP = 100;
-
-  // If your backend endpoints differ, update ONLY these paths.
-  const ENDPOINTS = {
-    userInfo: (email) => `${API()}/user-info?email=${encodeURIComponent(email)}`,
-
-    // Best-guess completion endpoints (optional)
-    getCompletions: (email, courseId) =>
-      `${API()}/user-course-status?email=${encodeURIComponent(email)}&course_id=${encodeURIComponent(courseId)}`,
-
-    completeLesson: `${API()}/complete-lesson`,
-    completeQuiz: `${API()}/complete-quiz`,
-    completeChallenge: `${API()}/complete-challenge`,
+  const apiGet = window.apiGet || (async (path, params = {}) => {
+    const base = API();
+    const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+    });
+    const res = await fetch(url.toString());
+    return res.json();
+  });
+  const ENDPOINTS = window.ENDPOINTS || {};
+  const PATHS = {
+    userInfo: ENDPOINTS.auth?.userInfo || "/user-info",
+    getCompletions: ENDPOINTS.courses?.userCourseStatus || "/user-course-status",
+    completeLesson: ENDPOINTS.courses?.completeLesson || "/complete-lesson",
+    completeQuiz: ENDPOINTS.courses?.completeQuiz || "/complete-quiz",
+    completeChallenge: ENDPOINTS.courses?.completeChallenge || "/complete-challenge",
   };
 
   // localStorage fallback key
@@ -681,8 +685,7 @@ What this file does:
       // If no API base, just fallback
       if (!API()) throw new Error("no api");
 
-      const res = await fetch(ENDPOINTS.userInfo(email));
-      const data = await res.json().catch(() => null);
+      const data = await apiGet(PATHS.userInfo, { email });
       if (!data || data.success === false) throw new Error("user-info failed");
 
       const serverXP = Number(data.xp ?? data.total_xp);
@@ -748,28 +751,25 @@ What this file does:
     // 1) Try backend (source of truth if available).
     try {
       if (API()) {
-        const res = await fetch(ENDPOINTS.getCompletions(email, courseId));
-        if (res.ok) {
-          const data = await res.json().catch(() => null);
-          if (data && data.success !== false) {
-            if (data.completions) {
-              applyCompletionsPayload(data.completions);
-              mergeLocalCompletions(email, courseId);
-              cacheCompletionsToLS(email, courseId);
-              refreshTutorialCompletions();
-              return;
-            }
-            if (data.lessons || data.quizzes || data.challenges) {
-              applyCompletionsPayload({
-                lessons: data.lessons || [],
-                quizzes: data.quizzes || [],
-                challenges: data.challenges || []
-              });
-              mergeLocalCompletions(email, courseId);
-              cacheCompletionsToLS(email, courseId);
-              refreshTutorialCompletions();
-              return;
-            }
+        const data = await apiGet(PATHS.getCompletions, { email, course_id: courseId });
+        if (data && data.success !== false) {
+          if (data.completions) {
+            applyCompletionsPayload(data.completions);
+            mergeLocalCompletions(email, courseId);
+            cacheCompletionsToLS(email, courseId);
+            refreshTutorialCompletions();
+            return;
+          }
+          if (data.lessons || data.quizzes || data.challenges) {
+            applyCompletionsPayload({
+              lessons: data.lessons || [],
+              quizzes: data.quizzes || [],
+              challenges: data.challenges || []
+            });
+            mergeLocalCompletions(email, courseId);
+            cacheCompletionsToLS(email, courseId);
+            refreshTutorialCompletions();
+            return;
           }
         }
       }
@@ -2164,13 +2164,13 @@ What this file does:
       earned_xp: Number(xp || 0),
     };
 
-    let url = "";
-    if (type === "learn") url = ENDPOINTS.completeLesson;
-    if (type === "quiz") url = ENDPOINTS.completeQuiz;
-    if (type === "challenge") url = ENDPOINTS.completeChallenge;
-    if (!url) return false;
+    let path = "";
+    if (type === "learn") path = PATHS.completeLesson;
+    if (type === "quiz") path = PATHS.completeQuiz;
+    if (type === "challenge") path = PATHS.completeChallenge;
+    if (!path) return false;
 
-    const res = await fetch(url, {
+    const res = await fetch(`${API()}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

@@ -12,6 +12,23 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
 
   /* API base + page config */
   const getApiBase = () => window.API_BASE || "";
+  const apiGet = window.apiGet || (async (path, params = {}) => {
+    const base = getApiBase().trim();
+    const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+    });
+    const res = await fetch(url.toString());
+    return res.json();
+  });
+  const listFrom = window.API_HELPERS?.list || ((data, ...keys) => {
+    if (Array.isArray(data)) return data;
+    for (const key of keys) {
+      if (Array.isArray(data?.[key])) return data[key];
+    }
+    return [];
+  });
+  const ENDPOINTS = window.ENDPOINTS || {};
 
   /* Page init wiring */
   document.addEventListener("DOMContentLoaded", () => {
@@ -116,9 +133,8 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
     empty.classList.add('d-none');
 
     try {
-      const API_BASE = getApiBase();
-      const response = await fetch(`${API_BASE}/api/user/progress?user_email=${encodeURIComponent(user.email)}`);
-      const courses = await response.json();
+      const coursesData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
+      const courses = listFrom(coursesData, "courses");
 
       list.innerHTML = '';
       
@@ -129,7 +145,10 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
       }
 
       courses.forEach(course => {
-        const pct = Math.round((course.lessons_completed || 0) / Math.max(course.total_lessons || 1, 1) * 100);
+        const pct = Number.isFinite(Number(course.progress_pct)) ? Number(course.progress_pct) : 0;
+        const totalLessons = course.total_lessons || 0;
+        const completedLessons = totalLessons > 0 ? Math.round((pct / 100) * totalLessons) : 0;
+        const status = (course.status || '').toLowerCase();
         const card = document.createElement('div');
         card.className = 'net-progress-item net-card p-3 mb-3';
         card.innerHTML = `
@@ -143,10 +162,10 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
                 </div>
                 <span class="small fw-semibold">${pct}%</span>
               </div>
-              <div class="small text-muted mt-1">${course.lessons_completed || 0}/${course.total_lessons || 0} lessons</div>
+              <div class="small text-muted mt-1">${completedLessons}/${totalLessons} lessons</div>
             </div>
             <div class="text-end">
-              <span class="badge ${pct === 100 ? 'text-bg-success' : pct >= 50 ? 'text-bg-info' : 'text-bg-secondary'}">${pct === 100 ? 'Complete' : pct >= 50 ? 'In Progress' : 'Started'}</span>
+              <span class="badge ${pct === 100 ? 'text-bg-success' : pct >= 50 ? 'text-bg-info' : 'text-bg-secondary'}">${status === 'completed' || pct === 100 ? 'Complete' : pct > 0 ? 'In Progress' : 'Not Started'}</span>
             </div>
           </div>
         `;
@@ -170,11 +189,14 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
     empty.classList.add('d-none');
 
     try {
-      const API_BASE = getApiBase();
-      const response = await fetch(`${API_BASE}/api/user/progress?user_email=${encodeURIComponent(user.email)}`);
-      const courses = await response.json();
+      const coursesData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
+      const courses = listFrom(coursesData, "courses");
 
-      const inProgress = courses.filter(c => (c.lessons_completed || 0) > 0 && (c.lessons_completed || 0) < (c.total_lessons || 1));
+      const inProgress = courses.filter(c => {
+        const pct = Number.isFinite(Number(c.progress_pct)) ? Number(c.progress_pct) : 0;
+        const status = (c.status || '').toLowerCase();
+        return status === 'in-progress' || (pct > 0 && pct < 100);
+      });
       
       list.innerHTML = '';
       
@@ -185,7 +207,9 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
       }
 
       inProgress.forEach(course => {
-        const pct = Math.round((course.lessons_completed || 0) / Math.max(course.total_lessons || 1, 1) * 100);
+        const pct = Number.isFinite(Number(course.progress_pct)) ? Number(course.progress_pct) : 0;
+        const totalLessons = course.total_lessons || 0;
+        const completedLessons = totalLessons > 0 ? Math.round((pct / 100) * totalLessons) : 0;
         const card = document.createElement('div');
         card.className = 'net-progress-item net-card p-3 mb-3';
         card.innerHTML = `
@@ -198,9 +222,9 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
                 </div>
                 <span class="small fw-semibold">${pct}%</span>
               </div>
-              <div class="small text-muted mt-1">${course.lessons_completed || 0}/${course.total_lessons || 0} lessons</div>
+              <div class="small text-muted mt-1">${completedLessons}/${totalLessons} lessons</div>
             </div>
-            <a href="lesson.html?course_id=${course.course_id}" class="btn btn-sm btn-outline-teal">Continue</a>
+            <a href="lesson.html?course_id=${course.id}" class="btn btn-sm btn-outline-teal">Continue</a>
           </div>
         `;
         list.appendChild(card);
@@ -223,11 +247,14 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
     empty.classList.add('d-none');
 
     try {
-      const API_BASE = getApiBase();
-      const response = await fetch(`${API_BASE}/api/user/progress?user_email=${encodeURIComponent(user.email)}`);
-      const courses = await response.json();
+      const coursesData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
+      const courses = listFrom(coursesData, "courses");
 
-      const completed = courses.filter(c => (c.lessons_completed || 0) >= (c.total_lessons || 1));
+      const completed = courses.filter(c => {
+        const pct = Number.isFinite(Number(c.progress_pct)) ? Number(c.progress_pct) : 0;
+        const status = (c.status || '').toLowerCase();
+        return status === 'completed' || pct >= 100;
+      });
       
       list.innerHTML = '';
       
@@ -276,9 +303,13 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
     empty.classList.add('d-none');
 
     try {
-      const API_BASE = getApiBase();
-      const response = await fetch(`${API_BASE}/api/user/achievements?user_email=${encodeURIComponent(user.email)}`);
-      const achievements = await response.json();
+      const data = await apiGet(ENDPOINTS.achievements?.list || "/api/user/achievements", { user_email: user.email });
+      const unlocked = listFrom(data, "unlocked");
+      const locked = listFrom(data, "locked");
+      const achievements = [
+        ...unlocked.map(a => ({ ...a, unlocked: true })),
+        ...locked.map(a => ({ ...a, unlocked: false }))
+      ];
 
       container.innerHTML = '';
       
@@ -305,7 +336,7 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
         container.appendChild(card);
       });
 
-      const unlockedCount = achievements.filter(a => a.unlocked).length;
+      const unlockedCount = unlocked.length;
       updateTabCount('achievements', unlockedCount);
     } catch (err) {
       console.error('Error loading achievements:', err);
@@ -322,22 +353,24 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
     heatmapContainer.innerHTML = '<div class="text-center py-4"><i class="bi bi-hourglass-split me-2"></i> Loading...</div>';
 
     try {
-      const API_BASE = getApiBase();
-      
       // Fetch activity data
-      const actResponse = await fetch(`${API_BASE}/api/user/activity?user_email=${encodeURIComponent(user.email)}&range=365`);
-      const activityData = await actResponse.json();
+      const activityPayload = await apiGet(ENDPOINTS.progress?.userActivity || "/api/user/activity", {
+        user_email: user.email,
+        range: 365
+      });
+      const activityData = listFrom(activityPayload, "activity");
       
       // Fetch streak data
-      const streakResponse = await fetch(`${API_BASE}/api/user/streaks?user_email=${encodeURIComponent(user.email)}`);
-      const streakData = await streakResponse.json();
+      const streakData = await apiGet(ENDPOINTS.progress?.userStreaks || "/api/user/streaks", {
+        user_email: user.email
+      });
       
       // Build heatmap
       renderHeatmap(heatmapContainer, activityData);
       
       // Render streak info
       const streak = streakData.current_streak || 0;
-      const lastActivity = streakData.last_activity_date || 'Never';
+      const lastActivity = streakData.last_activity_date || streakData.last_login || 'Never';
       const lastActivityDate = lastActivity !== 'Never' ? new Date(lastActivity).toLocaleDateString() : lastActivity;
       
       document.getElementById('streakText').textContent = `${streak}-day streak`;
@@ -363,7 +396,7 @@ progress.js – Progress detail lists with tabbed interface (All / In Progress /
     const dataMap = {};
     activityData.forEach(item => {
       const date = item.date || item.activity_date;
-      const count = item.count || item.activity_count || 0;
+      const count = item.count || item.activity_count || item.logins || item.lessons || 0;
       if (date) dataMap[date] = Math.min(count, 4);
     });
 

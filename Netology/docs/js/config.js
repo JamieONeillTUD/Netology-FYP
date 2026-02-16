@@ -131,6 +131,35 @@ window.ENDPOINTS = {
   }
 };
 
+/* =========================================================
+   API HELPERS (small + consistent)
+========================================================= */
+window.API_HELPERS = window.API_HELPERS || {};
+
+window.API_HELPERS.list = function (data, ...keys) {
+  if (Array.isArray(data)) return data;
+  for (const key of keys) {
+    if (Array.isArray(data?.[key])) return data[key];
+  }
+  return [];
+};
+
+window.apiGet = async function (path, params = {}) {
+  const base = (window.API_BASE || "").trim();
+  const url = base
+    ? new URL(base.replace(/\/$/, "") + path)
+    : new URL(path, window.location.origin);
+
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") {
+      url.searchParams.set(k, String(v));
+    }
+  });
+
+  const res = await fetch(url.toString());
+  return res.json();
+};
+
 /* AI Prompt: Explain the Preview mode seeding (demo user) section in clear, simple terms. */
 /* =========================================================
    Preview mode seeding (demo user)

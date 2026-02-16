@@ -57,6 +57,25 @@ Works with:
     return chip;
   };
   const BASE_XP = 100;
+  const apiGet = window.apiGet || (async (path, params = {}) => {
+    const base = String(window.API_BASE || "").trim();
+    const url = base
+      ? new URL(base.replace(/\/$/, "") + path)
+      : new URL(path, window.location.origin);
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+    });
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    return res.json();
+  });
+  const listFrom = window.API_HELPERS?.list || ((data, ...keys) => {
+    if (Array.isArray(data)) return data;
+    for (const key of keys) {
+      if (Array.isArray(data?.[key])) return data[key];
+    }
+    return [];
+  });
+  const ENDPOINTS = window.ENDPOINTS || {};
 
   const DAILY_TIPS = [
     "CompTIA Network+ covers the physical, data link, network, transport, and application layers.",
@@ -423,12 +442,11 @@ Works with:
   }
 
   async function fetchAchievements(email) {
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (!email || !base) return [];
     try {
-      const data = await fetchJson(`${base}/user-achievements?email=${encodeURIComponent(email)}`);
+      const data = await apiGet("/user-achievements", { email });
+      const achievements = listFrom(data, "achievements");
       if (!data || !data.success) return getBadges(email);
-      setBadgesCache(data.achievements || []);
+      setBadgesCache(achievements);
       return getBadges(email);
     } catch {
       return getBadges(email);
@@ -738,22 +756,19 @@ Works with:
   }
 
   async function fetchContinueCourses(email) {
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (!base || !email) return null;
     try {
-      const data = await fetchJson(`${base}/user-courses?email=${encodeURIComponent(email)}`);
-      if (!data || !data.success || !Array.isArray(data.courses)) return null;
-      return data.courses.filter((c) => c.status === "in-progress");
+      const data = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email });
+      const courses = listFrom(data, "courses");
+      if (!courses.length) return null;
+      return courses.filter((c) => c.status === "in-progress");
     } catch {
       return null;
     }
   }
 
   async function fetchProgressSummary(email) {
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (!base || !email) return null;
     try {
-      const data = await fetchJson(`${base}/user-progress-summary?email=${encodeURIComponent(email)}`);
+      const data = await apiGet("/user-progress-summary", { email });
       if (!data || !data.success) return null;
       const summary = {
         email,
@@ -976,12 +991,11 @@ Works with:
   }
 
   async function fetchRecentActivity(email) {
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (!email || !base) return null;
     try {
-      const data = await fetchJson(`${base}/recent-activity?email=${encodeURIComponent(email)}&limit=8`);
+      const data = await apiGet("/recent-activity", { email, limit: 8 });
+      const activity = listFrom(data, "activity");
       if (!data || !data.success) return null;
-      return Array.isArray(data.activity) ? data.activity : [];
+      return activity;
     } catch {
       return null;
     }
@@ -1653,11 +1667,10 @@ Works with:
   async function refreshUserFromApi() {
     const user = getCurrentUser();
     const email = user?.email || localStorage.getItem("netology_last_email") || "";
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (!email || !base) return user;
+    if (!email) return user;
 
     try {
-      const data = await fetchJson(`${base}/user-info?email=${encodeURIComponent(email)}`);
+      const data = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", { email });
       if (!data || !data.success) return user;
 
       const unlockTier = String(data.start_level || user?.unlock_tier || user?.unlock_level || user?.unlockTier || "novice")
@@ -2016,6 +2029,14 @@ Works with:
       if (e.key === "user" || e.key.startsWith("netology_")) scheduleDashboardRefresh();
     });
   }
+
+  // Expose helpers needed by inline scripts on dashboard.html
+  window.onReady = onReady;
+  window.escapeHtml = window.escapeHtml || function (str) {
+    const div = document.createElement("div");
+    div.textContent = String(str ?? "");
+    return div.innerHTML;
+  };
 
   onReady(init);
 })();

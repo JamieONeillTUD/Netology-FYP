@@ -17,6 +17,23 @@ Features:
 
   const getApiBase = () => window.API_BASE || "";
   const BASE_XP = 100;
+  const apiGet = window.apiGet || (async (path, params = {}) => {
+    const base = getApiBase().trim();
+    const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+    });
+    const res = await fetch(url.toString());
+    return res.json();
+  });
+  const listFrom = window.API_HELPERS?.list || ((data, ...keys) => {
+    if (Array.isArray(data)) return data;
+    for (const key of keys) {
+      if (Array.isArray(data?.[key])) return data[key];
+    }
+    return [];
+  });
+  const ENDPOINTS = window.ENDPOINTS || {};
 
   /* Initialization */
   document.addEventListener("DOMContentLoaded", () => {
@@ -91,9 +108,8 @@ Features:
   /* Load all courses into carousels */
   async function loadAllCoursesCarousels(user) {
     try {
-      const API_BASE = getApiBase();
-      const response = await fetch(`${API_BASE}/api/courses?user_email=${encodeURIComponent(user.email)}`);
-      const courses = await response.json();
+      const coursesData = await apiGet(ENDPOINTS.courses?.list || "/courses");
+      const courses = listFrom(coursesData, "courses");
 
       if (!courses || courses.length === 0) {
         console.warn('No courses available');
@@ -101,15 +117,17 @@ Features:
       }
 
       // Get user progress to check which courses are in progress
-      const progressResponse = await fetch(`${API_BASE}/api/user/progress?user_email=${encodeURIComponent(user.email)}`);
-      const userProgress = await progressResponse.json();
+      const progressData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
+      const userProgress = listFrom(progressData, "courses");
       const progressMap = {};
       userProgress.forEach(p => {
-        progressMap[p.course_id] = p;
+        progressMap[p.id] = p;
       });
 
       // Get user level for lock checking
-      const level = user.level || 1;
+      const level = Number.isFinite(Number(user.numeric_level))
+        ? Number(user.numeric_level)
+        : (Number.isFinite(Number(user.level)) ? Number(user.level) : 1);
 
       // Group courses by difficulty
       const grouped = {
@@ -151,8 +169,9 @@ Features:
 
     const progress = progressMap[course.id] || {};
     const isLocked = course.required_level && course.required_level > userLevel;
-    const isInProgress = progress.course_id && !progress.completed;
-    const isCompleted = progress.completed;
+    const status = (progress.status || '').toLowerCase();
+    const isInProgress = status === 'in-progress';
+    const isCompleted = status === 'completed';
 
     if (isLocked) {
       card.classList.add('locked');
@@ -163,8 +182,8 @@ Features:
 
     const icon = getIconForDifficulty(course.difficulty || 'novice');
     const totalLessons = course.total_lessons || 0;
-    const completedLessons = progress.lessons_completed || 0;
-    const progressPct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+    const progressPct = Number.isFinite(Number(progress.progress_pct)) ? Number(progress.progress_pct) : 0;
+    const completedLessons = totalLessons > 0 ? Math.round((progressPct / 100) * totalLessons) : 0;
 
     card.innerHTML = `
       <div class="net-course-header">
@@ -245,12 +264,11 @@ Features:
     if (!container || !placeholder) return;
 
     try {
-      const API_BASE = getApiBase();
-      const response = await fetch(`${API_BASE}/api/user/progress?user_email=${encodeURIComponent(user.email)}`);
-      const userCourses = await response.json();
+      const data = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
+      const userCourses = listFrom(data, "courses");
 
       // Filter only started courses
-      const startedCourses = userCourses.filter(c => c.lessons_completed > 0 || c.completed);
+      const startedCourses = userCourses.filter(c => (c.progress_pct || 0) > 0 || (c.status || '').toLowerCase() === 'completed');
 
       if (startedCourses.length === 0) {
         placeholder.classList.remove('d-none');
@@ -260,7 +278,7 @@ Features:
       container.innerHTML = '';
 
       startedCourses.slice(0, 4).forEach(course => {
-        const pct = Math.round((course.lessons_completed || 0) / Math.max(course.total_lessons || 1, 1) * 100);
+        const pct = Number.isFinite(Number(course.progress_pct)) ? Number(course.progress_pct) : 0;
         const col = document.createElement('div');
         col.className = 'col-md-6 col-lg-3 mb-3';
         col.innerHTML = `
@@ -270,8 +288,8 @@ Features:
               <div class="progress mb-2" style="height: 6px;">
                 <div class="progress-bar net-progress-fill" style="width: ${pct}%"></div>
               </div>
-              <div class="small text-muted mb-3">${course.lessons_completed}/${course.total_lessons} lessons</div>
-              <a href="lesson.html?course_id=${course.course_id}" class="btn btn-sm btn-teal w-100">
+              <div class="small text-muted mb-3">${Math.round((pct / 100) * Math.max(course.total_lessons || 0, 0))}/${course.total_lessons || 0} lessons</div>
+              <a href="lesson.html?course_id=${course.id}" class="btn btn-sm btn-teal w-100">
                 <i class="bi bi-play-fill me-1"></i>Continue
               </a>
             </div>
@@ -284,6 +302,80 @@ Features:
       console.error('Error loading progress:', err);
       placeholder.classList.remove('d-none');
     }
+  }
+
+  /* Chrome: sidebar, dropdown, identity, logout */
+  function wireChrome(user) {
+    wireSidebar();
+    wireUserDropdown();
+    fillIdentity(user);
+
+    const topLogout = document.getElementById('topLogoutBtn');
+    const sideLogout = document.getElementById('sideLogoutBtn');
+    const doLogout = () => {
+      localStorage.removeItem('netology_user');
+      localStorage.removeItem('user');
+      localStorage.removeItem('netology_token');
+      window.location.href = 'index.html';
+    };
+    if (topLogout) topLogout.addEventListener('click', doLogout);
+    if (sideLogout) sideLogout.addEventListener('click', doLogout);
+  }
+
+  function wireSidebar() {
+    const openBtn = document.getElementById('openSidebarBtn');
+    const closeBtn = document.getElementById('closeSidebarBtn');
+    const sidebar = document.getElementById('slideSidebar');
+    const backdrop = document.getElementById('sideBackdrop');
+
+    const open = () => {
+      if (!sidebar || !backdrop) return;
+      sidebar.classList.add('is-open');
+      backdrop.classList.add('is-open');
+      document.body.classList.add('net-noscroll');
+    };
+    const close = () => {
+      if (!sidebar || !backdrop) return;
+      sidebar.classList.remove('is-open');
+      backdrop.classList.remove('is-open');
+      document.body.classList.remove('net-noscroll');
+    };
+
+    if (openBtn) openBtn.addEventListener('click', open);
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    if (backdrop) backdrop.addEventListener('click', close);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  }
+
+  function wireUserDropdown() {
+    const btn = document.getElementById('userBtn');
+    const dd = document.getElementById('userDropdown');
+    if (!btn || !dd) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dd.classList.toggle('is-open');
+      btn.setAttribute('aria-expanded', dd.classList.contains('is-open'));
+    });
+    dd.addEventListener('click', (e) => e.stopPropagation());
+    document.addEventListener('click', () => { dd.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { dd.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); } });
+  }
+
+  function fillIdentity(user) {
+    const name = user?.first_name
+      ? `${user.first_name} ${user.last_name || ''}`.trim()
+      : (user?.username || 'Student');
+    const initial = (name || 'S').charAt(0).toUpperCase();
+
+    const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    set('topAvatar', initial);
+    set('topUserName', name);
+    set('ddName', name);
+    set('ddEmail', user?.email || '');
+    set('sideAvatar', initial);
+    set('sideUserName', name);
+    set('sideUserEmail', user?.email || '');
   }
 
   /* Utility: Get current user */
