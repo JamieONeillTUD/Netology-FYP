@@ -141,7 +141,8 @@ window.ONBOARDING_FLOW = [
   "lesson",
   "sandbox",
   "progress",
-  "account"
+  "account",
+  "wrapup"
 ];
 
 window.ONBOARDING_STAGE_URLS = {
@@ -151,46 +152,65 @@ window.ONBOARDING_STAGE_URLS = {
   lesson: "lesson.html?course_id=1&lesson=1",
   sandbox: "sandbox.html?course_id=1&lesson=1&mode=practice",
   progress: "progress.html",
-  account: "account.html"
+  account: "account.html",
+  wrapup: "dashboard.html"
 };
 
 window.ONBOARDING_STEPS = {
   dashboard: [
-    { target: "dashboard-header", title: "Welcome to Netology", description: "This is your dashboard hub for everything you do." },
-    { target: "first-lesson-btn", title: "Continue Learning", description: "Jump back into your latest lesson with one click." },
-    { target: "progress-widget", title: "Progress Tracking", description: "Your streaks and progress update here every day." },
-    { target: "courses-section", title: "Courses", description: "Browse and resume all courses you are enrolled in." },
-    { target: "sandbox-link", title: "Network Sandbox", description: "Practice builds and challenges in a safe lab environment." }
+    { target: "dashboard-header", title: "Welcome to Netology", description: "An interactive, gamified way to learn computer networking by doing." },
+    { target: "dashboard-stats", title: "Quick Stats", description: "XP, streaks, challenges, and sandbox activity in one place." },
+    { target: "progress-widget", title: "Streaks & Progress", description: "Keep your learning momentum visible every day." },
+    { target: "first-lesson-btn", title: "Resume Instantly", description: "Jump straight into your latest lesson." },
+    { target: "courses-section", title: "Continue Learning", description: "Pick up your courses with clear, step-by-step lessons." },
+    { target: "achievements-section", title: "Achievements", description: "Earn badges as you master new skills." },
+    { target: "challenges-section", title: "Daily & Weekly Focus", description: "Short challenges help you learn by doing." },
+    { target: "sandbox-link", title: "Network Sandbox", description: "Build and test real network topologies in a safe lab." }
   ],
   courses: [
-    { target: "courses-hero", title: "Course Library", description: "Explore the full course catalog and unlock new skills." },
-    { target: "courses-filter-all", title: "Filter by Level", description: "Switch between novice, intermediate, and advanced tracks." },
-    { target: "courses-my-progress", title: "My Progress", description: "Keep an eye on what you started and finished." }
+    { target: "courses-hero", title: "Course Library", description: "Explore every course and unlock new skills." },
+    { target: "courses-filter-all", title: "All Tracks", description: "See everything in one view." },
+    { target: "courses-filter-novice", title: "Novice Track", description: "Start with core networking fundamentals." },
+    { target: "courses-filter-intermediate", title: "Intermediate Track", description: "Build practical networking skills." },
+    { target: "courses-filter-advanced", title: "Advanced Track", description: "Tackle complex topologies and challenges." },
+    { target: "courses-my-progress", title: "My Progress", description: "See what you started, finished, or paused." }
   ],
   course: [
-    { target: "course-hero", title: "Course Overview", description: "See difficulty, XP, and the full roadmap." },
-    { target: "course-continue", title: "Continue Button", description: "Resume exactly where you left off." },
-    { target: "course-modules", title: "Modules", description: "Lessons, quizzes, tutorials, and challenges live here." }
+    { target: "course-hero", title: "Course Overview", description: "A clear roadmap of what you will learn." },
+    { target: "course-progress-ring", title: "Course Progress", description: "Your completion updates as you learn." },
+    { target: "course-continue", title: "Continue", description: "Pick up right where you left off." },
+    { target: "course-modules", title: "Modules", description: "Lessons, quizzes, tutorials, and challenges are all here." }
   ],
   lesson: [
-    { target: "lesson-top-progress", title: "Lesson Progress", description: "Track your slide-by-slide progress." },
-    { target: "lesson-slide-viewer", title: "Interactive Slides", description: "Each card is an interactive learning step." },
-    { target: "lesson-outline", title: "Lesson Outline", description: "Jump to any slide or bookmarked item." }
+    { target: "lesson-top-progress", title: "Lesson Progress", description: "Track every slide as you move forward." },
+    { target: "lesson-slide-viewer", title: "Interactive Slides", description: "Short, focused steps that explain concepts clearly." },
+    { target: "lesson-navigation", title: "Slide Navigation", description: "A simple, Duolingo-style flow." },
+    { target: "lesson-bookmark", title: "Bookmarks", description: "Save key slides to review later." },
+    { target: "lesson-outline", title: "Lesson Outline", description: "Jump to any part of the lesson fast." }
   ],
   sandbox: [
-    { target: "sandbox-library", title: "Device Library", description: "Drag routers, switches, and hosts into the canvas." },
-    { target: "sandbox-canvas", title: "Topology Canvas", description: "Build and connect your network here." },
-    { target: "sandbox-inspector", title: "Inspector", description: "Check device status, pings, and diagnostics." },
-    { target: "sandbox-console", title: "Console", description: "Run commands and review logs in real time." }
+    { target: "sandbox-toolbar", title: "Sandbox Tools", description: "Select, connect, undo, and save your work." },
+    { target: "sandbox-library", title: "Device Library", description: "Drag routers, switches, and hosts to the canvas." },
+    { target: "sandbox-canvas", title: "Topology Canvas", description: "Build networks by hand and learn by doing." },
+    { target: "sandbox-stats", title: "Live Stats", description: "Track devices and connections as you build." },
+    { target: "sandbox-inspector", title: "Inspector", description: "Check status, pings, and diagnostics." },
+    { target: "sandbox-console", title: "Console", description: "Run commands and view results instantly." }
   ],
   progress: [
     { target: "progress-categories", title: "Progress Views", description: "Switch between courses, modules, lessons, quizzes, and sandbox." },
-    { target: "progress-split", title: "Split View", description: "Everything is organized by in-progress and completed." }
+    { target: "progress-split", title: "Split View", description: "See what’s in progress vs. completed." }
   ],
   account: [
-    { target: "account-profile-hero", title: "Profile Snapshot", description: "Your stats, badges, and learning streak." },
-    { target: "account-tab-preferences", title: "Preferences", description: "Customize themes, notifications, and privacy." },
-    { target: "account-tab-activity", title: "Activity Map", description: "Track your learning streak over time." }
+    { target: "account-profile-hero", title: "Profile Snapshot", description: "Your stats, badges, and streaks live here." },
+    { target: "account-tab-preferences", title: "Preferences", description: "Customize themes, accessibility, and privacy." },
+    { target: "account-appearance", title: "Themes", description: "Choose a look that works for you.", tab: "preferences" },
+    { target: "account-accessibility", title: "Dyslexic Font", description: "Accessibility options for better readability.", tab: "preferences" },
+    { target: "account-tab-activity", title: "Activity", description: "See your learning activity over time." },
+    { target: "account-activity-heatmap", title: "Activity Map", description: "A GitHub-style view of your learning streak.", tab: "activity" }
+  ],
+  wrapup: [
+    { target: "dashboard-header", title: "You’re Ready", description: "Netology makes networking simple, visual, and hands-on." },
+    { target: "first-lesson-btn", title: "Start Learning", description: "Continue your next lesson anytime." }
   ]
 };
 

@@ -9028,6 +9028,28 @@ body.net-sigma .net-meter-fill {
   line-height: 1.5;
 }
 
+html.net-onboarding-noscroll,
+body.net-onboarding-noscroll {
+  overflow: hidden;
+}
+
+html.net-onboarding-lock,
+body.net-onboarding-lock {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+body.net-onboarding-lock * {
+  pointer-events: none;
+}
+
+body.net-onboarding-lock .onboarding-backdrop,
+body.net-onboarding-lock .onboarding-spotlight,
+body.net-onboarding-lock .onboarding-tooltip,
+body.net-onboarding-lock .onboarding-tooltip * {
+  pointer-events: auto;
+}
+
 .btn-tour,
 .btn-tour-secondary {
   padding: 8px 16px;

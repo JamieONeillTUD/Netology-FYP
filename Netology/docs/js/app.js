@@ -145,6 +145,10 @@ function wireSignupSubmit(form) {
 
       if (data.success) {
         localStorage.setItem("unlock_tier_pending", selectedTier);
+        const firstLoginEmail = String(email || "").trim().toLowerCase();
+        if (firstLoginEmail) {
+          localStorage.setItem("netology_onboarding_first_login", firstLoginEmail);
+        }
 
         // Show full-page celebration overlay
         const overlay = getById("signupSuccessOverlay");
@@ -275,10 +279,21 @@ function wireLoginSubmit(form) {
         localStorage.setItem("netology_user", JSON.stringify(loginPayload));
         localStorage.setItem("netology_last_email", email);
 
-        if (data.is_first_login || data.onboarding_completed === false) {
+        const normalizedEmail = String(email || "").trim().toLowerCase();
+        const firstLoginFlag = String(localStorage.getItem("netology_onboarding_first_login") || "")
+          .trim()
+          .toLowerCase();
+        const shouldStartOnboarding = Boolean(data.is_first_login) || (firstLoginFlag && firstLoginFlag === normalizedEmail);
+
+        if (shouldStartOnboarding) {
           localStorage.setItem("netology_onboarding_stage", "dashboard");
+          localStorage.setItem("netology_onboarding_user", normalizedEmail);
           localStorage.removeItem("netology_onboarding_completed");
           localStorage.removeItem("netology_onboarding_skipped");
+          localStorage.removeItem("netology_onboarding_first_login");
+          try {
+            sessionStorage.setItem("netology_onboarding_session", "true");
+          } catch {}
         }
 
         // Login streak tracking + badge awards
@@ -931,12 +946,19 @@ class OnboardingTour {
     this.steps = Array.isArray(this.options.steps) ? this.options.steps : [];
     this.currentStepIndex = 0;
     this.isActive = false;
+    this.isLocked = false;
+    this.scrollbarCompensation = 0;
+    this.stepToken = 0;
+    this.currentTarget = null;
     this.spotlightElement = null;
     this.backdropElement = null;
     this.tooltipElement = null;
     this.allowApi = this.options.allowApi !== false;
     this.onComplete = this.options.onComplete;
     this.onSkip = this.options.onSkip;
+    this._scrollBlocker = null;
+    this._keyBlocker = null;
+    this._resizeHandler = null;
   }
 
   async init() {
@@ -961,6 +983,7 @@ class OnboardingTour {
       this.createBackdrop();
       this.createSpotlight();
       this.createTooltip();
+      this.lockScreen();
       this.showStep(0);
     } catch (error) {
       console.error("Onboarding init failed:", error);
@@ -982,33 +1005,219 @@ class OnboardingTour {
   createTooltip() {
     this.tooltipElement = document.createElement('div');
     this.tooltipElement.className = 'onboarding-tooltip';
+    this.tooltipElement.setAttribute('role', 'dialog');
+    this.tooltipElement.setAttribute('aria-live', 'polite');
+    this.tooltipElement.setAttribute('aria-modal', 'true');
+    this.tooltipElement.setAttribute('tabindex', '0');
     document.body.appendChild(this.tooltipElement);
   }
 
-  showStep(stepIndex) {
+  lockScreen() {
+    if (this.isLocked) return;
+    this.isLocked = true;
+
+    const html = document.documentElement;
+    const body = document.body;
+    if (!html || !body) return;
+
+    const scrollbarWidth = Math.max(0, window.innerWidth - html.clientWidth);
+    this.scrollbarCompensation = scrollbarWidth;
+
+    html.classList.add('net-onboarding-lock', 'net-onboarding-noscroll');
+    body.classList.add('net-onboarding-lock', 'net-onboarding-noscroll');
+
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    this.attachScrollBlockers();
+    this.attachResizeHandler();
+  }
+
+  unlockScreen() {
+    if (!this.isLocked) return;
+    this.isLocked = false;
+
+    const html = document.documentElement;
+    const body = document.body;
+    if (html) html.classList.remove('net-onboarding-lock', 'net-onboarding-noscroll');
+    if (body) {
+      body.classList.remove('net-onboarding-lock', 'net-onboarding-noscroll');
+      body.style.paddingRight = '';
+    }
+
+    this.detachScrollBlockers();
+    this.detachResizeHandler();
+  }
+
+  setScrollLock(enabled) {
+    const html = document.documentElement;
+    const body = document.body;
+    if (!html || !body) return;
+    html.classList.toggle('net-onboarding-noscroll', Boolean(enabled));
+    body.classList.toggle('net-onboarding-noscroll', Boolean(enabled));
+  }
+
+  attachScrollBlockers() {
+    if (this._scrollBlocker) return;
+
+    this._scrollBlocker = (event) => {
+      if (!this.isActive) return;
+      event.preventDefault();
+    };
+
+    this._keyBlocker = (event) => {
+      if (!this.isActive) return;
+      const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '];
+      if (keys.includes(event.key)) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('wheel', this._scrollBlocker, { passive: false });
+    window.addEventListener('touchmove', this._scrollBlocker, { passive: false });
+    window.addEventListener('keydown', this._keyBlocker, { passive: false });
+  }
+
+  detachScrollBlockers() {
+    if (this._scrollBlocker) {
+      window.removeEventListener('wheel', this._scrollBlocker);
+      window.removeEventListener('touchmove', this._scrollBlocker);
+      this._scrollBlocker = null;
+    }
+    if (this._keyBlocker) {
+      window.removeEventListener('keydown', this._keyBlocker);
+      this._keyBlocker = null;
+    }
+  }
+
+  attachResizeHandler() {
+    if (this._resizeHandler) return;
+    this._resizeHandler = () => this.refreshPositions();
+    window.addEventListener('resize', this._resizeHandler);
+  }
+
+  detachResizeHandler() {
+    if (!this._resizeHandler) return;
+    window.removeEventListener('resize', this._resizeHandler);
+    this._resizeHandler = null;
+  }
+
+  refreshPositions() {
+    const step = this.steps[this.currentStepIndex];
+    if (!step || !this.currentTarget) return;
+    this.updateSpotlight(this.currentTarget);
+    this.updateTooltip(step, this.currentTarget);
+  }
+
+  activateTab(tabName) {
+    if (!tabName) return;
+    const tabButton = document.querySelector(`[role="tab"][data-tab="${tabName}"]`);
+    if (tabButton && typeof tabButton.click === 'function') {
+      tabButton.click();
+    }
+  }
+
+  waitForFrames(count = 2) {
+    return new Promise((resolve) => {
+      let frames = 0;
+      const tick = () => {
+        frames += 1;
+        if (frames >= count) resolve();
+        else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  waitForScrollRest(timeoutMs = 900) {
+    return new Promise((resolve) => {
+      let lastY = window.scrollY;
+      let stableFrames = 0;
+      const start = performance.now();
+
+      const tick = () => {
+        const nowY = window.scrollY;
+        if (Math.abs(nowY - lastY) < 1) {
+          stableFrames += 1;
+        } else {
+          stableFrames = 0;
+          lastY = nowY;
+        }
+
+        if (stableFrames >= 2 || performance.now() - start > timeoutMs) {
+          resolve();
+        } else {
+          requestAnimationFrame(tick);
+        }
+      };
+
+      requestAnimationFrame(tick);
+    });
+  }
+
+  async focusTarget(element) {
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const margin = 80;
+    const withinViewport =
+      rect.top >= margin &&
+      rect.bottom <= window.innerHeight - margin &&
+      rect.left >= 8 &&
+      rect.right <= window.innerWidth - 8;
+
+    if (withinViewport) return;
+
+    this.setScrollLock(false);
+    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    await this.waitForScrollRest();
+    this.setScrollLock(true);
+  }
+
+  async showStep(stepIndex) {
     if (stepIndex < 0 || stepIndex >= this.steps.length) return;
-    
+
     this.currentStepIndex = stepIndex;
     const step = this.steps[stepIndex];
-    
+    const token = ++this.stepToken;
+
+    if (step?.tab) {
+      this.activateTab(step.tab);
+      await this.waitForFrames();
+    }
+
     const targetElement = document.querySelector(`[data-tour="${step.target}"]`);
     if (!targetElement) {
       console.warn(`Target element [data-tour="${step.target}"] not found`);
       return;
     }
-    
+
+    this.currentTarget = targetElement;
+    await this.focusTarget(targetElement);
+
+    if (token !== this.stepToken) return;
     this.updateSpotlight(targetElement);
     this.updateTooltip(step, targetElement);
   }
 
   updateSpotlight(element) {
     const rect = element.getBoundingClientRect();
-    const padding = 8;
-    
-    this.spotlightElement.style.top = (rect.top - padding + window.scrollY) + 'px';
-    this.spotlightElement.style.left = (rect.left - padding) + 'px';
-    this.spotlightElement.style.width = (rect.width + padding * 2) + 'px';
-    this.spotlightElement.style.height = (rect.height + padding * 2) + 'px';
+    const padding = 10;
+
+    let top = rect.top - padding;
+    let left = rect.left - padding;
+    let width = rect.width + padding * 2;
+    let height = rect.height + padding * 2;
+
+    top = Math.max(8, top);
+    left = Math.max(8, left);
+    width = Math.max(24, Math.min(window.innerWidth - left - 8, width));
+    height = Math.max(24, Math.min(window.innerHeight - top - 8, height));
+
+    this.spotlightElement.style.top = `${top}px`;
+    this.spotlightElement.style.left = `${left}px`;
+    this.spotlightElement.style.width = `${width}px`;
+    this.spotlightElement.style.height = `${height}px`;
   }
 
   updateTooltip(step, targetElement) {
@@ -1028,19 +1237,34 @@ class OnboardingTour {
     `;
     
     this.tooltipElement.innerHTML = html;
-    
-    // Position tooltip
-    const gap = 20;
-    let top = rect.bottom + gap + window.scrollY;
-    let left = rect.left + rect.width / 2 - this.tooltipElement.offsetWidth / 2;
-    
-    if (left + this.tooltipElement.offsetWidth > window.innerWidth) {
-      left = window.innerWidth - this.tooltipElement.offsetWidth - 16;
+
+    // Position tooltip within viewport
+    const gap = 18;
+    const tooltipWidth = this.tooltipElement.offsetWidth;
+    const tooltipHeight = this.tooltipElement.offsetHeight;
+    const centerX = rect.left + rect.width / 2;
+
+    let left = Math.min(
+      Math.max(centerX - tooltipWidth / 2, 16),
+      window.innerWidth - tooltipWidth - 16
+    );
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    let top = rect.bottom + gap;
+
+    if (spaceBelow < tooltipHeight + gap && spaceAbove > tooltipHeight + gap) {
+      top = rect.top - tooltipHeight - gap;
+    } else if (spaceBelow < tooltipHeight + gap) {
+      top = Math.max(16, window.innerHeight - tooltipHeight - 16);
     }
-    if (left < 0) left = 16;
-    
-    this.tooltipElement.style.top = top + 'px';
-    this.tooltipElement.style.left = left + 'px';
+
+    this.tooltipElement.style.top = `${top}px`;
+    this.tooltipElement.style.left = `${left}px`;
+
+    if (typeof this.tooltipElement.focus === 'function') {
+      this.tooltipElement.focus({ preventScroll: true });
+    }
   }
 
   nextStep() {
@@ -1089,9 +1313,11 @@ class OnboardingTour {
 
   closeTour() {
     this.isActive = false;
+    this.currentTarget = null;
     if (this.backdropElement) this.backdropElement.remove();
     if (this.spotlightElement) this.spotlightElement.remove();
     if (this.tooltipElement) this.tooltipElement.remove();
+    this.unlockScreen();
   }
 }
 
@@ -1113,6 +1339,10 @@ function markOnboardingComplete() {
   localStorage.setItem("netology_onboarding_completed", "true");
   localStorage.removeItem("netology_onboarding_stage");
   localStorage.removeItem("netology_onboarding_skipped");
+  localStorage.removeItem("netology_onboarding_user");
+  try {
+    sessionStorage.removeItem("netology_onboarding_session");
+  } catch {}
 
   const updateUser = (key) => {
     const raw = localStorage.getItem(key);
@@ -1130,10 +1360,30 @@ function markOnboardingComplete() {
 function markOnboardingSkipped() {
   localStorage.setItem("netology_onboarding_skipped", "true");
   localStorage.removeItem("netology_onboarding_stage");
+  localStorage.removeItem("netology_onboarding_user");
+  try {
+    sessionStorage.removeItem("netology_onboarding_session");
+  } catch {}
 }
 
 function maybeStartOnboardingTour(stageKey, userEmail) {
   if (!stageKey || !userEmail) return false;
+
+  const normalizedEmail = String(userEmail || "").trim().toLowerCase();
+  const onboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
+  if (onboardingUser && onboardingUser !== normalizedEmail) {
+    localStorage.removeItem("netology_onboarding_stage");
+    return false;
+  }
+  if (!onboardingUser) return false;
+  let sessionAllowed = false;
+  try {
+    sessionAllowed = sessionStorage.getItem("netology_onboarding_session") === "true";
+  } catch {}
+  if (!sessionAllowed) {
+    localStorage.removeItem("netology_onboarding_stage");
+    return false;
+  }
 
   const completed = localStorage.getItem("netology_onboarding_completed") === "true";
   const skipped = localStorage.getItem("netology_onboarding_skipped") === "true";
@@ -1166,6 +1416,9 @@ function maybeStartOnboardingTour(stageKey, userEmail) {
         });
       } catch {}
       markOnboardingComplete();
+      if (window.location.pathname.endsWith("dashboard.html") === false) {
+        window.location.href = getOnboardingStageUrl("dashboard");
+      }
     }
   };
 

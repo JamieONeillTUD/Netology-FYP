@@ -2049,7 +2049,10 @@ Works with:
 
       if (typeof window.maybeStartOnboardingTour === "function") {
         setTimeout(() => {
-          window.maybeStartOnboardingTour("dashboard", user.email);
+          const started = window.maybeStartOnboardingTour("dashboard", user.email);
+          if (!started) {
+            window.maybeStartOnboardingTour("wrapup", user.email);
+          }
         }, 600);
       }
 
