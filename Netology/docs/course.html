@@ -168,7 +168,7 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
       <!-- =======================================================
          HERO (Figma-inspired, real data)
     ======================================================== -->
-      <section class="net-card net-course-hero p-4 p-lg-4 mb-3" aria-label="Course overview">
+      <section class="net-card net-course-hero p-4 p-lg-4 mb-3" aria-label="Course overview" data-tour="course-hero">
 
         <div class="net-course-hero-top">
           <div class="net-course-hero-left">
@@ -225,7 +225,7 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
 
             <!-- Primary actions -->
             <div class="d-flex flex-wrap gap-2 mt-4">
-              <button class="btn btn-teal" id="continueBtn" type="button">
+              <button class="btn btn-teal" id="continueBtn" type="button" data-tour="course-continue">
                 Continue
                 <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
               </button>
@@ -318,7 +318,7 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
 
           <!-- AI Prompt: Explain the Modules injected here section in clear, simple terms. -->
           <!-- Modules injected here -->
-          <div id="modulesWrap" class="d-grid gap-3" aria-label="Modules container">
+          <div id="modulesWrap" class="d-grid gap-3" aria-label="Modules container" data-tour="course-modules">
             <!-- Skeleton (JS replaces) -->
             <article class="net-card p-4">
               <div class="d-flex align-items-center gap-3">
@@ -499,6 +499,7 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
 
   <!-- App scripts -->
   <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/course.js"></script>
 </body>

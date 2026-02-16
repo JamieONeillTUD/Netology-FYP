@@ -57,6 +57,13 @@ Works with:
     return chip;
   };
   const BASE_XP = 100;
+  const ACHIEVEMENT_ICON_MAP = {
+    first_lesson: "bi-journal-check",
+    five_day_streak: "bi-fire",
+    novice_master: "bi-mortarboard-fill",
+    sandbox_builder: "bi-diagram-3-fill",
+    speed_learner: "bi-lightning-charge-fill"
+  };
   const apiGet = window.apiGet || (async (path, params = {}) => {
     const base = String(window.API_BASE || "").trim();
     const url = base
@@ -453,6 +460,44 @@ Works with:
     }
   }
 
+  function getAchievementCatalog() {
+    return window.__dashAchievementCatalog || { all: [], unlocked: [], locked: [] };
+  }
+
+  function setAchievementCatalog(payload) {
+    window.__dashAchievementCatalog = payload || { all: [], unlocked: [], locked: [] };
+    window.__dashAchievementCatalogAt = Date.now();
+  }
+
+  function getAchievementIconClass(ach) {
+    const raw = String(ach?.icon || "").replace(/<[^>]*>/g, "").trim();
+    if (raw.startsWith("bi-")) return raw;
+    return ACHIEVEMENT_ICON_MAP[ach?.id] || "bi-star-fill";
+  }
+
+  async function fetchAchievementCatalog(email, { force = false } = {}) {
+    if (!email) return getAchievementCatalog();
+    if (!force && window.__dashAchievementCatalog && Date.now() - (window.__dashAchievementCatalogAt || 0) < 60000) {
+      return getAchievementCatalog();
+    }
+    try {
+      const data = await apiGet(ENDPOINTS.achievements?.list || "/api/user/achievements", { user_email: email });
+      if (!data || !data.success) return getAchievementCatalog();
+      const unlocked = listFrom(data, "unlocked").map((a) => ({ ...a, unlocked: true }));
+      const locked = listFrom(data, "locked").map((a) => ({ ...a, unlocked: false }));
+      const all = [...unlocked, ...locked];
+      setAchievementCatalog({
+        all,
+        unlocked,
+        locked,
+        total_unlocked: Number.isFinite(Number(data.total_unlocked)) ? Number(data.total_unlocked) : unlocked.length
+      });
+      return getAchievementCatalog();
+    } catch {
+      return getAchievementCatalog();
+    }
+  }
+
   async function awardAchievementRemote(email, def) {
     const base = String(window.API_BASE || "").replace(/\/$/, "");
     if (!email || !base) return { awarded: false };
@@ -516,6 +561,103 @@ Works with:
     if (rawNet && rawNet.email === email) {
       const updated = applyXpToUser(rawNet, delta);
       localStorage.setItem("netology_user", JSON.stringify(updated));
+    }
+  }
+
+  function renderChallengeList(container, challenges, email, type) {
+    if (!container) return;
+    clearChildren(container);
+
+    if (!Array.isArray(challenges) || challenges.length === 0) {
+      container.innerHTML = `<div class="small text-muted">No ${type} challenges available.</div>`;
+      return;
+    }
+
+    challenges.forEach((c) => {
+      const isDone = Number(c.progress || 0) >= 100;
+      const item = makeEl("div", `dash-task${isDone ? " is-done" : ""}`);
+      item.dataset.challengeId = c.id;
+      item.dataset.challengeType = type;
+      item.dataset.xp = c.xp;
+      if (c.description) item.dataset.tip = c.description;
+
+      const left = makeEl("div", "flex-grow-1");
+      left.append(
+        makeEl("div", "fw-semibold small", c.title || "Challenge"),
+        makeEl("div", "text-muted small", c.description || "")
+      );
+
+      const xpBadge = makeEl("div", `dash-task-xp${isDone ? " is-done" : ""}`);
+      if (isDone) {
+        xpBadge.innerHTML = '<i class="bi bi-check2-circle"></i>';
+      } else {
+        xpBadge.textContent = `+${c.xp} XP`;
+      }
+
+      item.append(left, xpBadge);
+
+      if (!isDone) {
+        item.style.cursor = "pointer";
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+        const complete = async () => {
+          item.classList.add("is-done");
+          xpBadge.classList.add("is-done");
+          xpBadge.innerHTML = '<i class="bi bi-check2-circle"></i>';
+          item.style.cursor = "default";
+          c.progress = 100;
+
+          const action = `challenge:${type}:${c.id}`;
+          const result = await awardXpOnce(email, action, Number(c.xp || 0));
+          if (result?.success && result.xp_added) {
+            bumpUserXP(email, Number(result.xp_added || 0));
+            safeStep("fillUserUI", fillUserUI);
+          }
+        };
+        item.addEventListener("click", complete, { once: true });
+        item.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            complete();
+          }
+        });
+      }
+
+      container.appendChild(item);
+    });
+  }
+
+  async function loadChallenges(email, { force = false } = {}) {
+    if (!email) return;
+    if (!force && window.__dashChallengesCache && Date.now() - (window.__dashChallengesAt || 0) < 60000) {
+      renderChallengeList(getById("dailyTasks"), window.__dashChallengesCache.daily, email, "daily");
+      renderChallengeList(getById("weeklyTasks"), window.__dashChallengesCache.weekly, email, "weekly");
+      return;
+    }
+
+    const dailyTarget = getById("dailyTasks");
+    const weeklyTarget = getById("weeklyTasks");
+    if (dailyTarget) dailyTarget.innerHTML = '<div class="small text-muted">Loading daily focus…</div>';
+    if (weeklyTarget) weeklyTarget.innerHTML = '<div class="small text-muted">Loading weekly challenges…</div>';
+
+    try {
+      const endpoint = ENDPOINTS.challenges?.list || "/api/user/challenges";
+      const [dailyData, weeklyData] = await Promise.all([
+        apiGet(endpoint, { type: "daily", user_email: email }),
+        apiGet(endpoint, { type: "weekly", user_email: email })
+      ]);
+      const daily = listFrom(dailyData, "challenges");
+      const weekly = listFrom(weeklyData, "challenges");
+
+      window.__dashChallengesCache = { daily, weekly };
+      window.__dashChallengesAt = Date.now();
+
+      renderChallengeList(dailyTarget, daily, email, "daily");
+      renderChallengeList(weeklyTarget, weekly, email, "weekly");
+    } catch (err) {
+      console.error("Failed to load challenges:", err);
+      if (dailyTarget) dailyTarget.innerHTML = '<div class="small text-muted">Unable to load daily challenges.</div>';
+      if (weeklyTarget) weeklyTarget.innerHTML = '<div class="small text-muted">Unable to load weekly challenges.</div>';
     }
   }
 
@@ -1505,73 +1647,18 @@ Works with:
     const topStreakPill = getById("topStreakPill");
     if (topStreakPill) topStreakPill.style.display = loginStreak > 0 ? "" : "none";
 
-    // Weekly tasks
-    const earnedBadgeIds = new Set(getBadges(email).map((b) => b.id));
-    const streakDefs = loginBadgeDefs();
-
-    // ... logic for tasks/achievements/activity remains consistent ...
-    // For brevity I'm retaining the rest of the function logic implicitly by only replacing the start if possible,
-    // but here I'm replacing the whole function to clean it up.
-
-    // TASKS & ACHIEVEMENTS LOGIC reused from previous
-    // (Restoring the logic for tasks rendering as it was, but without old stats calls)
-
-    let lessonsDone = 0, quizzesDone = 0, challengesDone = 0, completed = 0;
+    let lessonsDone = 0, quizzesDone = 0, challengesDone = 0;
     if (apiSummary || localSummary) {
       lessonsDone = Math.max(apiSummary?.lessonsDone || 0, localSummary?.lessonsDone || 0);
       quizzesDone = Math.max(apiSummary?.quizzesDone || 0, localSummary?.quizzesDone || 0);
       challengesDone = Math.max(apiSummary?.challengesDone || 0, localSummary?.challengesDone || 0);
-      completed = Math.max(apiSummary?.coursesDone || 0, localSummary?.coursesDone || 0);
     }
 
     animateCount(getById("statLessons"), lessonsDone);
     animateCount(getById("statQuizzes"), quizzesDone);
     animateCount(getById("statChallenges"), challengesDone);
-
-    const taskPool = [];
-    taskPool.push({
-      id: "login-streak", title: "Keep your streak alive", progress: Math.min(loginStreak, 7), target: 7, unit: "days", xp: 40, tip: "Log in daily."
-    });
-    taskPool.push({
-      id: "lesson-focus", title: lessonsDone < 5 ? "Complete 2 lessons" : "Complete 1 lesson", progress: Math.min(lessonsDone, lessonsDone < 5 ? 2 : 1), target: lessonsDone < 5 ? 2 : 1, unit: "lessons", xp: lessonsDone < 5 ? 50 : 25, tip: "Lessons unlock quizzes."
-    });
-    // ... keeping it simple ...
-    taskPool.push({ id: "quiz-focus", title: "Pass a quiz", progress: Math.min(quizzesDone, 1), target: 1, unit: "quiz", xp: 40, tip: "Quizzes reinforce concepts." });
-    taskPool.push({ id: "sandbox-focus", title: "Build 1 topology", progress: Math.min(challengesDone, 1), target: 1, unit: "topology", xp: 60, tip: "Sandbox practice is key." });
-
-    function seededShuffle(list, seedStr) {
-      // Simple shim or reuse existing if I could, but I'll just random sort for now to save space
-      return [...list].sort(() => Math.random() - 0.5);
-    }
-
-    function renderTaskList(targetEl, list) {
-      if (!targetEl) return;
-      clearChildren(targetEl);
-      list.forEach((t) => {
-        const item = makeEl("div", "dash-task");
-        const isDone = Number(t.progress || 0) >= Number(t.target || 0);
-        if (isDone) item.classList.add("is-done");
-
-        const left = document.createElement("div");
-        left.append(makeEl("div", "fw-semibold", t.title), makeEl("div", "small text-muted", `${t.progress}/${t.target} ${t.unit}`));
-
-        const status = makeEl("div", "dash-task-xp");
-        if (isDone) {
-          status.classList.add("is-done");
-          status.innerHTML = '<i class="bi bi-check2-circle"></i>';
-        } else {
-          status.textContent = `+${t.xp}`;
-        }
-        item.append(left, status);
-        targetEl.appendChild(item);
-      });
-    }
-
-    const dailyTasks = taskPool.slice(0, 3); // Simplification for new UI
-    renderTaskList(getById("dailyTasks"), dailyTasks);
-
     // Render Recent Activity (assuming helper exists)
-    if (typeof renderRecentActivity === 'function') renderRecentActivity();
+    if (typeof renderRecentActivity === "function") renderRecentActivity();
   }
 
   // AI Prompt: Explain the User UI fill section in clear, simple terms.
@@ -1725,6 +1812,8 @@ Works with:
 
     if (user?.email) {
       await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
+      await safeStepAsync("loadChallenges", () => loadChallenges(user.email));
+      await safeStepAsync("fetchAchievementCatalog", () => fetchAchievementCatalog(user.email));
     }
 
     safeStep("renderProgressWidgets", renderProgressWidgets);
@@ -1736,51 +1825,36 @@ Works with:
     if (!scroller) return;
     clearChildren(scroller);
 
-    const user = getCurrentUser();
-    const email = user?.email || "";
-    const badges = email ? getBadges(email) : [];
-    const earnedIds = new Set(badges.map(b => b.id));
+    const catalog = getAchievementCatalog();
+    const list = Array.isArray(catalog?.all) ? catalog.all : [];
 
-    // Combine some default targets + earned badges
-    const targets = [
-      { id: "streak-7", name: "Weekly Pro", icon: "bi-fire", desc: "Maintained a 7-day login streak" },
-      { id: "lessons-10", name: "Scholar", icon: "bi-book", desc: "Completed 10 networking lessons" },
-      { id: "quiz-ace", name: "Quiz Ace", icon: "bi-patch-check", desc: "Passed 10 quizzes with perfect scores" },
-      { id: "sandbox-architect", name: "Architect", icon: "bi-diagram-3", desc: "Built 5 complex network topologies" },
-      { id: "xp-1000", name: "Power User", icon: "bi-lightning-charge", desc: "Earned over 1,000 Total XP" },
-      { id: "top-tier", name: "Top Tier", icon: "bi-award", desc: "Reached the Advanced rank" }
-    ];
+    if (!list.length) {
+      scroller.innerHTML = '<div class="small text-muted">Complete goals to earn badges!</div>';
+      return;
+    }
 
-    targets.forEach(t => {
+    list.forEach((a) => {
       const item = makeEl("div", "net-achieve-item");
-      const isEarned = earnedIds.has(t.id);
-      if (isEarned) item.classList.add("is-done", "is-earned");
+      const isEarned = !!a.unlocked;
+      if (isEarned) item.classList.add("is-earned");
 
       const iconBox = makeEl("div", "net-achieve-icon-box");
-      iconBox.innerHTML = `<i class="bi ${t.icon}"></i>`;
+      iconBox.innerHTML = `<i class="bi ${getAchievementIconClass(a)}"></i>`;
 
-      const name = makeEl("div", "net-achieve-name", t.name);
-
+      const name = makeEl("div", "net-achieve-name", a.name || "Achievement");
       item.append(iconBox, name);
 
-      // Bootstrap Tooltip
       item.setAttribute("data-bs-toggle", "tooltip");
       item.setAttribute("data-bs-placement", "top");
-      item.title = t.desc;
+      item.title = `${a.description || a.name || "Achievement"}${isEarned ? " (Unlocked!)" : " (Locked)"}`;
 
       scroller.appendChild(item);
     });
 
-    // Re-init tooltips for the new items
     if (window.bootstrap && window.bootstrap.Tooltip) {
-      const tooltipTriggerList = [].slice.call(scroller.querySelectorAll('[data-bs-toggle="tooltip"]'));
-      tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
+      scroller.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
+        new bootstrap.Tooltip(el);
       });
-    }
-
-    if (targets.length === 0) {
-      scroller.innerHTML = '<div class="small text-muted">Complete goals to earn badges!</div>';
     }
   }
 
@@ -1822,75 +1896,58 @@ Works with:
   }
 
   function initStatsCarousel() {
+    const card = getById("statsCarouselCard");
     const track = getById("statsTrack");
     const indicators = getById("statsIndicators");
     if (!track || !indicators) return;
+
+    // Make entire card navigate to progress.html on click
+    if (card) {
+      card.style.cursor = "pointer";
+      card.addEventListener("click", (e) => {
+        // Don't navigate if clicking on indicator dots
+        if (e.target.closest(".net-indicator")) return;
+        window.location.href = "progress.html";
+      });
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          window.location.href = "progress.html";
+        }
+      });
+    }
 
     // 1. Calculate Stats
     const progressRaw = localStorage.getItem("netology_progress");
     const progress = progressRaw ? JSON.parse(progressRaw) : {};
 
-    // Courses: Keys in progress are active courses
     const activeCourses = Object.keys(progress).length;
-    const completedCourses = 0; // TODO: Check against total courses when available
+    const completedCourses = 0;
 
-    // Lessons: Sum of all completed items
     let completedLessons = 0;
     Object.values(progress).forEach(course => {
       Object.values(course).forEach(module => {
-        // Module might be object or boolean? Assuming object of lessons
         if (typeof module === 'object') {
           completedLessons += Object.values(module).filter(v => v === true).length;
         }
       });
     });
-    const activeLessons = activeCourses > 0 ? 1 : 0; // Assume 1 active if any course active
+    const activeLessons = activeCourses > 0 ? 1 : 0;
 
-    // Sandbox: Count saved topologies
     let activeLabs = 0;
     for (let i = 0; i < localStorage.length; i++) {
       if (localStorage.key(i).startsWith("netology_topology_")) activeLabs++;
     }
-    const completedLabs = 0; // Placeholder
-
-    // Quizzes: Placeholder
+    const completedLabs = 0;
     const activeQuizzes = 0;
     const completedQuizzes = 0;
 
     // 2. Define Slides Data
     const slidesData = [
-      {
-        title: "Courses",
-        icon: "bi-journal-album",
-        colorCls: "teal",
-        active: activeCourses,
-        completed: completedCourses,
-        link: "courses.html"
-      },
-      {
-        title: "Lessons",
-        icon: "bi-book-half",
-        colorCls: "blue",
-        active: activeLessons,
-        completed: completedLessons,
-        link: "courses.html"
-      },
-      {
-        title: "Quizzes",
-        icon: "bi-puzzle-fill", // changed icon
-        colorCls: "purple",
-        active: activeQuizzes,
-        completed: completedQuizzes,
-        link: "courses.html" // specific quiz page if exists
-      },
-      {
-        title: "Sandbox",
-        icon: "bi-box-seam",
-        colorCls: "orange",
-        active: activeLabs,
-        completed: completedLabs,
-        link: "sandbox.html"
-      }
+      { title: "Courses", icon: "bi-journal-album", colorCls: "teal", active: activeCourses, completed: completedCourses },
+      { title: "Lessons", icon: "bi-book-half", colorCls: "blue", active: activeLessons, completed: completedLessons },
+      { title: "Quizzes", icon: "bi-puzzle-fill", colorCls: "purple", active: activeQuizzes, completed: completedQuizzes },
+      { title: "Sandbox", icon: "bi-box-seam", colorCls: "orange", active: activeLabs, completed: completedLabs }
     ];
 
     // 3. Render Slides
@@ -1898,8 +1955,6 @@ Works with:
     slidesData.forEach((s, i) => {
       const slide = document.createElement("div");
       slide.className = `net-carousel-slide ${i === 0 ? "is-active" : ""}`;
-      slide.style.cursor = "pointer";
-      slide.onclick = () => window.location.href = s.link;
 
       slide.innerHTML = `
         <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1922,11 +1977,9 @@ Works with:
       track.appendChild(slide);
     });
 
-    // 4. Carousel Logic (same as before)
+    // 4. Carousel Logic
     let currentSlide = 0;
     const slides = Array.from(track.querySelectorAll(".net-carousel-slide"));
-    // Ensure dots match slide count
-    // (Assuming HTML has 4 dots, if not we should generate them too, but 4 is fixed for now)
     const dots = Array.from(indicators.querySelectorAll(".net-indicator"));
     const total = slides.length;
     let timer = null;
@@ -1950,7 +2003,7 @@ Works with:
 
     dots.forEach((dot, i) => {
       dot.addEventListener("click", (e) => {
-        e.stopPropagation(); // Prevent card click?
+        e.stopPropagation();
         showSlide(i);
         startTimer();
       });
@@ -1989,6 +2042,16 @@ Works with:
       if (remoteLogin && Array.isArray(remoteLogin.log)) loginInfo = remoteLogin;
       const streak = safeStep("computeLoginStreak", () => computeLoginStreak(loginInfo.log)) || 0;
       await safeStepAsync("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
+
+      await safeStepAsync("fetchAchievementCatalog", () => fetchAchievementCatalog(user.email, { force: true }));
+      safeStep("renderAchievements", renderAchievements);
+      await safeStepAsync("loadChallenges", () => loadChallenges(user.email, { force: true }));
+
+      if (typeof window.maybeStartOnboardingTour === "function") {
+        setTimeout(() => {
+          window.maybeStartOnboardingTour("dashboard", user.email);
+        }, 600);
+      }
 
       if (loginInfo.isNew) {
         const pill = getById("topStreakPill");

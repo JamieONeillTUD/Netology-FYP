@@ -217,17 +217,15 @@ lesson.html – Netology Lesson Page
       </div>
     </section>
 
-    <section class="net-card net-lesson-progress p-3 p-lg-4 mb-4" aria-label="Lesson progress">
+    <section class="net-card net-lesson-progress p-3 p-lg-4 mb-4" aria-label="Lesson progress" data-tour="lesson-top-progress">
       <div class="d-flex align-items-center justify-content-between mb-2">
         <div>
-          <div class="fw-semibold">Lesson progress</div>
-          <div class="small text-muted" id="lessonProgressText">0/0 lessons completed</div>
+          <div class="fw-semibold">Slide progress</div>
+          <div class="small text-muted" id="lessonTopProgressText">Slide 1 of 1</div>
         </div>
         <div class="net-lesson-progress-pct" id="lessonProgressPct">0%</div>
       </div>
-      <div class="progress" style="height: 10px;">
-        <div class="progress-bar net-progress net-progress-fill" id="lessonProgressBar" style="width:0%"></div>
-      </div>
+      <div class="net-quiz-progress-bars" id="lessonTopProgressBars"></div>
       <div class="net-lesson-unlock d-none" id="lessonUnlockBanner">
         <i class="bi bi-unlock me-2" aria-hidden="true"></i>
         Next lesson unlocked: <span class="fw-semibold" id="lessonUnlockTitle">Lesson</span>
@@ -346,7 +344,7 @@ lesson.html – Netology Lesson Page
       <div class="col-lg-4">
 
         <!-- Lesson Info Card -->
-        <section class="net-card p-4 mb-4">
+        <section class="net-card p-4 mb-4" data-tour="lesson-outline">
           <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Lesson Info</h5>
           
           <div class="mb-3">
@@ -420,6 +418,9 @@ lesson.html – Netology Lesson Page
     </div>
     </div>
   </main>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/course_content.js"></script>
   <script src="js/lesson.js"></script>
 </body>
 </html>

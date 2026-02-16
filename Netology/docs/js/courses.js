@@ -4,10 +4,10 @@ Student Name: Jamie O'Neill
 Course Code: TU857/4
 Date: 16/02/2026
 
-courses.js – Carousel-based course browsing with lesson progression focus.
+courses.js – Grid-based course browsing with lesson progression focus.
 Features:
 - Three difficulty tracks (Novice/Intermediate/Advanced)
-- Horizontal carousel for each track
+- Responsive grid layout for each track (scrolls naturally)
 - Lesson-focused cards showing course progression
 - My Learning Progress section tracking enrolled courses
 */
@@ -49,13 +49,16 @@ Features:
 
     wireChrome(user);
     wirePathFilters();
-    wireCarouselButtons();
 
-    await loadAllCoursesCarousels(user);
+    await loadAllCourses(user);
     await loadMyLearningProgress(user);
 
     document.body.classList.remove("net-loading");
     document.body.classList.add("net-loaded");
+
+    if (typeof window.maybeStartOnboardingTour === "function") {
+      window.maybeStartOnboardingTour("courses", user.email);
+    }
   }
 
   /* Path Filtering */
@@ -67,10 +70,12 @@ Features:
         const path = btn.dataset.path;
 
         filterButtons.forEach(b => {
-          b.classList.remove('active');
+          b.classList.remove('active', 'btn-teal');
+          b.classList.add('btn-outline-teal');
           b.setAttribute('aria-selected', 'false');
         });
-        btn.classList.add('active');
+        btn.classList.add('active', 'btn-teal');
+        btn.classList.remove('btn-outline-teal');
         btn.setAttribute('aria-selected', 'true');
 
         document.querySelectorAll('.net-course-section').forEach(section => {
@@ -84,29 +89,8 @@ Features:
     });
   }
 
-  /* Carousel Navigation */
-  function wireCarouselButtons() {
-    const carousels = ['novice', 'intermediate', 'advanced'];
-
-    carousels.forEach(track => {
-      const prevBtn = document.getElementById(`${track}Prev`);
-      const nextBtn = document.getElementById(`${track}Next`);
-      const carouselTrack = document.getElementById(`${track}Track`);
-
-      if (!prevBtn || !nextBtn || !carouselTrack) return;
-
-      prevBtn.addEventListener('click', () => {
-        carouselTrack.scrollBy({ left: -300, behavior: 'smooth' });
-      });
-
-      nextBtn.addEventListener('click', () => {
-        carouselTrack.scrollBy({ left: 300, behavior: 'smooth' });
-      });
-    });
-  }
-
-  /* Load all courses into carousels */
-  async function loadAllCoursesCarousels(user) {
+  /* Load all courses into grids */
+  async function loadAllCourses(user) {
     try {
       const coursesData = await apiGet(ENDPOINTS.courses?.list || "/courses");
       const courses = listFrom(coursesData, "courses");
@@ -116,7 +100,7 @@ Features:
         return;
       }
 
-      // Get user progress to check which courses are in progress
+      // Get user progress
       const progressData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
       const userProgress = listFrom(progressData, "courses");
       const progressMap = {};
@@ -130,12 +114,7 @@ Features:
         : (Number.isFinite(Number(user.level)) ? Number(user.level) : 1);
 
       // Group courses by difficulty
-      const grouped = {
-        novice: [],
-        intermediate: [],
-        advanced: []
-      };
-
+      const grouped = { novice: [], intermediate: [], advanced: [] };
       courses.forEach(course => {
         const difficulty = (course.difficulty || 'novice').toLowerCase();
         if (grouped[difficulty]) {
@@ -143,16 +122,16 @@ Features:
         }
       });
 
-      // Render each carousel
+      // Render each grid
       ['novice', 'intermediate', 'advanced'].forEach(track => {
         const trackCourses = grouped[track] || [];
-        const trackElement = document.getElementById(`${track}Track`);
-        
-        if (trackElement) {
-          trackElement.innerHTML = '';
+        const gridElement = document.getElementById(`${track}Grid`);
+
+        if (gridElement) {
+          gridElement.innerHTML = '';
           trackCourses.forEach(course => {
             const card = createCourseCard(course, progressMap, level);
-            trackElement.appendChild(card);
+            gridElement.appendChild(card);
           });
         }
       });
@@ -173,17 +152,12 @@ Features:
     const isInProgress = status === 'in-progress';
     const isCompleted = status === 'completed';
 
-    if (isLocked) {
-      card.classList.add('locked');
-    }
-    if (isInProgress) {
-      card.classList.add('in-progress');
-    }
+    if (isLocked) card.classList.add('locked');
+    if (isInProgress) card.classList.add('in-progress');
 
     const icon = getIconForDifficulty(course.difficulty || 'novice');
     const totalLessons = course.total_lessons || 0;
     const progressPct = Number.isFinite(Number(progress.progress_pct)) ? Number(progress.progress_pct) : 0;
-    const completedLessons = totalLessons > 0 ? Math.round((progressPct / 100) * totalLessons) : 0;
 
     card.innerHTML = `
       <div class="net-course-header">
@@ -217,12 +191,12 @@ Features:
             <span>${progressPct}%</span>
           </div>
         ` : ''}
-        <button class="net-course-cta ${isInProgress ? 'btn-continue' : isCompleted ? 'btn-review' : isLocked ? 'btn-locked' : 'btn-start'}" 
+        <button class="net-course-cta ${isInProgress ? 'btn-continue' : isCompleted ? 'btn-review' : isLocked ? 'btn-locked' : 'btn-start'}"
                 data-course-id="${course.id}"
                 ${isLocked ? 'disabled' : ''}>
-          ${isLocked ? `<i class="bi bi-lock"></i> Level ${course.required_level}` : 
-            isCompleted ? `<i class="bi bi-check-circle"></i> Review` : 
-            isInProgress ? `<i class="bi bi-play-fill"></i> Continue` : 
+          ${isLocked ? `<i class="bi bi-lock"></i> Level ${course.required_level}` :
+            isCompleted ? `<i class="bi bi-check-circle"></i> Review` :
+            isInProgress ? `<i class="bi bi-play-fill"></i> Continue` :
             `<i class="bi bi-plus-circle"></i> Start`}
         </button>
       </div>
@@ -235,14 +209,14 @@ Features:
       const ctaBtn = card.querySelector('.net-course-cta');
       if (ctaBtn) {
         ctaBtn.addEventListener('click', () => {
-          const courseId = ctaBtn.dataset.courseId;
-          if (isInProgress) {
-            window.location.href = `lesson.html?course_id=${courseId}`;
-          } else {
-            window.location.href = `lesson.html?course_id=${courseId}`;
-          }
+          window.location.href = `course.html?id=${encodeURIComponent(ctaBtn.dataset.courseId)}`;
         });
       }
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.net-course-cta')) return;
+        window.location.href = `course.html?id=${encodeURIComponent(course.id)}`;
+      });
     }
 
     return card;
@@ -267,7 +241,6 @@ Features:
       const data = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
       const userCourses = listFrom(data, "courses");
 
-      // Filter only started courses
       const startedCourses = userCourses.filter(c => (c.progress_pct || 0) > 0 || (c.status || '').toLowerCase() === 'completed');
 
       if (startedCourses.length === 0) {
@@ -289,7 +262,7 @@ Features:
                 <div class="progress-bar net-progress-fill" style="width: ${pct}%"></div>
               </div>
               <div class="small text-muted mb-3">${Math.round((pct / 100) * Math.max(course.total_lessons || 0, 0))}/${course.total_lessons || 0} lessons</div>
-              <a href="lesson.html?course_id=${course.id}" class="btn btn-sm btn-teal w-100">
+              <a href="course.html?id=${encodeURIComponent(course.id)}" class="btn btn-sm btn-teal w-100">
                 <i class="bi bi-play-fill me-1"></i>Continue
               </a>
             </div>
@@ -304,7 +277,7 @@ Features:
     }
   }
 
-  /* Chrome: sidebar, dropdown, identity, logout */
+  /* ── Chrome: sidebar, dropdown, identity, logout ── */
   function wireChrome(user) {
     wireSidebar();
     wireUserDropdown();
@@ -333,18 +306,24 @@ Features:
       sidebar.classList.add('is-open');
       backdrop.classList.add('is-open');
       document.body.classList.add('net-noscroll');
+      sidebar.setAttribute('aria-hidden', 'false');
+      backdrop.setAttribute('aria-hidden', 'false');
     };
     const close = () => {
       if (!sidebar || !backdrop) return;
       sidebar.classList.remove('is-open');
       backdrop.classList.remove('is-open');
       document.body.classList.remove('net-noscroll');
+      sidebar.setAttribute('aria-hidden', 'true');
+      backdrop.setAttribute('aria-hidden', 'true');
     };
 
     if (openBtn) openBtn.addEventListener('click', open);
     if (closeBtn) closeBtn.addEventListener('click', close);
     if (backdrop) backdrop.addEventListener('click', close);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && sidebar?.classList.contains('is-open')) close();
+    });
   }
 
   function wireUserDropdown() {
@@ -354,28 +333,43 @@ Features:
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      dd.classList.toggle('is-open');
-      btn.setAttribute('aria-expanded', dd.classList.contains('is-open'));
+      const open = dd.classList.toggle('is-open');
+      btn.setAttribute('aria-expanded', String(open));
     });
-    dd.addEventListener('click', (e) => e.stopPropagation());
-    document.addEventListener('click', () => { dd.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { dd.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); } });
+
+    document.addEventListener('click', (e) => {
+      if (!dd.contains(e.target) && !btn.contains(e.target)) {
+        dd.classList.remove('is-open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
   }
 
   function fillIdentity(user) {
-    const name = user?.first_name
-      ? `${user.first_name} ${user.last_name || ''}`.trim()
-      : (user?.username || 'Student');
-    const initial = (name || 'S').charAt(0).toUpperCase();
+    const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Student';
+    const email = user.email || '';
+    const initial = (name.charAt(0) || 'S').toUpperCase();
+    const xp = Number(user.xp || 0);
+    const level = levelFromXP(xp);
 
     const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    // Top nav
     set('topAvatar', initial);
-    set('topUserName', name);
     set('ddName', name);
-    set('ddEmail', user?.email || '');
+    set('ddEmail', email);
+    // Sidebar
     set('sideAvatar', initial);
     set('sideUserName', name);
-    set('sideUserEmail', user?.email || '');
+    set('sideUserEmail', email);
+    set('sideLevelBadge', `Lv ${level}`);
+  }
+
+  /* XP & Level Helpers */
+  function levelFromXP(totalXP) {
+    const xp = Math.max(0, Number(totalXP) || 0);
+    const t = xp / BASE_XP;
+    const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
+    return Math.max(1, lvl);
   }
 
   /* Utility: Get current user */

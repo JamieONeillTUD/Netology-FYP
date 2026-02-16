@@ -275,6 +275,12 @@ function wireLoginSubmit(form) {
         localStorage.setItem("netology_user", JSON.stringify(loginPayload));
         localStorage.setItem("netology_last_email", email);
 
+        if (data.is_first_login || data.onboarding_completed === false) {
+          localStorage.setItem("netology_onboarding_stage", "dashboard");
+          localStorage.removeItem("netology_onboarding_completed");
+          localStorage.removeItem("netology_onboarding_skipped");
+        }
+
         // Login streak tracking + badge awards
         recordLoginDay(email);
         const streak = computeLoginStreak(getLoginLog(email));
@@ -919,32 +925,45 @@ function escapeHtml(str) {
 // =========================================================
 
 class OnboardingTour {
-  constructor(userEmail) {
+  constructor(userEmail, options = {}) {
     this.userEmail = userEmail;
-    this.steps = [];
+    this.options = options || {};
+    this.steps = Array.isArray(this.options.steps) ? this.options.steps : [];
     this.currentStepIndex = 0;
     this.isActive = false;
     this.spotlightElement = null;
     this.backdropElement = null;
     this.tooltipElement = null;
+    this.allowApi = this.options.allowApi !== false;
+    this.onComplete = this.options.onComplete;
+    this.onSkip = this.options.onSkip;
   }
 
   async init() {
     try {
-      const data = await apiGet(ENDPOINTS.onboarding?.steps || "/api/onboarding/steps");
-      this.steps = data.steps;
-      
-      await apiPost(ENDPOINTS.onboarding?.start || "/api/onboarding/start", {
-        user_email: this.userEmail
-      });
-      
+      if (!this.steps.length && this.allowApi) {
+        const data = await apiGet(ENDPOINTS.onboarding?.steps || "/api/onboarding/steps");
+        this.steps = Array.isArray(data?.steps) ? data.steps : [];
+      }
+
+      if (!this.steps.length) {
+        console.warn("Onboarding steps missing - tour aborted.");
+        return;
+      }
+
+      if (this.allowApi) {
+        await apiPost(ENDPOINTS.onboarding?.start || "/api/onboarding/start", {
+          user_email: this.userEmail
+        });
+      }
+
       this.isActive = true;
       this.createBackdrop();
       this.createSpotlight();
       this.createTooltip();
       this.showStep(0);
     } catch (error) {
-      console.error('Onboarding init failed:', error);
+      console.error("Onboarding init failed:", error);
     }
   }
 
@@ -1037,22 +1056,34 @@ class OnboardingTour {
   }
 
   async completeTour() {
+    if (typeof this.onComplete === "function") {
+      await this.onComplete();
+      this.closeTour();
+      return;
+    }
+
     await apiPost(ENDPOINTS.onboarding?.complete || "/api/onboarding/complete", {
       user_email: this.userEmail
     });
-    
+
     this.closeTour();
-    window.location.href = '/dashboard.html';
+    window.location.href = "/dashboard.html";
   }
 
   async skipTour() {
-    if (confirm('Skip the onboarding tour?')) {
+    if (confirm("Skip the onboarding tour?")) {
+      if (typeof this.onSkip === "function") {
+        await this.onSkip();
+        this.closeTour();
+        return;
+      }
+
       await apiPost(ENDPOINTS.onboarding?.skip || "/api/onboarding/skip", {
         user_email: this.userEmail
       });
-      
+
       this.closeTour();
-      window.location.href = '/dashboard.html';
+      window.location.href = "/dashboard.html";
     }
   }
 
@@ -1064,7 +1095,98 @@ class OnboardingTour {
   }
 }
 
-function startOnboardingTour(userEmail) {
-  window.onboardingTour = new OnboardingTour(userEmail);
+function startOnboardingTour(userEmail, options = {}) {
+  window.onboardingTour = new OnboardingTour(userEmail, options);
   window.onboardingTour.init();
 }
+
+function getOnboardingFlow() {
+  return window.ONBOARDING_FLOW || ["dashboard", "courses", "course", "lesson", "sandbox", "progress", "account"];
+}
+
+function getOnboardingStageUrl(stage) {
+  const urls = window.ONBOARDING_STAGE_URLS || {};
+  return urls[stage] || `${stage}.html`;
+}
+
+function markOnboardingComplete() {
+  localStorage.setItem("netology_onboarding_completed", "true");
+  localStorage.removeItem("netology_onboarding_stage");
+  localStorage.removeItem("netology_onboarding_skipped");
+
+  const updateUser = (key) => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    const data = parseJsonSafe(raw);
+    if (!data) return;
+    data.onboarding_completed = true;
+    localStorage.setItem(key, JSON.stringify(data));
+  };
+
+  updateUser("user");
+  updateUser("netology_user");
+}
+
+function markOnboardingSkipped() {
+  localStorage.setItem("netology_onboarding_skipped", "true");
+  localStorage.removeItem("netology_onboarding_stage");
+}
+
+function maybeStartOnboardingTour(stageKey, userEmail) {
+  if (!stageKey || !userEmail) return false;
+
+  const completed = localStorage.getItem("netology_onboarding_completed") === "true";
+  const skipped = localStorage.getItem("netology_onboarding_skipped") === "true";
+  if (completed || skipped) return false;
+
+  const stage = localStorage.getItem("netology_onboarding_stage");
+  if (!stage || stage !== stageKey) return false;
+
+  const steps = window.ONBOARDING_STEPS?.[stageKey] || [];
+  if (!steps.length || typeof startOnboardingTour !== "function") return false;
+
+  const flow = getOnboardingFlow();
+  const idx = flow.indexOf(stageKey);
+  const nextStage = idx >= 0 ? flow[idx + 1] : null;
+
+  const goNext = async () => {
+    if (nextStage) {
+      localStorage.setItem("netology_onboarding_stage", nextStage);
+      try {
+        await apiPost(ENDPOINTS.onboarding?.stepComplete || "/api/onboarding/step/:id", {
+          user_email: userEmail,
+          stage: stageKey
+        });
+      } catch {}
+      window.location.href = getOnboardingStageUrl(nextStage);
+    } else {
+      try {
+        await apiPost(ENDPOINTS.onboarding?.complete || "/api/onboarding/complete", {
+          user_email: userEmail
+        });
+      } catch {}
+      markOnboardingComplete();
+    }
+  };
+
+  const onSkip = async () => {
+    try {
+      await apiPost(ENDPOINTS.onboarding?.skip || "/api/onboarding/skip", {
+        user_email: userEmail
+      });
+    } catch {}
+    markOnboardingSkipped();
+  };
+
+  startOnboardingTour(userEmail, {
+    steps,
+    stage: stageKey,
+    onComplete: goNext,
+    onSkip,
+    allowApi: false
+  });
+
+  return true;
+}
+
+window.maybeStartOnboardingTour = maybeStartOnboardingTour;

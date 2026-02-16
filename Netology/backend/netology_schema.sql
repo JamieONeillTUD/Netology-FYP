@@ -405,12 +405,18 @@ INSERT INTO achievements (id, name, description, category, rarity, unlock_criter
 ('speed_learner', 'Speed Learner', 'Complete 5 lessons in one day', 'Learner', 'rare', '{"type": "lessons_per_day", "value": 5}')
 ON CONFLICT DO NOTHING;
 
--- SEED SAMPLE CHALLENGES
+-- SEED SAMPLE CHALLENGES (5 daily + 5 weekly + 1 event)
 INSERT INTO challenges (title, description, challenge_type, difficulty, xp_reward, required_action) VALUES
 ('Learn IP Addressing', 'Complete the IP Addressing course lesson', 'daily', 'easy', 25, 'complete_lesson'),
-('Build a Topology', 'Create 3 different network topologies', 'daily', 'medium', 50, 'sandbox_practice'),
+('Build a Topology', 'Create a network topology in the sandbox', 'daily', 'medium', 50, 'sandbox_practice'),
+('Pass a Quiz', 'Score 80% or higher on any quiz', 'daily', 'easy', 30, 'pass_quiz'),
+('Study Session', 'Complete 2 lessons in one sitting', 'daily', 'medium', 40, 'complete_lessons'),
+('Review Notes', 'Revisit a completed lesson to reinforce knowledge', 'daily', 'easy', 20, 'review_lesson'),
 ('Quiz Master', 'Score 100% on any quiz', 'weekly', 'hard', 100, 'quiz_score'),
 ('Consistency Wins', 'Log in for 7 consecutive days', 'weekly', 'medium', 75, 'daily_login'),
+('Course Explorer', 'Start a new course you have not tried before', 'weekly', 'easy', 60, 'start_course'),
+('Network Architect', 'Build 3 different network topologies', 'weekly', 'hard', 120, 'sandbox_topologies'),
+('Knowledge Sprint', 'Complete 5 lessons across any courses', 'weekly', 'medium', 80, 'complete_lessons'),
 ('All Star', 'Complete 3 courses', 'event', 'hard', 200, 'complete_courses')
 ON CONFLICT DO NOTHING;
 

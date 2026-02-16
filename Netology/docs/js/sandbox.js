@@ -4307,6 +4307,18 @@ Reworked to match the Figma AI version:
     document.body.classList.remove("net-loading");
     document.body.classList.add("net-loaded");
 
+    const user = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("netology_user") || localStorage.getItem("user") || "null");
+      } catch {
+        return null;
+      }
+    })();
+
+    if (user?.email && typeof window.maybeStartOnboardingTour === "function") {
+      window.maybeStartOnboardingTour("sandbox", user.email);
+    }
+
     window.addEventListener("beforeunload", () => {
       saveLessonSessionToDb();
     });

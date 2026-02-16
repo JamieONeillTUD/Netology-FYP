@@ -5214,9 +5214,11 @@ body:has(#slideSidebar.is-open) .net-hambtn .net-hambtn-bars span:nth-child(3) {
 
 /* -- Font & Global Overrides -- */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic.css');
 
 :root {
   --net-font-main: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  --net-font-dyslexic: "OpenDyslexic", "OpenDyslexic3", var(--net-font-main);
   --net-grad-hero-green: linear-gradient(120deg, #ecfdf5, #d1fae5, #a7f3d0, #ecfdf5);
 }
 
@@ -5224,9 +5226,116 @@ body {
   font-family: var(--net-font-main) !important;
 }
 
+body.net-dyslexic {
+  font-family: var(--net-font-dyslexic) !important;
+}
+
+body.net-dyslexic code,
+body.net-dyslexic pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+}
+
 /* Utility class for letter spacing seen in dashboard */
 .ls-1 {
   letter-spacing: 1px;
+}
+
+/* Theme overrides */
+body[data-theme="dark"] {
+  --net-bg1: #0b1220;
+  --net-bg2: #0f172a;
+  --net-card: #0f172a;
+  --net-border: rgba(148, 163, 184, .18);
+  --net-ink: #e2e8f0;
+  --net-ink-2: #e2e8f0;
+  --net-muted: #94a3b8;
+  --net-muted-2: #94a3b8;
+  --net-shadow: 0 12px 34px rgba(0, 0, 0, .35);
+  --net-shadow-2: 0 18px 50px rgba(0, 0, 0, .4);
+  --net-shadow-card: 0 18px 46px rgba(0, 0, 0, .45);
+}
+
+body[data-theme="dark"] .net-card,
+body[data-theme="dark"] .net-coursecard-enhanced,
+body[data-theme="dark"] .net-progress-navwrap,
+body[data-theme="dark"] .net-progress-item,
+body[data-theme="dark"] .net-progress-list .net-card,
+body[data-theme="dark"] .net-course-visual,
+body[data-theme="dark"] .net-slide-block,
+body[data-theme="dark"] .net-slide-media,
+body[data-theme="dark"] .net-lesson-nextup {
+  background: rgba(15, 23, 42, .92) !important;
+  border-color: rgba(148, 163, 184, .2) !important;
+  color: #e2e8f0;
+}
+
+body[data-theme="dark"] .text-muted {
+  color: rgba(226, 232, 240, .65) !important;
+}
+
+body[data-theme="dark"] .net-topnav {
+  background: linear-gradient(135deg, #0f172a, #0b2532) !important;
+  border-bottom-color: rgba(148, 163, 184, .2);
+}
+
+body[data-theme="dark"] .net-slideside,
+body[data-theme="dark"] .net-dd,
+body[data-theme="dark"] .net-sidehead {
+  background: rgba(15, 23, 42, .98);
+  border-color: rgba(148, 163, 184, .2);
+}
+
+body[data-theme="dark"] .net-progress-nav-btn {
+  background: rgba(15, 23, 42, .7);
+  border-color: rgba(148, 163, 184, .25);
+  color: rgba(226, 232, 240, .9);
+}
+
+body[data-theme="dark"] .net-progress-nav-btn:hover {
+  background: rgba(30, 41, 59, .85);
+}
+
+body[data-theme="dark"] .net-quiz-progress-card,
+body[data-theme="dark"] .net-lesson-progress {
+  background: rgba(15, 23, 42, .92);
+}
+
+body[data-theme="dark"] .bg-white {
+  background-color: rgba(15, 23, 42, .95) !important;
+}
+
+body[data-theme="dark"] .border,
+body[data-theme="dark"] .border-top,
+body[data-theme="dark"] .border-bottom {
+  border-color: rgba(148, 163, 184, .2) !important;
+}
+
+body[data-theme="dark"] .badge.text-bg-light {
+  background: rgba(30, 41, 59, .8) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, .25) !important;
+}
+
+body[data-theme="dark"] .text-dark {
+  color: #e2e8f0 !important;
+}
+
+body[data-theme="ocean"] {
+  --net-teal: #0284c7;
+  --net-teal-lt: #38bdf8;
+  --net-cyan: #22d3ee;
+  --net-bg1: #e0f2fe;
+  --net-bg2: #f0f9ff;
+  --net-ink-2: #0f172a;
+}
+
+body[data-theme="sunrise"] {
+  --net-teal: #f97316;
+  --net-teal-lt: #fb923c;
+  --net-cyan: #f59e0b;
+  --net-bg1: #fff7ed;
+  --net-bg2: #fffbeb;
+  --net-ink-2: #3f2a1a;
 }
 
 
@@ -7646,6 +7755,160 @@ body.net-course-page.net-landing::after {
   gap: 6px;
 }
 
+/* Lesson slide flow (Duolingo-style cards) */
+.net-slide-body {
+  display: grid;
+  gap: 16px;
+}
+
+.net-slide-block {
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid rgba(6, 182, 212, .14);
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 14px 30px rgba(2, 6, 23, .06);
+}
+
+.net-slide-block p:last-child {
+  margin-bottom: 0;
+}
+
+.net-slide-block-title {
+  font-weight: 800;
+  font-size: .95rem;
+  margin-bottom: 10px;
+  color: rgba(15, 23, 42, .9);
+}
+
+.net-slide-callout {
+  border-left: 4px solid rgba(13, 148, 136, .6);
+  background: linear-gradient(135deg, rgba(13, 148, 136, .12), rgba(255, 255, 255, .9));
+}
+
+.net-slide-callout-title {
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.net-slide-callout-body p {
+  margin-bottom: 8px;
+}
+
+.net-slide-code,
+.net-slide-file {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, .2);
+}
+
+.net-slide-code pre,
+.net-slide-file pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: .85rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.net-slide-code-head,
+.net-slide-file-head {
+  font-weight: 700;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: rgba(226, 232, 240, .85);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.net-slide-media {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(6, 182, 212, .18);
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 16px 30px rgba(2, 6, 23, .08);
+}
+
+.net-slide-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.net-slide-media figcaption {
+  padding: 10px 14px 12px;
+  font-size: .85rem;
+  color: rgba(15, 23, 42, .7);
+}
+
+.net-slide-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.net-slide-grid-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.net-slide-grid-card {
+  border-radius: 16px;
+  border: 1px solid rgba(6, 182, 212, .18);
+  background: rgba(255, 255, 255, .9);
+  padding: 12px;
+}
+
+.net-slide-grid-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(13, 148, 136, .12);
+  color: #0f766e;
+  margin-bottom: 8px;
+}
+
+.net-slide-grid-label {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.net-slide-grid-desc {
+  font-size: .82rem;
+  color: rgba(15, 23, 42, .65);
+}
+
+.net-slide-steps ol,
+.net-slide-list ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.net-slide-snippet {
+  border: 1px dashed rgba(6, 182, 212, .35);
+  background: rgba(6, 182, 212, .08);
+}
+
+.net-slide-snippet-title {
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.net-slide-snippet-body {
+  margin-bottom: 10px;
+  color: rgba(15, 23, 42, .75);
+}
+
+.net-quiz-progress-bar.is-complete {
+  background: linear-gradient(135deg, rgba(16, 185, 129, .85), rgba(6, 182, 212, .55));
+}
+
 .net-quickcheck {
   border-radius: 18px;
   border: 1px dashed rgba(6, 182, 212, .20);
@@ -8986,35 +9249,87 @@ body.net-sigma .net-meter-fill {
 }
 
 /* ============================================
-   COURSES CAROUSEL STYLES
+   CLICKABLE STATS CARD (Progress link)
+   ============================================ */
+.net-clickable-card {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.net-clickable-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(13, 148, 136, 0.12);
+  border-color: var(--net-teal) !important;
+}
+
+.net-clickable-card:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   PROGRESS PAGE BUTTON (in topnav)
+   ============================================ */
+.net-progress-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(13, 148, 136, 0.08);
+  color: var(--net-teal);
+  font-size: 1.1rem;
+  transition: background 0.2s ease, transform 0.2s ease;
+  text-decoration: none;
+}
+
+.net-progress-btn:hover {
+  background: rgba(13, 148, 136, 0.16);
+  transform: translateY(-1px);
+  color: var(--net-teal);
+}
+
+/* ============================================
+   STREAK BANNER (Progress page)
+   ============================================ */
+.net-streak-banner {
+  background: rgba(13, 148, 136, 0.08);
+  border-left: 4px solid var(--net-teal);
+}
+
+/* ============================================
+   PROGRESS ITEM CARD (polished)
+   ============================================ */
+.net-progress-item {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 16px;
+}
+
+.net-progress-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.net-progress-item.is-complete {
+  border-left: 4px solid #22c55e;
+}
+
+/* ============================================
+   COURSES GRID STYLES
    ============================================ */
 
 .net-course-section {
   margin-bottom: 2rem;
 }
 
-.net-course-carousel {
-  position: relative;
-  overflow: hidden;
-  border-radius: 12px;
-}
-
-.net-carousel-track {
-  display: flex;
-  gap: 1rem;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+.net-course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
   padding: 0.5rem 0;
 }
 
-.net-carousel-track::-webkit-scrollbar {
-  display: none;
-}
-
 .net-course-card {
-  flex: 0 0 280px;
   display: flex;
   flex-direction: column;
   background: linear-gradient(135deg, rgba(20, 184, 166, 0.08), rgba(6, 182, 212, 0.08));
@@ -9204,6 +9519,30 @@ body.net-sigma .net-meter-fill {
   box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
 }
 
+.net-course-cta.btn-locked {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.net-course-cta.btn-locked:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.net-course-cta.btn-review {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.net-course-cta.btn-continue {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+/* Fix lock overlay border-radius to match courses page cards */
+.net-courses-page .net-course-lock {
+  border-radius: 12px;
+}
+
 /* ============================================
    ACCOUNT PAGE STYLES
    ============================================ */
@@ -9355,17 +9694,18 @@ body.net-sigma .net-meter-fill {
 
 /* Activity heatmap in account page */
 #activityHeatmapContainer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 6px;
   padding: 1.5rem;
   background: rgba(20, 184, 166, 0.03);
   border-radius: 12px;
 }
 
 .activity-cell {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 4px;
   background: rgba(13, 148, 136, 0.1);
   border: 1px solid rgba(13, 148, 136, 0.2);
@@ -9418,49 +9758,11 @@ body.net-sigma .net-meter-fill {
   margin-top: 0.25rem;
 }
 
-.net-carousel-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 40px;
-  height: 40px;
-  background: white;
-  border: 1px solid var(--net-border);
-  border-radius: 20px;
-  color: var(--net-teal);
-  font-size: 1.2rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  z-index: 5;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.net-carousel-btn:hover {
-  background: var(--net-teal);
-  color: white;
-  transform: translateY(-50%) scale(1.1);
-}
-
-.net-carousel-prev {
-  left: -20px;
-}
-
-.net-carousel-next {
-  right: -20px;
-}
-
-.net-carousel-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.net-carousel-btn:disabled:hover {
-  background: white;
-  color: var(--net-teal);
-  transform: translateY(-50%);
+/* Grid responsive adjustments for courses */
+@media (max-width: 575.98px) {
+  .net-course-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .net-heatmap-label {

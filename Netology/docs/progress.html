@@ -15,11 +15,9 @@
 </head>
 
 <body class="net-bg net-landing net-progress-view net-loading">
-  <!-- AI Prompt: Explain the Slide Sidebar Backdrop section in clear, simple terms. -->
   <!-- Slide Sidebar Backdrop -->
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
 
-  <!-- AI Prompt: Explain the Slide Sidebar section in clear, simple terms. -->
   <!-- Slide Sidebar -->
   <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
     <div class="net-sidehead">
@@ -84,8 +82,7 @@
     </div>
   </aside>
 
-  <!-- AI Prompt: Explain the TOP NAV (no search now) section in clear, simple terms. -->
-  <!-- TOP NAV (no search now) -->
+  <!-- TOP NAV -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
       <div class="net-topnav-inner">
@@ -106,8 +103,13 @@
           </a>
         </div>
 
-        <!-- Right (dropdown only) -->
-        <div class="net-topnav-right position-relative">
+        <!-- Right -->
+        <div class="net-topnav-right position-relative d-flex align-items-center gap-2">
+
+          <!-- Back to Dashboard -->
+          <a href="dashboard.html" class="net-progress-btn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Back to Dashboard" aria-label="Dashboard">
+            <i class="bi bi-house-door-fill"></i>
+          </a>
 
           <!-- User dropdown -->
           <div class="position-relative">
@@ -117,8 +119,6 @@
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
-            <!-- AI Prompt: Explain the Dropdown shows details (dashboard.js fills ddName + ddEmail) section in clear, simple terms. -->
-            <!-- Dropdown shows details (dashboard.js fills ddName + ddEmail) -->
             <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
               <div class="net-ddhead">
                 <div class="d-flex align-items-center gap-2">
@@ -148,113 +148,98 @@
     </div>
   </header>
 
-  <!-- AI Prompt: Explain the MAIN section in clear, simple terms. -->
-  <!-- MAIN -->
   <!-- MAIN -->
   <main class="container py-4 net-shell net-progress-page">
-    <!-- HERO STATS (New) -->
-    <section class="net-progress-hero net-card p-4 mb-4" id="progressHero">
-      <!-- JS will populate this -->
-    </section>
 
-    <!-- TABS NAVIGATION -->
-    <section class="net-progress-top">
-      <div class="net-progress-navwrap net-card">
-        <div class="net-progress-nav" role="tablist" aria-label="Progress views">
-          <button class="net-progress-nav-btn active" role="tab" aria-selected="true" data-tab="all" data-tour="progress-tab-all">
-            <i class="bi bi-list-check"></i> All <span class="net-progress-nav-count">0</span>
-          </button>
-          <button class="net-progress-nav-btn" role="tab" aria-selected="false" data-tab="in-progress" data-tour="progress-tab-in-progress">
-            <i class="bi bi-hourglass-split"></i> In Progress <span class="net-progress-nav-count">0</span>
-          </button>
-          <button class="net-progress-nav-btn" role="tab" aria-selected="false" data-tab="completed" data-tour="progress-tab-completed">
-            <i class="bi bi-check-circle"></i> Completed <span class="net-progress-nav-count">0</span>
-          </button>
-          <button class="net-progress-nav-btn" role="tab" aria-selected="false" data-tab="achievements" data-tour="progress-tab-achievements">
-            <i class="bi bi-trophy"></i> Achievements <span class="net-progress-nav-count">0</span>
-          </button>
-          <button class="net-progress-nav-btn" role="tab" aria-selected="false" data-tab="heatmap" data-tour="progress-tab-heatmap">
-            <i class="bi bi-fire"></i> Activity <span class="net-progress-nav-count">0</span>
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB CONTENT -->
-    <section class="net-progress-content">
-      
-      <!-- All Courses Tab -->
-      <div id="tabAll" class="progress-tab-pane active" role="tabpanel">
-        <div id="allList" class="net-progress-list"></div>
-        <div id="allEmpty" class="net-empty d-none">
-          <i class="bi bi-journal-x"></i>
-          <div class="fw-bold">No courses yet</div>
-          <div class="small text-muted">Browse and enroll in courses to get started.</div>
-          <a href="courses.html" class="btn btn-teal btn-sm mt-3">
-            <i class="bi bi-journal-bookmark me-2"></i>Browse courses
-          </a>
-        </div>
-      </div>
-
-      <!-- In Progress Tab -->
-      <div id="tabInProgress" class="progress-tab-pane d-none" role="tabpanel">
-        <div id="inProgressList" class="net-progress-list"></div>
-        <div id="inProgressEmpty" class="net-empty d-none">
-          <i class="bi bi-journal-x"></i>
-          <div class="fw-bold">Nothing in progress</div>
-          <div class="small text-muted">Start a lesson to begin your learning journey.</div>
-          <a href="courses.html" class="btn btn-teal btn-sm mt-3">
-            <i class="bi bi-journal-bookmark me-2"></i>Browse courses
-          </a>
-        </div>
-      </div>
-
-      <!-- Completed Tab -->
-      <div id="tabCompleted" class="progress-tab-pane d-none" role="tabpanel">
-        <div id="completedList" class="net-progress-list"></div>
-        <div id="completedEmpty" class="net-empty d-none">
-          <i class="bi bi-journal-x"></i>
-          <div class="fw-bold">No completed courses</div>
-          <div class="small text-muted">Complete a course to see it here.</div>
-          <a href="courses.html" class="btn btn-teal btn-sm mt-3">
-            <i class="bi bi-journal-bookmark me-2"></i>Browse courses
-          </a>
-        </div>
-      </div>
-
-      <!-- Achievements Tab -->
-      <div id="tabAchievements" class="progress-tab-pane d-none" role="tabpanel">
-        <div id="achievementsList" class="net-achievement-grid"></div>
-        <div id="achievementsEmpty" class="net-empty d-none">
-          <i class="bi bi-star"></i>
-          <div class="fw-bold">No achievements yet</div>
-          <div class="small text-muted">Complete courses and challenges to unlock achievements.</div>
-          <a href="courses.html" class="btn btn-teal btn-sm mt-3">
-            <i class="bi bi-journal-bookmark me-2"></i>Start learning
-          </a>
-        </div>
-      </div>
-
-      <!-- Activity Heatmap Tab -->
-      <div id="tabHeatmap" class="progress-tab-pane d-none" role="tabpanel">
-        <div class="card border-0 p-4">
-          <h5 class="mb-3">Your Activity</h5>
-          <div id="heatmapContainer"></div>
-          <div id="streakInfo" class="mt-4 p-3 rounded" style="background: rgba(26,188,156,0.1); border-left: 4px solid #1abc9c;">
-            <div class="d-flex align-items-center gap-2 mb-2">
-              <i class="bi bi-fire text-warning"></i>
-              <strong id="streakText">0-day streak</strong>
+    <!-- HERO STATS -->
+    <section class="net-progress-hero mb-4" id="progressHero">
+      <div class="row g-3">
+        <div class="col-6 col-md-3">
+          <div class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 border text-center">
+            <div class="net-icon-box bg-teal-sub text-teal rounded-circle p-2 mx-auto mb-2" style="width:44px;height:44px;">
+              <i class="bi bi-journal-album"></i>
             </div>
-            <div class="small text-muted" id="lastActivityText">Never logged in</div>
+            <div class="h4 fw-bolder mb-0" id="heroCoursesActive">0</div>
+            <div class="small text-muted">Active Courses</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 border text-center">
+            <div class="net-icon-box bg-blue-sub text-blue rounded-circle p-2 mx-auto mb-2" style="width:44px;height:44px;">
+              <i class="bi bi-book-half"></i>
+            </div>
+            <div class="h4 fw-bolder mb-0" id="heroLessons">0</div>
+            <div class="small text-muted">Lessons Done</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 border text-center">
+            <div class="net-icon-box bg-purple-sub text-purple rounded-circle p-2 mx-auto mb-2" style="width:44px;height:44px;">
+              <i class="bi bi-trophy-fill"></i>
+            </div>
+            <div class="h4 fw-bolder mb-0" id="heroAchievements">0</div>
+            <div class="small text-muted">Achievements</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 border text-center">
+            <div class="net-icon-box bg-orange-sub text-orange rounded-circle p-2 mx-auto mb-2" style="width:44px;height:44px;">
+              <i class="bi bi-fire"></i>
+            </div>
+            <div class="h4 fw-bolder mb-0" id="heroStreak">0</div>
+            <div class="small text-muted">Day Streak</div>
           </div>
         </div>
       </div>
+    </section>
 
+    <!-- CATEGORY NAVIGATION -->
+    <section class="net-progress-top" data-tour="progress-categories">
+      <div class="net-progress-navwrap net-card">
+        <div class="net-progress-nav" role="tablist" aria-label="Progress categories">
+          <button class="net-progress-nav-btn is-active" role="tab" aria-selected="true" data-type="courses">
+            <i class="bi bi-journal-bookmark"></i> Courses <span class="net-progress-nav-count">0</span>
+          </button>
+          <button class="net-progress-nav-btn" role="tab" aria-selected="false" data-type="modules">
+            <i class="bi bi-layers"></i> Modules <span class="net-progress-nav-count">0</span>
+          </button>
+          <button class="net-progress-nav-btn" role="tab" aria-selected="false" data-type="lessons">
+            <i class="bi bi-journal-check"></i> Lessons <span class="net-progress-nav-count">0</span>
+          </button>
+          <button class="net-progress-nav-btn" role="tab" aria-selected="false" data-type="quizzes">
+            <i class="bi bi-patch-question"></i> Quizzes <span class="net-progress-nav-count">0</span>
+          </button>
+          <button class="net-progress-nav-btn" role="tab" aria-selected="false" data-type="tutorials">
+            <i class="bi bi-diagram-3"></i> Sandbox Tutorials <span class="net-progress-nav-count">0</span>
+          </button>
+          <button class="net-progress-nav-btn" role="tab" aria-selected="false" data-type="challenges">
+            <i class="bi bi-flag"></i> Sandbox Challenges <span class="net-progress-nav-count">0</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTENT -->
+    <section class="net-progress-content" data-tour="progress-split">
+      <div id="progressList" class="net-progress-list"></div>
+      <div id="progressEmpty" class="net-empty d-none">
+        <i class="bi bi-info-circle"></i>
+        <div class="fw-bold" id="progressEmptyTitle">Nothing here yet</div>
+        <div class="small text-muted" id="progressEmptyText">Start learning to see your progress.</div>
+        <a href="courses.html" class="btn btn-teal btn-sm mt-3" id="progressEmptyCta">
+          <i class="bi bi-journal-bookmark me-2"></i>Browse courses
+        </a>
+      </div>
     </section>
   </main>
 
-  <script src="js/bootstrap.bundle.min.js"></script>
+  <footer class="net-footer-wide text-center border-top py-4 bg-white mt-4" role="contentinfo">
+    <p class="small text-muted mb-0">2026 – Jamie O'Neill – TU857/4</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/progress.js"></script>
 </body>

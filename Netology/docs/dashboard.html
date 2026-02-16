@@ -277,10 +277,11 @@ Updates requested:
         </div>
       </div>
 
-      <!-- Stats Carousel (Replacing Active Courses) -->
+      <!-- Stats Carousel – click to open Progress page -->
       <div class="col-6 col-md-3">
-        <div class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 border position-relative overflow-hidden"
-          id="statsCarouselCard" data-bs-toggle="tooltip" title="Quick activity breakdown: courses, lessons, quizzes, sandbox.">
+        <div class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 border position-relative overflow-hidden net-clickable-card"
+          id="statsCarouselCard" role="button" tabindex="0" aria-label="View all activities and progress"
+          data-bs-toggle="tooltip" title="Click to view all activities &amp; progress">
 
           <div class="net-stats-carousel">
             <!-- Slides Container -->
@@ -427,6 +428,7 @@ Updates requested:
 
   <!-- Scripts -->
   <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
   <script src="js/course_content.js"></script>
   <script>
     if (typeof COURSE_CONTENT !== "undefined") {
@@ -434,92 +436,6 @@ Updates requested:
     }
   </script>
   <script src="js/dashboard.js"></script>
-  <script>
-    // Load challenges and achievements on dashboard load
-    onReady(() => {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      if (!user.email) return;
-
-      // Load daily challenges
-      fetch(`${API_BASE}/api/user/challenges?type=daily&user_email=${encodeURIComponent(user.email)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.success && data.challenges && data.challenges.length > 0) {
-            const dailyTasks = document.getElementById('dailyTasks');
-            if (dailyTasks) {
-              dailyTasks.innerHTML = data.challenges.map(c => `
-                <div class="dash-task d-flex align-items-start gap-2 mb-2">
-                  <div class="dash-task-check mt-1">
-                    <input type="checkbox" class="form-check-input" />
-                  </div>
-                  <div class="flex-grow-1">
-                    <div class="small fw-semibold">${escapeHtml(c.title)}</div>
-                    <div class="text-muted small">${escapeHtml(c.description || '')}</div>
-                    <div class="text-xs text-teal fw-bold mt-1">+${c.xp} XP</div>
-                  </div>
-                </div>
-              `).join('');
-            }
-          }
-        })
-        .catch(e => console.error('Failed to load challenges:', e));
-
-      // Load weekly challenges
-      fetch(`${API_BASE}/api/user/challenges?type=weekly&user_email=${encodeURIComponent(user.email)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.success && data.challenges && data.challenges.length > 0) {
-            const weeklyTasks = document.getElementById('weeklyTasks');
-            if (weeklyTasks) {
-              weeklyTasks.innerHTML = data.challenges.map(c => `
-                <div class="dash-task d-flex align-items-start gap-2 mb-2">
-                  <div class="dash-task-check mt-1">
-                    <input type="checkbox" class="form-check-input" />
-                  </div>
-                  <div class="flex-grow-1">
-                    <div class="small fw-semibold">${escapeHtml(c.title)}</div>
-                    <div class="text-muted small">${escapeHtml(c.description || '')}</div>
-                    <div class="text-xs text-teal fw-bold mt-1">+${c.xp} XP</div>
-                  </div>
-                </div>
-              `).join('');
-            }
-          }
-        })
-        .catch(e => console.error('Failed to load weekly challenges:', e));
-
-      // Load achievements
-      fetch(`${API_BASE}/api/user/achievements?user_email=${encodeURIComponent(user.email)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.success && data.unlocked && data.unlocked.length > 0) {
-            const achieveScroller = document.getElementById('achieveScroller');
-            if (achieveScroller) {
-              achieveScroller.innerHTML = data.unlocked.map(a => `
-                <div class="dash-badge" title="${escapeHtml(a.description || '')}">
-                  <div class="dash-badge-icon text-center text-warning">
-                    <i class="bi bi-award-fill fs-4"></i>
-                  </div>
-                  <div class="small fw-semibold text-center mt-2">${escapeHtml(a.name)}</div>
-                  <div class="text-xs text-muted text-center">${escapeHtml(a.rarity || 'common')}</div>
-                </div>
-              `).join('');
-            }
-          }
-        })
-        .catch(e => console.error('Failed to load achievements:', e));
-
-      // Check for onboarding
-      if (user.is_first_login && !user.onboarding_completed) {
-        // Delay tour start to let page render
-        setTimeout(() => {
-          if (typeof startOnboardingTour === 'function') {
-            startOnboardingTour(user.email);
-          }
-        }, 500);
-      }
-    });
-  </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 

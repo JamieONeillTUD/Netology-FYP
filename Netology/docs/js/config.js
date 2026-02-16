@@ -132,6 +132,69 @@ window.ENDPOINTS = {
 };
 
 /* =========================================================
+   ONBOARDING FLOW + LOCAL STEPS
+========================================================= */
+window.ONBOARDING_FLOW = [
+  "dashboard",
+  "courses",
+  "course",
+  "lesson",
+  "sandbox",
+  "progress",
+  "account"
+];
+
+window.ONBOARDING_STAGE_URLS = {
+  dashboard: "dashboard.html",
+  courses: "courses.html",
+  course: "course.html?id=1",
+  lesson: "lesson.html?course_id=1&lesson=1",
+  sandbox: "sandbox.html?course_id=1&lesson=1&mode=practice",
+  progress: "progress.html",
+  account: "account.html"
+};
+
+window.ONBOARDING_STEPS = {
+  dashboard: [
+    { target: "dashboard-header", title: "Welcome to Netology", description: "This is your dashboard hub for everything you do." },
+    { target: "first-lesson-btn", title: "Continue Learning", description: "Jump back into your latest lesson with one click." },
+    { target: "progress-widget", title: "Progress Tracking", description: "Your streaks and progress update here every day." },
+    { target: "courses-section", title: "Courses", description: "Browse and resume all courses you are enrolled in." },
+    { target: "sandbox-link", title: "Network Sandbox", description: "Practice builds and challenges in a safe lab environment." }
+  ],
+  courses: [
+    { target: "courses-hero", title: "Course Library", description: "Explore the full course catalog and unlock new skills." },
+    { target: "courses-filter-all", title: "Filter by Level", description: "Switch between novice, intermediate, and advanced tracks." },
+    { target: "courses-my-progress", title: "My Progress", description: "Keep an eye on what you started and finished." }
+  ],
+  course: [
+    { target: "course-hero", title: "Course Overview", description: "See difficulty, XP, and the full roadmap." },
+    { target: "course-continue", title: "Continue Button", description: "Resume exactly where you left off." },
+    { target: "course-modules", title: "Modules", description: "Lessons, quizzes, tutorials, and challenges live here." }
+  ],
+  lesson: [
+    { target: "lesson-top-progress", title: "Lesson Progress", description: "Track your slide-by-slide progress." },
+    { target: "lesson-slide-viewer", title: "Interactive Slides", description: "Each card is an interactive learning step." },
+    { target: "lesson-outline", title: "Lesson Outline", description: "Jump to any slide or bookmarked item." }
+  ],
+  sandbox: [
+    { target: "sandbox-library", title: "Device Library", description: "Drag routers, switches, and hosts into the canvas." },
+    { target: "sandbox-canvas", title: "Topology Canvas", description: "Build and connect your network here." },
+    { target: "sandbox-inspector", title: "Inspector", description: "Check device status, pings, and diagnostics." },
+    { target: "sandbox-console", title: "Console", description: "Run commands and review logs in real time." }
+  ],
+  progress: [
+    { target: "progress-categories", title: "Progress Views", description: "Switch between courses, modules, lessons, quizzes, and sandbox." },
+    { target: "progress-split", title: "Split View", description: "Everything is organized by in-progress and completed." }
+  ],
+  account: [
+    { target: "account-profile-hero", title: "Profile Snapshot", description: "Your stats, badges, and learning streak." },
+    { target: "account-tab-preferences", title: "Preferences", description: "Customize themes, notifications, and privacy." },
+    { target: "account-tab-activity", title: "Activity Map", description: "Track your learning streak over time." }
+  ]
+};
+
+/* =========================================================
    API HELPERS (small + consistent)
 ========================================================= */
 window.API_HELPERS = window.API_HELPERS || {};
@@ -159,6 +222,50 @@ window.apiGet = async function (path, params = {}) {
   const res = await fetch(url.toString());
   return res.json();
 };
+
+/* =========================================================
+   THEME + ACCESSIBILITY (global)
+========================================================= */
+(() => {
+  const applyTheme = () => {
+    const theme = localStorage.getItem("netology_theme") || "light";
+    const dyslexic = localStorage.getItem("netology_dyslexic") === "true";
+
+    const target = document.body || document.documentElement;
+    if (target) {
+      target.setAttribute("data-theme", theme);
+      target.classList.toggle("net-dyslexic", dyslexic);
+    }
+  };
+
+  const setTheme = (theme) => {
+    localStorage.setItem("netology_theme", String(theme || "light"));
+    applyTheme();
+  };
+
+  const setDyslexic = (enabled) => {
+    localStorage.setItem("netology_dyslexic", enabled ? "true" : "false");
+    applyTheme();
+  };
+
+  const toggleDyslexic = () => {
+    const enabled = localStorage.getItem("netology_dyslexic") === "true";
+    setDyslexic(!enabled);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", applyTheme);
+  } else {
+    applyTheme();
+  }
+
+  window.NetologyTheme = {
+    apply: applyTheme,
+    setTheme,
+    setDyslexic,
+    toggleDyslexic
+  };
+})();
 
 /* AI Prompt: Explain the Preview mode seeding (demo user) section in clear, simple terms. */
 /* =========================================================

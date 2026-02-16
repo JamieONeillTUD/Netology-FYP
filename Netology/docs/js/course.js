@@ -351,6 +351,7 @@ What this file does:
     },
 
     expandedModules: new Set(),
+    scrollToModuleId: null,
 
     learnItemsFlat: [],
     activeLearnIndex: -1,
@@ -451,7 +452,8 @@ What this file does:
 
     // derived
     buildLearnFlatList();
-    restoreLastModule();
+    const appliedModule = applyModuleParam();
+    if (!appliedModule) restoreLastModule();
 
     // render
     renderAll();
@@ -466,6 +468,10 @@ What this file does:
 
     // if returning from quiz/sandbox completion, support toast via URL params
     maybeShowReturnToast();
+
+    if (state.user?.email && typeof window.maybeStartOnboardingTour === "function") {
+      window.maybeStartOnboardingTour("course", state.user.email);
+    }
   });
 
   async function refreshCourseState(options = {}) {
@@ -1170,6 +1176,46 @@ What this file does:
     }
   }
 
+  function applyModuleParam() {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("module");
+    if (!raw) return false;
+
+    const target = resolveModuleParam(raw);
+    if (!target) return false;
+
+    if (raw !== target) {
+      params.set("module", target);
+      history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    }
+
+    state.expandedModules.clear();
+    state.expandedModules.add(target);
+    persistLastModule(target);
+    state.scrollToModuleId = target;
+    return true;
+  }
+
+  function resolveModuleParam(raw) {
+    const value = String(raw || "").trim();
+    if (!value) return null;
+    const modules = state.course.modules || [];
+
+    const exact = modules.find((m) => String(m.id) === value);
+    if (exact) return String(exact.id);
+
+    const exactLower = modules.find((m) => String(m.id).toLowerCase() === value.toLowerCase());
+    if (exactLower) return String(exactLower.id);
+
+    const numeric = Number.parseInt(value, 10);
+    if (Number.isFinite(numeric)) {
+      const idx = numeric - 1;
+      if (modules[idx]) return String(modules[idx].id);
+    }
+
+    return null;
+  }
+
   function persistLastModule(id) {
     if (!id) return;
     localStorage.setItem(lastModuleKey(), id);
@@ -1456,6 +1502,14 @@ What this file does:
       article.appendChild(shell);
       wrap.appendChild(article);
     });
+
+    if (state.scrollToModuleId) {
+      const target = wrap.querySelector(`[data-module-id="${cssEscapeAttr(state.scrollToModuleId)}"]`);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      state.scrollToModuleId = null;
+    }
   }
 
   function renderModuleItems(module) {

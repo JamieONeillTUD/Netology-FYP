@@ -162,7 +162,7 @@ Locks courses until user level requirement is met.
       </div>
     </section>
 
-    <!-- Novice Learning Path (Carousel) -->
+    <!-- Novice Learning Path -->
     <section class="mx-4 mb-4 net-course-section" data-difficulty="novice" aria-label="Novice learning path">
       <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
@@ -171,18 +171,10 @@ Locks courses until user level requirement is met.
         </div>
         <span class="net-diffbadge net-badge-nov">Level 1+</span>
       </div>
-      <div class="net-course-carousel position-relative" id="noviceCarousel">
-        <div class="net-carousel-track" id="noviceTrack"></div>
-        <button class="net-carousel-btn net-carousel-prev" id="novicePrev" aria-label="Previous course" data-tour="courses-carousel-prev">
-          <i class="bi bi-chevron-left"></i>
-        </button>
-        <button class="net-carousel-btn net-carousel-next" id="noviceNext" aria-label="Next course">
-          <i class="bi bi-chevron-right"></i>
-        </button>
-      </div>
+      <div class="net-course-grid" id="noviceGrid"></div>
     </section>
 
-    <!-- Intermediate Learning Path (Carousel) -->
+    <!-- Intermediate Learning Path -->
     <section class="mx-4 mb-4 net-course-section" data-difficulty="intermediate" aria-label="Intermediate learning path">
       <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
@@ -191,18 +183,10 @@ Locks courses until user level requirement is met.
         </div>
         <span class="net-diffbadge net-badge-int">Level 3+</span>
       </div>
-      <div class="net-course-carousel position-relative" id="intermediateCarousel">
-        <div class="net-carousel-track" id="intermediateTrack"></div>
-        <button class="net-carousel-btn net-carousel-prev" id="intermediatePrev" aria-label="Previous course">
-          <i class="bi bi-chevron-left"></i>
-        </button>
-        <button class="net-carousel-btn net-carousel-next" id="intermediateNext" aria-label="Next course">
-          <i class="bi bi-chevron-right"></i>
-        </button>
-      </div>
+      <div class="net-course-grid" id="intermediateGrid"></div>
     </section>
 
-    <!-- Advanced Learning Path (Carousel) -->
+    <!-- Advanced Learning Path -->
     <section class="mx-4 mb-4 net-course-section" data-difficulty="advanced" aria-label="Advanced learning path">
       <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
@@ -211,15 +195,7 @@ Locks courses until user level requirement is met.
         </div>
         <span class="net-diffbadge net-badge-adv">Level 5+</span>
       </div>
-      <div class="net-course-carousel position-relative" id="advancedCarousel">
-        <div class="net-carousel-track" id="advancedTrack"></div>
-        <button class="net-carousel-btn net-carousel-prev" id="advancedPrev" aria-label="Previous course">
-          <i class="bi bi-chevron-left"></i>
-        </button>
-        <button class="net-carousel-btn net-carousel-next" id="advancedNext" aria-label="Next course">
-          <i class="bi bi-chevron-right"></i>
-        </button>
-      </div>
+      <div class="net-course-grid" id="advancedGrid"></div>
     </section>
 
     <!-- My Learning Progress -->
@@ -241,6 +217,7 @@ Locks courses until user level requirement is met.
   <!-- AI Prompt: Explain the course content meta (required_level/difficulty) section in clear, simple terms. -->
   <!-- course content meta (required_level/difficulty) -->
   <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/courses.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

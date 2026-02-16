@@ -356,6 +356,39 @@
           </div>
         </div>
       </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-lg-6">
+          <div class="net-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-palette me-2"></i>Appearance</h5>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted">Theme</label>
+              <select class="form-select form-select-sm" id="themeSelect">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="ocean">Ocean</option>
+                <option value="sunrise">Sunrise</option>
+              </select>
+              <div class="small text-muted mt-2">Choose how the interface looks.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="net-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-universal-access-circle me-2"></i>Accessibility</h5>
+
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="dyslexicToggle">
+              <label class="form-check-label" for="dyslexicToggle">
+                <strong>Dyslexic-friendly font</strong>
+                <div class="small text-muted">Improves readability for many users.</div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Tab: Security -->
@@ -426,6 +459,15 @@
           <div class="net-card p-4">
             <h5 class="fw-bold mb-3"><i class="bi bi-calendar3 me-2"></i>Login Activity (Last 90 Days)</h5>
             <div id="activityHeatmapContainer"></div>
+            <div class="d-flex align-items-center gap-2 small text-muted mt-2">
+              <span>Less</span>
+              <span class="activity-cell level-0"></span>
+              <span class="activity-cell level-1"></span>
+              <span class="activity-cell level-2"></span>
+              <span class="activity-cell level-3"></span>
+              <span class="activity-cell level-4"></span>
+              <span>More</span>
+            </div>
             <div class="small text-muted mt-3">
               <i class="bi bi-info-circle me-1"></i>
               Darker colors indicate more active days.
@@ -464,6 +506,7 @@
   </footer>
 
   <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/account.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
