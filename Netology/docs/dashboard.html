@@ -183,7 +183,7 @@ Updates requested:
     <!-- AI Prompt: Explain the HERO / OVERVIEW section in clear, simple terms. -->
     <!-- HERO / OVERVIEW -->
     <!-- HERO BANNER -->
-    <section class="net-dash-hero p-4 p-md-5 mb-4 rounded-4 position-relative overflow-hidden shadow-sm">
+    <section class="net-dash-hero p-4 p-md-5 mb-4 rounded-4 position-relative overflow-hidden shadow-sm" data-tour="dashboard-header">
       <!-- CTA Mode Animated Icons -->
       <div class="net-cta-icons" aria-hidden="true">
         <i class="bi bi-diagram-3" style="top: 10%; left: 5%;" data-bs-toggle="tooltip" title="Ethernet & Switching Basics: build a switched network and learn frame forwarding."></i>
@@ -201,10 +201,10 @@ Updates requested:
         </div>
         <div id="dailyTipControls" class="daily-indicators" role="tablist" aria-label="Course indicators" aria-hidden="true"></div>
         <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
-          <a href="courses.html" class="btn btn-light fw-bold rounded-pill px-4 py-2 net-hero-btn net-hero-btn--green" data-bs-toggle="tooltip" title="Browse your unlocked courses and resume learning">
+          <a href="courses.html" class="btn btn-light fw-bold rounded-pill px-4 py-2 net-hero-btn net-hero-btn--green" data-bs-toggle="tooltip" title="Browse your unlocked courses and resume learning" data-tour="first-lesson-btn">
             <i class="bi bi-play-fill me-1"></i>Start Learning
           </a>
-          <a href="sandbox.html" class="btn fw-bold rounded-pill px-4 py-2 net-hero-btn net-hero-btn--green" data-bs-toggle="tooltip" title="Browse your unlocked courses and resume learning">
+          <a href="sandbox.html" class="btn fw-bold rounded-pill px-4 py-2 net-hero-btn net-hero-btn--green" data-bs-toggle="tooltip" title="Browse your unlocked courses and resume learning" data-tour="sandbox-link">
             <i class="bi bi-diagram-3 me-1"></i>Open Sandbox
           </a>
         </div>
@@ -258,7 +258,7 @@ Updates requested:
       <div class="col-6 col-md-3">
         <div
           class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 d-flex flex-column justify-content-between border"
-          data-bs-toggle="tooltip" title="Consecutive days you've logged in (streak).">
+          data-bs-toggle="tooltip" title="Consecutive days you've logged in (streak)." data-tour="progress-widget">
           <div class="d-flex align-items-center justify-content-between mb-2">
             <span class="small text-muted fw-bold text-uppercase ls-1">Streak</span>
             <div class="net-icon-box bg-orange-sub text-orange rounded-circle p-2">
@@ -357,7 +357,7 @@ Updates requested:
     <section class="dash-grid">
       <div class="dash-main">
         <!-- CONTINUE LEARNING -->
-        <section class="dash-card net-card net-pop p-4 mb-4">
+        <section class="dash-card net-card net-pop p-4 mb-4" data-tour="courses-section">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Continue Learning</h5>
             <a href="courses.html" class="text-decoration-none small fw-bold net-link-hover">View All</a>
@@ -371,7 +371,7 @@ Updates requested:
           </div>
         </section>
 
-        <section class="dash-card net-card net-pop p-4 mb-4">
+        <section class="dash-card net-card net-pop p-4 mb-4" data-tour="achievements-section">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Achievements</h5>
             <span class="small text-muted">Next up</span>
@@ -387,7 +387,7 @@ Updates requested:
 
       <!-- Right rail -->
       <aside class="dash-side">
-        <section class="dash-card net-card net-pop p-4 mb-4">
+        <section class="dash-card net-card net-pop p-4 mb-4" data-tour="challenges-section">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Focus</h5>
           </div>
@@ -434,6 +434,92 @@ Updates requested:
     }
   </script>
   <script src="js/dashboard.js"></script>
+  <script>
+    // Load challenges and achievements on dashboard load
+    onReady(() => {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!user.email) return;
+
+      // Load daily challenges
+      fetch(`${API_BASE}/api/user/challenges?type=daily&user_email=${encodeURIComponent(user.email)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.challenges && data.challenges.length > 0) {
+            const dailyTasks = document.getElementById('dailyTasks');
+            if (dailyTasks) {
+              dailyTasks.innerHTML = data.challenges.map(c => `
+                <div class="dash-task d-flex align-items-start gap-2 mb-2">
+                  <div class="dash-task-check mt-1">
+                    <input type="checkbox" class="form-check-input" />
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="small fw-semibold">${escapeHtml(c.title)}</div>
+                    <div class="text-muted small">${escapeHtml(c.description || '')}</div>
+                    <div class="text-xs text-teal fw-bold mt-1">+${c.xp} XP</div>
+                  </div>
+                </div>
+              `).join('');
+            }
+          }
+        })
+        .catch(e => console.error('Failed to load challenges:', e));
+
+      // Load weekly challenges
+      fetch(`${API_BASE}/api/user/challenges?type=weekly&user_email=${encodeURIComponent(user.email)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.challenges && data.challenges.length > 0) {
+            const weeklyTasks = document.getElementById('weeklyTasks');
+            if (weeklyTasks) {
+              weeklyTasks.innerHTML = data.challenges.map(c => `
+                <div class="dash-task d-flex align-items-start gap-2 mb-2">
+                  <div class="dash-task-check mt-1">
+                    <input type="checkbox" class="form-check-input" />
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="small fw-semibold">${escapeHtml(c.title)}</div>
+                    <div class="text-muted small">${escapeHtml(c.description || '')}</div>
+                    <div class="text-xs text-teal fw-bold mt-1">+${c.xp} XP</div>
+                  </div>
+                </div>
+              `).join('');
+            }
+          }
+        })
+        .catch(e => console.error('Failed to load weekly challenges:', e));
+
+      // Load achievements
+      fetch(`${API_BASE}/api/user/achievements?user_email=${encodeURIComponent(user.email)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.unlocked && data.unlocked.length > 0) {
+            const achieveScroller = document.getElementById('achieveScroller');
+            if (achieveScroller) {
+              achieveScroller.innerHTML = data.unlocked.map(a => `
+                <div class="dash-badge" title="${escapeHtml(a.description || '')}">
+                  <div class="dash-badge-icon text-center text-warning">
+                    <i class="bi bi-award-fill fs-4"></i>
+                  </div>
+                  <div class="small fw-semibold text-center mt-2">${escapeHtml(a.name)}</div>
+                  <div class="text-xs text-muted text-center">${escapeHtml(a.rarity || 'common')}</div>
+                </div>
+              `).join('');
+            }
+          }
+        })
+        .catch(e => console.error('Failed to load achievements:', e));
+
+      // Check for onboarding
+      if (user.is_first_login && !user.onboarding_completed) {
+        // Delay tour start to let page render
+        setTimeout(() => {
+          if (typeof startOnboardingTour === 'function') {
+            startOnboardingTour(user.email);
+          }
+        }, 500);
+      }
+    });
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 

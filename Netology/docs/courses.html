@@ -124,75 +124,112 @@ Locks courses until user level requirement is met.
     </div>
   </header>
 
-  <main class="container my-4 net-courses-shell" role="main">
+  <main class="container-fluid my-4 net-courses-shell" role="main">
 
-    <!-- AI Prompt: Explain the Hero section in clear, simple terms. -->
     <!-- Hero -->
-    <section class="net-card net-courses-hero p-4 p-lg-5 mb-4" aria-label="Course library overview">
+    <section class="net-card net-courses-hero p-4 p-lg-5 mb-4 mx-4" aria-label="Course library overview" data-tour="courses-hero">
       <div class="net-courses-hero-grid text-center">
         <div>
           <div class="dash-pill mb-3 justify-content-center">
             <span class="dash-pill-dot" aria-hidden="true"></span>
-            <span class="small fw-semibold">System online</span>
+            <span class="small fw-semibold">Learning paths available</span>
           </div>
-          <h1 class="display-6 fw-bold mb-2">Explore Networking Courses</h1>
+          <h1 class="display-6 fw-bold mb-2">Structured Learning Paths</h1>
           <p class="text-muted mb-0">
-            Build real skills with focused pathways, practical labs, and clear milestones.
+            Master networking through progressive lessons, hands-on labs, and real-world scenarios.
           </p>
         </div>
       </div>
     </section>
 
-    <!-- Search -->
-    <section class="net-card net-courses-search p-4 mb-4" aria-label="Search courses">
-      <div class="net-courses-search-inner">
-        <div class="fw-semibold">Find a course</div>
-        <div class="net-search net-course-search w-100 mt-2">
-          <i class="bi bi-search" aria-hidden="true"></i>
-          <input id="topSearch"
-                 class="form-control form-control-sm"
-                 type="search"
-                 placeholder="Search courses…"
-                 aria-label="Search courses">
+    <!-- Learning Path Selection -->
+    <section class="mx-4 mb-4">
+      <div class="net-card p-3">
+        <div class="d-flex flex-wrap gap-2 align-items-center" role="tablist" aria-label="Learning path filters">
+          <button class="btn btn-sm btn-teal active" data-path="all" role="tab" aria-selected="true" data-tour="courses-filter-all">
+            <i class="bi bi-grid-1x2 me-1"></i> All Paths
+          </button>
+          <button class="btn btn-sm btn-outline-teal" data-path="novice" role="tab" aria-selected="false" data-tour="courses-filter-novice">
+            <i class="bi bi-gem me-1"></i> Novice
+          </button>
+          <button class="btn btn-sm btn-outline-teal" data-path="intermediate" role="tab" aria-selected="false" data-tour="courses-filter-intermediate">
+            <i class="bi bi-lightning me-1"></i> Intermediate
+          </button>
+          <button class="btn btn-sm btn-outline-teal" data-path="advanced" role="tab" aria-selected="false" data-tour="courses-filter-advanced">
+            <i class="bi bi-star me-1"></i> Advanced
+          </button>
         </div>
-        <div class="small text-muted mt-2">Try: routing, subnetting, firewalls</div>
       </div>
     </section>
 
-    <!-- Novice -->
-    <section class="net-card net-courses-section p-4 mb-4" aria-label="Novice courses">
-      <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-3">
+    <!-- Novice Learning Path (Carousel) -->
+    <section class="mx-4 mb-4 net-course-section" data-difficulty="novice" aria-label="Novice learning path">
+      <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
-          <div class="fw-semibold">Novice Track</div>
-          <div class="small text-muted">Start here if you are new to networking.</div>
+          <h3 class="fw-bold mb-1"><i class="bi bi-gem text-warning me-2"></i>Novice Track</h3>
+          <p class="text-muted small mb-0">Essential networking fundamentals for beginners</p>
         </div>
         <span class="net-diffbadge net-badge-nov">Level 1+</span>
       </div>
-      <div class="net-coursegrid" id="noviceRow"></div>
+      <div class="net-course-carousel position-relative" id="noviceCarousel">
+        <div class="net-carousel-track" id="noviceTrack"></div>
+        <button class="net-carousel-btn net-carousel-prev" id="novicePrev" aria-label="Previous course" data-tour="courses-carousel-prev">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="net-carousel-btn net-carousel-next" id="noviceNext" aria-label="Next course">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
     </section>
 
-    <!-- Intermediate -->
-    <section class="net-card net-courses-section p-4 mb-4" aria-label="Intermediate courses">
-      <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-3">
+    <!-- Intermediate Learning Path (Carousel) -->
+    <section class="mx-4 mb-4 net-course-section" data-difficulty="intermediate" aria-label="Intermediate learning path">
+      <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
-          <div class="fw-semibold">Intermediate Track</div>
-          <div class="small text-muted">Build depth in VLANs, routing, and troubleshooting.</div>
+          <h3 class="fw-bold mb-1"><i class="bi bi-lightning text-info me-2"></i>Intermediate Track</h3>
+          <p class="text-muted small mb-0">Advanced routing, VLANs, and network design</p>
         </div>
         <span class="net-diffbadge net-badge-int">Level 3+</span>
       </div>
-      <div class="net-coursegrid" id="intermediateRow"></div>
+      <div class="net-course-carousel position-relative" id="intermediateCarousel">
+        <div class="net-carousel-track" id="intermediateTrack"></div>
+        <button class="net-carousel-btn net-carousel-prev" id="intermediatePrev" aria-label="Previous course">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="net-carousel-btn net-carousel-next" id="intermediateNext" aria-label="Next course">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
     </section>
 
-    <!-- Advanced -->
-    <section class="net-card net-courses-section p-4" aria-label="Advanced courses">
-      <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-3">
+    <!-- Advanced Learning Path (Carousel) -->
+    <section class="mx-4 mb-4 net-course-section" data-difficulty="advanced" aria-label="Advanced learning path">
+      <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
-          <div class="fw-semibold">Advanced Track</div>
-          <div class="small text-muted">Security, automation, and enterprise-scale design.</div>
+          <h3 class="fw-bold mb-1"><i class="bi bi-star text-danger me-2"></i>Advanced Track</h3>
+          <p class="text-muted small mb-0">Security, automation, and enterprise infrastructure</p>
         </div>
         <span class="net-diffbadge net-badge-adv">Level 5+</span>
       </div>
-      <div class="net-coursegrid" id="advancedRow"></div>
+      <div class="net-course-carousel position-relative" id="advancedCarousel">
+        <div class="net-carousel-track" id="advancedTrack"></div>
+        <button class="net-carousel-btn net-carousel-prev" id="advancedPrev" aria-label="Previous course">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="net-carousel-btn net-carousel-next" id="advancedNext" aria-label="Next course">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- My Learning Progress -->
+    <section class="mx-4 mb-4 net-card p-4" data-tour="courses-my-progress">
+      <h4 class="fw-bold mb-3"><i class="bi bi-progress-bar me-2"></i>Your Learning Progress</h4>
+      <div id="myProgressContainer" class="row"></div>
+      <div id="noProgressPlaceholder" class="text-center py-4 text-muted d-none">
+        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+        <p class="mt-2">Start a course to track your progress here</p>
+      </div>
     </section>
 
   </main>

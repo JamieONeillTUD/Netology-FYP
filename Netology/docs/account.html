@@ -115,274 +115,348 @@
     </div>
   </header>
 
-  <main class="container my-4 net-account-shell net-shell--wide">
-    <!-- AI Prompt: Explain the Hero section in clear, simple terms. -->
-    <!-- Hero -->
-    <section class="net-card net-account-hero p-4 p-lg-5 mb-4">
-      <div class="net-account-hero-grid">
-        <div class="net-profile-card">
-          <div class="dash-pill mb-3">
-            <span class="dash-pill-dot" aria-hidden="true"></span>
-            <span class="small fw-semibold">System online</span>
-          </div>
+  <main class="container-fluid my-4 net-account-shell net-shell--wide" role="main">
 
-          <div class="net-profile-head">
-            <div class="net-profile-avatar" id="profileAvatar">S</div>
-            <div>
-              <h1 class="net-profile-name" id="profileName">Student</h1>
-              <div class="small text-muted" id="profileEmail">email@example.com</div>
-              <div class="small text-muted">@<span id="profileUser">student</span></div>
-            </div>
-          </div>
-
-          <div class="net-profile-badges">
+    <!-- Profile Hero Card -->
+    <section class="mx-4 mb-4 net-card p-4 p-lg-5" data-tour="account-profile-hero">
+      <div class="row align-items-center gap-4">
+        <div class="col-auto">
+          <div class="net-profile-avatar-lg" id="profileAvatar" style="width: 120px; height: 120px; font-size: 2.5rem;">S</div>
+        </div>
+        <div class="col">
+          <h1 class="fs-3 fw-bold mb-1" id="profileName">Student</h1>
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+            <span class="text-muted" id="profileEmail">email@example.com</span>
             <span class="badge text-bg-light border" id="rankBadge">Novice</span>
-            <span class="badge text-bg-light border" id="badgePill">0 badges</span>
+            <span class="badge text-bg-light border" id="levelBadge">Level 1</span>
           </div>
+          <p class="text-muted mb-0">Joined on <span id="joinedDate">Feb 16, 2026</span></p>
+        </div>
+      </div>
+    </section>
 
-          <div class="net-profile-actions">
-            <a href="dashboard.html" class="btn btn-teal btn-sm dash-action-btn" data-tip="Back to your dashboard">Dashboard</a>
-            <a href="courses.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--blue" data-tip="Browse all courses">Courses</a>
-            <a href="sandbox.html" class="btn btn-soft btn-sm dash-action-btn" data-tip="Open the sandbox">Sandbox</a>
+    <!-- Learning Stats Row -->
+    <section class="mx-4 mb-4">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="net-card p-3 text-center">
+            <div class="text-warning mb-2" style="font-size: 1.8rem;"><i class="bi bi-star-fill"></i></div>
+            <div class="fw-bold fs-4" id="totalXpStat">0</div>
+            <div class="small text-muted">Total XP</div>
           </div>
         </div>
-
-        <div class="net-account-progress">
-          <div class="dash-progress-head">
-            <div class="fw-semibold net-gradient-text">Your level</div>
-            <div class="small net-level-hint" id="accountLevelHint">100 XP to next level</div>
+        <div class="col-md-3">
+          <div class="net-card p-3 text-center">
+            <div class="text-info mb-2" style="font-size: 1.8rem;"><i class="bi bi-book"></i></div>
+            <div class="fw-bold fs-4" id="coursesCompletedStat">0</div>
+            <div class="small text-muted">Courses Done</div>
           </div>
+        </div>
+        <div class="col-md-3">
+          <div class="net-card p-3 text-center">
+            <div class="text-danger mb-2" style="font-size: 1.8rem;"><i class="bi bi-fire"></i></div>
+            <div class="fw-bold fs-4" id="streakStat">0</div>
+            <div class="small text-muted">Day Streak</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="net-card p-3 text-center">
+            <div class="text-success mb-2" style="font-size: 1.8rem;"><i class="bi bi-trophy"></i></div>
+            <div class="fw-bold fs-4" id="achievementsStat">0</div>
+            <div class="small text-muted">Achievements</div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-          <div class="dash-progress-box dash-progress-ringbox">
-            <div class="net-ring" aria-label="Level progress ring">
-              <svg viewBox="0 0 140 140" aria-hidden="true">
-                <defs>
-                  <linearGradient id="netAccountGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#14b8a6"></stop>
-                    <stop offset="100%" stop-color="#06b6d4"></stop>
-                  </linearGradient>
-                </defs>
+    <!-- Tabs Navigation -->
+    <section class="mx-4 mb-4">
+      <div class="net-card p-3 border-0">
+        <div class="d-flex flex-wrap gap-2" role="tablist">
+          <button class="btn btn-sm btn-teal active" role="tab" data-tab="profile" aria-selected="true" data-tour="account-tab-profile">
+            <i class="bi bi-person me-1"></i>Profile
+          </button>
+          <button class="btn btn-sm btn-outline-teal" role="tab" data-tab="preferences" aria-selected="false" data-tour="account-tab-preferences">
+            <i class="bi bi-gear me-1"></i>Preferences
+          </button>
+          <button class="btn btn-sm btn-outline-teal" role="tab" data-tab="security" aria-selected="false" data-tour="account-tab-security">
+            <i class="bi bi-shield-lock me-1"></i>Security
+          </button>
+          <button class="btn btn-sm btn-outline-teal" role="tab" data-tab="activity" aria-selected="false" data-tour="account-tab-activity">
+            <i class="bi bi-calendar3 me-1"></i>Activity
+          </button>
+        </div>
+      </div>
+    </section>
 
-                <circle class="net-ring-track" cx="70" cy="70" r="58" stroke-width="10" fill="none"></circle>
-                <circle id="accountRing"
-                        class="net-ring-fill"
-                        cx="70" cy="70" r="58"
-                        stroke="url(#netAccountGrad)"
-                        stroke-width="10"
-                        stroke-linecap="round"
-                        fill="none"
-                        stroke-dasharray="364.42"
-                        stroke-dashoffset="364.42"></circle>
-              </svg>
-              <div class="net-ring-center">
-                <div class="net-ring-pct net-gradient-text" id="accountLevel">1</div>
+    <!-- Tab: Profile -->
+    <section class="mx-4 mb-4 account-tab" data-tab="profile" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-lg-8">
+          <div class="net-card p-4">
+            <h4 class="fw-bold mb-3"><i class="bi bi-person-circle me-2"></i>Profile Information</h4>
+            
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted">Full Name</label>
+              <input type="text" class="form-control form-control-sm" id="fullNameInput" disabled>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted">Email Address</label>
+              <input type="email" class="form-control form-control-sm" id="emailInput" disabled>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted">Member Since</label>
+              <input type="text" class="form-control form-control-sm" id="memberSinceInput" disabled>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted">Current Level</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-lightning-fill text-warning"></i></span>
+                <input type="text" class="form-control" id="currentLevelInput" disabled>
+                <span class="input-group-text" id="currentRankInput">Novice</span>
               </div>
             </div>
 
-            <div class="net-xp-pill" id="accountXpText">0/100 XP</div>
-            <div class="progress mt-2" style="height:10px;">
-              <div class="progress-bar net-progress net-progress-fill" id="xpBar" style="width:0%"></div>
+            <hr class="my-4">
+
+            <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart me-2"></i>Learning Stats</h5>
+
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold text-muted">Total XP Earned</label>
+                  <div class="fs-5 fw-bold text-warning" id="totalXpDisplay">0</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold text-muted">Courses Completed</label>
+                  <div class="fs-5 fw-bold text-info" id="coursesCompletedDisplay">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold text-muted">Login Streak</label>
+                  <div class="fs-5 fw-bold text-danger" id="streakDisplay">0 days</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold text-muted">Achievements Unlocked</label>
+                  <div class="fs-5 fw-bold text-success" id="achievementsDisplay">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="net-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-trophy me-2"></i>Rank Progress</h5>
+            <div class="text-center mb-3">
+              <div class="fs-1 fw-bold text-teal" id="rankDisplayLarge">1</div>
+              <div class="small text-muted" id="rankNameDisplay">Novice</div>
+            </div>
+            
+            <div class="mb-3">
+              <div class="small fw-semibold text-muted mb-1">XP to Next Level</div>
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar net-progress-fill" id="levelProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="small text-muted mt-1" id="levelProgressText">0 / 100 XP</div>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="small">
+              <div class="fw-semibold text-muted mb-2">Recent Badges</div>
+              <div id="recentBadgesSmall" class="d-flex flex-wrap gap-2">
+                <span class="text-muted small">No badges yet</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- AI Prompt: Explain the Stats section in clear, simple terms. -->
-    <!-- Stats -->
-    <section class="net-card p-4 mb-4">
-      <div class="fw-semibold mb-3">Your stats</div>
-      <div class="dash-statgrid net-account-stats">
-        <div class="dash-stat dash-stat--teal">
-          <div class="dash-stat-ico"><i class="bi bi-bullseye"></i></div>
-          <div>
-            <div class="text-muted small">Level</div>
-            <div class="fw-bold fs-4" id="levelText">1</div>
-            <div class="small text-muted" id="rankText"></div>
-            <div class="small text-muted" id="nextText">0 / 100</div>
-            <div class="progress mt-2" style="height:8px;">
-              <div class="progress-bar net-progress net-progress-fill" id="accountStatXpBar" style="width:0%"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="dash-stat dash-stat--green">
-          <div class="dash-stat-ico"><i class="bi bi-lightning-charge-fill"></i></div>
-          <div>
-            <div class="text-muted small">Total XP</div>
-            <div class="fw-bold fs-4" id="xpText">0</div>
-            <div class="small text-muted" id="accountTotalXpHint">Earned overall</div>
-            <div class="progress mt-2" style="height:8px;">
-              <div class="progress-bar net-progress net-progress-fill" id="accountTotalXpBar" style="width:0%"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="dash-stat dash-stat--amber">
-          <div class="dash-stat-ico"><i class="bi bi-fire"></i></div>
-          <div>
-            <div class="text-muted small">Login streak</div>
-            <div class="fw-bold fs-4" id="streakCount">0</div>
-            <div class="small text-muted" id="streakHint">Log in today to start a streak.</div>
-          </div>
-        </div>
-
-        <div class="dash-stat dash-stat--blue">
-          <div class="dash-stat-ico"><i class="bi bi-journal-text"></i></div>
-          <div>
-            <div class="text-muted small">Lessons done</div>
-            <div class="fw-bold fs-4" id="statLessons">0</div>
-            <div class="small text-muted">Keep momentum</div>
-          </div>
-        </div>
-
-        <div class="dash-stat dash-stat--teal">
-          <div class="dash-stat-ico"><i class="bi bi-patch-check"></i></div>
-          <div>
-            <div class="text-muted small">Quizzes passed</div>
-            <div class="fw-bold fs-4" id="statQuizzes">0</div>
-            <div class="small text-muted">Build confidence</div>
-          </div>
-        </div>
-
-        <div class="dash-stat dash-stat--green">
-          <div class="dash-stat-ico"><i class="bi bi-diagram-3"></i></div>
-          <div>
-            <div class="text-muted small">Challenges</div>
-            <div class="fw-bold fs-4" id="statChallenges">0</div>
-            <div class="small text-muted">Sandbox builds</div>
-          </div>
-        </div>
-
-        <div class="dash-stat dash-stat--amber">
-          <div class="dash-stat-ico"><i class="bi bi-award"></i></div>
-          <div>
-            <div class="text-muted small">Courses completed</div>
-            <div class="fw-bold fs-4" id="statCourses">0</div>
-            <div class="small text-muted">Keep finishing</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- AI Prompt: Explain the Activity + Topologies + Quiz History section in clear, simple terms. -->
-    <!-- Activity + Topologies + Quiz History -->
-    <section class="net-account-insights mb-4">
+    <!-- Tab: Preferences -->
+    <section class="mx-4 mb-4 account-tab d-none" data-tab="preferences" role="tabpanel">
       <div class="row g-3">
         <div class="col-lg-6">
           <div class="net-card p-4">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div class="fw-semibold d-flex align-items-center gap-2">
-                <i class="bi bi-activity text-teal" aria-hidden="true"></i>
-                Recent Activity
-              </div>
-              <span class="small text-muted">Last 7 days</span>
+            <h5 class="fw-bold mb-3"><i class="bi bi-bell me-2"></i>Notifications</h5>
+            
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="notifWeekly" checked>
+              <label class="form-check-label" for="notifWeekly">
+                <strong>Weekly Summary</strong>
+                <div class="small text-muted">Get a summary of your learning progress</div>
+              </label>
             </div>
-            <div class="net-activity-list" id="recentActivityList">
-              <div class="small text-muted">No activity yet.</div>
+
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="notifStreak" checked>
+              <label class="form-check-label" for="notifStreak">
+                <strong>Streak Reminders</strong>
+                <div class="small text-muted">Reminder to maintain your learning streak</div>
+              </label>
+            </div>
+
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="notifNewCourses" checked>
+              <label class="form-check-label" for="notifNewCourses">
+                <strong>New Course Alerts</strong>
+                <div class="small text-muted">Notification when new courses are available</div>
+              </label>
+            </div>
+
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="notifAchievements" checked>
+              <label class="form-check-label" for="notifAchievements">
+                <strong>Achievement Unlocked</strong>
+                <div class="small text-muted">Notify when you earn new achievements</div>
+              </label>
             </div>
           </div>
         </div>
+
         <div class="col-lg-6">
           <div class="net-card p-4">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div class="fw-semibold d-flex align-items-center gap-2">
-                <i class="bi bi-diagram-3 text-teal" aria-hidden="true"></i>
-                Saved Topologies
+            <h5 class="fw-bold mb-3"><i class="bi bi-eye me-2"></i>Privacy</h5>
+            
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="privacyProfile" checked>
+              <label class="form-check-label" for="privacyProfile">
+                <strong>Public Profile</strong>
+                <div class="small text-muted">Allow other users to view your profile</div>
+              </label>
+            </div>
+
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="privacyStats" checked>
+              <label class="form-check-label" for="privacyStats">
+                <strong>Show Learning Stats</strong>
+                <div class="small text-muted">Display your achievements and progress publicly</div>
+              </label>
+            </div>
+
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="privacyActivity" unchecked>
+              <label class="form-check-label" for="privacyActivity">
+                <strong>Activity Tracking</strong>
+                <div class="small text-muted">Help improve Netology with usage analytics</div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab: Security -->
+    <section class="mx-4 mb-4 account-tab d-none" data-tab="security" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-lg-8">
+          <div class="net-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-shield-lock me-2"></i>Password & Security</h5>
+            
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted">Last Password Change</label>
+              <div class="alert alert-info alert-sm p-3" role="alert">
+                <i class="bi bi-info-circle me-2"></i>
+                <span id="lastPasswordChangeText">Password last changed on Dec 10, 2025</span>
               </div>
-              <a href="sandbox.html" class="btn btn-soft btn-sm">Open Sandbox</a>
             </div>
-            <div class="net-topology-list" id="topologyList">
-              <div class="small text-muted">No saved topologies yet.</div>
+
+            <a href="forgot.html" class="btn btn-outline-teal btn-sm mb-4">
+              <i class="bi bi-key me-2"></i>Change Password
+            </a>
+
+            <hr class="my-4">
+
+            <h6 class="fw-bold mb-3"><i class="bi bi-shield-check me-2"></i>Active Sessions</h6>
+            
+            <div class="alert alert-success alert-sm p-3" role="alert">
+              <div class="d-flex align-items-start gap-2">
+                <i class="bi bi-check-circle"></i>
+                <div>
+                  <strong>Current Device</strong>
+                  <div class="small text-muted mt-1">Last active: <span id="lastActiveText">Just now</span></div>
+                </div>
+              </div>
             </div>
-            <div class="small text-muted mt-2">Load saved topologies from the Sandbox.</div>
+
+            <div class="small text-muted">
+              <i class="bi bi-info-circle me-1"></i>
+              You have <strong>1 active session</strong>. Log out from other devices if needed.
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="net-card p-4 border-danger">
+            <h6 class="fw-bold mb-3 text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Danger Zone</h6>
+            
+            <div class="d-grid gap-2">
+              <button class="btn btn-outline-danger btn-sm" id="logoutAllBtn">
+                <i class="bi bi-box-arrow-right me-2"></i>Logout All Devices
+              </button>
+              <button class="btn btn-outline-danger btn-sm" id="deleteAccountBtn">
+                <i class="bi bi-trash me-2"></i>Delete Account
+              </button>
+            </div>
+
+            <div class="alert alert-danger alert-sm mt-3 p-2" role="alert">
+              <small>Deleting your account is permanent and cannot be undone.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab: Activity -->
+    <section class="mx-4 mb-4 account-tab d-none" data-tab="activity" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-lg-12">
+          <div class="net-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-calendar3 me-2"></i>Login Activity (Last 90 Days)</h5>
+            <div id="activityHeatmapContainer"></div>
+            <div class="small text-muted mt-3">
+              <i class="bi bi-info-circle me-1"></i>
+              Darker colors indicate more active days.
+            </div>
           </div>
         </div>
       </div>
 
       <div class="row g-3 mt-1">
-        <div class="col-lg-12">
+        <div class="col-lg-6">
           <div class="net-card p-4">
-            <div class="fw-semibold d-flex align-items-center gap-2 mb-3">
-              <i class="bi bi-patch-check text-teal" aria-hidden="true"></i>
-              Quiz History
+            <h6 class="fw-bold mb-3"><i class="bi bi-clock-history me-2"></i>Recent Sessions</h6>
+            <div id="recentSessionsList">
+              <div class="small text-muted">No session history</div>
             </div>
-            <div class="net-quiz-list" id="quizHistoryList">
-              <div class="small text-muted">No quizzes completed yet.</div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="net-card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-geo-alt me-2"></i>Login Locations</h6>
+            <div id="loginLocationsList">
+              <div class="small text-muted">
+                <i class="bi bi-shield-check me-2"></i>
+                All logins from: MacOS
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Preferences + Security -->
-    <section class="net-account-grid mb-4" id="preferences">
-      <div class="net-card p-4">
-        <div class="fw-semibold mb-2">Preferences</div>
-        <div class="small text-muted mb-3">Personalise your experience</div>
-        <div class="net-toggle-list">
-          <label class="net-toggle">
-            <input type="checkbox" id="prefWeekly">
-            <span>Weekly summary emails</span>
-          </label>
-          <label class="net-toggle">
-            <input type="checkbox" id="prefStreak">
-            <span>Streak reminders</span>
-          </label>
-          <label class="net-toggle">
-            <input type="checkbox" id="prefNewCourses">
-            <span>New course alerts</span>
-          </label>
-          <div class="small text-muted" id="prefSaved">Changes save automatically.</div>
-        </div>
-      </div>
-
-      <div class="net-card p-4">
-        <div class="fw-semibold mb-2">Security</div>
-        <div class="small text-muted mb-3">Keep your account safe</div>
-        <div class="small text-muted mb-3">Last login: <span id="lastLoginText">—</span></div>
-        <div class="d-flex flex-wrap gap-2">
-          <a href="forgot.html" class="btn btn-soft btn-sm dash-action-btn dash-action-btn--gray" data-tip="Reset your password via email">Reset password</a>
-          <button class="btn btn-outline-danger btn-sm dash-action-btn" data-tip="Sign out of Netology" id="logoutBtn" type="button">Log out</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Activity + Achievements -->
-    <div class="row g-3">
-      <div class="col-lg-6">
-        <div class="net-card p-4">
-          <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
-            <i class="bi bi-calendar3 text-teal" aria-hidden="true"></i>
-            Login Activity
-          </div>
-          <div class="small text-muted mb-3">Last 30 days</div>
-          <div class="net-activity-grid" id="loginActivity"></div>
-          <div class="small text-muted mt-2">Darker squares mean more consistent logins.</div>
-        </div>
-      </div>
-      <div class="col-lg-6">
-        <div class="net-card p-4">
-          <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="fw-semibold d-flex align-items-center gap-2">
-              <i class="bi bi-award text-teal" aria-hidden="true"></i>
-              Achievements
-            </div>
-            <span class="badge text-bg-light border" id="badgeCount">0 earned</span>
-          </div>
-
-          <div class="net-badge-section">
-            <div class="small text-muted fw-semibold mb-2">Earned</div>
-            <div class="net-badge-grid" id="earnedBadges"></div>
-          </div>
-
-          <div class="net-badge-section mt-4">
-            <div class="small text-muted fw-semibold mb-2">Locked</div>
-            <div class="net-badge-grid" id="lockedBadges"></div>
-          </div>
-        </div>
-      </div>
-    </div>
   </main>
 
   <footer class="text-center border-top py-3 bg-white">

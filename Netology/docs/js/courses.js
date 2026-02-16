@@ -1,726 +1,307 @@
 /*
 Student Number: C22320301
-Student Name: Jamie O’Neill
+Student Name: Jamie O'Neill
 Course Code: TU857/4
-Date: 10/11/2025
+Date: 16/02/2026
 
-JavaScript
----------------------------------------
-courses.js – All courses page grouped by difficulty.
-
-- Loads user stats (level/rank)
-- Loads all courses
-- Groups into Novice / Intermediate / Advanced
-- Locks courses until required_level is met
-- Keeps same menu/drawer behaviour as dashboard
+courses.js – Carousel-based course browsing with lesson progression focus.
+Features:
+- Three difficulty tracks (Novice/Intermediate/Advanced)
+- Horizontal carousel for each track
+- Lesson-focused cards showing course progression
+- My Learning Progress section tracking enrolled courses
 */
 
-const BASE_XP = 100;
-const COURSE_CACHE_TTL = 5 * 60 * 1000;
-const COURSE_CACHE_VERSION = "db-only-v1";
+(() => {
+  "use strict";
 
-const getById = (id) => document.getElementById(id);
+  const getApiBase = () => window.API_BASE || "";
+  const BASE_XP = 100;
 
-function onReady(fn) {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", fn);
-  } else {
-    fn();
-  }
-}
-
-function parseJsonSafe(raw, fallback = null) {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
-
-onReady(async () => {
-  const user = getCurrentUser();
-  if (!user.email) {
-    window.location.href = "login.html";
-    return;
-  }
-
-  wireChrome(user);
-
-  const stats = await loadUserStats(user.email);
-  const accessLevel = stats.accessLevel || stats.level || 1;
-  await loadAllCourses(user.email, accessLevel);
-});
-
-/* AI Prompt: Explain the XP helpers section in clear, simple terms. */
-/* =========================================================
-   XP helpers
-========================================================= */
-
-function totalXpForLevel(level) {
-  const lvl = Math.max(1, Number(level) || 1);
-  return BASE_XP * (lvl - 1) * lvl / 2;
-}
-
-function levelFromXP(totalXP) {
-  const xp = Math.max(0, Number(totalXP) || 0);
-  const t = xp / BASE_XP;
-  const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
-  return Math.max(1, lvl);
-}
-
-function xpForNextLevel(level) {
-  const lvl = Math.max(1, Number(level) || 1);
-  return BASE_XP * lvl;
-}
-
-function unlockLevelFromTier(tier) {
-  const t = String(tier || "").toLowerCase();
-  if (t.includes("advanced")) return 5;
-  if (t.includes("intermediate")) return 3;
-  return 1;
-}
-
-/* AI Prompt: Explain the Data normalization + cache section in clear, simple terms. */
-/* =========================================================
-   Data normalization + cache
-========================================================= */
-
-function normalizeApiCourse(apiCourse) {
-  const difficulty = String(apiCourse.difficulty || "novice").toLowerCase();
-  return {
-    id: String(apiCourse.id || ""),
-    title: apiCourse.title || "Course",
-    description: apiCourse.description || "",
-    category: apiCourse.category || "Core",
-    difficulty,
-    required_level: Number(apiCourse.required_level || 0) || unlockLevelFromTier(difficulty),
-    total_lessons: Number(apiCourse.total_lessons || 0),
-    module_count: Number(apiCourse.module_count || 0),
-    estimated_time: apiCourse.estimated_time || apiCourse.estimatedTime || "",
-    totalXP: Number(apiCourse.xp_reward || apiCourse.xpReward || 0) || 0
-  };
-}
-
-function getCurrentUser() {
-  return (
-    parseJsonSafe(localStorage.getItem("netology_user"), null) ||
-    parseJsonSafe(localStorage.getItem("user"), null) ||
-    {}
-  );
-}
-
-function getCachedCourseIndex() {
-  try {
-    const ver = localStorage.getItem("netology_courses_cache_v");
-    if (ver !== COURSE_CACHE_VERSION) return { index: null, fresh: false };
-    const raw = localStorage.getItem("netology_courses_cache");
-    const ts = Number(localStorage.getItem("netology_courses_cache_ts") || 0);
-    const index = raw ? JSON.parse(raw) : null;
-    if (!index || typeof index !== "object") return { index: null, fresh: false };
-    const fresh = ts && (Date.now() - ts < COURSE_CACHE_TTL);
-    return { index, fresh };
-  } catch {
-    return { index: null, fresh: false };
-  }
-}
-
-/* AI Prompt: Explain the Progress helpers (local) section in clear, simple terms. */
-/* =========================================================
-   Progress helpers (local)
-========================================================= */
-
-function getCourseContentById(courseId) {
-  if (typeof COURSE_CONTENT === "undefined") return null;
-  return COURSE_CONTENT[String(courseId)] || null;
-}
-
-function mapItemType(sectionType, item) {
-  const st = String(sectionType || "").toLowerCase();
-  if (st.includes("quiz")) return "quiz";
-  if (st.includes("challenge")) return "challenge";
-  if (st.includes("practice") || st.includes("sandbox") || st.includes("hands-on")) return "sandbox";
-
-  const t = String(item?.type || "").toLowerCase();
-  if (t === "quiz") return "quiz";
-  if (t === "challenge") return "challenge";
-  if (t === "sandbox" || t === "practice") return "sandbox";
-  return "learn";
-}
-
-function countRequiredItems(course) {
-  if (!course) return 0;
-  const total = Number(course.total_lessons || course.totalLessons || course.items || 0) || 0;
-  if (total > 0) return total;
-
-  const units = course.units || course.modules || [];
-  let required = 0;
-
-  units.forEach((u) => {
-    if (Array.isArray(u?.sections)) {
-      u.sections.forEach((s) => {
-        const st = String(s?.type || s?.kind || s?.title || "").toLowerCase();
-        const items = s?.items || s?.lessons || [];
-        if (!Array.isArray(items)) return;
-        items.forEach((it) => {
-          const t = mapItemType(st, it);
-          if (t === "learn" || t === "quiz" || t === "challenge") required += 1;
-        });
-      });
-    } else if (u?.sections && typeof u.sections === "object") {
-      const obj = u.sections;
-      const learnArr = obj.learn || obj.lesson || obj.lessons || [];
-      const quizArr = obj.quiz || obj.quizzes || [];
-      const challengeArr = obj.challenge || obj.challenges || [];
-      required += (learnArr.length || 0);
-      required += (quizArr.length || 0);
-      required += (challengeArr.length || 0);
-    } else if (Array.isArray(u?.lessons)) {
-      u.lessons.forEach((it) => {
-        const t = mapItemType("", it);
-        if (t === "learn" || t === "quiz" || t === "challenge") required += 1;
-      });
-    }
+  /* Initialization */
+  document.addEventListener("DOMContentLoaded", () => {
+    initCoursesPage();
   });
 
-  return required;
-}
-
-function getProgressLog(email) {
-  if (!email) return [];
-  return parseJsonSafe(localStorage.getItem(`netology_progress_log:${email}`), []) || [];
-}
-
-function getCourseCompletions(email, courseId) {
-  if (!email || !courseId) {
-    return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
-  }
-  const raw = localStorage.getItem(`netology_completions:${email}:${courseId}`);
-  const payload = parseJsonSafe(raw, {}) || {};
-  const lessonArr = payload.lesson || payload.lessons || payload.learn || [];
-  const quizArr = payload.quiz || payload.quizzes || [];
-  const chArr = payload.challenge || payload.challenges || [];
-
-  const base = {
-    lesson: new Set((lessonArr || []).map(Number)),
-    quiz: new Set((quizArr || []).map(Number)),
-    challenge: new Set((chArr || []).map(Number))
-  };
-
-  const log = getProgressLog(email);
-  if (Array.isArray(log) && log.length) {
-    log.forEach((e) => {
-      if (String(e?.course_id) !== String(courseId)) return;
-      const t = String(e?.type || "").toLowerCase();
-      const n = Number(e?.lesson_number);
-      if (!Number.isFinite(n)) return;
-      if (t === "learn" || t === "lesson") base.lesson.add(n);
-      else if (t === "quiz") base.quiz.add(n);
-      else if (t === "challenge") base.challenge.add(n);
-    });
-  }
-
-  return base;
-}
-
-function computeCourseProgress(course, email) {
-  if (!course || !email) return { done: 0, total: 0, pct: 0 };
-  const content = getCourseContentById(course.id);
-  const completions = getCourseCompletions(email, course.id);
-
-  let total = 0;
-  let done = 0;
-
-  if (content) {
-    total = countRequiredItems(content);
-    done = completions.lesson.size + completions.quiz.size + completions.challenge.size;
-  } else {
-    total = Number(course.total_lessons || 0) || 0;
-    done = completions.lesson.size;
-  }
-
-  if (!total) return { done, total, pct: 0 };
-  done = Math.min(done, total);
-  const pct = Math.max(0, Math.min(100, Math.round((done / total) * 100)));
-  return { done, total, pct };
-}
-
-function renderCourseProgress(progress) {
-  const pct = Number(progress?.pct || 0);
-  const wrap = document.createElement("div");
-  wrap.className = "net-course-progress";
-
-  const row = document.createElement("div");
-  row.className = "d-flex align-items-center justify-content-between small text-muted mb-2";
-
-  const label = document.createElement("span");
-  label.textContent = "Course progress";
-
-  const pctEl = document.createElement("span");
-  pctEl.className = "fw-semibold";
-  pctEl.textContent = `${pct}%`;
-
-  row.append(label, pctEl);
-
-  const meter = document.createElement("div");
-  meter.className = "net-meter";
-  meter.setAttribute("role", "progressbar");
-  meter.setAttribute("aria-valuenow", String(pct));
-  meter.setAttribute("aria-valuemin", "0");
-  meter.setAttribute("aria-valuemax", "100");
-
-  const fill = document.createElement("div");
-  fill.className = "net-meter-fill";
-  fill.style.width = `${pct}%`;
-  meter.appendChild(fill);
-
-  wrap.append(row, meter);
-  return wrap;
-}
-
-function setCachedCourseIndex(index) {
-  try {
-    localStorage.setItem("netology_courses_cache", JSON.stringify(index));
-    localStorage.setItem("netology_courses_cache_ts", String(Date.now()));
-    localStorage.setItem("netology_courses_cache_v", COURSE_CACHE_VERSION);
-  } catch {}
-}
-
-/* AI Prompt: Explain the Chrome (sidebar + dropdown + search) section in clear, simple terms. */
-/* =========================================================
-   Chrome (sidebar + dropdown + search)
-========================================================= */
-
-function wireChrome(user) {
-  // Slide sidebar (same as dashboard)
-  const openBtn = getById("openSidebarBtn");
-  const closeBtn = getById("closeSidebarBtn");
-  const sidebar = getById("slideSidebar");
-  const backdrop = getById("sideBackdrop");
-
-  // User dropdown
-  const userBtn = getById("userBtn");
-  const dd = getById("userDropdown");
-
-  // Search
-  const topSearch = getById("topSearch");
-  const courseSearch = getById("courseSearch");
-  const mobileSearch = getById("mobileSearch");
-
-  // Logout buttons
-  const topLogout = getById("topLogoutBtn");
-  const sideLogout = getById("sideLogoutBtn");
-
-  // Fill user identity
-  const initial = (user.first_name || user.name || user.username || "S").trim().charAt(0).toUpperCase();
-  const fullName = user.name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username || "Student";
-
-  setText("topAvatar", initial);
-  setText("topUserName", fullName);
-  setText("ddName", fullName);
-  setText("ddEmail", user.email || "");
-  setText("sideAvatar", initial);
-  setText("sideUserName", fullName);
-  setText("sideUserEmail", user.email || "");
-
-  function openSidebar() {
-    if (!sidebar || !backdrop) return;
-    sidebar.classList.add("is-open");
-    backdrop.classList.add("is-open");
-    document.body.classList.add("net-noscroll");
-    sidebar.setAttribute("aria-hidden", "false");
-  }
-
-  function closeSidebar() {
-    if (!sidebar || !backdrop) return;
-    sidebar.classList.remove("is-open");
-    backdrop.classList.remove("is-open");
-    document.body.classList.remove("net-noscroll");
-    sidebar.setAttribute("aria-hidden", "true");
-  }
-
-  function toggleDropdown(force) {
-    if (!dd) return;
-    const open = typeof force === "boolean" ? force : !dd.classList.contains("is-open");
-    dd.classList.toggle("is-open", open);
-    if (userBtn) userBtn.setAttribute("aria-expanded", String(open));
-  }
-
-  function logout() {
-    localStorage.removeItem("user");
-    localStorage.removeItem("netology_user");
-    localStorage.removeItem("netology_token");
-    window.location.href = "login.html";
-  }
-
-  openBtn?.addEventListener("click", openSidebar);
-  closeBtn?.addEventListener("click", closeSidebar);
-  backdrop?.addEventListener("click", closeSidebar);
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      closeSidebar();
-      toggleDropdown(false);
-    }
-  });
-
-  if (userBtn) {
-    userBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleDropdown();
-    });
-  }
-
-  document.addEventListener("click", (e) => {
-    if (!dd) return;
-    const t = e.target;
-    if (t && dd.contains(t)) return;
-    if (userBtn && userBtn.contains(t)) return;
-    toggleDropdown(false);
-  });
-
-  topLogout?.addEventListener("click", logout);
-  sideLogout?.addEventListener("click", logout);
-
-  // Search filters live (client-side)
-  const searchInputs = [topSearch, courseSearch, mobileSearch].filter(Boolean);
-  const handleSearch = (e) => {
-    window.__coursesSearch = String(e.target.value || "");
-    if (window.__coursesCache) {
-      renderCourses(window.__coursesCache, window.__coursesUserLevel || 1);
-    }
-  };
-  searchInputs.forEach((input) => input.addEventListener("input", handleSearch));
-}
-
-function setText(id, text) {
-  const el = getById(id);
-  if (el) el.textContent = text;
-}
-
-/* AI Prompt: Explain the User stats section in clear, simple terms. */
-/* =========================================================
-   User stats
-========================================================= */
-
-async function loadUserStats(email) {
-  try {
-    const res = await fetch(`${window.API_BASE}/user-info?email=${encodeURIComponent(email)}`);
-    const data = await res.json();
-    if (!data.success) return { level: 1, rank: "Novice" };
-
-    const totalXP = Number(data.xp || data.total_xp || 0);
-    const level = levelFromXP(totalXP);
-    const fallbackUser = getCurrentUser();
-    const fallbackRank = String(fallbackUser?.unlock_tier || fallbackUser?.rank || fallbackUser?.level || "Novice");
-    const rankRaw = String(data.start_level || fallbackRank || data.rank || "Novice");
-    const rank = rankRaw.charAt(0).toUpperCase() + rankRaw.slice(1);
-    const unlockTier = String(data.start_level || fallbackUser?.unlock_tier || fallbackUser?.unlock_level || "novice").toLowerCase();
-    const accessLevel = Math.max(level, unlockLevelFromTier(unlockTier));
-
-    const mergedUser = {
-      ...(fallbackUser || {}),
-      email,
-      first_name: data.first_name || fallbackUser?.first_name,
-      last_name: data.last_name || fallbackUser?.last_name,
-      username: data.username || fallbackUser?.username,
-      xp: totalXP,
-      unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
-    };
-    localStorage.setItem("user", JSON.stringify(mergedUser));
-    localStorage.setItem("netology_user", JSON.stringify(mergedUser));
-
-    const levelEl = getById("levelText");
-    const rankEl = getById("rankText");
-    if (levelEl) levelEl.textContent = level;
-    if (rankEl) rankEl.textContent = rank;
-
-    return { level, rank, accessLevel };
-  } catch (e) {
-    console.error("loadUserStats error:", e);
-    const fallbackUser = getCurrentUser();
-    const totalXP = Number(fallbackUser?.xp || 0);
-    const level = levelFromXP(totalXP);
-    const rankRaw = String(fallbackUser?.unlock_tier || fallbackUser?.rank || fallbackUser?.level || "Novice");
-    const rank = rankRaw.charAt(0).toUpperCase() + rankRaw.slice(1);
-    const accessLevel = Math.max(level, unlockLevelFromTier(fallbackUser?.unlock_tier));
-    return { level, rank, accessLevel };
-  }
-}
-
-/* AI Prompt: Explain the Courses loading + rendering section in clear, simple terms. */
-/* =========================================================
-   Courses loading + rendering
-========================================================= */
-
-function isLocked(course, userLevel) {
-  if (!course) return { locked: false, required: 1, difficulty: "Novice" };
-  const difficulty = String(course.difficulty || "novice");
-  const required = Number(course.required_level || 0) || unlockLevelFromTier(difficulty);
-  return { locked: userLevel < required, required, difficulty };
-}
-
-async function loadAllCourses(email, userLevel) {
-  window.__coursesUserEmail = email;
-  const noviceRow = getById("noviceRow");
-  const intermediateRow = getById("intermediateRow");
-  const advancedRow = getById("advancedRow");
-  if (!noviceRow || !intermediateRow || !advancedRow) return;
-
-  const cached = getCachedCourseIndex();
-  if (cached.index && cached.fresh) {
-    const list = Object.keys(cached.index).map((k) => cached.index[k]).filter(Boolean);
-    window.__coursesCache = list;
-    window.__coursesUserLevel = userLevel;
-    renderCourses(list, userLevel);
-    return;
-  }
-
-  try {
-    const res = await fetch(`${window.API_BASE}/courses`);
-    const data = await res.json();
-    const courses = data.success ? (data.courses || []) : [];
-    if (courses.length) {
-      const merged = courses.map((c) => normalizeApiCourse(c));
-      const index = {};
-      merged.forEach((c) => { index[String(c.id)] = c; });
-      setCachedCourseIndex(index);
-      window.__coursesCache = merged;
-      window.__coursesUserLevel = userLevel;
-      renderCourses(merged, userLevel);
+  async function initCoursesPage() {
+    const user = getCurrentUser();
+    if (!user?.email) {
+      window.location.href = "login.html";
       return;
     }
-    window.__coursesCache = [];
-    window.__coursesUserLevel = userLevel;
-    renderCourses([], userLevel);
-  } catch (e) {
-    console.error("loadAllCourses error:", e);
-    if (cached.index) {
-      const list = Object.keys(cached.index).map((k) => cached.index[k]).filter(Boolean);
-      window.__coursesCache = list;
-      window.__coursesUserLevel = userLevel;
-      renderCourses(list, userLevel);
-    } else {
-      window.__coursesCache = [];
-      window.__coursesUserLevel = userLevel;
-      renderCourses([], userLevel);
-    }
+
+    wireChrome(user);
+    wirePathFilters();
+    wireCarouselButtons();
+
+    await loadAllCoursesCarousels(user);
+    await loadMyLearningProgress(user);
+
+    document.body.classList.remove("net-loading");
+    document.body.classList.add("net-loaded");
   }
-}
 
-function renderCourses(courses, userLevel) {
-  const noviceRow = getById("noviceRow");
-  const intermediateRow = getById("intermediateRow");
-  const advancedRow = getById("advancedRow");
-  if (!noviceRow || !intermediateRow || !advancedRow) return;
-
-  const q = String(window.__coursesSearch || "").trim().toLowerCase();
-  const email = String(window.__coursesUserEmail || "");
-
-  noviceRow.replaceChildren();
-  intermediateRow.replaceChildren();
-  advancedRow.replaceChildren();
-
-  const counts = { novice: 0, intermediate: 0, advanced: 0 };
-
-  (courses || []).forEach((c) => {
-    const lock = isLocked(c, userLevel);
-    const diff = String(lock.difficulty || c.difficulty || "Novice").toLowerCase();
-
-    // Search filter
-    if (q) {
-      const hay = `${c.title || ""} ${c.category || ""} ${c.description || ""}`.toLowerCase();
-      if (!hay.includes(q)) return;
-    }
-
-    const row =
-      diff === "advanced" ? advancedRow :
-        diff === "intermediate" ? intermediateRow :
-          noviceRow;
-
-    const progress = computeCourseProgress(c, email);
-    row.appendChild(buildCourseCardElement(c, lock, progress));
-    if (diff === "advanced" || diff === "intermediate" || diff === "novice") {
-      counts[diff] += 1;
-    } else {
-      counts.novice += 1;
-    }
-  });
-
-  renderTrackEmpty(noviceRow, counts.novice, "No novice courses match this search yet.");
-  renderTrackEmpty(intermediateRow, counts.intermediate, "No intermediate courses match this search yet.");
-  renderTrackEmpty(advancedRow, counts.advanced, "No advanced courses match this search yet.");
-}
-
-function buildCourseCardElement(course, lock, progress) {
-  const lockedText = lock.locked ? `Locked — unlocks at Level ${lock.required}` : "";
-
-  const diff = String(lock.difficulty || "Novice").toLowerCase();
-  const gradClass =
-    diff === "advanced" ? "net-grad-adv" :
-      diff === "intermediate" ? "net-grad-int" :
-        "net-grad-nov";
-
-  const diffBadgeClass =
-    diff === "advanced" ? "net-badge-adv" :
-      diff === "intermediate" ? "net-badge-int" :
-        "net-badge-nov";
-
-  const diffLabel = diff === "advanced" ? "Advanced" : diff === "intermediate" ? "Intermediate" : "Novice";
-
-  const lessons = Number(course.total_lessons || course.totalLessons || 0);
-  const time = course.estimated_time || course.estimatedTime || "—";
-  const totalXP = Number(course.totalXP || course.total_xp || course.xpReward || course.xp_reward || 0);
-
-  const courseLink = `course.html?id=${encodeURIComponent(course.id)}`;
-  const diffIcon =
-    diffLabel.toLowerCase() === "advanced" ? "bi-shield-lock-fill"
-      : diffLabel.toLowerCase() === "intermediate" ? "bi-lightning-charge-fill"
-        : "bi-leaf-fill";
-
-  const article = document.createElement("article");
-  article.className = `net-coursecard net-coursecard--library net-card--course net-focus-card ${lock.locked ? "is-locked" : ""}`.trim();
-  article.tabIndex = 0;
-  article.setAttribute("role", "button");
-  article.setAttribute("aria-label", `Open course ${course.title || ""}`);
-  if (!lock.locked) {
-    article.addEventListener("click", () => { window.location.href = courseLink; });
-    article.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+  /* Path Filtering */
+  function wirePathFilters() {
+    const filterButtons = document.querySelectorAll('[data-path]');
+    filterButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
         e.preventDefault();
-        window.location.href = courseLink;
-      }
+        const path = btn.dataset.path;
+
+        filterButtons.forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+
+        document.querySelectorAll('.net-course-section').forEach(section => {
+          if (path === 'all') {
+            section.style.display = 'block';
+          } else {
+            section.style.display = section.dataset.difficulty === path ? 'block' : 'none';
+          }
+        });
+      });
     });
   }
 
-  if (lock.locked) {
-    const overlay = document.createElement("div");
-    overlay.className = "net-course-lock";
-    overlay.setAttribute("aria-hidden", "true");
-    const overlayInner = document.createElement("div");
-    overlayInner.className = "net-course-lock-inner";
-    const lockIcon = document.createElement("i");
-    lockIcon.className = "bi bi-lock-fill me-1";
-    overlayInner.append(lockIcon, document.createTextNode(` Level ${lock.required}+ to unlock`));
-    overlay.appendChild(overlayInner);
-    article.appendChild(overlay);
+  /* Carousel Navigation */
+  function wireCarouselButtons() {
+    const carousels = ['novice', 'intermediate', 'advanced'];
+
+    carousels.forEach(track => {
+      const prevBtn = document.getElementById(`${track}Prev`);
+      const nextBtn = document.getElementById(`${track}Next`);
+      const carouselTrack = document.getElementById(`${track}Track`);
+
+      if (!prevBtn || !nextBtn || !carouselTrack) return;
+
+      prevBtn.addEventListener('click', () => {
+        carouselTrack.scrollBy({ left: -300, behavior: 'smooth' });
+      });
+
+      nextBtn.addEventListener('click', () => {
+        carouselTrack.scrollBy({ left: 300, behavior: 'smooth' });
+      });
+    });
   }
 
-  const bar = document.createElement("div");
-  bar.className = `net-coursebar ${gradClass}`;
-  article.appendChild(bar);
+  /* Load all courses into carousels */
+  async function loadAllCoursesCarousels(user) {
+    try {
+      const API_BASE = getApiBase();
+      const response = await fetch(`${API_BASE}/api/courses?user_email=${encodeURIComponent(user.email)}`);
+      const courses = await response.json();
 
-  const body = document.createElement("div");
-  body.className = "p-4";
+      if (!courses || courses.length === 0) {
+        console.warn('No courses available');
+        return;
+      }
 
-  const header = document.createElement("div");
-  header.className = "d-flex align-items-start justify-content-between gap-2 mb-2";
+      // Get user progress to check which courses are in progress
+      const progressResponse = await fetch(`${API_BASE}/api/user/progress?user_email=${encodeURIComponent(user.email)}`);
+      const userProgress = await progressResponse.json();
+      const progressMap = {};
+      userProgress.forEach(p => {
+        progressMap[p.course_id] = p;
+      });
 
-  const left = document.createElement("div");
-  const chips = document.createElement("div");
-  chips.className = "d-flex align-items-center gap-2 mb-2";
-  if (course.category) {
-    const cat = document.createElement("span");
-    cat.className = "net-cat-chip";
-    cat.textContent = String(course.category);
-    chips.appendChild(cat);
-  }
-  if (lock.locked) {
-    const lockBadge = document.createElement("span");
-    lockBadge.className = "net-lock-badge";
-    const lockIco = document.createElement("i");
-    lockIco.className = "bi bi-lock-fill";
-    lockBadge.append(lockIco, document.createTextNode("Locked"));
-    chips.appendChild(lockBadge);
-  }
-  if (chips.childNodes.length) left.appendChild(chips);
+      // Get user level for lock checking
+      const level = user.level || 1;
 
-  const title = document.createElement("div");
-  title.className = "fw-semibold fs-5";
-  title.textContent = String(course.title || "Course");
-  left.appendChild(title);
+      // Group courses by difficulty
+      const grouped = {
+        novice: [],
+        intermediate: [],
+        advanced: []
+      };
 
-  const badge = document.createElement("span");
-  badge.className = `net-diffbadge ${diffBadgeClass}`;
-  const badgeIcon = document.createElement("i");
-  badgeIcon.className = `bi ${diffIcon}`;
-  badge.append(badgeIcon, document.createTextNode(` ${diffLabel}`));
+      courses.forEach(course => {
+        const difficulty = (course.difficulty || 'novice').toLowerCase();
+        if (grouped[difficulty]) {
+          grouped[difficulty].push(course);
+        }
+      });
 
-  header.append(left, badge);
-  body.appendChild(header);
+      // Render each carousel
+      ['novice', 'intermediate', 'advanced'].forEach(track => {
+        const trackCourses = grouped[track] || [];
+        const trackElement = document.getElementById(`${track}Track`);
+        
+        if (trackElement) {
+          trackElement.innerHTML = '';
+          trackCourses.forEach(course => {
+            const card = createCourseCard(course, progressMap, level);
+            trackElement.appendChild(card);
+          });
+        }
+      });
 
-  if (course.description) {
-    const desc = document.createElement("div");
-    desc.className = "text-muted small mb-3";
-    desc.textContent = String(course.description);
-    body.appendChild(desc);
-  }
-
-  body.appendChild(renderCourseProgress(progress));
-
-  const meta = document.createElement("div");
-  meta.className = "net-course-meta d-flex flex-wrap gap-3 small text-muted mb-3 course-meta";
-
-  const metaLessons = document.createElement("span");
-  metaLessons.className = "d-inline-flex align-items-center gap-1";
-  const metaLessonsIcon = document.createElement("i");
-  metaLessonsIcon.className = "bi bi-collection";
-  metaLessonsIcon.setAttribute("aria-hidden", "true");
-  metaLessons.append(metaLessonsIcon, document.createTextNode(` ${lessons || 0} lessons`));
-
-  const metaTime = document.createElement("span");
-  metaTime.className = "d-inline-flex align-items-center gap-1";
-  const metaTimeIcon = document.createElement("i");
-  metaTimeIcon.className = "bi bi-clock";
-  metaTimeIcon.setAttribute("aria-hidden", "true");
-  metaTime.append(metaTimeIcon, document.createTextNode(` ${time || "—"}`));
-
-  const metaXp = document.createElement("span");
-  metaXp.className = "d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold";
-  const metaXpIcon = document.createElement("i");
-  metaXpIcon.className = "bi bi-lightning-charge-fill";
-  metaXpIcon.setAttribute("aria-hidden", "true");
-  metaXp.append(metaXpIcon, document.createTextNode(` ${totalXP || 0} XP`));
-
-  meta.append(metaLessons, metaTime, metaXp);
-  body.appendChild(meta);
-
-  if (lock.locked) {
-    const lockLine = document.createElement("div");
-    lockLine.className = "net-lockline mb-3";
-    const lockLineIcon = document.createElement("i");
-    lockLineIcon.className = "bi bi-lock me-2";
-    lockLine.append(lockLineIcon, document.createTextNode(lockedText));
-    body.appendChild(lockLine);
+    } catch (err) {
+      console.error('Error loading courses:', err);
+    }
   }
 
-  article.appendChild(body);
+  /* Create a single course card */
+  function createCourseCard(course, progressMap, userLevel) {
+    const card = document.createElement('div');
+    card.className = 'net-course-card';
 
-  return article;
-}
+    const progress = progressMap[course.id] || {};
+    const isLocked = course.required_level && course.required_level > userLevel;
+    const isInProgress = progress.course_id && !progress.completed;
+    const isCompleted = progress.completed;
 
-function escapeHtml(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
+    if (isLocked) {
+      card.classList.add('locked');
+    }
+    if (isInProgress) {
+      card.classList.add('in-progress');
+    }
 
-function renderTrackEmpty(row, count, message) {
-  if (!row) return;
-  if (count > 0) return;
+    const icon = getIconForDifficulty(course.difficulty || 'novice');
+    const totalLessons = course.total_lessons || 0;
+    const completedLessons = progress.lessons_completed || 0;
+    const progressPct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
-  const empty = document.createElement("div");
-  empty.className = "net-empty net-empty--tiny";
+    card.innerHTML = `
+      <div class="net-course-header">
+        <div class="net-course-icon">${icon}</div>
+        <div class="net-course-meta">
+          <div class="net-course-category">${escapeHtml(course.category || 'Core')}</div>
+          <div class="net-course-title">${escapeHtml(course.title || 'Course')}</div>
+        </div>
+      </div>
 
-  const icon = document.createElement("i");
-  icon.className = "bi bi-search";
-  const title = document.createElement("div");
-  title.className = "fw-semibold";
-  title.textContent = "Nothing to show";
-  const desc = document.createElement("div");
-  desc.className = "small text-muted";
-  desc.textContent = String(message || "");
+      <div class="net-course-lessons">
+        <i class="bi bi-file-text"></i>
+        <span>${totalLessons} ${totalLessons === 1 ? 'lesson' : 'lessons'}</span>
+      </div>
 
-  empty.append(icon, title, desc);
-  row.appendChild(empty);
-}
+      <div class="net-course-desc">${escapeHtml(course.description || '')}</div>
+
+      ${course.xp_reward ? `
+        <div class="net-course-xp">
+          <i class="bi bi-star-fill"></i>
+          <span>${course.xp_reward} XP</span>
+        </div>
+      ` : ''}
+
+      <div class="net-course-footer">
+        ${isInProgress ? `
+          <div class="net-course-progress">
+            <div class="net-course-bar">
+              <div class="net-course-bar-fill" style="width: ${progressPct}%"></div>
+            </div>
+            <span>${progressPct}%</span>
+          </div>
+        ` : ''}
+        <button class="net-course-cta ${isInProgress ? 'btn-continue' : isCompleted ? 'btn-review' : isLocked ? 'btn-locked' : 'btn-start'}" 
+                data-course-id="${course.id}"
+                ${isLocked ? 'disabled' : ''}>
+          ${isLocked ? `<i class="bi bi-lock"></i> Level ${course.required_level}` : 
+            isCompleted ? `<i class="bi bi-check-circle"></i> Review` : 
+            isInProgress ? `<i class="bi bi-play-fill"></i> Continue` : 
+            `<i class="bi bi-plus-circle"></i> Start`}
+        </button>
+      </div>
+
+      ${isLocked ? `<div class="net-course-lock"><i class="bi bi-lock"></i></div>` : ''}
+    `;
+
+    // Wire course card click
+    if (!isLocked) {
+      const ctaBtn = card.querySelector('.net-course-cta');
+      if (ctaBtn) {
+        ctaBtn.addEventListener('click', () => {
+          const courseId = ctaBtn.dataset.courseId;
+          if (isInProgress) {
+            window.location.href = `lesson.html?course_id=${courseId}`;
+          } else {
+            window.location.href = `lesson.html?course_id=${courseId}`;
+          }
+        });
+      }
+    }
+
+    return card;
+  }
+
+  /* Get icon for difficulty */
+  function getIconForDifficulty(difficulty) {
+    const d = (difficulty || '').toLowerCase();
+    if (d.includes('advanced')) return '<i class="bi bi-star-fill"></i>';
+    if (d.includes('intermediate')) return '<i class="bi bi-lightning-fill"></i>';
+    return '<i class="bi bi-gem"></i>';
+  }
+
+  /* Load My Learning Progress section */
+  async function loadMyLearningProgress(user) {
+    const container = document.getElementById('myProgressContainer');
+    const placeholder = document.getElementById('noProgressPlaceholder');
+
+    if (!container || !placeholder) return;
+
+    try {
+      const API_BASE = getApiBase();
+      const response = await fetch(`${API_BASE}/api/user/progress?user_email=${encodeURIComponent(user.email)}`);
+      const userCourses = await response.json();
+
+      // Filter only started courses
+      const startedCourses = userCourses.filter(c => c.lessons_completed > 0 || c.completed);
+
+      if (startedCourses.length === 0) {
+        placeholder.classList.remove('d-none');
+        return;
+      }
+
+      container.innerHTML = '';
+
+      startedCourses.slice(0, 4).forEach(course => {
+        const pct = Math.round((course.lessons_completed || 0) / Math.max(course.total_lessons || 1, 1) * 100);
+        const col = document.createElement('div');
+        col.className = 'col-md-6 col-lg-3 mb-3';
+        col.innerHTML = `
+          <div class="card border-0 h-100 shadow-sm">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2">${escapeHtml(course.title || 'Course')}</h6>
+              <div class="progress mb-2" style="height: 6px;">
+                <div class="progress-bar net-progress-fill" style="width: ${pct}%"></div>
+              </div>
+              <div class="small text-muted mb-3">${course.lessons_completed}/${course.total_lessons} lessons</div>
+              <a href="lesson.html?course_id=${course.course_id}" class="btn btn-sm btn-teal w-100">
+                <i class="bi bi-play-fill me-1"></i>Continue
+              </a>
+            </div>
+          </div>
+        `;
+        container.appendChild(col);
+      });
+
+    } catch (err) {
+      console.error('Error loading progress:', err);
+      placeholder.classList.remove('d-none');
+    }
+  }
+
+  /* Utility: Get current user */
+  function getCurrentUser() {
+    try {
+      const stored = localStorage.getItem('netology_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      console.error('Error getting user:', e);
+      return null;
+    }
+  }
+
+  /* Utility: HTML escape */
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+})();

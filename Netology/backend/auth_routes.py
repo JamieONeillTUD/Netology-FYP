@@ -268,7 +268,8 @@ def login():
 
         cur.execute(
             """
-            SELECT first_name, last_name, password_hash, level, xp, numeric_level, username, start_level
+            SELECT first_name, last_name, password_hash, level, xp, numeric_level, username, start_level,
+                   is_first_login, onboarding_completed
             FROM users
             WHERE email = %s
             """,
@@ -292,6 +293,10 @@ def login():
             # Start level preference — now read from its own column
             start_level = _clean_start_level(user[7])
 
+            # Onboarding status
+            is_first_login = user[8] if user[8] is not None else True
+            onboarding_completed = user[9] if user[9] is not None else False
+
             return jsonify({
                 "success": True,
                 "first_name": first_name,
@@ -309,7 +314,12 @@ def login():
                 "next_level_xp": next_level_xp,
 
                 # Unlocking preference
-                "start_level": start_level
+                "start_level": start_level,
+
+                # Onboarding status
+                "is_first_login": is_first_login,
+                "onboarding_completed": onboarding_completed,
+                "email": email
             })
 
         return jsonify({"success": False, "message": "Invalid email or password."}), 401

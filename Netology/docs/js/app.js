@@ -126,10 +126,36 @@ function wireSignupSubmit(form) {
       if (data.success) {
         localStorage.setItem("unlock_tier_pending", selectedTier);
 
-        showPopup("Account created! Redirecting to login…", "success");
-        setTimeout(() => {
-          window.location.href = "login.html";
-        }, 1200);
+        // Show full-page celebration overlay
+        const overlay = getById("signupSuccessOverlay");
+        if (overlay) {
+          overlay.classList.remove("d-none");
+          overlay.setAttribute("aria-hidden", "false");
+          document.body.style.overflow = "hidden";
+          // Spawn confetti pieces
+          const confettiContainer = overlay.querySelector(".net-signup-success-confetti");
+          if (confettiContainer) {
+            const colors = ["#0d9488", "#14b8a6", "#06b6d4", "#22c55e", "#f59e0b", "#38bdf8", "#f97316", "#a855f7"];
+            for (let i = 0; i < 80; i++) {
+              const piece = document.createElement("span");
+              piece.style.left = Math.random() * 100 + "%";
+              piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+              piece.style.animationDelay = Math.random() * 1.5 + "s";
+              piece.style.animationDuration = (2 + Math.random() * 2) + "s";
+              piece.style.width = (4 + Math.random() * 6) + "px";
+              piece.style.height = (8 + Math.random() * 12) + "px";
+              confettiContainer.appendChild(piece);
+            }
+          }
+          setTimeout(() => {
+            window.location.href = "login.html";
+          }, 3800);
+        } else {
+          showPopup("Account created! Redirecting to login…", "success");
+          setTimeout(() => {
+            window.location.href = "login.html";
+          }, 1200);
+        }
       } else {
         showPopup(data.message || "Signup failed. Try again.", "error");
       }
@@ -863,3 +889,166 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+// =========================================================
+// ONBOARDING TOUR SYSTEM
+// =========================================================
+
+class OnboardingTour {
+  constructor(userEmail) {
+    this.userEmail = userEmail;
+    this.steps = [];
+    this.currentStepIndex = 0;
+    this.isActive = false;
+    this.spotlightElement = null;
+    this.backdropElement = null;
+    this.tooltipElement = null;
+  }
+
+  async init() {
+    try {
+      const response = await fetch(`${API_BASE}/api/onboarding/steps`);
+      const data = await response.json();
+      this.steps = data.steps;
+      
+      await fetch(`${API_BASE}/api/onboarding/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_email: this.userEmail })
+      });
+      
+      this.isActive = true;
+      this.createBackdrop();
+      this.createSpotlight();
+      this.createTooltip();
+      this.showStep(0);
+    } catch (error) {
+      console.error('Onboarding init failed:', error);
+    }
+  }
+
+  createBackdrop() {
+    this.backdropElement = document.createElement('div');
+    this.backdropElement.className = 'onboarding-backdrop';
+    document.body.appendChild(this.backdropElement);
+  }
+
+  createSpotlight() {
+    this.spotlightElement = document.createElement('div');
+    this.spotlightElement.className = 'onboarding-spotlight';
+    document.body.appendChild(this.spotlightElement);
+  }
+
+  createTooltip() {
+    this.tooltipElement = document.createElement('div');
+    this.tooltipElement.className = 'onboarding-tooltip';
+    document.body.appendChild(this.tooltipElement);
+  }
+
+  showStep(stepIndex) {
+    if (stepIndex < 0 || stepIndex >= this.steps.length) return;
+    
+    this.currentStepIndex = stepIndex;
+    const step = this.steps[stepIndex];
+    
+    const targetElement = document.querySelector(`[data-tour="${step.target}"]`);
+    if (!targetElement) {
+      console.warn(`Target element [data-tour="${step.target}"] not found`);
+      return;
+    }
+    
+    this.updateSpotlight(targetElement);
+    this.updateTooltip(step, targetElement);
+  }
+
+  updateSpotlight(element) {
+    const rect = element.getBoundingClientRect();
+    const padding = 8;
+    
+    this.spotlightElement.style.top = (rect.top - padding + window.scrollY) + 'px';
+    this.spotlightElement.style.left = (rect.left - padding) + 'px';
+    this.spotlightElement.style.width = (rect.width + padding * 2) + 'px';
+    this.spotlightElement.style.height = (rect.height + padding * 2) + 'px';
+  }
+
+  updateTooltip(step, targetElement) {
+    const rect = targetElement.getBoundingClientRect();
+    
+    let html = `
+      <h3>${escapeHtml(step.title)}</h3>
+      <p>${escapeHtml(step.description)}</p>
+      <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+        <span style="font-size: 12px; color: #999;">Step ${this.currentStepIndex + 1} of ${this.steps.length}</span>
+        ${this.currentStepIndex > 0 ? '<button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()">← Back</button>' : ''}
+        <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
+        ${this.currentStepIndex < this.steps.length - 1 
+          ? '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Next →</button>'
+          : '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish! 🎉</button>'}
+      </div>
+    `;
+    
+    this.tooltipElement.innerHTML = html;
+    
+    // Position tooltip
+    const gap = 20;
+    let top = rect.bottom + gap + window.scrollY;
+    let left = rect.left + rect.width / 2 - this.tooltipElement.offsetWidth / 2;
+    
+    if (left + this.tooltipElement.offsetWidth > window.innerWidth) {
+      left = window.innerWidth - this.tooltipElement.offsetWidth - 16;
+    }
+    if (left < 0) left = 16;
+    
+    this.tooltipElement.style.top = top + 'px';
+    this.tooltipElement.style.left = left + 'px';
+  }
+
+  nextStep() {
+    if (this.currentStepIndex < this.steps.length - 1) {
+      this.showStep(this.currentStepIndex + 1);
+    }
+  }
+
+  prevStep() {
+    if (this.currentStepIndex > 0) {
+      this.showStep(this.currentStepIndex - 1);
+    }
+  }
+
+  async completeTour() {
+    await fetch(`${API_BASE}/api/onboarding/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_email: this.userEmail })
+    });
+    
+    this.closeTour();
+    window.location.href = '/dashboard.html';
+  }
+
+  async skipTour() {
+    if (confirm('Skip the onboarding tour?')) {
+      await fetch(`${API_BASE}/api/onboarding/skip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_email: this.userEmail })
+      });
+      
+      this.closeTour();
+      window.location.href = '/dashboard.html';
+    }
+  }
+
+  closeTour() {
+    this.isActive = false;
+    if (this.backdropElement) this.backdropElement.remove();
+    if (this.spotlightElement) this.spotlightElement.remove();
+    if (this.tooltipElement) this.tooltipElement.remove();
+  }
+}
+
+function startOnboardingTour(userEmail) {
+  window.onboardingTour = new OnboardingTour(userEmail);
+  window.onboardingTour.init();
+}
+

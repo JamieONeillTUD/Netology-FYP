@@ -148,7 +148,7 @@ Notes:
             <!-- AI Prompt: Explain the STEP 1: DETAILS section in clear, simple terms. -->
             <!-- STEP 1: DETAILS -->
             <section class="net-step-page" data-step="1" aria-label="Step 1: Your details">
-              <h3 class="h5 fw-bold mb-3 text-teal">Your Details</h3>
+              <h3 class="h5 fw-bold mb-3 text-teal"><i class="bi bi-person-vcard me-2"></i>Your Details</h3>
 
               <div class="row g-3">
 
@@ -252,62 +252,57 @@ Notes:
             <!-- AI Prompt: Explain the STEP 2: LEVEL section in clear, simple terms. -->
             <!-- STEP 2: LEVEL -->
             <section class="net-step-page d-none" data-step="2" aria-label="Step 2: Your level">
-              <h3 class="h5 fw-bold mb-2 text-teal">Choose your starting level</h3>
+              <h3 class="h5 fw-bold mb-2 text-teal"><i class="bi bi-bar-chart-steps me-2"></i>Choose your starting level</h3>
               <p class="text-muted small mb-3">Pick what best describes you (you can change later).</p>
 
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="net-choice-card w-100 h-100">
-                    <input class="form-check-input net-choice-input" type="radio" name="level" value="novice" checked>
-                    <div class="net-choice-body">
-                      <div class="net-choice-top">
-                        <div class="net-choice-ico" aria-hidden="true"><i class="bi bi-seedling"></i></div>
-                        <div class="net-choice-tag">Unlock Novice</div>
-                      </div>
-                      <div class="fw-bold">Novice</div>
-                      <div class="small text-muted">New to networking</div>
+              <div class="net-level-grid">
+                <label class="net-level-card" data-level="novice">
+                  <input class="form-check-input net-choice-input" type="radio" name="level" value="novice" checked>
+                  <div class="net-level-inner">
+                    <div class="net-level-icon net-level-icon--novice">
+                      <i class="bi bi-seedling"></i>
                     </div>
-                  </label>
-                </div>
+                    <div class="net-level-label">Novice</div>
+                    <div class="net-level-desc">New to networking — start from the basics</div>
+                    <span class="net-level-badge net-level-badge--novice">Unlock Novice Courses</span>
+                  </div>
+                </label>
 
-                <div class="col-md-4">
-                  <label class="net-choice-card w-100 h-100">
-                    <input class="form-check-input net-choice-input" type="radio" name="level" value="intermediate">
-                    <div class="net-choice-body">
-                      <div class="net-choice-top">
-                        <div class="net-choice-ico" aria-hidden="true"><i class="bi bi-rocket-takeoff"></i></div>
-                        <div class="net-choice-tag">Unlock Intermediate</div>
-                      </div>
-                      <div class="fw-bold">Intermediate</div>
-                      <div class="small text-muted">Some experience</div>
+                <label class="net-level-card" data-level="intermediate">
+                  <input class="form-check-input net-choice-input" type="radio" name="level" value="intermediate">
+                  <div class="net-level-inner">
+                    <div class="net-level-icon net-level-icon--inter">
+                      <i class="bi bi-rocket-takeoff"></i>
                     </div>
-                  </label>
-                </div>
+                    <div class="net-level-label">Intermediate</div>
+                    <div class="net-level-desc">Some experience with IPs, switches & routing</div>
+                    <span class="net-level-badge net-level-badge--inter">Unlock Intermediate Courses</span>
+                  </div>
+                </label>
 
-                <div class="col-md-4">
-                  <label class="net-choice-card w-100 h-100">
-                    <input class="form-check-input net-choice-input" type="radio" name="level" value="advanced">
-                    <div class="net-choice-body">
-                      <div class="net-choice-top">
-                        <div class="net-choice-ico" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></div>
-                        <div class="net-choice-tag">Unlock Advanced</div>
-                      </div>
-                      <div class="fw-bold">Advanced</div>
-                      <div class="small text-muted">Confident & skilled</div>
+                <label class="net-level-card" data-level="advanced">
+                  <input class="form-check-input net-choice-input" type="radio" name="level" value="advanced">
+                  <div class="net-level-inner">
+                    <div class="net-level-icon net-level-icon--adv">
+                      <i class="bi bi-lightning-charge-fill"></i>
                     </div>
-                  </label>
-                </div>
+                    <div class="net-level-label">Advanced</div>
+                    <div class="net-level-desc">Confident with subnetting, VLANs & protocols</div>
+                    <span class="net-level-badge net-level-badge--adv">Unlock All Courses</span>
+                  </div>
+                </label>
               </div>
 
-              <div class="alert alert-info small mt-3 mb-0" role="note">
-                This selection unlocks course difficulty. Your real level still increases through XP.
+              <div class="alert alert-info small mt-3 mb-0 d-flex align-items-center gap-2" role="note">
+                <i class="bi bi-info-circle flex-shrink-0"></i>
+                <span>This unlocks course difficulty tiers. Your actual level grows through XP as you learn.</span>
               </div>
             </section>
 
             <!-- AI Prompt: Explain the STEP 3: REASONS section in clear, simple terms. -->
             <!-- STEP 3: REASONS -->
             <section class="net-step-page d-none" data-step="3" aria-label="Step 3: Your reasons">
-              <h3 class="h5 fw-bold mb-2 text-teal">Why are you learning networking?</h3>
+              <h3 class="h5 fw-bold mb-2 text-teal"><i class="bi bi-lightbulb me-2"></i>Why are you learning networking?</h3>
               <p class="text-muted small mb-3">Select at least one (helps personalise your learning).</p>
 
               <div class="row g-3">
@@ -401,33 +396,100 @@ Notes:
                     </div>
                   </label>
                 </div>
+
+                <div class="col-md-6">
+                  <label class="net-check-card w-100 h-100">
+                    <input class="form-check-input net-check-input" type="checkbox" name="reasons" value="security">
+                    <div class="net-check-body">
+                      <div class="net-check-ico" aria-hidden="true"><i class="bi bi-shield-lock"></i></div>
+                      <div>
+                        <div class="fw-bold">Cybersecurity</div>
+                        <div class="small text-muted">Learn to secure networks</div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="net-check-card w-100 h-100">
+                    <input class="form-check-input net-check-input" type="checkbox" name="reasons" value="cloud">
+                    <div class="net-check-body">
+                      <div class="net-check-ico" aria-hidden="true"><i class="bi bi-cloud-arrow-up"></i></div>
+                      <div>
+                        <div class="fw-bold">Cloud & DevOps</div>
+                        <div class="small text-muted">AWS, Azure, or cloud networking</div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="net-check-card w-100 h-100">
+                    <input class="form-check-input net-check-input" type="checkbox" name="reasons" value="troubleshooting">
+                    <div class="net-check-body">
+                      <div class="net-check-ico" aria-hidden="true"><i class="bi bi-tools"></i></div>
+                      <div>
+                        <div class="fw-bold">Troubleshooting</div>
+                        <div class="small text-muted">Diagnose and fix network issues</div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
               </div>
 
-              <div class="small text-muted mt-3">
-                You can change this later in your account settings.
+              <div class="small text-muted mt-3 text-center">
+                <i class="bi bi-gear me-1"></i> You can update these anytime in your account settings.
               </div>
             </section>
 
             <!-- AI Prompt: Explain the STEP 4: REVIEW section in clear, simple terms. -->
             <!-- STEP 4: REVIEW -->
             <section class="net-step-page d-none" data-step="4" aria-label="Step 4: Review">
-              <h3 class="h5 fw-bold mb-2 text-teal">Review & create</h3>
+              <h3 class="h5 fw-bold mb-2 text-teal"><i class="bi bi-clipboard-check me-2"></i>Review & create</h3>
               <p class="text-muted small mb-3">Check your details, then create your account.</p>
 
-              <div class="net-card p-3 rounded-4 mb-3">
-                <div class="row g-2 small">
-                  <div class="col-md-6"><strong>First name:</strong> <span id="reviewFirst"></span></div>
-                  <div class="col-md-6"><strong>Last name:</strong> <span id="reviewLast"></span></div>
-                  <div class="col-md-6"><strong>Username:</strong> <span id="reviewUser"></span></div>
-                  <div class="col-md-6"><strong>Date of birth:</strong> <span id="reviewDob"></span></div>
-                  <div class="col-md-6"><strong>Email:</strong> <span id="reviewEmail"></span></div>
-                  <div class="col-md-6"><strong>Unlock level:</strong> <span id="reviewLevel"></span></div>
-                  <div class="col-12"><strong>Reasons:</strong> <span id="reviewReasons"></span></div>
+              <div class="net-review-card mb-3">
+                <div class="net-review-row">
+                  <div class="net-review-item">
+                    <span class="net-review-label"><i class="bi bi-person"></i> First name</span>
+                    <span class="net-review-value" id="reviewFirst"></span>
+                  </div>
+                  <div class="net-review-item">
+                    <span class="net-review-label"><i class="bi bi-person"></i> Last name</span>
+                    <span class="net-review-value" id="reviewLast"></span>
+                  </div>
+                </div>
+                <div class="net-review-row">
+                  <div class="net-review-item">
+                    <span class="net-review-label"><i class="bi bi-at"></i> Username</span>
+                    <span class="net-review-value" id="reviewUser"></span>
+                  </div>
+                  <div class="net-review-item">
+                    <span class="net-review-label"><i class="bi bi-calendar3"></i> Date of birth</span>
+                    <span class="net-review-value" id="reviewDob"></span>
+                  </div>
+                </div>
+                <div class="net-review-row">
+                  <div class="net-review-item">
+                    <span class="net-review-label"><i class="bi bi-envelope"></i> Email</span>
+                    <span class="net-review-value" id="reviewEmail"></span>
+                  </div>
+                  <div class="net-review-item">
+                    <span class="net-review-label"><i class="bi bi-bar-chart-steps"></i> Unlock level</span>
+                    <span class="net-review-value" id="reviewLevel"></span>
+                  </div>
+                </div>
+                <div class="net-review-row net-review-row--full">
+                  <div class="net-review-item">
+                    <span class="net-review-label"><i class="bi bi-lightbulb"></i> Reasons</span>
+                    <span class="net-review-value" id="reviewReasons"></span>
+                  </div>
                 </div>
               </div>
 
-              <div class="alert alert-info small mb-0" role="alert">
-                By creating an account, you can start courses, earn XP, and save sandbox progress.
+              <div class="net-review-info text-center">
+                <div class="net-review-info-icon"><i class="bi bi-stars"></i></div>
+                <p class="mb-0">By creating your account, you'll unlock <strong>interactive courses</strong>, earn <strong>XP & badges</strong>, build networks in the <strong>sandbox</strong>, and track your progress.</p>
               </div>
             </section>
 
@@ -462,11 +524,29 @@ Notes:
     </div>
   </main>
 
-  <footer class="text-center border-top py-4 bg-white" role="contentinfo">
-    <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
+  <footer class="net-auth-footer" role="contentinfo">
+    <p>© 2026 Netology – Jamie O'Neill – TU857/4</p>
   </footer>
 
-  <!-- AI Prompt: Explain the JS section in clear, simple terms. -->
+  <!-- Full-page success celebration overlay (hidden by default) -->
+  <div id="signupSuccessOverlay" class="net-signup-success-overlay d-none" aria-hidden="true">
+    <div class="net-signup-success-confetti" aria-hidden="true"></div>
+    <div class="net-signup-success-content">
+      <div class="net-signup-success-check">
+        <i class="bi bi-check-lg"></i>
+      </div>
+      <h2>Welcome to Netology!</h2>
+      <p>Your account has been created successfully.</p>
+      <div class="net-signup-success-features">
+        <span><i class="bi bi-book"></i> 9 Courses</span>
+        <span><i class="bi bi-lightning-charge"></i> Earn XP</span>
+        <span><i class="bi bi-award"></i> Badges</span>
+        <span><i class="bi bi-diagram-3"></i> Sandbox</span>
+      </div>
+      <p class="net-signup-success-redirect">Redirecting to sign in<span class="net-dots"></span></p>
+    </div>
+  </div>
+
   <!-- JS -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>

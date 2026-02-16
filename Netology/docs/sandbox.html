@@ -362,14 +362,17 @@ sandbox.html – Interactive networking sandbox.
         <aside class="sbx-panel sbx-panel-right" id="sbxRightPanel">
           <div class="sbx-panel-head">
             <div class="sbx-tablist" id="sbxRightTabs">
-              <button class="sbx-tab is-active" data-tab="config" type="button" data-tooltip="Device configuration">
-                <i class="bi bi-sliders2-vertical"></i> Config
+              <button class="sbx-tab is-active" data-tab="objects" type="button" data-tooltip="Canvas objects">
+                <i class="bi bi-collection"></i> Objects
               </button>
               <button class="sbx-tab" data-tab="inspector" type="button" data-tooltip="Ping and diagnostics">
                 <i class="bi bi-activity"></i> Inspector
               </button>
               <button class="sbx-tab" data-tab="objectives" type="button" data-tooltip="Lesson objectives">
                 <i class="bi bi-bullseye"></i> Objectives
+              </button>
+              <button class="sbx-tab" data-tab="config" type="button" data-tooltip="Device configuration" id="sbxConfigTabBtn" style="display:none;">
+                <i class="bi bi-sliders2-vertical"></i> Config
               </button>
             </div>
             <button class="sbx-iconbtn sbx-panel-toggle" id="rightPanelToggle" type="button"
@@ -379,7 +382,19 @@ sandbox.html – Interactive networking sandbox.
           </div>
 
           <div class="sbx-panel-body">
-            <div class="sbx-tabpanel is-active" id="panelConfig">
+            <div class="sbx-tabpanel is-active" id="panelObjects">
+              <div class="sbx-panel-content" id="sbxObjectsBody">
+                No devices on canvas yet.
+              </div>
+            </div>
+
+            <div class="sbx-tabpanel" id="panelConfig">
+              <div class="sbx-config-header" id="sbxConfigHeader">
+                <button class="sbx-back-btn" id="sbxConfigBackBtn" type="button" data-tooltip="Back to Objects">
+                  <i class="bi bi-arrow-left"></i>
+                </button>
+                <div class="sbx-config-device-name" id="sbxConfigDeviceName">Device</div>
+              </div>
               <div class="sbx-subtabs" id="sbxConfigTabs">
                 <button class="sbx-subtab is-active" data-subtab="general" type="button"
                   data-tooltip="General settings">General</button>
@@ -635,6 +650,7 @@ sandbox.html – Interactive networking sandbox.
 
   <!-- Scripts -->
   <script src="js/config.js"></script>
+  <script src="js/sandbox-console.js"></script>
   <script src="js/sandbox.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 

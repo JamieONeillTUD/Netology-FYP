@@ -34,6 +34,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_
 ALTER TABLE users ALTER COLUMN numeric_level SET DEFAULT 1;
 ALTER TABLE users ALTER COLUMN level SET DEFAULT 'Novice';
 
+-- ONBOARDING & TOUR COLUMNS
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_first_login BOOLEAN DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
 -- Migrate start_level out of the reasons text field into its own column.
 -- Safe to run multiple times (only updates rows that still have the old format).
 UPDATE users
@@ -236,6 +242,174 @@ CREATE TABLE IF NOT EXISTS lesson_sessions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_email, course_id, lesson_number)
 );
+
+-- =========================================================
+-- LESSON SLIDES SYSTEM
+-- =========================================================
+CREATE TABLE IF NOT EXISTS lesson_slides (
+    id SERIAL PRIMARY KEY,
+    lesson_id INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    slide_number INTEGER NOT NULL,
+    slide_type VARCHAR(50) DEFAULT 'text',
+    title VARCHAR(255) NOT NULL,
+    content TEXT,
+    code_snippet TEXT,
+    code_language VARCHAR(50),
+    image_url VARCHAR(500),
+    video_url VARCHAR(500),
+    explanation TEXT,
+    challenge_id INTEGER,
+    estimated_time_seconds INTEGER DEFAULT 300,
+    is_required BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(lesson_id, slide_number)
+);
+
+CREATE TABLE IF NOT EXISTS user_slide_progress (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    slide_id INTEGER NOT NULL REFERENCES lesson_slides(id) ON DELETE CASCADE,
+    lesson_id INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    time_spent_seconds INTEGER DEFAULT 0,
+    notes TEXT,
+    is_bookmarked BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (user_email, slide_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_slide_bookmarks (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    slide_id INTEGER NOT NULL REFERENCES lesson_slides(id) ON DELETE CASCADE,
+    note TEXT,
+    bookmarked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_email, slide_id)
+);
+
+-- =========================================================
+-- ONBOARDING TOUR PROGRESS
+-- =========================================================
+CREATE TABLE IF NOT EXISTS user_tour_progress (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL UNIQUE REFERENCES users(email) ON DELETE CASCADE,
+    tour_started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    tour_completed BOOLEAN DEFAULT FALSE,
+    current_step INTEGER DEFAULT 0,
+    steps_completed INTEGER DEFAULT 0,
+    tour_completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================================
+-- USER PREFERENCES
+-- =========================================================
+CREATE TABLE IF NOT EXISTS user_preferences (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) UNIQUE NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    theme VARCHAR(20) DEFAULT 'light',
+    font_preference VARCHAR(50) DEFAULT 'standard',
+    reduced_motion BOOLEAN DEFAULT FALSE,
+    notifications_enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================================
+-- ACHIEVEMENTS SYSTEM
+-- =========================================================
+CREATE TABLE IF NOT EXISTS achievements (
+    id VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    description TEXT,
+    category VARCHAR(50),
+    icon VARCHAR(500),
+    xp_reward INTEGER DEFAULT 0,
+    rarity VARCHAR(20) DEFAULT 'common',
+    unlock_criteria JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    achievement_id VARCHAR(100) NOT NULL REFERENCES achievements(id) ON DELETE CASCADE,
+    earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_email, achievement_id)
+);
+
+-- =========================================================
+-- DAILY ACTIVITY TRACKING (for heatmap)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS user_daily_activity (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    activity_date DATE NOT NULL,
+    xp_earned INTEGER DEFAULT 0,
+    lessons_completed INTEGER DEFAULT 0,
+    quizzes_completed INTEGER DEFAULT 0,
+    challenges_completed INTEGER DEFAULT 0,
+    sandbox_topologies_created INTEGER DEFAULT 0,
+    login_count INTEGER DEFAULT 0,
+    total_minutes_spent INTEGER DEFAULT 0,
+    longest_session_minutes INTEGER DEFAULT 0,
+    last_activity_time TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_email, activity_date)
+);
+
+-- =========================================================
+-- CHALLENGES SYSTEM
+-- =========================================================
+CREATE TABLE IF NOT EXISTS challenges (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    description TEXT,
+    challenge_type VARCHAR(50),
+    difficulty VARCHAR(50),
+    xp_reward INTEGER DEFAULT 50,
+    required_action VARCHAR(100),
+    action_target VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_challenge_progress (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    challenge_id INTEGER NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    progress_percent INTEGER DEFAULT 0,
+    PRIMARY KEY (user_email, challenge_id)
+);
+
+-- Update existing tables with new columns
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS slide_count INTEGER DEFAULT 0;
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS avg_time_seconds INTEGER DEFAULT 0;
+
+-- SEED SAMPLE ACHIEVEMENTS
+INSERT INTO achievements (id, name, description, category, rarity, unlock_criteria) VALUES
+('first_lesson', 'First Steps', 'Complete your first lesson', 'Learner', 'common', '{"type": "lessons_completed", "value": 1}'),
+('five_day_streak', 'On Fire!', 'Maintain a 5-day learning streak', 'Explorer', 'rare', '{"type": "streak_days", "value": 5}'),
+('novice_master', 'Novice Master', 'Complete all Novice courses', 'Master', 'epic', '{"type": "courses_by_difficulty", "difficulty": "Novice", "value": 5}'),
+('sandbox_builder', 'Builder', 'Create 10 sandbox topologies', 'Builder', 'rare', '{"type": "topologies_created", "value": 10}'),
+('speed_learner', 'Speed Learner', 'Complete 5 lessons in one day', 'Learner', 'rare', '{"type": "lessons_per_day", "value": 5}')
+ON CONFLICT DO NOTHING;
+
+-- SEED SAMPLE CHALLENGES
+INSERT INTO challenges (title, description, challenge_type, difficulty, xp_reward, required_action) VALUES
+('Learn IP Addressing', 'Complete the IP Addressing course lesson', 'daily', 'easy', 25, 'complete_lesson'),
+('Build a Topology', 'Create 3 different network topologies', 'daily', 'medium', 50, 'sandbox_practice'),
+('Quiz Master', 'Score 100% on any quiz', 'weekly', 'hard', 100, 'quiz_score'),
+('Consistency Wins', 'Log in for 7 consecutive days', 'weekly', 'medium', 75, 'daily_login'),
+('All Star', 'Complete 3 courses', 'event', 'hard', 200, 'complete_courses')
+ON CONFLICT DO NOTHING;
 
 -- AI Prompt: Explain the LEGACY COMPLETION TABLES (SAFE TO KEEP) section in clear, simple terms.
 -- =========================================================

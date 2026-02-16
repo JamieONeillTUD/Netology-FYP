@@ -235,87 +235,191 @@ lesson.html – Netology Lesson Page
     </section>
 
     <div class="row g-4">
-      <!-- AI Prompt: Explain the Content section in clear, simple terms. -->
-      <!-- Content -->
+      <!-- Main Content Area: Interactive Slide Viewer -->
       <div class="col-lg-8">
-        <section class="net-card p-4 net-lesson-body">
-          <div id="lessonObjectivesWrap" class="mb-4 d-none">
-            <div class="fw-semibold mb-2">What you’ll learn</div>
-            <ul class="net-lesson-objectives" id="lessonObjectives"></ul>
+        
+        <!-- Slide Viewer Card -->
+        <section class="net-card net-slide-viewer p-0 overflow-hidden mb-4" data-tour="lesson-slide-viewer">
+          
+          <!-- Slide Header -->
+          <div class="net-slide-header p-4 border-bottom">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="net-slide-counter badge text-bg-light" id="slideCounter">Slide 1</div>
+                <span class="text-muted small">|</span>
+                <span class="text-muted small" id="slideTotal">Loading...</span>
+              </div>
+              <button class="btn btn-sm btn-outline-secondary" id="bookmarkBtn" title="Bookmark this slide">
+                <i class="bi bi-bookmark"></i>
+              </button>
+            </div>
+            <h3 class="fw-bold mb-1" id="slideTitle">Lesson Title</h3>
+            <p class="text-muted small mb-0" id="slideSubtitle">Subtitle or key concept</p>
           </div>
 
-          <article id="lessonContent" class="net-lesson-content">Loading lesson content…</article>
+          <!-- Slide Content -->
+          <div class="net-slide-content p-4 p-lg-5" id="slideContent">
+            <div class="text-center py-4">
+              <div class="spinner-border text-teal" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="text-muted mt-3">Loading slide content...</p>
+            </div>
+          </div>
 
-          <div id="lessonSummaryWrap" class="net-lesson-summary d-none">
-            <div class="fw-semibold mb-1">Key takeaway</div>
-            <p class="mb-0" id="lessonSummary"></p>
+          <!-- Slide Footer with Navigation -->
+          <div class="net-slide-footer p-4 border-top d-flex align-items-center justify-content-between">
+            <button class="btn btn-outline-teal btn-sm" id="prevSlideBtn" disabled>
+              <i class="bi bi-chevron-left me-1"></i>Previous
+            </button>
+            
+            <div class="progress flex-grow-1 mx-3" style="height: 6px;">
+              <div class="progress-bar net-progress-fill" id="slideProgressBar" style="width: 0%"></div>
+            </div>
+
+            <button class="btn btn-teal btn-sm" id="nextSlideBtn">
+              Next<i class="bi bi-chevron-right ms-1"></i>
+            </button>
           </div>
         </section>
 
-        <!-- Practice Card -->
-        <section class="net-card p-4 mt-4 d-none" id="lessonPracticeCard">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <div class="fw-semibold mb-1"><i class="bi bi-diagram-3 me-2"></i>Sandbox tutorial</div>
-              <div class="small text-muted" id="lessonPracticeMeta">Try this in the sandbox</div>
+        <!-- Learning Objectives Card -->
+        <section class="net-card p-4 mb-4" id="objectivesCard" style="display: none;">
+          <h5 class="fw-bold mb-3"><i class="bi bi-target me-2"></i>What You'll Learn</h5>
+          <ul class="list-unstyled" id="objectivesList">
+            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><span>Objective placeholder</span></li>
+          </ul>
+        </section>
+
+        <!-- Interactive Quiz Card -->
+        <section class="net-card p-4 mb-4" id="quizCard" style="display: none;">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="fw-bold mb-0"><i class="bi bi-question-circle me-2"></i>Quick Check</h5>
+            <span class="badge text-bg-info">Interactive</span>
+          </div>
+          
+          <div id="quizContent">
+            <div class="mb-3" id="quizQuestion"></div>
+            <div id="quizOptions" class="d-flex flex-column gap-2"></div>
+            <div id="quizFeedback" class="alert alert-info mt-3" style="display: none;"></div>
+            <button class="btn btn-teal btn-sm mt-3" id="submitQuizBtn">Submit Answer</button>
+          </div>
+        </section>
+
+        <!-- Key Takeaway Card -->
+        <section class="net-card p-4 mb-4 border-left border-5 border-teal" id="takeawayCard" style="display: none;">
+          <h5 class="fw-bold mb-2"><i class="bi bi-lightbulb me-2"></i>Key Takeaway</h5>
+          <p class="mb-0" id="takeawayText"></p>
+        </section>
+
+        <!-- Sandbox Practice Card -->
+        <section class="net-card p-4 mb-4 bg-light" id="practiceCard" style="display: none;">
+          <div class="d-flex align-items-start justify-content-between">
+            <div class="flex-grow-1">
+              <h5 class="fw-bold mb-2"><i class="bi bi-diagram-3 me-2 text-info"></i>Practice in Sandbox</h5>
+              <p class="text-muted small mb-2">Try building the topology described in this lesson. This is optional but highly recommended.</p>
+              <span class="badge text-bg-info" id="practiceXpReward">+50 XP</span>
             </div>
-            <button class="btn btn-outline-secondary btn-sm" id="lessonPracticeBtn" type="button">
-              Open Sandbox
+            <button class="btn btn-outline-info btn-sm" id="practiceLaunchBtn">
+              <i class="bi bi-play-fill me-1"></i>Launch
             </button>
           </div>
         </section>
 
         <!-- Challenge Card -->
-        <section class="net-card p-4 mt-4 d-none" id="lessonChallengeCard">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <div class="fw-semibold mb-1"><i class="bi bi-flag me-2"></i>Sandbox challenge</div>
-              <div class="small text-muted" id="lessonChallengeMeta">Validate your topology</div>
+        <section class="net-card p-4 bg-light" id="challengeCard" style="display: none;">
+          <div class="d-flex align-items-start justify-content-between">
+            <div class="flex-grow-1">
+              <h5 class="fw-bold mb-2"><i class="bi bi-flag-fill me-2 text-danger"></i>Complete Challenge</h5>
+              <p class="text-muted small mb-2" id="challengeDescription">Build and validate the network configuration from this lesson.</p>
+              <span class="badge text-bg-danger" id="challengeXpReward">+100 XP</span>
             </div>
-            <button class="btn btn-teal btn-sm" id="lessonChallengeBtn" type="button">
-              Start Challenge
+            <button class="btn btn-danger btn-sm" id="challengeStartBtn">
+              <i class="bi bi-play-fill me-1"></i>Start
             </button>
           </div>
-          <div class="small text-muted mt-2" id="lessonChallengeSteps"></div>
         </section>
 
-        <!-- AI Prompt: Explain the Resources Card section in clear, simple terms. -->
-        <!-- Resources Card -->
-        <section class="net-card p-4 mt-4" id="lessonResourcesCard">
-          <div class="fw-semibold mb-2"><i class="bi bi-link-45deg me-2"></i>Resources</div>
-          <div class="small text-muted mb-2">Use these references to deepen your understanding.</div>
-          <div id="lessonResources" class="net-resource-list"></div>
-        </section>
       </div>
 
-      <!-- AI Prompt: Explain the Sidebar section in clear, simple terms. -->
-      <!-- Sidebar -->
+      <!-- Sidebar: Lesson Info & Navigation -->
       <div class="col-lg-4">
+
+        <!-- Lesson Info Card -->
         <section class="net-card p-4 mb-4">
-          <div class="fw-semibold mb-3">Lesson Progress</div>
-          <div class="d-flex align-items-center justify-content-between small mb-2">
-            <span class="text-muted">Status</span>
-            <span id="lessonStatus">Not started</span>
+          <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Lesson Info</h5>
+          
+          <div class="mb-3">
+            <div class="small text-muted fw-semibold mb-1">Course</div>
+            <div class="fw-semibold text-truncate" id="sidebarCourseName">Loading...</div>
           </div>
-          <div class="small text-muted">This lesson completes automatically when all activities are done.</div>
+
+          <div class="mb-3">
+            <div class="small text-muted fw-semibold mb-1">Difficulty</div>
+            <div id="sidebarDifficulty">
+              <span class="badge text-bg-light">—</span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="small text-muted fw-semibold mb-1">Estimated Time</div>
+            <div class="fw-semibold" id="sidebarEstimatedTime">5 min</div>
+          </div>
+
+          <div class="mb-3">
+            <div class="small text-muted fw-semibold mb-1">XP Reward</div>
+            <div class="fw-bold text-warning" id="sidebarXpReward">
+              <i class="bi bi-star-fill me-1"></i>50 XP
+            </div>
+          </div>
+
+          <hr class="my-3">
+
+          <div class="small text-muted fw-semibold mb-2">Bookmarked Slides</div>
+          <div id="bookmarksList" class="small">
+            <span class="text-muted">No bookmarks yet. Click the bookmark icon to save slides.</span>
+          </div>
         </section>
+
+        <!-- Lesson Slides List (Outline) -->
+        <section class="net-card p-4 mb-4">
+          <h5 class="fw-bold mb-3"><i class="bi bi-list-ul me-2"></i>Lesson Outline</h5>
+          <div id="slidesList" class="slide-outline">
+            <div class="small text-muted py-2">Loading slides...</div>
+          </div>
+        </section>
+
+        <!-- Lesson Status Card -->
+        <section class="net-card p-4 mb-4">
+          <h5 class="fw-bold mb-3"><i class="bi bi-check2-circle me-2"></i>Progress</h5>
+          
+          <div class="mb-3">
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="text-muted">Completion</span>
+              <span class="fw-semibold" id="completionPct">0%</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+              <div class="progress-bar net-progress-fill" id="completionBar" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div class="alert alert-sm p-2 mb-0" id="statusAlert" role="alert">
+            <small><i class="bi bi-info-circle me-1"></i><span id="statusText">Start learning by reviewing the slides above.</span></small>
+          </div>
+        </section>
+
+        <!-- Resources Card -->
+        <section class="net-card p-4">
+          <h5 class="fw-bold mb-3"><i class="bi bi-link-45deg me-2"></i>Resources</h5>
+          <div id="resourcesList" class="small">
+            <span class="text-muted">No additional resources for this lesson.</span>
+          </div>
+        </section>
+
       </div>
     </div>
     </div>
   </main>
-
-  <!-- AI Prompt: Explain the Footer section in clear, simple terms. -->
-  <!-- Footer -->
-  <footer class="text-center border-top py-3 bg-white">
-    <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
-  </footer>
-
-  <!-- Vendor -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-  <!-- App scripts -->
-  <script src="js/config.js"></script>
-  <script src="js/course_content.js"></script>
   <script src="js/lesson.js"></script>
 </body>
 </html>

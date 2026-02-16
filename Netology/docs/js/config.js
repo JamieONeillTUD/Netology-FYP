@@ -9,6 +9,128 @@
 // Production:
 window.API_BASE = window.API_BASE || "https://netology-fyp.onrender.com";
 
+/* =========================================================
+   API ENDPOINTS MAPPING (Step 15)
+   =========================================================
+   Central configuration for all API endpoints.
+   Use these constants throughout the frontend instead of hardcoding URLs.
+   
+   Example usage:
+   - fetch(`${window.API_BASE}${ENDPOINTS.auth.login}`, { method: 'POST', ... })
+   - fetch(`${window.API_BASE}${ENDPOINTS.courses.list}`, { ... })
+========================================================= */
+window.ENDPOINTS = {
+  // ================================================
+  // AUTHENTICATION (Auth Routes)
+  // ================================================
+  auth: {
+    register: '/register',                      // POST - Create new account
+    login: '/login',                            // POST - Sign in user
+    logout: '/logout',                          // GET - Sign out user
+    userInfo: '/user-info',                     // GET - Get user profile
+    userPreferences: '/user-preferences',       // GET/POST - User settings
+    userAchievements: '/user-achievements',     // GET - User earned achievements
+    awardAchievement: '/award-achievement',     // POST - Award achievement badge
+    awardXp: '/award-xp',                       // POST - Award XP to user
+    recordLogin: '/record-login',               // POST - Track login for streaks
+    forgotPassword: '/forgot-password'          // POST - Reset password
+  },
+
+  // ================================================
+  // ONBOARDING (Onboarding Tour)
+  // ================================================
+  onboarding: {
+    status: '/api/onboarding/status',           // POST - Check if first login
+    steps: '/api/onboarding/steps',             // GET - Fetch all tour steps (7 total)
+    start: '/api/onboarding/start',             // POST - Begin onboarding tour
+    stepComplete: '/api/onboarding/step/:id',   // POST - Mark step complete (use :id)
+    complete: '/api/onboarding/complete',       // POST - Finish entire tour
+    skip: '/api/onboarding/skip'                // POST - Skip tour
+  },
+
+  // ================================================
+  // LESSON SLIDES (Interactive Lessons)
+  // ================================================
+  slides: {
+    list: '/api/lessons/:lessonId/slides',           // GET - List all slides for lesson
+    content: '/api/lessons/:lessonId/slides/:slideId', // GET - Get slide full content
+    complete: '/api/lessons/:lessonId/slides/:slideId/complete', // POST - Mark slide complete
+    progress: '/api/lessons/:lessonId/progress',    // GET - Get lesson progress
+    bookmark: '/api/slides/:slideId/bookmark',      // POST - Toggle bookmark
+    bookmarks: '/api/user/bookmarks',               // GET - List all user bookmarks
+    notes: '/api/slides/:slideId/notes'             // POST - Save slide notes
+  },
+
+  // ================================================
+  // COURSES
+  // ================================================
+  courses: {
+    list: '/courses',                           // GET - List all 9 courses
+    courseDetails: '/course',                   // GET ?course_id= - Get single course details
+    userCourses: '/user-courses',               // GET - Get user's courses with progress
+    userCourseStatus: '/user-course-status',    // GET ?email=&course_id= - Lesson/quiz/challenge status
+    userProgressSummary: '/user-progress-summary', // GET ?email= - Total counts overview
+    start: '/start-course',                     // POST - Start a course
+    completeLesson: '/complete-lesson',         // POST - Complete single lesson & award XP
+    completeQuiz: '/complete-quiz',             // POST - Complete quiz & award XP
+    completeChallenge: '/complete-challenge',   // POST - Complete challenge & award XP
+    completeCourse: '/complete-course',         // POST - Complete entire course & award XP
+    recentActivity: '/recent-activity',         // GET ?email= - Recent completions
+    quizHistory: '/quiz-history'                // GET ?email= - Recent quiz results
+  },
+
+  // ================================================
+  // PROGRESS & ANALYTICS
+  // ================================================
+  progress: {
+    userProgress: '/api/user/progress',         // GET - Get all course progress (filters available)
+    progressStats: '/api/user/progress/stats',  // GET - Progress statistics
+    userActivity: '/api/user/activity',         // GET - Daily activity for heatmap
+    userStreaks: '/api/user/streaks'            // GET - Current and longest streak
+  },
+
+  // ================================================
+  // CHALLENGES & ACHIEVEMENTS
+  // ================================================
+  challenges: {
+    list: '/api/user/challenges'                // GET ?user_email=&type=daily|weekly - Get challenges
+  },
+
+  achievements: {
+    list: '/api/user/achievements',             // GET - Get all achievements (earned + locked)
+    award: '/award-achievement'                 // POST - Award achievement (internal use)
+  },
+
+  // ================================================
+  // SANDBOX / NETWORK TOPOLOGY
+  // ================================================
+  sandbox: {
+    executeCommand: '/api/sandbox/execute-command', // POST - Run whitelisted commands
+    allowedCommands: '/api/sandbox/allowed-commands', // GET - List allowed commands
+    lessonSessionSave: '/lesson-session/save',     // POST - Save lesson sandbox state
+    lessonSessionLoad: '/lesson-session/load',     // GET - Load lesson sandbox state
+    saveTopology: '/save-topology',                // POST - Save topology
+    loadTopologies: '/load-topologies',            // GET - Load all user topologies
+    loadTopology: '/load-topology/:topologyId',    // GET - Load single topology
+    deleteTopology: '/delete-topology/:topologyId' // DELETE - Delete topology
+  },
+
+  // ================================================
+  // USER PREFERENCES
+  // ================================================
+  preferences: {
+    get: '/api/user/preferences',               // GET - Get user settings
+    update: '/api/user/preferences'             // POST - Update user settings
+  },
+
+  // ================================================
+  // HEALTH CHECK
+  // ================================================
+  health: {
+    check: '/healthz'                           // GET - Server health check
+  }
+};
+
 /* AI Prompt: Explain the Preview mode seeding (demo user) section in clear, simple terms. */
 /* =========================================================
    Preview mode seeding (demo user)

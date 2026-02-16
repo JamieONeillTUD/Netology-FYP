@@ -105,7 +105,7 @@ Reworked to match the Figma AI version:
     dragging: null,
     history: [],
     historyIndex: -1,
-    rightTab: "config",
+    rightTab: "objects",
     configTab: "general",
     bottomTab: "console",
     consoleOutput: ["Network Sandbox Pro v2.0", "Ready."],
@@ -118,6 +118,8 @@ Reworked to match the Figma AI version:
     mode: "free",
     deviceAnimations: new Set(),
     saveModalOpen: false,
+    commandHistory: [],
+    commandHistoryIndex: -1,
   };
 
   let guideUI = null;
@@ -403,13 +405,15 @@ Reworked to match the Figma AI version:
     }
 
     if (focus.needsConfigAuto || focus.needsConfigHint) {
-      addGuided(qs('.sbx-tab[data-tab="config"]', getById("sbxRightTabs")));
+      const cfgBtn = getById("sbxConfigTabBtn");
+      if (cfgBtn) cfgBtn.style.display = "";
+      addGuided(cfgBtn);
       const configTab = qs('.sbx-subtab[data-subtab="general"]', getById("sbxConfigTabs"));
       addGuided(configTab);
     }
 
     if (focus.needsConfigAuto && state.rightTab !== "config") {
-      setRightTab("config");
+      showConfigTab();
     } else if (state.rightTab !== "objectives") {
       addGuided(qs('.sbx-tab[data-tab="objectives"]', getById("sbxRightTabs")));
     }
@@ -1558,6 +1562,36 @@ Reworked to match the Figma AI version:
       statusDot.className = "sbx-device-status " + (device.config?.ipAddress ? "is-configured" : "is-unconfigured");
       el.appendChild(statusDot);
 
+      // Action buttons (settings, copy, delete)
+      const actions = document.createElement("div");
+      actions.className = "sbx-device-actions";
+
+      const btnCfg = document.createElement("button");
+      btnCfg.className = "sbx-device-action sbx-device-action--config";
+      btnCfg.innerHTML = '<i class="bi bi-gear-fill"></i>';
+      btnCfg.title = "Configure device";
+      btnCfg.dataset.action = "config";
+      btnCfg.dataset.deviceId = device.id;
+      actions.appendChild(btnCfg);
+
+      const btnCopy = document.createElement("button");
+      btnCopy.className = "sbx-device-action sbx-device-action--copy";
+      btnCopy.innerHTML = '<i class="bi bi-copy"></i>';
+      btnCopy.title = "Duplicate device (Ctrl+C)";
+      btnCopy.dataset.action = "copy";
+      btnCopy.dataset.deviceId = device.id;
+      actions.appendChild(btnCopy);
+
+      const btnDel = document.createElement("button");
+      btnDel.className = "sbx-device-action sbx-device-action--delete";
+      btnDel.innerHTML = '<i class="bi bi-trash3-fill"></i>';
+      btnDel.title = "Delete device (Del)";
+      btnDel.dataset.action = "delete";
+      btnDel.dataset.deviceId = device.id;
+      actions.appendChild(btnDel);
+
+      el.appendChild(actions);
+
       deviceLayer.appendChild(el);
     });
   }
@@ -1569,9 +1603,23 @@ Reworked to match the Figma AI version:
     connectionLayer.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
   }
 
+  // Lightweight: update only existing SVG path positions (used during drag)
+  function updateConnectionPaths() {
+    const paths = connectionLayer.querySelectorAll("path");
+    state.connections.forEach((conn, i) => {
+      const from = findDevice(conn.from);
+      const to = findDevice(conn.to);
+      if (!from || !to || !paths[i]) return;
+      const x1 = from.x + DEVICE_RADIUS, y1 = from.y + DEVICE_RADIUS;
+      const x2 = to.x + DEVICE_RADIUS, y2 = to.y + DEVICE_RADIUS;
+      paths[i].setAttribute("d", `M ${x1} ${y1} L ${x2} ${y2}`);
+    });
+  }
+
   function renderConnections() {
     resizeConnections();
     clearChildren(connectionLayer);
+    const isDragging = !!state.dragging;
 
     state.connections.forEach((conn) => {
       const from = findDevice(conn.from);
@@ -1591,15 +1639,46 @@ Reworked to match the Figma AI version:
       if (meta.dash) path.setAttribute("stroke-dasharray", meta.dash);
       connectionLayer.appendChild(path);
 
+      // Skip delete controls while dragging — keeps the visual clean
+      if (isDragging) return;
+
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
+      // Delete group — invisible hit-area circle prevents hover flicker
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.classList.add("sbx-conn-delete-group");
+      g.dataset.connId = conn.id;
+      // Tooltip: "Delete connection between X and X"
+      const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      tip.textContent = `Delete connection between ${from.name || "device"} and ${to.name || "device"}`;
+      g.appendChild(tip);
+      // Invisible larger hit area (no flicker)
+      const hitArea = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      hitArea.setAttribute("cx", midX);
+      hitArea.setAttribute("cy", midY);
+      hitArea.setAttribute("r", 18);
+      hitArea.setAttribute("fill", "transparent");
+      hitArea.setAttribute("stroke", "none");
+      g.appendChild(hitArea);
+      // Visible delete circle
       const del = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       del.classList.add("sbx-conn-delete");
       del.setAttribute("cx", midX);
       del.setAttribute("cy", midY);
-      del.setAttribute("r", 7);
-      del.dataset.connId = conn.id;
-      connectionLayer.appendChild(del);
+      del.setAttribute("r", 10);
+      g.appendChild(del);
+      // "x" label
+      const delLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      delLabel.setAttribute("x", midX);
+      delLabel.setAttribute("y", midY + 4);
+      delLabel.setAttribute("text-anchor", "middle");
+      delLabel.setAttribute("font-size", "12");
+      delLabel.setAttribute("font-weight", "700");
+      delLabel.setAttribute("fill", "rgba(239,68,68,.8)");
+      delLabel.setAttribute("pointer-events", "none");
+      delLabel.textContent = "\u00d7";
+      g.appendChild(delLabel);
+      connectionLayer.appendChild(g);
     });
   }
 
@@ -1783,16 +1862,125 @@ Reworked to match the Figma AI version:
     validateBtnEl.addEventListener("click", handleChallengeValidate);
   }
 
+  function renderObjects() {
+    const body = getById("sbxObjectsBody");
+    if (!body) return;
+    clearChildren(body);
+
+    if (!state.devices.length) {
+      body.textContent = "No devices on canvas yet.";
+      return;
+    }
+
+    const list = makeEl("div", "sbx-objects-list");
+
+    state.devices.forEach((device) => {
+      const meta = DEVICE_TYPES[device.type] || DEVICE_TYPES.pc;
+      const isSelected = state.selectedIds.includes(device.id);
+
+      const row = makeEl("div", "sbx-object-row" + (isSelected ? " is-selected" : ""));
+      row.dataset.deviceId = device.id;
+
+      const icon = makeEl("i", `bi ${meta.icon} sbx-object-icon`);
+      const info = makeEl("div", "sbx-object-info");
+      const nameEl = makeEl("div", "sbx-object-name", device.name || meta.label);
+      const sub = makeEl("div", "sbx-object-sub", device.config?.ipAddress || "No IP assigned");
+      info.append(nameEl, sub);
+
+      const gearBtn = makeEl("button", "sbx-object-gear");
+      gearBtn.innerHTML = '<i class="bi bi-gear-fill"></i>';
+      gearBtn.title = "Configure device";
+      gearBtn.dataset.deviceId = device.id;
+
+      row.append(icon, info, gearBtn);
+      list.appendChild(row);
+    });
+
+    body.appendChild(list);
+
+    // Click row to select device on canvas
+    list.addEventListener("click", (e) => {
+      const gearBtn = e.target.closest(".sbx-object-gear");
+      const row = e.target.closest(".sbx-object-row");
+      if (!row) return;
+      const deviceId = row.dataset.deviceId;
+
+      if (gearBtn) {
+        // Gear clicked — select device and open Config tab
+        state.selectedIds = [deviceId];
+        showConfigTab();
+        renderAll();
+        return;
+      }
+
+      // Row clicked — just select the device
+      state.selectedIds = [deviceId];
+      renderDevices();
+      renderObjects();
+      renderProps();
+      updatePingVisibility();
+    });
+  }
+
+  function showConfigTab() {
+    const configTabBtn = getById("sbxConfigTabBtn");
+    if (configTabBtn) configTabBtn.style.display = "";
+    setRightTab("config");
+    showRightPanel();
+  }
+
+  function hideConfigTab() {
+    const configTabBtn = getById("sbxConfigTabBtn");
+    if (configTabBtn) configTabBtn.style.display = "none";
+    setRightTab("objects");
+    renderObjects();
+  }
+
   function renderProps() {
     if (!propsEl) return;
     const device = getSelectedDevice();
     if (!device) {
       propsEl.textContent = "Select a device to view properties.";
+      // Hide Config tab and switch to Objects if currently on Config
+      const configTabBtn = getById("sbxConfigTabBtn");
+      if (configTabBtn) configTabBtn.style.display = "none";
+      if (state.rightTab === "config") setRightTab("objects");
       return;
     }
 
+    // Update config header with device name
+    const headerName = getById("sbxConfigDeviceName");
+    if (headerName) {
+      const meta = DEVICE_TYPES[device.type] || DEVICE_TYPES.pc;
+      headerName.textContent = device.name || meta.label;
+    }
+
     const config = device.config || {};
-    const tab = state.configTab;
+
+    // Show only relevant subtabs for this device type
+    const subtabVisibility = {
+      general: true,
+      interfaces: !!config.interfaces?.length,
+      routing: !!config.routingTable,
+      dhcp: !!config.dhcpServer,
+      dns: !!config.dnsServer,
+      mac: !!config.macTable,
+    };
+    qsa(".sbx-subtab", getById("sbxConfigTabs")).forEach((btn) => {
+      const st = btn.getAttribute("data-subtab");
+      btn.style.display = subtabVisibility[st] ? "" : "none";
+    });
+
+    // If current tab is hidden, fall back to general
+    let tab = state.configTab;
+    if (!subtabVisibility[tab]) {
+      tab = "general";
+      state.configTab = "general";
+      qsa(".sbx-subtab", getById("sbxConfigTabs")).forEach((b) => b.classList.remove("is-active"));
+      const genTab = qs('.sbx-subtab[data-subtab="general"]', getById("sbxConfigTabs"));
+      if (genTab) genTab.classList.add("is-active");
+    }
+
     clearChildren(propsEl);
 
     if (tab === "general") {
@@ -1853,57 +2041,62 @@ Reworked to match the Figma AI version:
 
       const macText = makeEl("div", "small text-muted mt-2", `MAC: ${config.macAddress || ""}`);
 
-      const deleteBtn = makeEl("button", "btn btn-outline-danger btn-sm mt-3", "Delete Device");
+      // Action buttons row
+      const actionsRow = makeEl("div", "sbx-config-actions");
+
+      const updateBtn = makeEl("button", "btn btn-teal btn-sm", "Update");
+      updateBtn.id = "updateDeviceBtn";
+
+      const deleteBtn = makeEl("button", "btn btn-outline-danger btn-sm", "Delete");
       deleteBtn.id = "deleteDeviceBtn";
 
-      propsEl.append(nameGroup, ipGroup, maskGroup, gwGroup, dhcpWrap, macText, deleteBtn);
+      actionsRow.append(updateBtn, deleteBtn);
 
-      const nameInput = getById("prop_name");
-      const ipInput = getById("prop_ip");
-      const maskInput = getById("prop_mask");
-      const gwInput = getById("prop_gw");
-      const dhcpToggle = getById("prop_dhcp");
+      propsEl.append(nameGroup, ipGroup, maskGroup, gwGroup, dhcpWrap, macText, actionsRow);
 
-      nameInput?.addEventListener("input", (e) => {
-        device.name = e.target.value;
-        addActionLog(`Renamed ${device.name}`);
-        renderDevices();
-        notifyTutorialProgress();
-        markDirtyAndSaveSoon();
-      });
+      getById("updateDeviceBtn")?.addEventListener("click", () => {
+        const nameInput = getById("prop_name");
+        const ipInput = getById("prop_ip");
+        const maskInput = getById("prop_mask");
+        const gwInput = getById("prop_gw");
+        const dhcpToggle = getById("prop_dhcp");
 
-      ipInput?.addEventListener("input", (e) => {
-        device.config.ipAddress = e.target.value;
-        updateDeviceStatus(device);
-        renderDevices();
-        updateWarnings(device);
-        notifyTutorialProgress();
-        markDirtyAndSaveSoon();
-      });
-
-      maskInput?.addEventListener("input", (e) => {
-        device.config.subnetMask = e.target.value;
-        updateDeviceStatus(device);
-        updateWarnings(device);
-        notifyTutorialProgress();
-        markDirtyAndSaveSoon();
-      });
-
-      gwInput?.addEventListener("input", (e) => {
-        device.config.defaultGateway = e.target.value;
-        updateDeviceStatus(device);
-        updateWarnings(device);
-        notifyTutorialProgress();
-        markDirtyAndSaveSoon();
-      });
-
-      dhcpToggle?.addEventListener("change", (e) => {
-        device.config.dhcpEnabled = e.target.checked;
-        if (device.config.dhcpEnabled) {
-          requestDHCP(device.id);
+        if (nameInput) {
+          device.name = nameInput.value;
+          addActionLog(`Renamed ${device.name}`);
         }
+        if (ipInput) {
+          device.config.ipAddress = ipInput.value;
+        }
+        if (maskInput) {
+          device.config.subnetMask = maskInput.value;
+        }
+        if (gwInput) {
+          device.config.defaultGateway = gwInput.value;
+        }
+        if (dhcpToggle) {
+          device.config.dhcpEnabled = dhcpToggle.checked;
+          if (device.config.dhcpEnabled) requestDHCP(device.id);
+        }
+
+        updateDeviceStatus(device);
+        updateWarnings(device);
+        pushHistory();
         notifyTutorialProgress();
         markDirtyAndSaveSoon();
+        renderDevices();
+        renderObjects();
+
+        // Update header name
+        const headerName2 = getById("sbxConfigDeviceName");
+        if (headerName2) headerName2.textContent = device.name || "";
+
+        showToast({
+          title: "Device updated",
+          message: `${device.name} configuration applied.`,
+          variant: "success",
+          timeout: 2200,
+        });
       });
 
       getById("deleteDeviceBtn")?.addEventListener("click", () => {
@@ -1924,61 +2117,92 @@ Reworked to match the Figma AI version:
         const card = makeEl("div", "sbx-prop-card");
         const header = makeEl("div", "d-flex justify-content-between align-items-center");
         header.append(
-          makeEl("strong", null, iface.name || ""),
-          makeEl("span", "badge text-bg-light border", iface.status || "")
+          makeEl("strong", null, iface.name || `Interface ${idx}`),
+          makeEl("span", "badge text-bg-light border", iface.status || "down")
         );
         card.appendChild(header);
-        card.appendChild(makeEl("div", "small text-muted", `Speed: ${iface.speed || ""}`));
-        if (device.type === "router") {
-          const ifaceInput = document.createElement("input");
-          ifaceInput.className = "form-control form-control-sm mt-2";
-          ifaceInput.setAttribute("data-iface-ip", String(idx));
-          ifaceInput.value = iface.ipAddress || "";
-          ifaceInput.placeholder = "IP Address";
-          card.appendChild(ifaceInput);
-        }
+
+        const details = makeEl("div", "mt-1");
+        details.appendChild(makeEl("div", "small text-muted", `Speed: ${iface.speed || "Auto"}`));
         if (iface.connectedTo) {
           const name = findDevice(iface.connectedTo)?.name || iface.connectedTo;
-          card.appendChild(makeEl("div", "small text-muted mt-1", `↔ ${name}`));
+          details.appendChild(makeEl("div", "small text-muted", `Connected to: ${name}`));
+        } else {
+          details.appendChild(makeEl("div", "small text-muted", "Not connected"));
         }
+        card.appendChild(details);
+
+        if (device.type === "router") {
+          const ipField = makeEl("div", "sbx-prop-field mt-2");
+          ipField.appendChild(makeEl("label", null, "Interface IP"));
+          const ifaceInput = document.createElement("input");
+          ifaceInput.className = "form-control form-control-sm";
+          ifaceInput.setAttribute("data-iface-ip", String(idx));
+          ifaceInput.value = iface.ipAddress || "";
+          ifaceInput.placeholder = "e.g. 192.168.1.1";
+          ipField.appendChild(ifaceInput);
+          card.appendChild(ipField);
+        }
+
         propsEl.appendChild(card);
       });
 
-      qsa("[data-iface-ip]", propsEl).forEach((input) => {
-        input.addEventListener("input", (e) => {
-          const idx = Number(e.target.getAttribute("data-iface-ip"));
-          if (config.interfaces[idx]) {
-            config.interfaces[idx].ipAddress = e.target.value;
-            markDirtyAndSaveSoon();
-          }
+      if (device.type === "router") {
+        const actionsRow = makeEl("div", "sbx-config-actions");
+        const updateBtn = makeEl("button", "btn btn-teal btn-sm", "Update Interfaces");
+        updateBtn.addEventListener("click", () => {
+          qsa("[data-iface-ip]", propsEl).forEach((input) => {
+            const idx = Number(input.getAttribute("data-iface-ip"));
+            if (config.interfaces[idx]) {
+              config.interfaces[idx].ipAddress = input.value;
+            }
+          });
+          pushHistory();
+          markDirtyAndSaveSoon();
+          showToast({ title: "Interfaces updated", message: `${device.name} interfaces saved.`, variant: "success", timeout: 2200 });
         });
-      });
+        actionsRow.appendChild(updateBtn);
+        propsEl.appendChild(actionsRow);
+      }
       return;
     }
 
     if (tab === "routing") {
       if (!config.routingTable) {
-        propsEl.textContent = "Routing is not available for this device.";
+        propsEl.textContent = "Routing is not available for this device type.";
         return;
       }
 
       if (config.routingTable.length) {
-        config.routingTable.forEach((route) => {
+        config.routingTable.forEach((route, idx) => {
           const card = makeEl("div", "sbx-prop-card");
-          const title = makeEl("div");
-          const strong = makeEl("strong", null, `${route.network}/${route.mask}`);
-          title.appendChild(strong);
-          card.appendChild(title);
-          card.appendChild(
-            makeEl("div", "small text-muted", `Via ${route.gateway} · ${route.interface}`)
+          const header = makeEl("div", "d-flex justify-content-between align-items-center");
+          header.append(
+            makeEl("strong", null, `${route.network}/${route.mask}`),
+            makeEl("span", "badge text-bg-light border", `Metric ${route.metric || 1}`)
           );
+          card.appendChild(header);
+          card.appendChild(makeEl("div", "small text-muted", `Gateway: ${route.gateway}`));
+          card.appendChild(makeEl("div", "small text-muted", `Interface: ${route.interface}`));
+
+          const removeBtn = makeEl("button", "btn btn-outline-danger btn-sm mt-1");
+          removeBtn.textContent = "Remove";
+          removeBtn.style.fontSize = ".68rem";
+          removeBtn.addEventListener("click", () => {
+            config.routingTable.splice(idx, 1);
+            pushHistory();
+            markDirtyAndSaveSoon();
+            renderProps();
+          });
+          card.appendChild(removeBtn);
+
           propsEl.appendChild(card);
         });
       } else {
         propsEl.appendChild(makeEl("div", "small text-muted", "No static routes configured."));
       }
 
-      const addBtn = makeEl("button", "btn btn-outline-secondary btn-sm mt-2", "Add Route");
+      const addBtn = makeEl("button", "btn btn-outline-secondary btn-sm mt-2", "+ Add Route");
       addBtn.id = "addRouteBtn";
       propsEl.appendChild(addBtn);
 
@@ -1989,19 +2213,21 @@ Reworked to match the Figma AI version:
         const iface = prompt("Interface (e.g., GigabitEthernet0/0)");
         if (!network || !mask || !gateway || !iface) return;
         config.routingTable.push({ network, mask, gateway, interface: iface, metric: 1 });
+        pushHistory();
         markDirtyAndSaveSoon();
         renderProps();
+        showToast({ title: "Route added", message: `Route to ${network} added.`, variant: "success", timeout: 2200 });
       });
       return;
     }
 
     if (tab === "dhcp") {
       if (!config.dhcpServer) {
-        propsEl.textContent = "DHCP server configuration is not available for this device.";
+        propsEl.textContent = "DHCP is not available for this device type.";
         return;
       }
 
-      const toggleWrap = makeEl("div", "form-check form-switch mb-2");
+      const toggleWrap = makeEl("div", "form-check form-switch mb-3");
       const enabledInput = document.createElement("input");
       enabledInput.className = "form-check-input";
       enabledInput.type = "checkbox";
@@ -2010,72 +2236,74 @@ Reworked to match the Figma AI version:
       const enabledLabel = makeEl("label", "form-check-label small", "Enable DHCP Server");
       enabledLabel.setAttribute("for", "dhcpServerEnabled");
       toggleWrap.append(enabledInput, enabledLabel);
+      propsEl.appendChild(toggleWrap);
 
-      const grid = makeEl("div", "sbx-prop-grid");
-      const dhcpNetwork = document.createElement("input");
-      dhcpNetwork.className = "form-control form-control-sm";
-      dhcpNetwork.id = "dhcpNetwork";
-      dhcpNetwork.value = config.dhcpServer.network || "";
-      dhcpNetwork.placeholder = "Network";
-      const dhcpMask = document.createElement("input");
-      dhcpMask.className = "form-control form-control-sm";
-      dhcpMask.id = "dhcpMask";
-      dhcpMask.value = config.dhcpServer.mask || "";
-      dhcpMask.placeholder = "Mask";
-      const dhcpGateway = document.createElement("input");
-      dhcpGateway.className = "form-control form-control-sm";
-      dhcpGateway.id = "dhcpGateway";
-      dhcpGateway.value = config.dhcpServer.gateway || "";
-      dhcpGateway.placeholder = "Gateway";
-      const dhcpStart = document.createElement("input");
-      dhcpStart.className = "form-control form-control-sm";
-      dhcpStart.id = "dhcpStart";
-      dhcpStart.value = config.dhcpServer.rangeStart || "";
-      dhcpStart.placeholder = "Range start";
-      const dhcpEnd = document.createElement("input");
-      dhcpEnd.className = "form-control form-control-sm";
-      dhcpEnd.id = "dhcpEnd";
-      dhcpEnd.value = config.dhcpServer.rangeEnd || "";
-      dhcpEnd.placeholder = "Range end";
-      grid.append(dhcpNetwork, dhcpMask, dhcpGateway, dhcpStart, dhcpEnd);
+      const fieldNetwork = makeEl("div", "sbx-prop-field");
+      fieldNetwork.append(makeEl("label", null, "Pool Network"));
+      const inNetwork = document.createElement("input");
+      inNetwork.className = "form-control form-control-sm"; inNetwork.id = "dhcpNetwork";
+      inNetwork.value = config.dhcpServer.network || ""; inNetwork.placeholder = "e.g. 192.168.1.0";
+      fieldNetwork.appendChild(inNetwork);
 
-      const leases = makeEl("div", "small text-muted mt-2", `Leases: ${config.dhcpServer.leases.length}`);
-      propsEl.append(toggleWrap, grid, leases);
+      const fieldMask = makeEl("div", "sbx-prop-field");
+      fieldMask.append(makeEl("label", null, "Subnet Mask"));
+      const inMask = document.createElement("input");
+      inMask.className = "form-control form-control-sm"; inMask.id = "dhcpMask";
+      inMask.value = config.dhcpServer.mask || ""; inMask.placeholder = "e.g. 255.255.255.0";
+      fieldMask.appendChild(inMask);
 
-      getById("dhcpServerEnabled")?.addEventListener("change", (e) => {
-        config.dhcpServer.enabled = e.target.checked;
+      const fieldGw = makeEl("div", "sbx-prop-field");
+      fieldGw.append(makeEl("label", null, "Default Gateway"));
+      const inGw = document.createElement("input");
+      inGw.className = "form-control form-control-sm"; inGw.id = "dhcpGateway";
+      inGw.value = config.dhcpServer.gateway || ""; inGw.placeholder = "e.g. 192.168.1.1";
+      fieldGw.appendChild(inGw);
+
+      const rangeGrid = makeEl("div", "sbx-prop-grid");
+      const fieldStart = makeEl("div", "sbx-prop-field");
+      fieldStart.append(makeEl("label", null, "Range Start"));
+      const inStart = document.createElement("input");
+      inStart.className = "form-control form-control-sm"; inStart.id = "dhcpStart";
+      inStart.value = config.dhcpServer.rangeStart || ""; inStart.placeholder = "e.g. 192.168.1.100";
+      fieldStart.appendChild(inStart);
+
+      const fieldEnd = makeEl("div", "sbx-prop-field");
+      fieldEnd.append(makeEl("label", null, "Range End"));
+      const inEnd = document.createElement("input");
+      inEnd.className = "form-control form-control-sm"; inEnd.id = "dhcpEnd";
+      inEnd.value = config.dhcpServer.rangeEnd || ""; inEnd.placeholder = "e.g. 192.168.1.200";
+      fieldEnd.appendChild(inEnd);
+      rangeGrid.append(fieldStart, fieldEnd);
+
+      const leases = makeEl("div", "small text-muted mt-2", `Active leases: ${config.dhcpServer.leases?.length || 0}`);
+
+      propsEl.append(fieldNetwork, fieldMask, fieldGw, rangeGrid, leases);
+
+      const actionsRow = makeEl("div", "sbx-config-actions");
+      const updateBtn = makeEl("button", "btn btn-teal btn-sm", "Update DHCP");
+      updateBtn.addEventListener("click", () => {
+        config.dhcpServer.enabled = getById("dhcpServerEnabled")?.checked ?? config.dhcpServer.enabled;
+        config.dhcpServer.network = getById("dhcpNetwork")?.value || "";
+        config.dhcpServer.mask = getById("dhcpMask")?.value || "";
+        config.dhcpServer.gateway = getById("dhcpGateway")?.value || "";
+        config.dhcpServer.rangeStart = getById("dhcpStart")?.value || "";
+        config.dhcpServer.rangeEnd = getById("dhcpEnd")?.value || "";
+        pushHistory();
         markDirtyAndSaveSoon();
+        showToast({ title: "DHCP updated", message: `${device.name} DHCP pool saved.`, variant: "success", timeout: 2200 });
       });
-      getById("dhcpNetwork")?.addEventListener("input", (e) => {
-        config.dhcpServer.network = e.target.value;
-        markDirtyAndSaveSoon();
-      });
-      getById("dhcpMask")?.addEventListener("input", (e) => {
-        config.dhcpServer.mask = e.target.value;
-        markDirtyAndSaveSoon();
-      });
-      getById("dhcpGateway")?.addEventListener("input", (e) => {
-        config.dhcpServer.gateway = e.target.value;
-        markDirtyAndSaveSoon();
-      });
-      getById("dhcpStart")?.addEventListener("input", (e) => {
-        config.dhcpServer.rangeStart = e.target.value;
-        markDirtyAndSaveSoon();
-      });
-      getById("dhcpEnd")?.addEventListener("input", (e) => {
-        config.dhcpServer.rangeEnd = e.target.value;
-        markDirtyAndSaveSoon();
-      });
+      actionsRow.appendChild(updateBtn);
+      propsEl.appendChild(actionsRow);
       return;
     }
 
     if (tab === "dns") {
       if (!config.dnsServer) {
-        propsEl.textContent = "DNS server configuration is not available for this device.";
+        propsEl.textContent = "DNS is not available for this device type.";
         return;
       }
 
-      const toggleWrap = makeEl("div", "form-check form-switch mb-2");
+      const toggleWrap = makeEl("div", "form-check form-switch mb-3");
       const enabledInput = document.createElement("input");
       enabledInput.className = "form-check-input";
       enabledInput.type = "checkbox";
@@ -2087,54 +2315,80 @@ Reworked to match the Figma AI version:
       propsEl.appendChild(toggleWrap);
 
       if (config.dnsServer.records.length) {
-        config.dnsServer.records.forEach((r) => {
-          const card = makeEl("div", "sbx-prop-card");
-          card.append(
+        const heading = makeEl("div", "small fw-semibold mb-1", "DNS Records");
+        propsEl.appendChild(heading);
+        config.dnsServer.records.forEach((r, idx) => {
+          const card = makeEl("div", "sbx-prop-card d-flex justify-content-between align-items-center");
+          const info = makeEl("div");
+          info.append(
             makeEl("strong", null, r.hostname || ""),
-            makeEl("div", "small text-muted", r.ip || "")
+            makeEl("div", "small text-muted", `→ ${r.ip || ""}`)
           );
+          const removeBtn = makeEl("button", "btn btn-outline-danger btn-sm");
+          removeBtn.textContent = "Remove";
+          removeBtn.style.fontSize = ".68rem";
+          removeBtn.addEventListener("click", () => {
+            config.dnsServer.records.splice(idx, 1);
+            pushHistory();
+            markDirtyAndSaveSoon();
+            renderProps();
+          });
+          card.append(info, removeBtn);
           propsEl.appendChild(card);
         });
       } else {
-        propsEl.appendChild(makeEl("div", "small text-muted", "No DNS records yet."));
+        propsEl.appendChild(makeEl("div", "small text-muted mb-2", "No DNS records yet."));
       }
 
-      const addBtn = makeEl("button", "btn btn-outline-secondary btn-sm mt-2", "Add DNS Record");
-      addBtn.id = "addDnsBtn";
-      propsEl.appendChild(addBtn);
-
-      getById("dnsServerEnabled")?.addEventListener("change", (e) => {
-        config.dnsServer.enabled = e.target.checked;
-        markDirtyAndSaveSoon();
-      });
-      getById("addDnsBtn")?.addEventListener("click", () => {
-        const hostname = prompt("Hostname (e.g., router.local)");
-        const ip = prompt("IP address");
+      const actionsRow = makeEl("div", "sbx-config-actions");
+      const addBtn = makeEl("button", "btn btn-outline-secondary btn-sm", "+ Add Record");
+      addBtn.addEventListener("click", () => {
+        const hostname = prompt("Hostname (e.g., server.local)");
+        const ip = prompt("IP address (e.g., 192.168.1.10)");
         if (!hostname || !ip) return;
         config.dnsServer.records.push({ hostname, ip });
+        config.dnsServer.enabled = getById("dnsServerEnabled")?.checked ?? config.dnsServer.enabled;
+        pushHistory();
         markDirtyAndSaveSoon();
         renderProps();
+        showToast({ title: "DNS record added", message: `${hostname} → ${ip}`, variant: "success", timeout: 2200 });
       });
+      const saveToggleBtn = makeEl("button", "btn btn-teal btn-sm", "Update DNS");
+      saveToggleBtn.addEventListener("click", () => {
+        config.dnsServer.enabled = getById("dnsServerEnabled")?.checked ?? config.dnsServer.enabled;
+        pushHistory();
+        markDirtyAndSaveSoon();
+        showToast({ title: "DNS updated", message: `${device.name} DNS settings saved.`, variant: "success", timeout: 2200 });
+      });
+      actionsRow.append(addBtn, saveToggleBtn);
+      propsEl.appendChild(actionsRow);
       return;
     }
 
     if (tab === "mac") {
       if (!config.macTable) {
-        propsEl.textContent = "MAC table not available for this device.";
+        propsEl.textContent = "MAC table is not available for this device type.";
         return;
       }
 
       if (config.macTable.length) {
+        const heading = makeEl("div", "small fw-semibold mb-1", "Learned MAC Addresses");
+        propsEl.appendChild(heading);
         config.macTable.forEach((m) => {
           const card = makeEl("div", "sbx-prop-card");
-          card.append(
+          const header = makeEl("div", "d-flex justify-content-between align-items-center");
+          header.append(
             makeEl("strong", null, m.macAddress || ""),
-            makeEl("div", "small text-muted", `Port: ${m.port || ""}`)
+            makeEl("span", "badge text-bg-light border", m.port || "")
           );
+          card.appendChild(header);
+          if (m.vlan) {
+            card.appendChild(makeEl("div", "small text-muted", `VLAN: ${m.vlan}`));
+          }
           propsEl.appendChild(card);
         });
       } else {
-        propsEl.appendChild(makeEl("div", "small text-muted", "MAC table is empty."));
+        propsEl.appendChild(makeEl("div", "small text-muted", "MAC address table is empty. Connect devices and send traffic to populate."));
       }
       return;
     }
@@ -2198,6 +2452,7 @@ Reworked to match the Figma AI version:
     updateEmptyState();
     renderDevices();
     renderConnections();
+    renderObjects();
     renderProps();
     renderInspector();
     renderObjectives();
@@ -2475,6 +2730,9 @@ Reworked to match the Figma AI version:
   function setPingResult(result, meta = {}) {
     state.pingInspector = result;
     renderInspector();
+    // Switch to Inspector tab so user sees the results
+    setRightTab("inspector");
+    showRightPanel();
     const resultBox = getById("pingResult");
     if (resultBox) {
       const cls = `sbx-ping-result ${result.success ? "is-success" : "is-fail"}`;
@@ -2670,8 +2928,17 @@ Reworked to match the Figma AI version:
         if (parts.length >= 3) {
           const src = state.devices.find((d) => d.name.toLowerCase() === parts[1]);
           const dst = state.devices.find((d) => d.name.toLowerCase() === parts[2]);
-          if (src && dst) executePing(src.id, dst.id);
-          else addConsoleOutput("Device not found");
+          if (src && dst) {
+            addConsoleOutput(`Pinging ${dst.name} from ${src.name}...`);
+            executePing(src.id, dst.id);
+            if (state.pingInspector) {
+              addConsoleOutput(state.pingInspector.success
+                ? `Reply from ${dst.config?.ipAddress || dst.name}: time=${state.pingInspector.latency || 1}ms`
+                : `Request failed: ${state.pingInspector.message || "No route"}`);
+            }
+          } else {
+            addConsoleOutput("Device not found. Use exact device names (case-insensitive).");
+          }
         } else {
           addConsoleOutput("Usage: ping <source> <destination>");
         }
@@ -3291,6 +3558,10 @@ Reworked to match the Figma AI version:
       });
     });
 
+    getById("sbxConfigBackBtn")?.addEventListener("click", () => {
+      hideConfigTab();
+    });
+
     qsa(".sbx-tab", getById("sbxBottomTabs")).forEach((tab) => {
       tab.addEventListener("click", () => {
         state.bottomTab = tab.getAttribute("data-bottom-tab");
@@ -3301,19 +3572,40 @@ Reworked to match the Figma AI version:
       });
     });
 
-    consoleSendBtn?.addEventListener("click", () => {
+    function submitConsoleCommand() {
       const value = consoleInputEl.value.trim();
       if (!value) return;
+      state.commandHistory.push(value);
+      state.commandHistoryIndex = state.commandHistory.length;
       executeCommand(value);
       consoleInputEl.value = "";
-    });
+    }
+
+    consoleSendBtn?.addEventListener("click", submitConsoleCommand);
 
     consoleInputEl?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        const value = consoleInputEl.value.trim();
-        if (!value) return;
-        executeCommand(value);
-        consoleInputEl.value = "";
+        submitConsoleCommand();
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (state.commandHistory.length && state.commandHistoryIndex > 0) {
+          state.commandHistoryIndex--;
+          consoleInputEl.value = state.commandHistory[state.commandHistoryIndex];
+        }
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (state.commandHistoryIndex < state.commandHistory.length - 1) {
+          state.commandHistoryIndex++;
+          consoleInputEl.value = state.commandHistory[state.commandHistoryIndex];
+        } else {
+          state.commandHistoryIndex = state.commandHistory.length;
+          consoleInputEl.value = "";
+        }
+        return;
       }
     });
 
@@ -3321,15 +3613,36 @@ Reworked to match the Figma AI version:
   }
 
   function bindStage() {
-    connectionLayer.style.pointerEvents = "all";
-    connectionLayer.addEventListener("click", (e) => {
-      const target = e.target;
-      if (target && target.dataset && target.dataset.connId) {
-        deleteConnection(target.dataset.connId);
+    // Connection delete: listen on stage, delegate to delete circles
+    // SVG stays pointer-events:none; only .sbx-conn-delete circles are clickable
+    // Device action buttons (config, copy, delete)
+    deviceLayer.addEventListener("click", (e) => {
+      const actionBtn = e.target.closest(".sbx-device-action");
+      if (!actionBtn) return;
+      e.stopPropagation();
+      const action = actionBtn.dataset.action;
+      const deviceId = actionBtn.dataset.deviceId;
+      if (!action || !deviceId) return;
+
+      if (action === "config") {
+        state.selectedIds = [deviceId];
+        showConfigTab();
+        renderAll();
+      } else if (action === "copy") {
+        state.selectedIds = [deviceId];
+        duplicateSelected();
+      } else if (action === "delete") {
+        deleteDevices([deviceId]);
       }
     });
 
     stage.addEventListener("click", (e) => {
+      const delGroup = e.target.closest(".sbx-conn-delete-group");
+      if (delGroup && delGroup.dataset && delGroup.dataset.connId) {
+        deleteConnection(delGroup.dataset.connId);
+        return;
+      }
+      // Click on empty stage area deselects
       if (e.target === stage || e.target === deviceLayer || e.target === connectionLayer) {
         if (state.tool === TOOL.SELECT) {
           state.selectedIds = [];
@@ -3339,6 +3652,9 @@ Reworked to match the Figma AI version:
     });
 
     deviceLayer.addEventListener("pointerdown", (e) => {
+      // Skip drag when clicking action buttons (gear, copy, delete)
+      if (e.target.closest(".sbx-device-action")) return;
+
       const deviceEl = e.target.closest(".sbx-device");
       if (!deviceEl) return;
       const id = deviceEl.dataset.id;
@@ -3370,6 +3686,10 @@ Reworked to match the Figma AI version:
         renderProps();
         updatePingVisibility();
 
+        // Re-query the device element — renderDevices() rebuilt the DOM
+        const freshEl = deviceLayer.querySelector(`[data-id="${id}"]`);
+        if (!freshEl) return;
+
         const rect = stage.getBoundingClientRect();
         const pointerX = (e.clientX - rect.left) / state.zoom;
         const pointerY = (e.clientY - rect.top) / state.zoom;
@@ -3378,9 +3698,12 @@ Reworked to match the Figma AI version:
           id,
           offsetX: pointerX - device.x,
           offsetY: pointerY - device.y,
-          el: deviceEl,
+          el: freshEl,
         };
-        deviceEl.setPointerCapture(e.pointerId);
+        freshEl.setPointerCapture(e.pointerId);
+        freshEl.classList.add("is-dragging");
+        // Hide delete controls immediately when drag starts
+        connectionLayer.querySelectorAll(".sbx-conn-delete-group").forEach(g => g.remove());
       }
     });
 
@@ -3396,11 +3719,13 @@ Reworked to match the Figma AI version:
       device.y = y;
       state.dragging.el.style.left = `${x}px`;
       state.dragging.el.style.top = `${y}px`;
-      renderConnections();
+      // Lightweight update — only move existing connection line paths, no rebuild
+      updateConnectionPaths();
     });
 
     window.addEventListener("pointerup", () => {
       if (!state.dragging) return;
+      state.dragging.el.classList.remove("is-dragging");
       const device = findDevice(state.dragging.id);
       if (device && state.snap) {
         device.x = Math.round(device.x / GRID_SIZE) * GRID_SIZE;
@@ -3548,8 +3873,8 @@ Reworked to match the Figma AI version:
         handleSaveTopology();
         return;
       }
-      // Ctrl+D - Duplicate selected
-      if ((e.ctrlKey || e.metaKey) && e.key === "d" && state.selectedIds.length) {
+      // Ctrl+D or Ctrl+C - Duplicate/copy selected device
+      if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "c") && state.selectedIds.length) {
         e.preventDefault();
         duplicateSelected();
         return;
@@ -3693,18 +4018,9 @@ Reworked to match the Figma AI version:
         }
         case "interfaces": {
           state.selectedIds = [deviceId];
-          state.rightTab = "config";
           state.configTab = "interfaces";
+          showConfigTab();
           renderAll();
-          // Switch tabs visually
-          const tabsWrap = getById("sbxRightTabs");
-          if (tabsWrap) {
-            qsa(".sbx-tab", tabsWrap).forEach((t) => t.classList.remove("is-active"));
-            const configTab = qs('.sbx-tab[data-tab="config"]', tabsWrap);
-            if (configTab) configTab.classList.add("is-active");
-          }
-          qsa(".sbx-tabpanel", rightPanel).forEach((p) => p.classList.remove("is-active"));
-          getById("panelConfig")?.classList.add("is-active");
           qsa(".sbx-subtab", getById("sbxConfigTabs")).forEach((s) => s.classList.remove("is-active"));
           const intTab = qs('.sbx-subtab[data-subtab="interfaces"]', getById("sbxConfigTabs"));
           if (intTab) intTab.classList.add("is-active");
@@ -3812,6 +4128,7 @@ Reworked to match the Figma AI version:
     // The existing pointerdown on .sbx-device in bindStage sets selectedIds = [id].
     // We override by adding a capturing listener that detects shift.
     deviceLayer.addEventListener("pointerdown", (e) => {
+      if (e.target.closest(".sbx-device-action")) return;
       const deviceEl = e.target.closest(".sbx-device");
       if (!deviceEl || !e.shiftKey) return;
       e.stopPropagation();
