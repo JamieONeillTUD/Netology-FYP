@@ -50,9 +50,7 @@ Features:
 
     wireChrome(user);
     wireTabNavigation();
-    wirePreferencesSave();
     initAppearanceControls();
-    wireSecurityActions();
 
     await loadProfileData(user);
     await loadLearningStats(user);
@@ -382,117 +380,6 @@ Features:
       cell.className = `activity-cell level-${level}`;
       cell.title = `${dateStr}: ${level} activities`;
       container.appendChild(cell);
-    }
-  }
-
-  /* Wire Preferences Save */
-  async function wirePreferencesSave() {
-    const prefs = [
-      'notifWeekly', 'notifStreak', 'notifNewCourses', 'notifAchievements',
-      'privacyProfile', 'privacyStats', 'privacyActivity'
-    ];
-
-    // Try to load preferences from the API first, fall back to localStorage
-    const user = getCurrentUser();
-    let serverPrefs = null;
-    try {
-      const prefsEndpoint = ENDPOINTS.preferences?.get || "/api/user/preferences";
-      serverPrefs = await apiGet(prefsEndpoint, { user_email: user?.email });
-    } catch (err) {
-      console.warn('Could not load preferences from server, using localStorage:', err);
-    }
-
-    prefs.forEach(pref => {
-      const el = document.getElementById(pref);
-      if (!el) return;
-
-      // Server prefs take priority, then localStorage, then HTML default
-      if (serverPrefs && serverPrefs[pref] !== undefined && serverPrefs[pref] !== null) {
-        el.checked = serverPrefs[pref] === true || serverPrefs[pref] === 'true';
-        localStorage.setItem(`netology_pref_${pref}`, el.checked);
-      } else {
-        const saved = localStorage.getItem(`netology_pref_${pref}`);
-        if (saved !== null) {
-          el.checked = saved === 'true';
-        }
-      }
-
-      // Save on change
-      el.addEventListener('change', (e) => {
-        localStorage.setItem(`netology_pref_${pref}`, e.target.checked);
-        try {
-          const API_BASE = getApiBase();
-          const prefsEndpoint = ENDPOINTS.preferences?.update || "/api/user/preferences";
-          fetch(`${API_BASE}${prefsEndpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_email: user?.email,
-              [pref]: e.target.checked
-            })
-          }).catch(err => console.error('Preference save error:', err));
-        } catch (err) {
-          console.error('Preference update failed:', err);
-        }
-      });
-    });
-  }
-
-  /* Wire Security Actions */
-  function wireSecurityActions() {
-    const logoutAllBtn = document.getElementById('logoutAllBtn');
-    const deleteAccountBtn = document.getElementById('deleteAccountBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-
-    if (logoutAllBtn) {
-      logoutAllBtn.addEventListener('click', () => {
-        if (confirm('Log out from all devices? You will be signed out of this session.')) {
-          try {
-            const API_BASE = getApiBase();
-            const logoutPath = ENDPOINTS.auth?.logout || "/logout";
-            fetch(`${API_BASE}${logoutPath}`, { method: 'GET' }).finally(() => {
-              localStorage.removeItem('netology_user');
-              window.location.href = 'login.html';
-            });
-          } catch (err) {
-            console.error('Logout error:', err);
-          }
-        }
-      });
-    }
-
-    if (deleteAccountBtn) {
-      deleteAccountBtn.addEventListener('click', () => {
-        if (confirm('Are you sure? This action cannot be undone.\n\nType "DELETE" to confirm.')) {
-          const confirmation = prompt('Type DELETE to confirm account deletion:');
-          if (confirmation === 'DELETE') {
-            try {
-              alert('Account deletion is not enabled in this deployment. Logging you out instead.');
-              localStorage.removeItem('netology_user');
-              window.location.href = 'index.html';
-            } catch (err) {
-              console.error('Delete error:', err);
-            }
-          }
-        }
-      });
-    }
-
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        try {
-          const API_BASE = getApiBase();
-          const logoutPath = ENDPOINTS.auth?.logout || "/logout";
-          fetch(`${API_BASE}${logoutPath}`, { method: 'GET' }).finally(() => {
-            localStorage.removeItem('netology_user');
-            window.location.href = 'login.html';
-          });
-        } catch (err) {
-          console.error('Logout error:', err);
-          localStorage.removeItem('netology_user');
-          window.location.href = 'login.html';
-        }
-      });
     }
   }
 

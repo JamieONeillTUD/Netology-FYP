@@ -1070,9 +1070,9 @@ class OnboardingTour {
 
     const html = document.documentElement;
     const body = document.body;
-    if (html) html.classList.remove('net-onboarding-lock', 'net-onboarding-noscroll');
+    if (html) html.classList.remove('net-onboarding-lock');
     if (body) {
-      body.classList.remove('net-onboarding-lock', 'net-onboarding-noscroll');
+      body.classList.remove('net-onboarding-lock');
       body.style.paddingRight = '';
     }
 
@@ -1086,11 +1086,13 @@ class OnboardingTour {
   }
 
   setScrollLock(enabled) {
-    const html = document.documentElement;
-    const body = document.body;
-    if (!html || !body) return;
-    html.classList.toggle('net-onboarding-noscroll', Boolean(enabled));
-    body.classList.toggle('net-onboarding-noscroll', Boolean(enabled));
+    // Scroll blocking is now handled entirely by JS event listeners.
+    // CSS overflow:hidden was removed because it reset scrollY position.
+    if (enabled) {
+      this.attachScrollBlockers();
+    } else {
+      this.detachScrollBlockers();
+    }
   }
 
   attachScrollBlockers() {
@@ -1194,14 +1196,11 @@ class OnboardingTour {
   async focusTarget(element) {
     if (!element) return;
 
-    // Fully remove scroll locks so scrollTo actually works
-    const html = document.documentElement;
-    const body = document.body;
-    html.classList.remove('net-onboarding-noscroll');
-    body.classList.remove('net-onboarding-noscroll');
+    // Temporarily allow programmatic scrolling by detaching event blockers.
+    // We no longer toggle CSS overflow:hidden — that was resetting scrollY
+    // and causing the page to jump back to the top.
     this.detachScrollBlockers();
 
-    // Measure after unlocking so layout is correct
     await this.waitForFrames(1);
     const rect = element.getBoundingClientRect();
     const targetTop = Math.max(
@@ -1217,8 +1216,6 @@ class OnboardingTour {
 
     // Re-lock user scroll after programmatic scroll completes
     this.attachScrollBlockers();
-    html.classList.add('net-onboarding-noscroll');
-    body.classList.add('net-onboarding-noscroll');
   }
 
   async showStep(stepIndex, direction = 1) {

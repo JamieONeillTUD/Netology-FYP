@@ -9138,9 +9138,10 @@ body.net-sigma .net-meter-fill {
   line-height: 1.5;
 }
 
-html.net-onboarding-noscroll,
-body.net-onboarding-noscroll {
-  overflow: hidden;
+html.net-onboarding-noscroll {
+  /* Do NOT set overflow: hidden here — it resets scrollY and causes
+     the page to jump to the top.  Scroll blocking is handled entirely
+     by JS event listeners (wheel / touchmove / keydown). */
 }
 
 html.net-onboarding-lock,
@@ -9455,10 +9456,32 @@ body.net-onboarding-lock .onboarding-tooltip * {
 }
 
 .net-course-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
   gap: 1.25rem;
-  padding: 0.5rem 0;
+  padding: 0.75rem 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--net-teal) transparent;
+  padding-bottom: 0.5rem;
+}
+
+.net-course-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.net-course-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.net-course-grid::-webkit-scrollbar-thumb {
+  background: rgba(13, 148, 136, 0.3);
+  border-radius: 3px;
+}
+
+.net-course-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--net-teal);
 }
 
 .net-course-card {
@@ -9466,13 +9489,18 @@ body.net-onboarding-lock .onboarding-tooltip * {
   flex-direction: column;
   background: #fff;
   border: 1px solid var(--net-border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 1.5rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  min-height: 280px;
+  min-height: 260px;
+  min-width: 300px;
+  max-width: 340px;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  backdrop-filter: blur(8px);
 }
 
 /* Difficulty color-coded cards */
@@ -9560,7 +9588,8 @@ body.net-onboarding-lock .onboarding-tooltip * {
 }
 
 .net-course-card:hover {
-  transform: translateY(-8px);
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.1);
 }
 
 .net-course-card:hover::before {
@@ -9967,8 +9996,9 @@ body.net-onboarding-lock .onboarding-tooltip * {
 
 /* Grid responsive adjustments for courses */
 @media (max-width: 575.98px) {
-  .net-course-grid {
-    grid-template-columns: 1fr;
+  .net-course-card {
+    min-width: 260px;
+    max-width: 280px;
   }
 }
 

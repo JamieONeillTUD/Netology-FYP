@@ -177,7 +177,7 @@
             <i class="bi bi-person me-1"></i>Profile
           </button>
           <button class="btn btn-sm btn-outline-teal" role="tab" data-tab="preferences" aria-selected="false" data-tour="account-tab-preferences">
-            <i class="bi bi-gear me-1"></i>Preferences
+            <i class="bi bi-palette me-1"></i>Appearance
           </button>
           <button class="btn btn-sm btn-outline-teal" role="tab" data-tab="security" aria-selected="false" data-tour="account-tab-security">
             <i class="bi bi-shield-lock me-1"></i>Security
@@ -193,7 +193,7 @@
     <section class="mx-4 mb-4 account-tab" data-tab="profile" role="tabpanel">
       <div class="row g-3">
         <div class="col-lg-8">
-          <div class="net-card p-4" data-tour="account-appearance">
+          <div class="net-card p-4">
             <h4 class="fw-bold mb-3"><i class="bi bi-person-circle me-2"></i>Profile Information</h4>
             
             <div class="mb-3">
@@ -257,7 +257,7 @@
         </div>
 
         <div class="col-lg-4">
-          <div class="net-card p-4" data-tour="account-accessibility">
+          <div class="net-card p-4">
             <h5 class="fw-bold mb-3"><i class="bi bi-trophy me-2"></i>Rank Progress</h5>
             <div class="text-center mb-3">
               <div class="fs-1 fw-bold text-teal" id="rankDisplayLarge">1</div>
@@ -285,81 +285,11 @@
       </div>
     </section>
 
-    <!-- Tab: Preferences -->
+    <!-- Tab: Preferences (Appearance & Accessibility) -->
     <section class="mx-4 mb-4 account-tab d-none" data-tab="preferences" role="tabpanel">
       <div class="row g-3">
         <div class="col-lg-6">
-          <div class="net-card p-4">
-            <h5 class="fw-bold mb-3"><i class="bi bi-bell me-2"></i>Notifications</h5>
-            
-            <div class="form-check form-switch net-switch mb-3">
-              <input class="form-check-input" type="checkbox" id="notifWeekly" checked>
-              <label class="form-check-label" for="notifWeekly">
-                <strong>Weekly Summary</strong>
-                <div class="small text-muted">Get a summary of your learning progress</div>
-              </label>
-            </div>
-
-            <div class="form-check form-switch net-switch mb-3">
-              <input class="form-check-input" type="checkbox" id="notifStreak" checked>
-              <label class="form-check-label" for="notifStreak">
-                <strong>Streak Reminders</strong>
-                <div class="small text-muted">Reminder to maintain your learning streak</div>
-              </label>
-            </div>
-
-            <div class="form-check form-switch net-switch mb-3">
-              <input class="form-check-input" type="checkbox" id="notifNewCourses" checked>
-              <label class="form-check-label" for="notifNewCourses">
-                <strong>New Course Alerts</strong>
-                <div class="small text-muted">Notification when new courses are available</div>
-              </label>
-            </div>
-
-            <div class="form-check form-switch net-switch">
-              <input class="form-check-input" type="checkbox" id="notifAchievements" checked>
-              <label class="form-check-label" for="notifAchievements">
-                <strong>Achievement Unlocked</strong>
-                <div class="small text-muted">Notify when you earn new achievements</div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-6">
-          <div class="net-card p-4">
-            <h5 class="fw-bold mb-3"><i class="bi bi-eye me-2"></i>Privacy</h5>
-            
-            <div class="form-check form-switch net-switch mb-3">
-              <input class="form-check-input" type="checkbox" id="privacyProfile" checked>
-              <label class="form-check-label" for="privacyProfile">
-                <strong>Public Profile</strong>
-                <div class="small text-muted">Allow other users to view your profile</div>
-              </label>
-            </div>
-
-            <div class="form-check form-switch net-switch mb-3">
-              <input class="form-check-input" type="checkbox" id="privacyStats" checked>
-              <label class="form-check-label" for="privacyStats">
-                <strong>Show Learning Stats</strong>
-                <div class="small text-muted">Display your achievements and progress publicly</div>
-              </label>
-            </div>
-
-            <div class="form-check form-switch net-switch">
-              <input class="form-check-input" type="checkbox" id="privacyActivity" unchecked>
-              <label class="form-check-label" for="privacyActivity">
-                <strong>Activity Tracking</strong>
-                <div class="small text-muted">Help improve Netology with usage analytics</div>
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row g-3 mt-1">
-        <div class="col-lg-6">
-          <div class="net-card p-4">
+          <div class="net-card p-4" data-tour="account-appearance">
             <h5 class="fw-bold mb-3"><i class="bi bi-palette me-2"></i>Appearance</h5>
 
             <div class="mb-3">
@@ -376,7 +306,7 @@
         </div>
 
         <div class="col-lg-6">
-          <div class="net-card p-4">
+          <div class="net-card p-4" data-tour="account-accessibility">
             <h5 class="fw-bold mb-3"><i class="bi bi-universal-access-circle me-2"></i>Accessibility</h5>
 
             <div class="form-check form-switch net-switch">
@@ -397,23 +327,22 @@
         <div class="col-lg-8">
           <div class="net-card p-4">
             <h5 class="fw-bold mb-3"><i class="bi bi-shield-lock me-2"></i>Password & Security</h5>
-            
+
             <div class="mb-3">
-              <label class="form-label small fw-semibold text-muted">Last Password Change</label>
-              <div class="alert alert-info alert-sm p-3" role="alert">
-                <i class="bi bi-info-circle me-2"></i>
-                <span id="lastPasswordChangeText">Password last changed on Dec 10, 2025</span>
-              </div>
+              <label class="form-label small fw-semibold text-muted">Password</label>
+              <p class="text-muted small mb-3">You can reset your password via the password reset page.</p>
             </div>
 
-            <a href="forgot.html" class="btn btn-outline-teal btn-sm mb-4">
+            <a href="forgot.html" class="btn btn-outline-teal btn-sm">
               <i class="bi bi-key me-2"></i>Change Password
             </a>
+          </div>
+        </div>
 
-            <hr class="my-4">
+        <div class="col-lg-4">
+          <div class="net-card p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-shield-check me-2"></i>Session</h6>
 
-            <h6 class="fw-bold mb-3"><i class="bi bi-shield-check me-2"></i>Active Sessions</h6>
-            
             <div class="alert alert-success alert-sm p-3" role="alert">
               <div class="d-flex align-items-start gap-2">
                 <i class="bi bi-check-circle"></i>
@@ -422,30 +351,6 @@
                   <div class="small text-muted mt-1">Last active: <span id="lastActiveText">Just now</span></div>
                 </div>
               </div>
-            </div>
-
-            <div class="small text-muted">
-              <i class="bi bi-info-circle me-1"></i>
-              You have <strong>1 active session</strong>. Log out from other devices if needed.
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-4">
-          <div class="net-card p-4 border-danger">
-            <h6 class="fw-bold mb-3 text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Danger Zone</h6>
-            
-            <div class="d-grid gap-2">
-              <button class="btn btn-outline-danger btn-sm" id="logoutAllBtn">
-                <i class="bi bi-box-arrow-right me-2"></i>Logout All Devices
-              </button>
-              <button class="btn btn-outline-danger btn-sm" id="deleteAccountBtn">
-                <i class="bi bi-trash me-2"></i>Delete Account
-              </button>
-            </div>
-
-            <div class="alert alert-danger alert-sm mt-3 p-2" role="alert">
-              <small>Deleting your account is permanent and cannot be undone.</small>
             </div>
           </div>
         </div>
@@ -457,7 +362,7 @@
       <div class="row g-3">
         <div class="col-lg-12">
           <div class="net-card p-4">
-            <h5 class="fw-bold mb-3"><i class="bi bi-calendar3 me-2"></i>Login Activity (Last 90 Days)</h5>
+            <h5 class="fw-bold mb-3"><i class="bi bi-calendar3 me-2"></i>Learning Activity (Last 90 Days)</h5>
             <div id="activityHeatmapContainer" data-tour="account-activity-heatmap"></div>
             <div class="d-flex align-items-center gap-2 small text-muted mt-2">
               <span>Less</span>
@@ -470,29 +375,7 @@
             </div>
             <div class="small text-muted mt-3">
               <i class="bi bi-info-circle me-1"></i>
-              Darker colors indicate more active days.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row g-3 mt-1">
-        <div class="col-lg-6">
-          <div class="net-card p-4">
-            <h6 class="fw-bold mb-3"><i class="bi bi-clock-history me-2"></i>Recent Sessions</h6>
-            <div id="recentSessionsList">
-              <div class="small text-muted">No session history</div>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-6">
-          <div class="net-card p-4">
-            <h6 class="fw-bold mb-3"><i class="bi bi-geo-alt me-2"></i>Login Locations</h6>
-            <div id="loginLocationsList">
-              <div class="small text-muted">
-                <i class="bi bi-shield-check me-2"></i>
-                All logins from: MacOS
-              </div>
+              Darker colours indicate more active days.
             </div>
           </div>
         </div>
