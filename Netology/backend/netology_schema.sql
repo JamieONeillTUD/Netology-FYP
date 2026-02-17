@@ -362,7 +362,7 @@ CREATE TABLE IF NOT EXISTS user_daily_activity (
     last_activity_time TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_email, activity_date)
+    UNIQUE (user_email, activity_date)
 );
 
 -- =========================================================
@@ -389,7 +389,7 @@ CREATE TABLE IF NOT EXISTS user_challenge_progress (
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP,
     progress_percent INTEGER DEFAULT 0,
-    PRIMARY KEY (user_email, challenge_id)
+    UNIQUE (user_email, challenge_id)
 );
 
 -- Update existing tables with new columns

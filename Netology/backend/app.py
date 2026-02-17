@@ -526,43 +526,78 @@ def get_progress_stats():
 def get_user_challenges():
     """Get daily/weekly challenges for user"""
     from db import get_db_connection
-    
+
     user_email = request.args.get('user_email')
     challenge_type = request.args.get('type', 'daily')
-    
-    conn = get_db_connection()
-    cur = conn.cursor()
-    
+
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Ensure tables exist
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS challenges (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(150) NOT NULL,
+                description TEXT,
+                challenge_type VARCHAR(50),
+                difficulty VARCHAR(50),
+                xp_reward INTEGER DEFAULT 50,
+                required_action VARCHAR(100),
+                action_target VARCHAR(255),
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_challenge_progress (
+                id SERIAL PRIMARY KEY,
+                user_email VARCHAR(255) NOT NULL,
+                challenge_id INTEGER NOT NULL,
+                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                progress_percent INTEGER DEFAULT 0,
+                UNIQUE (user_email, challenge_id)
+            )
+        """)
+        conn.commit()
+
         cur.execute("""
             SELECT c.id, c.title, c.description, c.xp_reward, c.challenge_type,
                    COALESCE(ucp.progress_percent, 0) as progress
             FROM challenges c
-            LEFT JOIN user_challenge_progress ucp 
+            LEFT JOIN user_challenge_progress ucp
                 ON c.id = ucp.challenge_id AND ucp.user_email = %s
             WHERE c.challenge_type = %s AND c.is_active = TRUE
             LIMIT 5
         """, (user_email, challenge_type))
-        
-        challenges = [{'id': r[0], 'title': r[1], 'description': r[2], 'xp': r[3], 'type': r[4], 'progress': r[5]} 
+
+        challenges = [{'id': r[0], 'title': r[1], 'description': r[2], 'xp': r[3], 'type': r[4], 'progress': r[5]}
                       for r in cur.fetchall()]
-        
+
         return jsonify({'success': True, 'challenges': challenges})
+    except Exception as e:
+        print(f"Challenges endpoint error: {e}")
+        return jsonify({'success': False, 'challenges': [], 'message': str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        try:
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
 
 @app.get('/api/user/achievements')
 def get_user_achievements():
     """Get user's achievements"""
     from db import get_db_connection
-    
+
     user_email = request.args.get('user_email')
-    
-    conn = get_db_connection()
-    cur = conn.cursor()
-    
+
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
         cur.execute("""
             SELECT a.id, a.name, a.description, a.rarity, a.icon
             FROM achievements a
@@ -570,10 +605,10 @@ def get_user_achievements():
             WHERE ua.user_email = %s
             ORDER BY ua.earned_at DESC
         """, (user_email,))
-        
-        unlocked = [{'id': r[0], 'name': r[1], 'description': r[2], 'rarity': r[3], 'icon': r[4]} 
+
+        unlocked = [{'id': r[0], 'name': r[1], 'description': r[2], 'rarity': r[3], 'icon': r[4]}
                     for r in cur.fetchall()]
-        
+
         cur.execute("""
             SELECT id, name, description, rarity, icon
             FROM achievements
@@ -581,10 +616,10 @@ def get_user_achievements():
                 SELECT achievement_id FROM user_achievements WHERE user_email = %s
             )
         """, (user_email,))
-        
-        locked = [{'id': r[0], 'name': r[1], 'description': r[2], 'rarity': r[3], 'icon': r[4]} 
+
+        locked = [{'id': r[0], 'name': r[1], 'description': r[2], 'rarity': r[3], 'icon': r[4]}
                   for r in cur.fetchall()]
-        
+
         return jsonify({
             'success': True,
             'unlocked': unlocked,
@@ -592,9 +627,15 @@ def get_user_achievements():
             'total_unlocked': len(unlocked),
             'total_available': len(unlocked) + len(locked)
         })
+    except Exception as e:
+        print(f"Achievements endpoint error: {e}")
+        return jsonify({'success': False, 'unlocked': [], 'locked': [], 'message': str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        try:
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
 
 # =========================================================
 # USER PREFERENCES ENDPOINTS

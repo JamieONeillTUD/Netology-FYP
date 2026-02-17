@@ -1271,8 +1271,9 @@ What this file does:
     setText("courseDescription", state.course.description);
     setText("breadcrumbCourse", state.course.title || "Course");
 
-    const moduleCount = state.course.modules.length || state.course.total_lessons || 0;
-    setText("metaModules", `${moduleCount} lessons`);
+    const moduleCount = state.course.modules.length || 0;
+    const totalItems = getRequiredItems().length;
+    setText("metaModules", `${moduleCount} module${moduleCount === 1 ? "" : "s"} · ${totalItems} items`);
     setText("metaTime", state.course.estimatedTime || "—");
     setText("metaXP", `${state.course.totalXP} XP Total`);
 

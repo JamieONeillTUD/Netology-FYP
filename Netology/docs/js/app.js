@@ -1044,8 +1044,11 @@ class OnboardingTour {
     const scrollbarWidth = Math.max(0, window.innerWidth - html.clientWidth);
     this.scrollbarCompensation = scrollbarWidth;
 
-    html.classList.add('net-onboarding-lock', 'net-onboarding-noscroll');
-    body.classList.add('net-onboarding-lock', 'net-onboarding-noscroll');
+    // Only lock pointer events — do NOT lock scroll here.
+    // Scroll is managed per-step via focusTarget so the page can
+    // programmatically scroll to bring elements into view.
+    html.classList.add('net-onboarding-lock');
+    body.classList.add('net-onboarding-lock');
 
     if (scrollbarWidth > 0) {
       body.style.paddingRight = `${scrollbarWidth}px`;
@@ -1053,6 +1056,12 @@ class OnboardingTour {
 
     this.attachScrollBlockers();
     this.attachResizeHandler();
+
+    // Escape-key safety hatch so the user is never permanently stuck
+    this._escHandler = (e) => {
+      if (e.key === 'Escape') this.skipTour();
+    };
+    window.addEventListener('keydown', this._escHandler);
   }
 
   unlockScreen() {
@@ -1069,6 +1078,11 @@ class OnboardingTour {
 
     this.detachScrollBlockers();
     this.detachResizeHandler();
+
+    if (this._escHandler) {
+      window.removeEventListener('keydown', this._escHandler);
+      this._escHandler = null;
+    }
   }
 
   setScrollLock(enabled) {
@@ -1179,53 +1193,70 @@ class OnboardingTour {
 
   async focusTarget(element) {
     if (!element) return;
+
+    // Fully remove scroll locks so scrollTo actually works
+    const html = document.documentElement;
+    const body = document.body;
+    html.classList.remove('net-onboarding-noscroll');
+    body.classList.remove('net-onboarding-noscroll');
+    this.detachScrollBlockers();
+
+    // Measure after unlocking so layout is correct
+    await this.waitForFrames(1);
     const rect = element.getBoundingClientRect();
     const targetTop = Math.max(
       0,
       window.scrollY + rect.top - (window.innerHeight / 2 - rect.height / 2)
     );
     const distance = Math.abs(window.scrollY - targetTop);
-    if (distance < 4) return;
 
-    const wasLocked = this.isLocked;
-    if (wasLocked) {
-      this.setScrollLock(false);
-      this.detachScrollBlockers();
+    if (distance >= 4) {
+      window.scrollTo({ top: targetTop, behavior: 'smooth' });
+      await this.waitForScrollRest();
     }
 
-    window.scrollTo({ top: targetTop, behavior: 'smooth' });
-    await this.waitForScrollRest();
-
-    if (wasLocked) {
-      this.attachScrollBlockers();
-      this.setScrollLock(true);
-    }
+    // Re-lock user scroll after programmatic scroll completes
+    this.attachScrollBlockers();
+    html.classList.add('net-onboarding-noscroll');
+    body.classList.add('net-onboarding-noscroll');
   }
 
-  async showStep(stepIndex) {
-    if (stepIndex < 0 || stepIndex >= this.steps.length) return;
-
-    this.currentStepIndex = stepIndex;
-    const step = this.steps[stepIndex];
-    const token = ++this.stepToken;
-
-    if (step?.tab) {
-      this.activateTab(step.tab);
-      await this.waitForFrames();
+  async showStep(stepIndex, direction = 1) {
+    // Clamp and skip missing targets in the given direction so the user
+    // is never stuck on an element the current page doesn't have.
+    let idx = stepIndex;
+    const visited = new Set();
+    while (idx >= 0 && idx < this.steps.length) {
+      if (visited.has(idx)) break;
+      visited.add(idx);
+      const step = this.steps[idx];
+      if (step?.tab) {
+        this.activateTab(step.tab);
+        await this.waitForFrames();
+      }
+      const el = document.querySelector(`[data-tour="${step.target}"]`);
+      if (el) {
+        // Found a visible target — use it
+        this.currentStepIndex = idx;
+        const token = ++this.stepToken;
+        this.currentTarget = el;
+        await this.focusTarget(el);
+        if (token !== this.stepToken) return;
+        this.updateSpotlight(el);
+        this.updateTooltip(step, el);
+        return;
+      }
+      console.warn(`Tour target [data-tour="${step.target}"] not found — skipping`);
+      idx += direction;
     }
-
-    const targetElement = document.querySelector(`[data-tour="${step.target}"]`);
-    if (!targetElement) {
-      console.warn(`Target element [data-tour="${step.target}"] not found`);
-      return;
+    // Every remaining step was missing — finish the stage
+    console.warn("No remaining tour targets found on this page — completing stage.");
+    if (typeof this.onComplete === "function") {
+      await this.onComplete();
+      this.closeTour();
+    } else {
+      this.completeTour();
     }
-
-    this.currentTarget = targetElement;
-    await this.focusTarget(targetElement);
-
-    if (token !== this.stepToken) return;
-    this.updateSpotlight(targetElement);
-    this.updateTooltip(step, targetElement);
   }
 
   updateSpotlight(element) {
@@ -1250,45 +1281,62 @@ class OnboardingTour {
 
   updateTooltip(step, targetElement) {
     const rect = targetElement.getBoundingClientRect();
-    
+
     let html = `
       <h3>${escapeHtml(step.title)}</h3>
       <p>${escapeHtml(step.description)}</p>
-      <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+      <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
         <span style="font-size: 12px; color: #999;">Step ${this.currentStepIndex + 1} of ${this.steps.length}</span>
         ${this.currentStepIndex > 0 ? '<button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()">← Back</button>' : ''}
         <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
-        ${this.currentStepIndex < this.steps.length - 1 
+        ${this.currentStepIndex < this.steps.length - 1
           ? '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Next →</button>'
-          : '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish! 🎉</button>'}
+          : '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish!</button>'}
       </div>
     `;
-    
+
     this.tooltipElement.innerHTML = html;
 
-    // Position tooltip within viewport
+    // Let browser lay out the tooltip so we can measure it accurately
+    this.tooltipElement.style.top = '0';
+    this.tooltipElement.style.left = '0';
+    this.tooltipElement.style.visibility = 'hidden';
+
     const gap = 18;
+    const margin = 16;
     const tooltipWidth = this.tooltipElement.offsetWidth;
     const tooltipHeight = this.tooltipElement.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
     const centerX = rect.left + rect.width / 2;
 
+    // Horizontal: centre on target, clamped to viewport
     let left = Math.min(
-      Math.max(centerX - tooltipWidth / 2, 16),
-      window.innerWidth - tooltipWidth - 16
+      Math.max(centerX - tooltipWidth / 2, margin),
+      vw - tooltipWidth - margin
     );
 
-    const spaceBelow = window.innerHeight - rect.bottom;
+    // Vertical: prefer below target, then above, then pin to bottom
+    const spaceBelow = vh - rect.bottom;
     const spaceAbove = rect.top;
-    let top = rect.bottom + gap;
+    let top;
 
-    if (spaceBelow < tooltipHeight + gap && spaceAbove > tooltipHeight + gap) {
+    if (spaceBelow >= tooltipHeight + gap) {
+      top = rect.bottom + gap;
+    } else if (spaceAbove >= tooltipHeight + gap) {
       top = rect.top - tooltipHeight - gap;
-    } else if (spaceBelow < tooltipHeight + gap) {
-      top = Math.max(16, window.innerHeight - tooltipHeight - 16);
+    } else {
+      // Not enough room either side — pin to bottom of viewport
+      top = vh - tooltipHeight - margin;
     }
+
+    // Final clamp so the tooltip is never off-screen
+    top = Math.max(margin, Math.min(top, vh - tooltipHeight - margin));
+    left = Math.max(margin, Math.min(left, vw - tooltipWidth - margin));
 
     this.tooltipElement.style.top = `${top}px`;
     this.tooltipElement.style.left = `${left}px`;
+    this.tooltipElement.style.visibility = '';
 
     if (typeof this.tooltipElement.focus === 'function') {
       this.tooltipElement.focus({ preventScroll: true });
@@ -1297,13 +1345,13 @@ class OnboardingTour {
 
   nextStep() {
     if (this.currentStepIndex < this.steps.length - 1) {
-      this.showStep(this.currentStepIndex + 1);
+      this.showStep(this.currentStepIndex + 1, 1);
     }
   }
 
   prevStep() {
     if (this.currentStepIndex > 0) {
-      this.showStep(this.currentStepIndex - 1);
+      this.showStep(this.currentStepIndex - 1, -1);
     }
   }
 
@@ -1323,20 +1371,21 @@ class OnboardingTour {
   }
 
   async skipTour() {
-    if (confirm("Skip the onboarding tour?")) {
-      if (typeof this.onSkip === "function") {
-        await this.onSkip();
-        this.closeTour();
-        return;
-      }
+    // Skip immediately — don't use confirm() which can be blocked by the lock
+    if (typeof this.onSkip === "function") {
+      await this.onSkip();
+      this.closeTour();
+      return;
+    }
 
+    try {
       await apiPost(ENDPOINTS.onboarding?.skip || "/api/onboarding/skip", {
         user_email: this.userEmail
       });
+    } catch {}
 
-      this.closeTour();
-      window.location.href = "/dashboard.html";
-    }
+    this.closeTour();
+    window.location.href = "/dashboard.html";
   }
 
   closeTour() {

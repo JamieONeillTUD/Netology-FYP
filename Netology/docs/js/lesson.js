@@ -179,6 +179,15 @@ class LessonViewer {
     setText('breadcrumbCourse', courseName);
     setText('breadcrumbModule', unitTitle);
     setText('breadcrumbLesson', lessonTitle);
+
+    // Update "Back to Course" link with course context
+    const backLink = document.getElementById('backToCourse');
+    if (backLink && this.courseId) {
+      const bp = new URLSearchParams();
+      bp.set('id', this.courseId);
+      if (this.contentId) bp.set('content_id', this.contentId);
+      backLink.href = `course.html?${bp.toString()}`;
+    }
     setText('sidebarCourseName', courseName);
     setText('sidebarEstimatedTime', data.estimated_time || data.duration || '8-12 min');
 

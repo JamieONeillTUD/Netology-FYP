@@ -7008,6 +7008,24 @@ body.net-course-page.net-landing::after {
   }
 }
 
+.net-course-hero-left {
+  min-width: 0;
+}
+
+.net-course-hero-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 991.98px) {
+  .net-course-hero-right {
+    order: -1;
+    padding-bottom: 8px;
+  }
+}
+
 .net-course-title {
   font-weight: 950;
   letter-spacing: .2px;
@@ -7319,6 +7337,61 @@ body.net-course-page.net-landing::after {
   background: rgba(59, 130, 246, .14);
   border: 1px solid rgba(59, 130, 246, .24);
   color: #2563eb;
+}
+
+/* Module icon (course page accordion headers) */
+.net-module-ico {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 1.35rem;
+  background: linear-gradient(135deg, #14b8a6, #06b6d4);
+  box-shadow: 0 10px 28px rgba(20, 184, 166, .28);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.net-module-card:hover .net-module-ico {
+  transform: scale(1.06);
+  box-shadow: 0 14px 36px rgba(20, 184, 166, .36);
+}
+
+.net-module-card .net-module-ico .text-muted {
+  color: rgba(255, 255, 255, .65) !important;
+}
+
+/* Module body background when expanded */
+.net-module-body-bg {
+  background: linear-gradient(180deg, rgba(241, 245, 249, .6), rgba(255, 255, 255, .2));
+  border-radius: 0 0 24px 24px;
+}
+
+/* Quick preview eye button on lesson rows */
+.net-preview-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: .95rem;
+  color: #0f766e;
+  background: rgba(20, 184, 166, .10);
+  border: 1px solid rgba(20, 184, 166, .18);
+  cursor: pointer;
+  transition: background .15s ease, transform .12s ease, box-shadow .15s ease;
+}
+
+.net-preview-btn:hover {
+  background: rgba(20, 184, 166, .18);
+  transform: scale(1.08);
+  box-shadow: 0 6px 18px rgba(20, 184, 166, .18);
+}
+
+.net-preview-btn:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
 }
 
 .net-protip {
@@ -9044,7 +9117,11 @@ body.net-sigma .net-meter-fill {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   z-index: 10000;
   max-width: 350px;
+  min-width: 260px;
   animation: tooltipSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Ensure tooltip is never clipped or hidden */
+  overflow: visible;
+  box-sizing: border-box;
 }
 
 .onboarding-tooltip h3 {

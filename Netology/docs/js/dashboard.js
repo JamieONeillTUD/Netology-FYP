@@ -2133,16 +2133,6 @@ Works with:
             window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
           });
         }
-        if (typeof window.showCelebrateToast === "function") {
-          window.showCelebrateToast({
-            title: "Daily check-in recorded",
-            message: `Streak: ${streak} day${streak === 1 ? "" : "s"}`,
-            sub: "Come back tomorrow to keep it going.",
-            icon: "bi-sunrise",
-            mini: true,
-            type: "info"
-          });
-        }
       }
     }
 
