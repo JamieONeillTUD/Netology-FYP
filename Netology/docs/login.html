@@ -222,35 +222,15 @@ Key Improvements (Figma AI inspired):
 
   <!-- Full-page login success overlay (hidden by default) -->
   <div id="loginSuccessOverlay" class="net-network-overlay net-network-overlay--login d-none" aria-hidden="true">
-    <svg class="net-network-svg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <g class="net-network-links">
-        <line class="net-network-link" x1="120" y1="120" x2="300" y2="80" />
-        <line class="net-network-link" x1="300" y1="80" x2="520" y2="120" style="animation-delay: .3s" />
-        <line class="net-network-link" x1="520" y1="120" x2="650" y2="220" style="animation-delay: .6s" />
-        <line class="net-network-link" x1="650" y1="220" x2="520" y2="320" style="animation-delay: .9s" />
-        <line class="net-network-link" x1="520" y1="320" x2="300" y2="360" style="animation-delay: 1.2s" />
-        <line class="net-network-link" x1="300" y1="360" x2="140" y2="300" style="animation-delay: 1.5s" />
-        <line class="net-network-link" x1="140" y1="300" x2="120" y2="120" style="animation-delay: 1.8s" />
-        <line class="net-network-link" x1="300" y1="80" x2="400" y2="230" style="animation-delay: 1.1s" />
-        <line class="net-network-link" x1="520" y1="120" x2="400" y2="230" style="animation-delay: .7s" />
-        <line class="net-network-link" x1="300" y1="360" x2="400" y2="230" style="animation-delay: .4s" />
-        <line class="net-network-link" x1="520" y1="320" x2="400" y2="230" style="animation-delay: 1.4s" />
-        <line class="net-network-link" x1="520" y1="320" x2="620" y2="380" style="animation-delay: .2s" />
-      </g>
-      <g class="net-network-nodes">
-        <circle class="net-network-node" cx="120" cy="120" r="10" />
-        <circle class="net-network-node" cx="300" cy="80" r="12" style="animation-delay: .2s" />
-        <circle class="net-network-node" cx="520" cy="120" r="10" style="animation-delay: .4s" />
-        <circle class="net-network-node" cx="650" cy="220" r="12" style="animation-delay: .6s" />
-        <circle class="net-network-node" cx="520" cy="320" r="10" style="animation-delay: .8s" />
-        <circle class="net-network-node" cx="300" cy="360" r="12" style="animation-delay: 1s" />
-        <circle class="net-network-node" cx="140" cy="300" r="10" style="animation-delay: 1.2s" />
-        <circle class="net-network-node" cx="400" cy="230" r="14" style="animation-delay: 1.4s" />
-        <circle class="net-network-node" cx="620" cy="380" r="10" style="animation-delay: 1.6s" />
-      </g>
+    <svg class="net-network-svg" id="loginTopologySvg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <!-- Topology is injected dynamically by JS -->
     </svg>
+    <div class="net-welcome-particles" id="loginParticles" aria-hidden="true"></div>
     <div class="net-network-content">
-      <div class="net-network-badge">Signed in</div>
+      <div class="net-welcome-logo-anim">
+        <div class="net-logo net-logo-lg" aria-hidden="true"></div>
+      </div>
+      <div class="net-network-badge">Welcome back</div>
       <h2>Welcome back, <span id="loginSuccessName">there</span>!</h2>
       <p>Loading your dashboard, courses, and sandbox…</p>
       <div class="net-signup-success-features">

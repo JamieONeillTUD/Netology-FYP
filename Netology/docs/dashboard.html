@@ -430,43 +430,36 @@ Updates requested:
 
   <!-- Dashboard welcome overlay (shown before onboarding on first login) -->
   <div id="dashboardWelcomeOverlay" class="net-network-overlay net-network-overlay--welcome d-none" aria-hidden="true">
-    <svg class="net-network-svg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <g class="net-network-links">
-        <line class="net-network-link" x1="120" y1="120" x2="300" y2="80" />
-        <line class="net-network-link" x1="300" y1="80" x2="520" y2="120" style="animation-delay: .3s" />
-        <line class="net-network-link" x1="520" y1="120" x2="650" y2="220" style="animation-delay: .6s" />
-        <line class="net-network-link" x1="650" y1="220" x2="520" y2="320" style="animation-delay: .9s" />
-        <line class="net-network-link" x1="520" y1="320" x2="300" y2="360" style="animation-delay: 1.2s" />
-        <line class="net-network-link" x1="300" y1="360" x2="140" y2="300" style="animation-delay: 1.5s" />
-        <line class="net-network-link" x1="140" y1="300" x2="120" y2="120" style="animation-delay: 1.8s" />
-        <line class="net-network-link" x1="300" y1="80" x2="400" y2="230" style="animation-delay: 1.1s" />
-        <line class="net-network-link" x1="520" y1="120" x2="400" y2="230" style="animation-delay: .7s" />
-        <line class="net-network-link" x1="300" y1="360" x2="400" y2="230" style="animation-delay: .4s" />
-        <line class="net-network-link" x1="520" y1="320" x2="400" y2="230" style="animation-delay: 1.4s" />
-        <line class="net-network-link" x1="520" y1="320" x2="620" y2="380" style="animation-delay: .2s" />
-      </g>
-      <g class="net-network-nodes">
-        <circle class="net-network-node" cx="120" cy="120" r="10" />
-        <circle class="net-network-node" cx="300" cy="80" r="12" style="animation-delay: .2s" />
-        <circle class="net-network-node" cx="520" cy="120" r="10" style="animation-delay: .4s" />
-        <circle class="net-network-node" cx="650" cy="220" r="12" style="animation-delay: .6s" />
-        <circle class="net-network-node" cx="520" cy="320" r="10" style="animation-delay: .8s" />
-        <circle class="net-network-node" cx="300" cy="360" r="12" style="animation-delay: 1s" />
-        <circle class="net-network-node" cx="140" cy="300" r="10" style="animation-delay: 1.2s" />
-        <circle class="net-network-node" cx="400" cy="230" r="14" style="animation-delay: 1.4s" />
-        <circle class="net-network-node" cx="620" cy="380" r="10" style="animation-delay: 1.6s" />
-      </g>
+    <svg class="net-network-svg" id="welcomeTopologySvg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <!-- Topology is injected dynamically by JS -->
     </svg>
-    <div class="net-network-content">
-      <div class="net-network-badge">Welcome to Netology</div>
-      <h2>Learn networking by doing, <span id="dashboardWelcomeName">there</span>.</h2>
-      <p>Interactive lessons, quizzes, and a hands-on sandbox designed to make networking simple and visual.</p>
-      <div class="net-signup-success-features">
-        <span><i class="bi bi-journal-bookmark"></i> Lessons</span>
-        <span><i class="bi bi-patch-question"></i> Quizzes</span>
-        <span><i class="bi bi-diagram-3"></i> Sandbox</span>
-        <span><i class="bi bi-award"></i> Badges</span>
+    <div class="net-welcome-particles" id="welcomeParticles" aria-hidden="true"></div>
+    <div class="net-network-content net-welcome-intro">
+      <div class="net-welcome-logo-anim">
+        <div class="net-logo net-logo-lg" aria-hidden="true"></div>
       </div>
+      <h1 class="net-welcome-title">Welcome to <span class="net-welcome-gradient">Netology</span></h1>
+      <p class="net-welcome-tagline">The interactive way to learn computer networking</p>
+      <div class="net-welcome-divider"></div>
+      <p class="net-welcome-desc">Netology is a hands-on learning platform built for students of <strong>all levels</strong>. Whether you're just starting out or mastering advanced topologies, we make networking simple, visual, and fun.</p>
+      <div class="net-welcome-pillars">
+        <div class="net-welcome-pillar">
+          <div class="net-welcome-pillar-icon"><i class="bi bi-journal-bookmark"></i></div>
+          <div class="net-welcome-pillar-label">Interactive Lessons</div>
+          <div class="net-welcome-pillar-desc">Bite-sized, visual slides that break down complex topics step by step</div>
+        </div>
+        <div class="net-welcome-pillar">
+          <div class="net-welcome-pillar-icon"><i class="bi bi-diagram-3"></i></div>
+          <div class="net-welcome-pillar-label">Hands-on Sandbox</div>
+          <div class="net-welcome-pillar-desc">Build real network topologies, configure devices, and see them come alive</div>
+        </div>
+        <div class="net-welcome-pillar">
+          <div class="net-welcome-pillar-icon"><i class="bi bi-trophy"></i></div>
+          <div class="net-welcome-pillar-label">Earn & Progress</div>
+          <div class="net-welcome-pillar-desc">Gain XP, unlock badges, complete challenges, and track your growth</div>
+        </div>
+      </div>
+      <p class="net-welcome-ready">Ready, <span id="dashboardWelcomeName">there</span>? Let's get started.</p>
       <p class="net-network-cta">Starting your guided tour<span class="net-dots"></span></p>
     </div>
   </div>

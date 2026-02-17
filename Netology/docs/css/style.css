@@ -847,6 +847,9 @@ body.net-figma-landing {
   filter: blur(40px);
   opacity: .7;
   animation: netFigmaFloat 10s ease-in-out infinite;
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .net-figma-blob.blob-1 {
@@ -2147,6 +2150,14 @@ body:has(#slideSidebar.is-open) .net-hambtn .net-hambtn-bars span:nth-child(3) {
 
 .net-logo-sm::after {
   font-size: 18px;
+}
+
+.net-logo-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: block;
+  box-shadow: 0 20px 40px rgba(20, 184, 166, 0.4);
 }
 
 .net-search {
@@ -5296,10 +5307,27 @@ body[data-theme="dark"] .net-progress-list .net-card,
 body[data-theme="dark"] .net-course-visual,
 body[data-theme="dark"] .net-slide-block,
 body[data-theme="dark"] .net-slide-media,
-body[data-theme="dark"] .net-lesson-nextup {
+body[data-theme="dark"] .net-lesson-nextup,
+body[data-theme="dark"] .net-lesson-toolbar {
   background: rgba(15, 23, 42, .92) !important;
   border-color: rgba(148, 163, 184, .2) !important;
   color: #e2e8f0;
+}
+
+body[data-theme="dark"] .net-lesson-tab {
+  color: rgba(226, 232, 240, .55);
+}
+
+body[data-theme="dark"] .net-lesson-tab.is-active {
+  color: #5eead4;
+  background: rgba(94, 234, 212, .1);
+}
+
+body[data-theme="dark"] .net-lesson-overview-item,
+body[data-theme="dark"] .net-lesson-outline-grid a,
+body[data-theme="dark"] .net-lesson-bookmarks-grid a {
+  background: rgba(30, 41, 59, .6);
+  border-color: rgba(148, 163, 184, .15);
 }
 
 body[data-theme="dark"] .text-muted {
@@ -11761,6 +11789,8 @@ body.net-onboarding-lock .onboarding-tooltip * {
   justify-content: center;
   overflow: hidden;
   animation: networkFadeIn 0.5s ease both;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .net-network-overlay--login {
@@ -11791,6 +11821,7 @@ body.net-onboarding-lock .onboarding-tooltip * {
   width: 120%;
   height: 120%;
   opacity: 0.45;
+  will-change: opacity;
 }
 
 .net-network-link {
@@ -11798,6 +11829,7 @@ body.net-onboarding-lock .onboarding-tooltip * {
   stroke-width: 2;
   stroke-dasharray: 8 14;
   animation: netFlow 6s linear infinite;
+  will-change: stroke-dashoffset;
 }
 
 .net-network-node {
@@ -11806,6 +11838,7 @@ body.net-onboarding-lock .onboarding-tooltip * {
   transform-box: fill-box;
   transform-origin: center;
   animation: netPulse 2.6s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 @keyframes netFlow {
@@ -11879,6 +11912,380 @@ body.net-onboarding-lock .onboarding-tooltip * {
   .net-network-content {
     animation: none !important;
   }
+}
+
+/* ── Welcome Intro (onboarding first screen) ── */
+.net-welcome-intro {
+  max-width: 620px;
+  padding: 2rem 2rem 1.8rem;
+}
+
+.net-welcome-logo-anim {
+  margin-bottom: 1.2rem;
+  animation: welcomeLogoBounce 1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.net-welcome-logo-anim .net-logo-lg {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  filter: drop-shadow(0 0 24px rgba(255, 255, 255, 0.4));
+}
+
+.net-welcome-title {
+  font-size: 2.4rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin-bottom: 0.3rem;
+  animation: welcomeTextUp 0.7s ease 0.15s both;
+}
+
+.net-welcome-gradient {
+  background: linear-gradient(135deg, #5eead4, #38bdf8, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.net-welcome-tagline {
+  font-size: 1.15rem;
+  opacity: 0.85;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  animation: welcomeTextUp 0.7s ease 0.25s both;
+}
+
+.net-welcome-divider {
+  width: 60px;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #5eead4, #38bdf8);
+  margin: 0 auto 1.2rem;
+  animation: welcomeTextUp 0.6s ease 0.3s both;
+}
+
+.net-welcome-desc {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  opacity: 0.88;
+  margin-bottom: 1.4rem;
+  animation: welcomeTextUp 0.7s ease 0.35s both;
+}
+
+.net-welcome-desc strong {
+  color: #5eead4;
+}
+
+.net-welcome-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 1.4rem;
+  animation: welcomeTextUp 0.7s ease 0.45s both;
+}
+
+.net-welcome-pillar {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 14px 10px 12px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+
+.net-welcome-pillar:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.net-welcome-pillar-icon {
+  font-size: 1.6rem;
+  margin-bottom: 6px;
+  color: #5eead4;
+}
+
+.net-welcome-pillar-label {
+  font-weight: 700;
+  font-size: 0.82rem;
+  margin-bottom: 4px;
+}
+
+.net-welcome-pillar-desc {
+  font-size: 0.72rem;
+  opacity: 0.7;
+  line-height: 1.4;
+}
+
+.net-welcome-ready {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  animation: welcomeTextUp 0.7s ease 0.55s both;
+}
+
+@keyframes welcomeLogoBounce {
+  0% { opacity: 0; transform: scale(0.3) rotate(-10deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes welcomeTextUp {
+  0% { opacity: 0; transform: translateY(18px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Floating particles for overlays */
+.net-welcome-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.net-welcome-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  animation: particleFloat linear infinite;
+}
+
+@keyframes particleFloat {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-120px) scale(1.2); }
+}
+
+@media (max-width: 576px) {
+  .net-welcome-intro { padding: 1.4rem 1.2rem; }
+  .net-welcome-title { font-size: 1.7rem; }
+  .net-welcome-pillars { grid-template-columns: 1fr; gap: 10px; }
+  .net-welcome-pillar { padding: 10px 8px; }
+}
+
+/* ── Lesson Page Toolbar & Panels ── */
+.net-lesson-toolbar {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(6, 182, 212, 0.12);
+  box-shadow: 0 4px 16px rgba(2, 6, 23, 0.04);
+  padding: 6px;
+}
+
+.net-lesson-toolbar-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.net-lesson-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(15, 23, 42, 0.55);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.net-lesson-tab:hover {
+  color: rgba(15, 23, 42, 0.85);
+  background: rgba(13, 148, 136, 0.06);
+}
+
+.net-lesson-tab.is-active {
+  color: #0f766e;
+  background: rgba(13, 148, 136, 0.1);
+}
+
+.net-lesson-tab i {
+  font-size: 1rem;
+}
+
+.net-lesson-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: rgba(13, 148, 136, 0.12);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0f766e;
+  padding: 0 5px;
+}
+
+.net-lesson-panel {
+  animation: lessonPanelIn 0.25s ease both;
+}
+
+@keyframes lessonPanelIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Overview grid */
+.net-lesson-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.net-lesson-overview-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(6, 182, 212, 0.08);
+}
+
+.net-lesson-overview-item--wide {
+  grid-column: 1 / -1;
+}
+
+.net-lesson-overview-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(13, 148, 136, 0.1);
+  color: #0f766e;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+/* Outline grid */
+.net-lesson-outline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.net-lesson-outline-grid .mb-2 {
+  margin-bottom: 0 !important;
+}
+
+.net-lesson-outline-grid a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(6, 182, 212, 0.08);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.net-lesson-outline-grid a:hover {
+  background: rgba(13, 148, 136, 0.08);
+  border-color: rgba(13, 148, 136, 0.2);
+}
+
+.net-lesson-outline-grid a.fw-bold {
+  background: rgba(13, 148, 136, 0.1);
+  border-color: rgba(13, 148, 136, 0.25);
+  color: #0f766e;
+}
+
+/* Bookmarks grid */
+.net-lesson-bookmarks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.net-lesson-bookmarks-grid .mb-2 {
+  margin-bottom: 0 !important;
+}
+
+.net-lesson-bookmarks-grid a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.net-lesson-bookmarks-grid a:hover {
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.net-lesson-empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  color: rgba(15, 23, 42, 0.45);
+}
+
+.net-lesson-empty-state i {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Full-width slide viewer */
+.net-slide-viewer--full {
+  border-radius: 20px;
+  border: 1px solid rgba(6, 182, 212, 0.12);
+  box-shadow: 0 8px 32px rgba(2, 6, 23, 0.06);
+}
+
+.net-slide-content--spacious {
+  min-height: 350px;
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+/* Pager dots */
+.net-slide-pager {
+  gap: 4px;
+}
+
+.net-slide-pager-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.15);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.net-slide-pager-dot.is-current {
+  background: #0d9488;
+  transform: scale(1.3);
+}
+
+.net-slide-pager-dot.is-complete {
+  background: rgba(13, 148, 136, 0.4);
+}
+
+@media (max-width: 575.98px) {
+  .net-lesson-toolbar-tabs { gap: 2px; }
+  .net-lesson-tab { padding: 8px 12px; font-size: 0.82rem; }
+  .net-lesson-overview-grid { grid-template-columns: 1fr; }
+  .net-lesson-outline-grid,
+  .net-lesson-bookmarks-grid { grid-template-columns: 1fr; }
 }
 
 /* ── Step heading icons ── */

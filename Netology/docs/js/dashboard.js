@@ -2218,7 +2218,7 @@ Works with:
       }, 420);
     };
 
-    window.setTimeout(closeOverlay, 2400);
+    window.setTimeout(closeOverlay, 4500);
     return true;
   }
 

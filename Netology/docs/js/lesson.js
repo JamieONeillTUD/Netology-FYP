@@ -84,6 +84,30 @@ class LessonViewer {
     this.submitQuizBtn?.addEventListener('click', () => this.submitQuiz());
     this.practiceLaunchBtn?.addEventListener('click', () => this.launchSandbox());
     this.challengeStartBtn?.addEventListener('click', () => this.startChallenge());
+    this.wireToolbarTabs();
+  }
+
+  wireToolbarTabs() {
+    const tabs = document.querySelectorAll('.net-lesson-tab');
+    const panels = {
+      tabSlides: document.getElementById('panelSlides'),
+      tabOutline: document.getElementById('panelOutline'),
+      tabBookmarks: document.getElementById('panelBookmarks'),
+      tabOverview: document.getElementById('panelOverview')
+    };
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => { t.classList.remove('is-active'); t.setAttribute('aria-selected', 'false'); });
+        tab.classList.add('is-active');
+        tab.setAttribute('aria-selected', 'true');
+
+        Object.values(panels).forEach(p => { if (p) p.classList.add('d-none'); });
+        const panelId = tab.getAttribute('aria-controls');
+        const panel = document.getElementById(panelId);
+        if (panel) panel.classList.remove('d-none');
+      });
+    });
   }
 
   /**
@@ -651,22 +675,29 @@ class LessonViewer {
    * Render bookmarks list in sidebar
    */
   renderBookmarksList() {
+    // Update count badge
+    const countEl = document.getElementById('bookmarkCount');
+    if (countEl) countEl.textContent = String(this.bookmarks.length);
+
     if (this.bookmarks.length === 0) {
-      this.bookmarksList.innerHTML = '<span class="text-muted">No bookmarks yet. Click the bookmark icon to save slides.</span>';
+      this.bookmarksList.innerHTML = '<div class="net-lesson-empty-state"><i class="bi bi-bookmark-plus"></i><p>No bookmarks yet. Click the bookmark icon on any slide to save it for later.</p></div>';
       return;
     }
-    
+
     this.bookmarksList.innerHTML = this.bookmarks
       .map(idx => {
         const slide = this.slides[idx];
-        return `<div class="mb-2"><a href="#" data-slide="${idx}" class="link-teal small">${idx + 1}. ${slide.title}</a></div>`;
+        return `<div class="mb-2"><a href="#" data-slide="${idx}" class="link-teal small"><i class="bi bi-bookmark-fill me-1 text-warning"></i>${idx + 1}. ${slide.title}</a></div>`;
       }).join('');
-    
+
     this.bookmarksList.querySelectorAll('a').forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
         const slideIdx = parseInt(link.dataset.slide);
         this.loadSlide(slideIdx);
+        // Switch to slides tab
+        const slidesTab = document.getElementById('tabSlides');
+        if (slidesTab) slidesTab.click();
       });
     });
   }
@@ -682,14 +713,36 @@ class LessonViewer {
           <a href="#" data-slide="${i}" class="link-teal small ${i === this.currentSlide ? 'fw-bold' : ''}">${i + 1}. ${slide.title}</a>
         </div>
       `).join('');
-    
+
     this.slidesList.querySelectorAll('a').forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
         const slideIdx = parseInt(link.dataset.slide);
         this.loadSlide(slideIdx);
+        // Switch back to slides tab
+        const slidesTab = document.getElementById('tabSlides');
+        if (slidesTab) slidesTab.click();
       });
     });
+
+    this.renderPagerDots();
+  }
+
+  renderPagerDots() {
+    const pager = document.getElementById('slidePagerDots');
+    if (!pager) return;
+    pager.innerHTML = '';
+    const max = Math.min(this.totalSlides, 20);
+    for (let i = 0; i < max; i++) {
+      const dot = document.createElement('button');
+      dot.className = 'net-slide-pager-dot';
+      dot.title = `Slide ${i + 1}`;
+      if (i === this.currentSlide) dot.classList.add('is-current');
+      if (i < this.currentSlide) dot.classList.add('is-complete');
+      dot.dataset.slide = String(i);
+      dot.addEventListener('click', () => this.loadSlide(i));
+      pager.appendChild(dot);
+    }
   }
 
   renderTopProgress() {
@@ -718,6 +771,15 @@ class LessonViewer {
       bar.classList.toggle('is-current', idx === this.currentSlide);
       bar.classList.toggle('is-complete', idx < this.currentSlide);
     });
+
+    // Update pager dots
+    const pager = document.getElementById('slidePagerDots');
+    if (pager) {
+      pager.querySelectorAll('.net-slide-pager-dot').forEach((dot, idx) => {
+        dot.classList.toggle('is-current', idx === this.currentSlide);
+        dot.classList.toggle('is-complete', idx < this.currentSlide);
+      });
+    }
   }
 
   /**

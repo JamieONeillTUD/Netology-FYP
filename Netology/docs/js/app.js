@@ -64,6 +64,103 @@ function parseJsonSafe(raw, fallback = null) {
   }
 }
 
+/* ── Random Topology SVG Generator ── */
+window.NET_TOPOLOGIES = [
+  { // Star topology
+    name: "star",
+    nodes: [{x:400,y:250,r:16},{x:200,y:100,r:10},{x:600,y:100,r:10},{x:150,y:300,r:10},{x:650,y:300,r:10},{x:250,y:420,r:10},{x:550,y:420,r:10}],
+    links: [[0,1],[0,2],[0,3],[0,4],[0,5],[0,6]]
+  },
+  { // Ring topology
+    name: "ring",
+    nodes: [{x:400,y:80,r:12},{x:580,y:170,r:12},{x:600,y:340,r:12},{x:400,y:430,r:12},{x:200,y:340,r:12},{x:220,y:170,r:12}],
+    links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]]
+  },
+  { // Mesh topology
+    name: "mesh",
+    nodes: [{x:200,y:120,r:11},{x:400,y:80,r:11},{x:600,y:120,r:11},{x:650,y:300,r:11},{x:500,y:420,r:11},{x:300,y:420,r:11},{x:150,y:300,r:11},{x:400,y:260,r:13}],
+    links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0],[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]]
+  },
+  { // Bus topology
+    name: "bus",
+    nodes: [{x:100,y:250,r:10},{x:230,y:250,r:10},{x:360,y:250,r:10},{x:490,y:250,r:10},{x:620,y:250,r:10},{x:230,y:140,r:9},{x:360,y:140,r:9},{x:490,y:140,r:9},{x:230,y:360,r:9},{x:490,y:360,r:9}],
+    links: [[0,1],[1,2],[2,3],[3,4],[1,5],[2,6],[3,7],[1,8],[3,9]]
+  },
+  { // Tree topology
+    name: "tree",
+    nodes: [{x:400,y:70,r:14},{x:250,y:190,r:12},{x:550,y:190,r:12},{x:160,y:310,r:10},{x:340,y:310,r:10},{x:460,y:310,r:10},{x:640,y:310,r:10},{x:160,y:420,r:9},{x:340,y:420,r:9},{x:460,y:420,r:9},{x:640,y:420,r:9}],
+    links: [[0,1],[0,2],[1,3],[1,4],[2,5],[2,6],[3,7],[4,8],[5,9],[6,10]]
+  },
+  { // Ireland shape topology
+    name: "ireland",
+    nodes: [{x:420,y:60,r:10},{x:380,y:120,r:10},{x:350,y:180,r:11},{x:320,y:240,r:10},{x:340,y:300,r:12},{x:370,y:360,r:10},{x:400,y:410,r:10},{x:430,y:450,r:10},{x:450,y:160,r:10},{x:470,y:220,r:10},{x:460,y:280,r:11},{x:440,y:340,r:10},{x:390,y:250,r:13}],
+    links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[0,8],[8,9],[9,10],[10,11],[11,7],[2,12],[3,12],[4,12],[9,12],[10,12]]
+  },
+  { // Hybrid (enterprise) topology
+    name: "enterprise",
+    nodes: [{x:400,y:80,r:14},{x:200,y:200,r:12},{x:600,y:200,r:12},{x:120,y:340,r:10},{x:280,y:340,r:10},{x:520,y:340,r:10},{x:680,y:340,r:10},{x:200,y:440,r:9},{x:600,y:440,r:9}],
+    links: [[0,1],[0,2],[1,3],[1,4],[2,5],[2,6],[3,7],[4,7],[5,8],[6,8],[1,2],[3,4],[5,6]]
+  }
+];
+
+function injectRandomTopology(svgElement) {
+  if (!svgElement) return;
+  var topologies = window.NET_TOPOLOGIES;
+  var topo = topologies[Math.floor(Math.random() * topologies.length)];
+
+  var linksG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  linksG.setAttribute("class", "net-network-links");
+
+  var nodesG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  nodesG.setAttribute("class", "net-network-nodes");
+
+  topo.links.forEach(function(link, i) {
+    var a = topo.nodes[link[0]], b = topo.nodes[link[1]];
+    var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("class", "net-network-link");
+    line.setAttribute("x1", a.x); line.setAttribute("y1", a.y);
+    line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
+    line.style.animationDelay = (i * 0.15) + "s";
+    linksG.appendChild(line);
+  });
+
+  topo.nodes.forEach(function(node, i) {
+    var circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("class", "net-network-node");
+    circle.setAttribute("cx", node.x); circle.setAttribute("cy", node.y);
+    circle.setAttribute("r", node.r);
+    circle.style.animationDelay = (i * 0.2) + "s";
+    nodesG.appendChild(circle);
+  });
+
+  svgElement.innerHTML = "";
+  svgElement.appendChild(linksG);
+  svgElement.appendChild(nodesG);
+}
+
+function spawnFloatingParticles(container, count) {
+  if (!container) return;
+  count = count || 20;
+  for (var i = 0; i < count; i++) {
+    var dot = document.createElement("span");
+    dot.className = "net-welcome-particle";
+    dot.style.left = Math.random() * 100 + "%";
+    dot.style.top = Math.random() * 100 + "%";
+    dot.style.animationDelay = (Math.random() * 4) + "s";
+    dot.style.animationDuration = (3 + Math.random() * 4) + "s";
+    container.appendChild(dot);
+  }
+}
+
+onReady(function() {
+  var welcomeSvg = getById("welcomeTopologySvg");
+  var loginSvg = getById("loginTopologySvg");
+  if (welcomeSvg) injectRandomTopology(welcomeSvg);
+  if (loginSvg) injectRandomTopology(loginSvg);
+  spawnFloatingParticles(getById("welcomeParticles"), 25);
+  spawnFloatingParticles(getById("loginParticles"), 25);
+});
+
 onReady(() => {
   const signupForm = getById("signupForm");
   if (signupForm) {
