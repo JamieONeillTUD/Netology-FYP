@@ -12,7 +12,7 @@
  * - Progress tracking and completion status
  */
 
-const API_BASE = (window.API_BASE || "").replace(/\/$/, "");
+const LESSON_API_BASE = (window.API_BASE || "").replace(/\/$/, "");
 
 class LessonViewer {
   constructor() {
@@ -94,7 +94,7 @@ class LessonViewer {
       document.body.classList.add('net-loading');
       this.lessonId = lessonId;
       
-      const response = await fetch(`${API_BASE}/lessons/${lessonId}`, {
+      const response = await fetch(`${LESSON_API_BASE}/lessons/${lessonId}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       
@@ -765,7 +765,7 @@ class LessonViewer {
    */
   async awardXP(amount) {
     try {
-      await fetch(`${API_BASE}/xp/add`, {
+      await fetch(`${LESSON_API_BASE}/xp/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

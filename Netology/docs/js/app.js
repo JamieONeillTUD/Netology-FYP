@@ -1477,7 +1477,9 @@ function maybeStartOnboardingTour(stageKey, userEmail) {
     if (nextStage) {
       localStorage.setItem("netology_onboarding_stage", nextStage);
       try {
-        await apiPost(ENDPOINTS.onboarding?.stepComplete || "/api/onboarding/step/:id", {
+        const stepUrl = (ENDPOINTS.onboarding?.stepComplete || "/api/onboarding/step/:id")
+          .replace(":id", encodeURIComponent(stageKey));
+        await apiPost(stepUrl, {
           user_email: userEmail,
           stage: stageKey
         });

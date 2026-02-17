@@ -844,11 +844,12 @@ What this file does:
       raw = list.find((c) => String(c?.title || "").trim().toLowerCase() === target) || null;
     }
 
-    if (!apiMeta) {
+    if (!apiMeta && !raw) {
+      // Neither API data nor local content available — show error
       state.course = {
         id: courseId,
         title: "Course unavailable",
-        description: "We couldn’t load this course from the database. Please try again.",
+        description: "We couldn't load this course. Please try again.",
         difficulty: "novice",
         required_level: 1,
         estimatedTime: "—",
