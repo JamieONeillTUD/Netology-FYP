@@ -176,10 +176,9 @@ window.ONBOARDING_STEPS = {
     { target: "courses-my-progress", title: "My Progress", description: "See what you started, finished, or paused." }
   ],
   course: [
-    { target: "course-hero", title: "Course Overview", description: "A clear roadmap of what you will learn." },
-    { target: "course-progress-ring", title: "Course Progress", description: "Your completion updates as you learn." },
-    { target: "course-continue", title: "Continue", description: "Pick up right where you left off." },
-    { target: "course-modules", title: "Modules", description: "Lessons, quizzes, tutorials, and challenges are all here." }
+    { target: "course-hero", title: "Course Overview", description: "Your course title, difficulty, and progress ring — everything at a glance." },
+    { target: "course-continue", title: "Up Next", description: "See what is coming up and jump straight in. Your stats are here too." },
+    { target: "course-modules", title: "Modules", description: "Expand any module to see its lessons, quizzes, and challenges." }
   ],
   lesson: [
     { target: "lesson-top-progress", title: "Lesson Progress", description: "Track every slide as you move forward." },

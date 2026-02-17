@@ -164,10 +164,9 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
         </nav>
       </div>
 
-      <!-- AI Prompt: Explain the HERO (Figma-inspired, real data) section in clear, simple terms. -->
       <!-- =======================================================
-         HERO (Figma-inspired, real data)
-    ======================================================== -->
+         HERO – Clean & focused
+      ======================================================== -->
       <section class="net-card net-course-hero p-4 p-lg-4 mb-3" aria-label="Course overview" data-tour="course-hero">
 
         <div class="net-course-hero-top">
@@ -175,21 +174,14 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
 
             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
               <h1 class="net-course-title net-section-title mb-0" id="courseTitle">Loading course…</h1>
-
-              <!-- Difficulty pill (JS sets text + class) -->
               <span class="net-pill-badge badge text-bg-light border px-3 py-2" id="difficultyPill">Difficulty</span>
 
-              <!-- Locked pill -->
               <span class="net-status-chip net-status-chip--locked d-none" id="courseLockedPill">
                 <i class="bi bi-lock-fill" aria-hidden="true"></i> Locked
               </span>
-
-              <!-- Completed pill -->
               <span class="net-status-chip net-status-chip--completed d-none" id="courseCompletedPill">
                 <i class="bi bi-check2-circle" aria-hidden="true"></i> Completed
               </span>
-
-              <!-- Active pill -->
               <span class="net-status-chip net-status-chip--progress d-none" id="courseActivePill">
                 <i class="bi bi-play-fill" aria-hidden="true"></i> Active
               </span>
@@ -197,44 +189,20 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
 
             <p class="text-muted net-section-sub mb-3" id="courseDescription">Loading course description…</p>
 
-            <div class="d-flex flex-wrap gap-3 text-muted small" aria-label="Course metadata">
-              <span class="d-inline-flex align-items-center gap-2">
+            <!-- Compact stats strip -->
+            <div class="net-course-stats-strip" aria-label="Course metadata">
+              <div class="net-stat-chip">
                 <i class="bi bi-collection" aria-hidden="true"></i>
                 <span id="metaModules">0 modules</span>
-              </span>
-
-              <span class="d-inline-flex align-items-center gap-2">
+              </div>
+              <div class="net-stat-chip">
                 <i class="bi bi-clock" aria-hidden="true"></i>
                 <span id="metaTime">—</span>
-              </span>
-
-              <span class="d-inline-flex align-items-center gap-2 fw-semibold net-xp-accent">
+              </div>
+              <div class="net-stat-chip net-stat-chip--xp">
                 <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
-                <span id="metaXP">0 XP Total</span>
-              </span>
-            </div>
-
-            <div class="d-flex flex-wrap gap-2 mt-3">
-              <span class="net-level-hint" id="courseStreakBadge">
-                <i class="bi bi-fire" aria-hidden="true"></i> Streak: 0 days
-              </span>
-              <span class="net-level-hint" id="courseXpHint">
-                <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> 0 XP to next level
-              </span>
-            </div>
-
-            <!-- Primary actions -->
-            <div class="d-flex flex-wrap gap-2 mt-4">
-              <button class="btn btn-teal" id="continueBtn" type="button" data-tour="course-continue">
-                Continue
-                <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
-              </button>
-
-
-              <button class="btn btn-outline-secondary d-none" id="reviewBtn" type="button">
-                Review completed items
-                <i class="bi bi-arrow-repeat ms-1" aria-hidden="true"></i>
-              </button>
+                <span id="metaXP">0 XP</span>
+              </div>
             </div>
 
             <!-- Locked explainer -->
@@ -245,7 +213,6 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
 
           </div>
 
-          <!-- AI Prompt: Explain the Progress ring section in clear, simple terms. -->
           <!-- Progress ring -->
           <div class="net-course-hero-right" aria-label="Progress ring" data-tour="course-progress-ring">
             <div class="net-ring" aria-label="Course completion percentage">
@@ -256,150 +223,100 @@ Chrome: matches dashboard (hamburger left, Netology centered, user dropdown righ
                     <stop offset="100%" stop-color="#06b6d4"></stop>
                   </linearGradient>
                 </defs>
-
                 <circle class="net-ring-track" cx="70" cy="70" r="58" stroke-width="10" fill="none"></circle>
-
                 <circle id="progressRing" class="net-ring-fill" cx="70" cy="70" r="58" stroke="url(#netRingGrad)"
                   stroke-width="10" stroke-linecap="round" fill="none" stroke-dasharray="364.42"
                   stroke-dashoffset="364.42"></circle>
               </svg>
-
               <div class="net-ring-center">
                 <div class="net-ring-pct net-gradient-text" id="progressPct">0%</div>
+                <div class="net-ring-sub" id="progressCount">0/0</div>
               </div>
             </div>
-
-            <div class="text-center mt-2 small text-muted">
-              <span id="progressCount">0/0</span> items done
-            </div>
-          </div>
-        </div>
-
-        <!-- AI Prompt: Explain the Optional: slim progress bar under hero section in clear, simple terms. -->
-        <!-- Optional: slim progress bar under hero -->
-        <div class="mt-4" aria-label="Progress bar">
-          <div class="d-flex justify-content-between align-items-center small mb-1">
-            <span class="text-muted">Course progress</span>
-            <span class="fw-semibold" id="progressText">0%</span>
-          </div>
-          <div class="progress" style="height: 10px;">
-            <div class="progress-bar net-progress" id="progressBar" style="width:0%"></div>
           </div>
         </div>
 
       </section>
 
-      <!-- AI Prompt: Explain the GRID: Modules + Sidebar section in clear, simple terms. -->
       <!-- =======================================================
-         GRID: Modules + Sidebar
-    ======================================================== -->
-      <section class="net-course-grid" aria-label="Course content grid">
-
-        <!-- AI Prompt: Explain the LEFT: Modules section in clear, simple terms. -->
-        <!-- LEFT: Modules -->
-        <section aria-label="Modules list">
-
-          <div
-            class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 net-module-head">
-            <h2 class="h4 mb-0">Course Modules</h2>
-
-            <div class="d-flex gap-2 flex-wrap">
-              <button class="btn btn-outline-secondary btn-sm" id="collapseAllBtn" type="button">
-                <i class="bi bi-arrows-collapse me-1" aria-hidden="true"></i> Collapse all
-              </button>
-              <button class="btn btn-outline-secondary btn-sm" id="expandAllBtn" type="button">
-                <i class="bi bi-arrows-expand me-1" aria-hidden="true"></i> Expand all
-              </button>
-            </div>
-          </div>
-
-          <!-- Live region for completion updates -->
-          <div class="visually-hidden" id="ariaStatus" aria-live="polite"></div>
-
-          <!-- AI Prompt: Explain the Modules injected here section in clear, simple terms. -->
-          <!-- Modules injected here -->
-          <div id="modulesWrap" class="d-grid gap-3" aria-label="Modules container" data-tour="course-modules">
-            <!-- Skeleton (JS replaces) -->
-            <article class="net-card p-4">
-              <div class="d-flex align-items-center gap-3">
-                <div class="net-skel" style="width:56px;height:56px;border-radius:18px;"></div>
-                <div class="flex-grow-1">
-                  <div class="net-skel net-w-60 mb-2"></div>
-                  <div class="net-skel net-w-90"></div>
-                </div>
-              </div>
-            </article>
-          </div>
-
-          <!-- Empty state -->
-          <div class="net-empty mt-3 d-none" id="modulesEmpty">
-            <div class="fw-semibold mb-1">No modules found</div>
-            <div class="text-muted small">This course doesn’t have content yet.</div>
-          </div>
-
-        </section>
-
-        <!-- AI Prompt: Explain the RIGHT: Sidebar section in clear, simple terms. -->
-        <!-- RIGHT: Sidebar -->
-        <aside class="net-course-side" aria-label="Course sidebar">
-
-          <!-- AI Prompt: Explain the Progress card section in clear, simple terms. -->
-          <!-- Progress card -->
-          <div class="net-card p-4 mb-3 net-sticky">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <i class="bi bi-graph-up text-teal" aria-hidden="true"></i>
-              <div class="fw-semibold">Your Progress</div>
-            </div>
-
-            <div class="d-grid gap-2 small">
-              <div class="d-flex justify-content-between">
-                <span class="text-muted">Completed</span>
-                <span class="fw-semibold" id="sidePct">0%</span>
-              </div>
-
-              <div class="d-flex justify-content-between">
-                <span class="text-muted">Modules</span>
-                <span class="fw-semibold" id="sideModules">0/0</span>
-              </div>
-
-              <div class="d-flex justify-content-between">
-                <span class="text-muted">XP Earned</span>
-                <span class="fw-semibold net-xp-accent">
-                  <i class="bi bi-lightning-charge-fill me-1" aria-hidden="true"></i>
-                  <span id="sideXPEarned">0</span>
-                </span>
-              </div>
-            </div>
-
-            <hr class="my-3">
-
-            <div class="small text-muted mb-1">Next step</div>
+         UP NEXT – Single clear action card
+      ======================================================== -->
+      <section class="net-upnext-card net-card p-3 p-sm-4 mb-3" aria-label="Up next" data-tour="course-continue">
+        <div class="net-upnext-inner">
+          <div class="net-upnext-info">
+            <div class="net-upnext-label">Up Next</div>
             <div class="fw-semibold" id="nextStepText">—</div>
-
-            <button class="btn btn-teal btn-sm mt-3 w-100" id="nextStepBtn" type="button">
-              Continue next
-              <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
+          </div>
+          <div class="net-upnext-actions">
+            <button class="btn btn-teal" id="continueBtn" type="button">
+              Continue <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
             </button>
-
-            <button class="btn btn-outline-secondary btn-sm mt-2 w-100" id="jumpToFirstIncompleteBtn" type="button">
-              Jump to first incomplete
-              <i class="bi bi-bullseye ms-1" aria-hidden="true"></i>
+            <button class="btn btn-outline-secondary d-none" id="reviewBtn" type="button">
+              Review <i class="bi bi-arrow-repeat ms-1" aria-hidden="true"></i>
             </button>
           </div>
-
-          <!-- Pro tip -->
-          <div class="net-card p-4 mb-3 net-protip">
-            <div class="d-flex align-items-center gap-2 mb-2">
-              <i class="bi bi-award text-teal" aria-hidden="true"></i>
-              <div class="fw-semibold">Pro Tip</div>
-            </div>
-            <div class="text-muted small">
-              Complete quizzes right after the lesson — it boosts retention and makes sandbox challenges feel easy.
-            </div>
-          </div>
-
-        </aside>
+        </div>
+        <!-- Inline quick stats -->
+        <div class="net-upnext-stats" id="upnextStats">
+          <span class="net-upnext-stat">
+            <i class="bi bi-check2-circle text-success" aria-hidden="true"></i>
+            <span id="sidePct">0%</span> complete
+          </span>
+          <span class="net-upnext-divider"></span>
+          <span class="net-upnext-stat">
+            <i class="bi bi-layers text-teal" aria-hidden="true"></i>
+            <span id="sideModules">0/0</span> modules
+          </span>
+          <span class="net-upnext-divider"></span>
+          <span class="net-upnext-stat">
+            <i class="bi bi-lightning-charge-fill net-xp-accent" aria-hidden="true"></i>
+            <span id="sideXPEarned">0</span> XP earned
+          </span>
+        </div>
       </section>
+
+      <!-- =======================================================
+         MODULES – Full width, clean
+      ======================================================== -->
+      <section aria-label="Modules list">
+
+        <div class="d-flex align-items-center gap-2 mb-3 net-module-head" data-tour="course-modules">
+          <h2 class="h4 mb-0">Course Modules</h2>
+          <span class="small text-muted" id="moduleCountLabel"></span>
+        </div>
+
+        <div class="visually-hidden" id="ariaStatus" aria-live="polite"></div>
+
+        <div id="modulesWrap" class="d-grid gap-3" aria-label="Modules container">
+          <article class="net-card p-4">
+            <div class="d-flex align-items-center gap-3">
+              <div class="net-skel" style="width:56px;height:56px;border-radius:18px;"></div>
+              <div class="flex-grow-1">
+                <div class="net-skel net-w-60 mb-2"></div>
+                <div class="net-skel net-w-90"></div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="net-empty mt-3 d-none" id="modulesEmpty">
+          <div class="fw-semibold mb-1">No modules found</div>
+          <div class="text-muted small">This course doesn't have content yet.</div>
+        </div>
+
+      </section>
+
+      <!-- Hidden elements for JS compatibility -->
+      <div class="d-none">
+        <span id="progressText">0%</span>
+        <div id="progressBar"></div>
+        <span id="courseStreakBadge"></span>
+        <span id="courseXpHint"></span>
+        <button id="nextStepBtn" type="button"></button>
+        <button id="jumpToFirstIncompleteBtn" type="button"></button>
+        <button id="collapseAllBtn" type="button"></button>
+        <button id="expandAllBtn" type="button"></button>
+      </div>
     </div>
   </main>
 

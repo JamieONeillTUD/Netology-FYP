@@ -1276,8 +1276,9 @@ What this file does:
     const totalItems = getRequiredItems().length;
     setText("metaModules", `${moduleCount} module${moduleCount === 1 ? "" : "s"} · ${totalItems} items`);
     setText("metaTime", state.course.estimatedTime || "—");
-    setText("metaXP", `${state.course.totalXP} XP Total`);
+    setText("metaXP", `${state.course.totalXP} XP`);
 
+    // streak + XP hint (hidden elements kept for compat)
     const streakBadge = getById("courseStreakBadge");
     if (streakBadge) {
       const streak = computeStreak(getProgressLog(state.user?.email || ""));
@@ -1286,7 +1287,6 @@ What this file does:
         document.createTextNode(` Streak: ${streak} day${streak === 1 ? "" : "s"}`)
       );
     }
-
     const xpHint = getById("courseXpHint");
     if (xpHint) {
       const toNext = Math.max(0, Number(state.stats.xpNext || 0));
@@ -1313,14 +1313,11 @@ What this file does:
       lockedPill?.classList.remove("d-none");
       lockedExplainer?.classList.remove("d-none");
       if (lockedText) lockedText.textContent = `Locked — requires Level ${state.course.required_level}.`;
-
-      // disable primary actions
       const continueBtn = getById("continueBtn");
       continueBtn && (continueBtn.disabled = true);
     } else {
       lockedPill?.classList.add("d-none");
       lockedExplainer?.classList.add("d-none");
-
       const continueBtn = getById("continueBtn");
       continueBtn && (continueBtn.disabled = false);
     }
@@ -1335,7 +1332,13 @@ What this file does:
       completedPill?.classList.remove("d-none");
       activePill?.classList.add("d-none");
       reviewBtn?.classList.remove("d-none");
-      if (continueBtn) continueBtn.textContent = "Review";
+      if (continueBtn) {
+        continueBtn.replaceChildren();
+        continueBtn.append(
+          document.createTextNode("Review "),
+          makeIcon("bi bi-arrow-repeat ms-1")
+        );
+      }
     } else {
       completedPill?.classList.add("d-none");
       reviewBtn?.classList.add("d-none");
@@ -1346,11 +1349,15 @@ What this file does:
       if (continueBtn) {
         const prog = computeProgress();
         const label = prog.done > 0 ? "Resume" : "Start";
-        setButtonIconText(continueBtn, "bi bi-chevron-right ms-1", label);
+        continueBtn.replaceChildren();
+        continueBtn.append(
+          document.createTextNode(label + " "),
+          makeIcon("bi bi-arrow-right ms-1")
+        );
       }
     }
 
-    // progress ring + bar
+    // progress ring
     const prog = computeProgress();
 
     setText("progressPct", `${prog.pct}%`);
@@ -1359,7 +1366,7 @@ What this file does:
 
     const ring = getById("progressRing");
     if (ring) {
-      const CIRC = 2 * Math.PI * 58; // r=58 (matches HTML)
+      const CIRC = 2 * Math.PI * 58;
       const offset = CIRC * (1 - prog.pct / 100);
       ring.style.strokeDasharray = `${CIRC.toFixed(2)}`;
       ring.style.strokeDashoffset = `${offset.toFixed(2)}`;
@@ -1373,7 +1380,7 @@ What this file does:
     const previewPct = getById("previewRingPct");
     if (previewPct) previewPct.textContent = `${prog.pct}%`;
     if (previewRing) {
-      const CIRC = 2 * Math.PI * 26; // r=26 (matches HTML)
+      const CIRC = 2 * Math.PI * 26;
       const offset = CIRC * (1 - prog.pct / 100);
       previewRing.style.strokeDasharray = `${CIRC.toFixed(2)}`;
       previewRing.style.strokeDashoffset = `${offset.toFixed(2)}`;
@@ -1409,101 +1416,108 @@ What this file does:
 
     clearChildren(wrap);
 
+    // Module count label
+    const countLabel = getById("moduleCountLabel");
+    if (countLabel) countLabel.textContent = `(${state.course.modules.length})`;
+
+    // --- Horizontal module selector strip ---
+    const strip = makeEl("div", "net-module-strip");
+
+    // Auto-expand first module if none selected
+    if (!state.expandedModules.size && state.course.modules[0]) {
+      state.expandedModules.add(state.course.modules[0].id);
+    }
+    const selectedId = Array.from(state.expandedModules)[state.expandedModules.size - 1] || null;
+
     state.course.modules.forEach((m, idx) => {
       const modProg = computeModuleCompletion(m);
-      const expanded = state.expandedModules.has(m.id);
+      const isSelected = selectedId === m.id;
 
-      const article = document.createElement("article");
-      article.className = "net-course-card net-module-card";
-      article.dataset.moduleId = String(m.id);
+      const card = document.createElement("button");
+      card.className = `net-module-tab ${isSelected ? "is-active" : ""}`;
+      card.type = "button";
+      card.dataset.action = "toggle-module";
+      card.dataset.module = String(m.id);
+      card.setAttribute("aria-expanded", isSelected ? "true" : "false");
+      card.title = m.title || `Module ${idx + 1}`;
 
-      const shell = document.createElement("div");
-      shell.className = "p-0";
+      // Module number
+      const num = makeEl("div", "net-module-tab-num", String(idx + 1));
 
-      const headerBtn = document.createElement("button");
-      headerBtn.className = "net-module-btn p-4 d-flex align-items-start justify-content-between gap-3";
-      headerBtn.type = "button";
-      headerBtn.dataset.action = "toggle-module";
-      headerBtn.dataset.module = String(m.id);
-      headerBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
-      headerBtn.title = "Open this module to view its lessons and activities";
+      // Title
+      const title = makeEl("div", "net-module-tab-title", m.title || `Module ${idx + 1}`);
 
-      const left = document.createElement("div");
-      left.className = "d-flex align-items-start gap-3";
-
-      const iconWrap = makeEl("div", "net-module-ico");
-      iconWrap.appendChild(moduleIcon(modProg, state.courseLocked));
-
-      const info = document.createElement("div");
-      info.className = "flex-grow-1";
-
-      const infoRow = document.createElement("div");
-      infoRow.className = "d-flex flex-wrap align-items-center gap-2 mb-1";
-
-      const modLabel = makeEl("span", "small text-teal fw-semibold text-uppercase", `Module ${idx + 1}`);
-      modLabel.style.letterSpacing = ".04em";
-      infoRow.appendChild(modLabel);
-
-      const tutorialStatus = getModuleTutorialStatus(m);
-
-      const headerBadge = document.createElement("span");
+      // Progress indicator
+      const prog = makeEl("div", "net-module-tab-prog");
       if (modProg.completed) {
-        headerBadge.className = "net-status-chip net-status-chip--completed";
-        headerBadge.append(makeIcon("bi bi-check2-circle"), document.createTextNode(" Completed"));
-      } else if (modProg.done > 0) {
-        headerBadge.className = "net-status-chip net-status-chip--progress";
-        headerBadge.append(makeIcon("bi bi-arrow-repeat"), document.createTextNode(" In progress"));
+        prog.className = "net-module-tab-prog net-module-tab-prog--done";
+        prog.append(makeIcon("bi bi-check-circle-fill"));
       } else {
-        headerBadge.className = "net-status-chip net-status-chip--active";
-        headerBadge.append(makeIcon("bi bi-grid-1x2"), document.createTextNode(` ${modProg.done}/${modProg.total} items`));
-      }
-      infoRow.appendChild(headerBadge);
-      if (tutorialStatus.completed) {
-        const tutorialBadge = document.createElement("span");
-        tutorialBadge.className = "net-status-chip net-status-chip--completed net-status-chip--mini";
-        tutorialBadge.append(makeIcon("bi bi-diagram-3"), document.createTextNode(" Tutorial completed"));
-        infoRow.appendChild(tutorialBadge);
+        prog.textContent = `${modProg.done}/${modProg.total}`;
       }
 
-      const title = makeEl("div", "fw-semibold fs-5", m.title || "");
-      info.append(infoRow, title);
-
-      if (m.description) {
-        info.appendChild(makeEl("div", "text-muted small mt-1", m.description));
-      }
-
-      left.append(iconWrap, info);
-
-      const right = document.createElement("div");
-      right.className = "d-flex align-items-center gap-3";
-
-      const counts = document.createElement("div");
-      counts.className = "text-end small text-muted d-none d-sm-block";
-      counts.append(
-        makeEl("div", "fw-semibold text-dark", `${modProg.done}/${modProg.total}`),
-        makeEl("div", "", "required")
-      );
-      right.appendChild(counts);
-
-      const chev = makeIcon(`bi ${expanded ? "bi-chevron-up" : "bi-chevron-down"} text-muted`);
-      chev.setAttribute("aria-hidden", "true");
-      right.appendChild(chev);
-
-      headerBtn.append(left, right);
-
-      const body = document.createElement("div");
-      body.className = "border-top";
-      body.dataset.moduleBody = String(m.id);
-      if (!expanded) body.style.display = "none";
-
-      const bodyInner = makeEl("div", "p-2 p-sm-3 net-module-body-bg");
-      bodyInner.appendChild(renderModuleItems(m));
-      body.appendChild(bodyInner);
-
-      shell.append(headerBtn, body);
-      article.appendChild(shell);
-      wrap.appendChild(article);
+      card.append(num, title, prog);
+      strip.appendChild(card);
     });
+
+    wrap.appendChild(strip);
+
+    // --- Detail panel for selected module ---
+    const selectedModule = state.course.modules.find((m) => m.id === selectedId);
+    if (selectedModule) {
+      const detail = document.createElement("div");
+      detail.className = "net-module-detail";
+      detail.dataset.moduleBody = String(selectedModule.id);
+
+      // Module detail header
+      const detailHead = makeEl("div", "net-module-detail-head");
+      const modProg = computeModuleCompletion(selectedModule);
+      const modIdx = state.course.modules.indexOf(selectedModule);
+
+      const headLeft = document.createElement("div");
+      const headLabel = makeEl("span", "small text-teal fw-semibold text-uppercase", `Module ${modIdx + 1}`);
+      headLabel.style.letterSpacing = ".04em";
+      const headTitle = makeEl("div", "fw-semibold fs-5", selectedModule.title || "");
+      headLeft.append(headLabel, headTitle);
+      if (selectedModule.description) {
+        headLeft.appendChild(makeEl("div", "text-muted small mt-1", selectedModule.description));
+      }
+
+      const headRight = document.createElement("div");
+      headRight.className = "d-flex align-items-center gap-2";
+
+      const tutorialStatus = getModuleTutorialStatus(selectedModule);
+
+      const statusBadge = document.createElement("span");
+      if (modProg.completed) {
+        statusBadge.className = "net-status-chip net-status-chip--completed";
+        statusBadge.append(makeIcon("bi bi-check2-circle"), document.createTextNode(" Completed"));
+      } else if (modProg.done > 0) {
+        statusBadge.className = "net-status-chip net-status-chip--progress";
+        statusBadge.append(makeIcon("bi bi-arrow-repeat"), document.createTextNode(` ${modProg.done}/${modProg.total}`));
+      } else {
+        statusBadge.className = "net-status-chip net-status-chip--active";
+        statusBadge.append(makeIcon("bi bi-grid-1x2"), document.createTextNode(` ${modProg.total} items`));
+      }
+      headRight.appendChild(statusBadge);
+
+      if (tutorialStatus.completed) {
+        const tutBadge = document.createElement("span");
+        tutBadge.className = "net-status-chip net-status-chip--completed net-status-chip--mini";
+        tutBadge.append(makeIcon("bi bi-diagram-3"), document.createTextNode(" Tutorial done"));
+        headRight.appendChild(tutBadge);
+      }
+
+      detailHead.append(headLeft, headRight);
+      detail.appendChild(detailHead);
+
+      // Module items
+      const bodyInner = makeEl("div", "net-module-detail-body");
+      bodyInner.appendChild(renderModuleItems(selectedModule));
+      detail.appendChild(bodyInner);
+
+      wrap.appendChild(detail);
+    }
 
     if (state.scrollToModuleId) {
       const target = wrap.querySelector(`[data-module-id="${cssEscapeAttr(state.scrollToModuleId)}"]`);
@@ -1532,14 +1546,8 @@ What this file does:
         const completed = isItemCompleted(it);
         const locked = state.courseLocked;
 
-        const hint =
-          it.type === "quiz" ? "Quiz" :
-            it.type === "challenge" ? "Sandbox challenge" :
-              (it.type === "sandbox" || it.type === "practice") ? "Sandbox tutorial" :
-                "Lesson";
-
         const row = document.createElement("button");
-        row.className = `net-lesson-row px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${locked ? "is-locked" : ""} ${completed ? "is-complete" : ""}`.trim();
+        row.className = `net-lesson-row net-lesson-row--clean px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${locked ? "is-locked" : ""} ${completed ? "is-complete" : ""}`.trim();
         row.type = "button";
         row.dataset.action = "open-item";
         row.dataset.type = it.type;
@@ -1557,30 +1565,37 @@ What this file does:
         const textWrap = document.createElement("div");
         const title = makeEl("div", "fw-semibold text-dark", it.title || "");
 
+        // Simplified meta: just type tag + XP
         const meta = makeEl("div", "small text-muted d-flex flex-wrap gap-2 align-items-center mt-1");
-        const time = makeEl("span", "d-inline-flex align-items-center gap-1");
-        time.append(makeIcon("bi bi-clock"), document.createTextNode(` ${it.duration || "—"}`));
 
-        const sep1 = makeEl("span", "text-muted", "•");
+        const typeName =
+          it.type === "quiz" ? "Quiz" :
+            it.type === "challenge" ? "Challenge" :
+              (it.type === "sandbox" || it.type === "practice") ? "Tutorial" :
+                "Lesson";
+
+        const typeTag = makeEl("span", `net-type-tag net-type-tag--${it.type}`, typeName);
+        meta.appendChild(typeTag);
 
         const xp = makeEl("span", "d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold");
         xp.append(makeIcon("bi bi-lightning-charge-fill"), document.createTextNode(` ${Number(it.xp)} XP`));
+        meta.appendChild(xp);
 
-        const sep2 = makeEl("span", "text-muted", "•");
-        const hintBadge = makeEl("span", "badge text-bg-light border", hint);
-
-        meta.append(time, sep1, xp, sep2, hintBadge);
+        if (it.duration) {
+          const time = makeEl("span", "d-inline-flex align-items-center gap-1");
+          time.append(makeIcon("bi bi-clock"), document.createTextNode(` ${it.duration}`));
+          meta.appendChild(time);
+        }
 
         if (it.type === "quiz" && state.user?.email) {
           const score = getQuizScore(state.user.email, state.courseId, it.lesson_number);
           if (score) {
-            const sep3 = makeEl("span", "text-muted", "•");
             const scoreBadge = makeEl("span", "badge text-bg-light border net-quiz-score");
             scoreBadge.append(
               makeIcon("bi bi-clipboard-check me-1"),
-              document.createTextNode(`Score ${score.correct}/${score.total}`)
+              document.createTextNode(`${score.correct}/${score.total}`)
             );
-            meta.append(sep3, scoreBadge);
+            meta.appendChild(scoreBadge);
           }
         }
         textWrap.append(title, meta);
@@ -1716,27 +1731,14 @@ What this file does:
         const id = btn.getAttribute("data-module");
         if (!id) return;
 
-        if (state.expandedModules.has(id)) state.expandedModules.delete(id);
-        else state.expandedModules.add(id);
+        // Select this module (single-select for horizontal tabs)
+        state.expandedModules.clear();
+        state.expandedModules.add(id);
+        persistLastModule(id);
 
-        const body = document.querySelector(`[data-module-body="${cssEscapeAttr(id)}"]`);
-        if (body) body.style.display = state.expandedModules.has(id) ? "" : "none";
-
-        const icon = btn.querySelector("i.bi");
-        if (icon) {
-          icon.classList.toggle("bi-chevron-up", state.expandedModules.has(id));
-          icon.classList.toggle("bi-chevron-down", !state.expandedModules.has(id));
-        }
-
-        btn.setAttribute("aria-expanded", state.expandedModules.has(id) ? "true" : "false");
-
-        if (state.expandedModules.has(id)) {
-          persistLastModule(id);
-        } else if (state.expandedModules.size) {
-          persistLastModule(Array.from(state.expandedModules)[0]);
-        } else {
-          localStorage.removeItem(lastModuleKey());
-        }
+        // Re-render modules to show selected detail panel
+        renderModules();
+        wireDynamicHandlers();
       });
     });
 

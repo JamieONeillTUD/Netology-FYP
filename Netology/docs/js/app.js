@@ -283,13 +283,15 @@ function wireLoginSubmit(form) {
         const firstLoginFlag = String(localStorage.getItem("netology_onboarding_first_login") || "")
           .trim()
           .toLowerCase();
-        const shouldStartOnboarding = Boolean(data.is_first_login) || (firstLoginFlag && firstLoginFlag === normalizedEmail);
+        const alreadyCompletedOnboarding = Boolean(data.onboarding_completed)
+          || localStorage.getItem("netology_onboarding_completed") === "true"
+          || localStorage.getItem("netology_onboarding_skipped") === "true";
+        const shouldStartOnboarding = !alreadyCompletedOnboarding
+          && (Boolean(data.is_first_login) || (firstLoginFlag && firstLoginFlag === normalizedEmail));
 
         if (shouldStartOnboarding) {
           localStorage.setItem("netology_onboarding_stage", "dashboard");
           localStorage.setItem("netology_onboarding_user", normalizedEmail);
-          localStorage.removeItem("netology_onboarding_completed");
-          localStorage.removeItem("netology_onboarding_skipped");
           localStorage.removeItem("netology_onboarding_first_login");
           try {
             sessionStorage.setItem("netology_onboarding_session", "true");

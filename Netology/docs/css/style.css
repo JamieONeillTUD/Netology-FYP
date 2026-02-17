@@ -7114,6 +7114,109 @@ body.net-course-page.net-landing::after {
   line-height: 1;
 }
 
+.net-ring-sub {
+  font-size: .8rem;
+  font-weight: 600;
+  color: rgba(15, 23, 42, .5);
+  margin-top: 2px;
+}
+
+/* --- Course stats strip --- */
+.net-course-stats-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.net-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .04);
+  border: 1px solid rgba(15, 23, 42, .08);
+  font-size: .82rem;
+  font-weight: 600;
+  color: rgba(15, 23, 42, .65);
+}
+
+.net-stat-chip--xp {
+  background: rgba(20, 184, 166, .08);
+  border-color: rgba(20, 184, 166, .16);
+  color: #0f766e;
+}
+
+/* --- Up Next card --- */
+.net-upnext-card {
+  border: 1px solid rgba(6, 182, 212, .18);
+  background: linear-gradient(135deg, rgba(15, 185, 177, .04), rgba(56, 189, 248, .04));
+}
+
+.net-upnext-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.net-upnext-label {
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #0d9488;
+  margin-bottom: 2px;
+}
+
+.net-upnext-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.net-upnext-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(15, 23, 42, .06);
+}
+
+.net-upnext-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .82rem;
+  color: rgba(15, 23, 42, .55);
+  font-weight: 500;
+}
+
+.net-upnext-stat span {
+  font-weight: 700;
+  color: rgba(15, 23, 42, .8);
+}
+
+.net-upnext-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(15, 23, 42, .1);
+}
+
+@media (max-width: 575.98px) {
+  .net-upnext-divider {
+    display: none;
+  }
+  .net-upnext-stats {
+    gap: 8px 16px;
+  }
+}
+
+/* --- Sidebar (kept for compat but hidden on course page) --- */
 .net-course-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -7121,31 +7224,13 @@ body.net-course-page.net-landing::after {
   align-items: start;
 }
 
-@media (min-width: 992px) {
-  .net-course-grid {
-    grid-template-columns: 1.65fr .85fr;
-    gap: 22px;
-  }
-}
-
 .net-course-side {
-  position: relative;
+  display: none;
 }
 
 .net-sticky {
   position: sticky;
   top: 96px;
-}
-
-
-
-.net-course-side .net-card {
-  border-radius: 20px;
-  border: 1px solid rgba(6, 182, 212, .16);
-  background: rgba(255, 255, 255, .94);
-  box-shadow: 0 18px 54px rgba(2, 6, 23, .10);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 /* --- New Dashboard Overhaul --- */
@@ -7250,6 +7335,142 @@ body.net-course-page.net-landing::after {
   transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 
+/* --- Horizontal module tabs --- */
+.net-module-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(6, 182, 212, .2) transparent;
+}
+
+.net-module-strip::-webkit-scrollbar {
+  height: 4px;
+}
+
+.net-module-strip::-webkit-scrollbar-thumb {
+  background: rgba(6, 182, 212, .2);
+  border-radius: 4px;
+}
+
+.net-module-tab {
+  flex: 0 0 auto;
+  min-width: 150px;
+  max-width: 220px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 20px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(15, 23, 42, .08);
+  background: rgba(255, 255, 255, .8);
+  text-align: center;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+
+.net-module-tab:hover {
+  border-color: rgba(6, 182, 212, .28);
+  background: rgba(6, 182, 212, .04);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, .08);
+}
+
+.net-module-tab.is-active {
+  border-color: #0d9488;
+  background: linear-gradient(135deg, rgba(13, 148, 136, .06), rgba(6, 182, 212, .08));
+  box-shadow: 0 8px 28px rgba(13, 148, 136, .12);
+}
+
+.net-module-tab-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, .06);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: .85rem;
+  color: rgba(15, 23, 42, .5);
+  transition: all .18s ease;
+}
+
+.net-module-tab.is-active .net-module-tab-num {
+  background: linear-gradient(135deg, #0d9488, #06b6d4);
+  color: #fff;
+}
+
+.net-module-tab-title {
+  font-weight: 650;
+  font-size: .82rem;
+  line-height: 1.3;
+  color: rgba(15, 23, 42, .7);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.net-module-tab.is-active .net-module-tab-title {
+  color: #0f172a;
+}
+
+.net-module-tab-prog {
+  font-size: .72rem;
+  font-weight: 700;
+  color: rgba(15, 23, 42, .4);
+}
+
+.net-module-tab-prog--done {
+  color: #16a34a;
+}
+
+.net-module-tab-prog--done i {
+  font-size: .9rem;
+}
+
+/* --- Module detail panel --- */
+.net-module-detail {
+  margin-top: 12px;
+  border-radius: 22px;
+  border: 1px solid rgba(6, 182, 212, .14);
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 16px 44px rgba(2, 6, 23, .08);
+  overflow: hidden;
+  animation: moduleDetailIn .25s ease;
+}
+
+@keyframes moduleDetailIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.net-module-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, .06);
+}
+
+.net-module-detail-body {
+  padding: 12px 16px 16px;
+}
+
+@media (min-width: 576px) {
+  .net-module-detail-body {
+    padding: 16px 24px 20px;
+  }
+}
+
+/* Legacy compat (kept but unused with new tab layout) */
 .net-module-card:hover {
   transform: translateY(-4px) scale(1.01);
   box-shadow: 0 26px 70px rgba(2, 6, 23, .14);
@@ -7299,6 +7520,38 @@ body.net-course-page.net-landing::after {
 .net-lesson-row:disabled {
   opacity: .68;
   cursor: not-allowed;
+}
+
+/* Type tags for module items */
+.net-type-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.net-type-tag--learn {
+  background: rgba(20, 184, 166, .10);
+  color: #0f766e;
+}
+
+.net-type-tag--quiz {
+  background: rgba(139, 92, 246, .10);
+  color: #7c3aed;
+}
+
+.net-type-tag--challenge {
+  background: rgba(249, 115, 22, .10);
+  color: #c2410c;
+}
+
+.net-type-tag--sandbox,
+.net-type-tag--practice {
+  background: rgba(59, 130, 246, .10);
+  color: #2563eb;
 }
 
 .net-ico-pill {
