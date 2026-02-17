@@ -145,6 +145,7 @@ Features:
   function createCourseCard(course, progressMap, userLevel) {
     const card = document.createElement('div');
     card.className = 'net-course-card';
+    card.setAttribute('data-difficulty', (course.difficulty || 'novice').toLowerCase());
 
     const progress = progressMap[course.id] || {};
     const isLocked = course.required_level && course.required_level > userLevel;

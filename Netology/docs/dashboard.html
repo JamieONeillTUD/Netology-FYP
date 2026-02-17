@@ -391,6 +391,9 @@ Updates requested:
         <section class="dash-card net-card net-pop p-4 mb-4" data-tour="challenges-section">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Focus</h5>
+            <button class="btn btn-outline-secondary btn-sm d-none" id="challengesRetryBtn" type="button">
+              <i class="bi bi-arrow-clockwise me-1"></i>Retry
+            </button>
           </div>
           <div class="dash-toggle" role="tablist" aria-label="Weekly goals and achievements">
             <button class="dash-toggle-btn is-active" type="button" data-panel="dailyPanel">
@@ -425,6 +428,48 @@ Updates requested:
     <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
   </footer>
 
+  <!-- Dashboard welcome overlay (shown before onboarding on first login) -->
+  <div id="dashboardWelcomeOverlay" class="net-network-overlay net-network-overlay--welcome d-none" aria-hidden="true">
+    <svg class="net-network-svg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g class="net-network-links">
+        <line class="net-network-link" x1="120" y1="120" x2="300" y2="80" />
+        <line class="net-network-link" x1="300" y1="80" x2="520" y2="120" style="animation-delay: .3s" />
+        <line class="net-network-link" x1="520" y1="120" x2="650" y2="220" style="animation-delay: .6s" />
+        <line class="net-network-link" x1="650" y1="220" x2="520" y2="320" style="animation-delay: .9s" />
+        <line class="net-network-link" x1="520" y1="320" x2="300" y2="360" style="animation-delay: 1.2s" />
+        <line class="net-network-link" x1="300" y1="360" x2="140" y2="300" style="animation-delay: 1.5s" />
+        <line class="net-network-link" x1="140" y1="300" x2="120" y2="120" style="animation-delay: 1.8s" />
+        <line class="net-network-link" x1="300" y1="80" x2="400" y2="230" style="animation-delay: 1.1s" />
+        <line class="net-network-link" x1="520" y1="120" x2="400" y2="230" style="animation-delay: .7s" />
+        <line class="net-network-link" x1="300" y1="360" x2="400" y2="230" style="animation-delay: .4s" />
+        <line class="net-network-link" x1="520" y1="320" x2="400" y2="230" style="animation-delay: 1.4s" />
+        <line class="net-network-link" x1="520" y1="320" x2="620" y2="380" style="animation-delay: .2s" />
+      </g>
+      <g class="net-network-nodes">
+        <circle class="net-network-node" cx="120" cy="120" r="10" />
+        <circle class="net-network-node" cx="300" cy="80" r="12" style="animation-delay: .2s" />
+        <circle class="net-network-node" cx="520" cy="120" r="10" style="animation-delay: .4s" />
+        <circle class="net-network-node" cx="650" cy="220" r="12" style="animation-delay: .6s" />
+        <circle class="net-network-node" cx="520" cy="320" r="10" style="animation-delay: .8s" />
+        <circle class="net-network-node" cx="300" cy="360" r="12" style="animation-delay: 1s" />
+        <circle class="net-network-node" cx="140" cy="300" r="10" style="animation-delay: 1.2s" />
+        <circle class="net-network-node" cx="400" cy="230" r="14" style="animation-delay: 1.4s" />
+        <circle class="net-network-node" cx="620" cy="380" r="10" style="animation-delay: 1.6s" />
+      </g>
+    </svg>
+    <div class="net-network-content">
+      <div class="net-network-badge">Welcome to Netology</div>
+      <h2>Learn networking by doing, <span id="dashboardWelcomeName">there</span>.</h2>
+      <p>Interactive lessons, quizzes, and a hands-on sandbox designed to make networking simple and visual.</p>
+      <div class="net-signup-success-features">
+        <span><i class="bi bi-journal-bookmark"></i> Lessons</span>
+        <span><i class="bi bi-patch-question"></i> Quizzes</span>
+        <span><i class="bi bi-diagram-3"></i> Sandbox</span>
+        <span><i class="bi bi-award"></i> Badges</span>
+      </div>
+      <p class="net-network-cta">Starting your guided tour<span class="net-dots"></span></p>
+    </div>
+  </div>
 
   <!-- Scripts -->
   <script src="js/config.js"></script>

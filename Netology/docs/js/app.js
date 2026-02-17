@@ -304,10 +304,14 @@ function wireLoginSubmit(form) {
         // Once used, clear the pending value
         if (pendingTier) localStorage.removeItem("unlock_tier_pending");
 
-        showLoginBanner(`Welcome back, ${data.first_name}! Redirecting…`, "success");
+        const overlayShown = showLoginSuccessOverlay(data.first_name || loginPayload.first_name);
+        if (!overlayShown) {
+          showLoginBanner(`Welcome back, ${data.first_name}! Redirecting…`, "success");
+        }
+        const redirectDelay = overlayShown ? 2200 : 900;
         setTimeout(() => {
           window.location.href = "dashboard.html";
-        }, 900);
+        }, redirectDelay);
 
       } else {
         setInvalid(emailEl, true);
@@ -590,6 +594,23 @@ function showLoginBanner(message, type) {
 
   window.clearTimeout(showLoginBanner._t);
   showLoginBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4000);
+}
+
+function showLoginSuccessOverlay(name) {
+  const overlay = getById("loginSuccessOverlay");
+  if (!overlay) return false;
+
+  const nameEl = getById("loginSuccessName");
+  if (nameEl) {
+    const safeName = String(name || "").trim();
+    nameEl.textContent = safeName ? safeName : "there";
+  }
+
+  overlay.classList.remove("d-none");
+  overlay.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+
+  return true;
 }
 
 function showSignupBanner(message, type) {
@@ -1159,19 +1180,26 @@ class OnboardingTour {
   async focusTarget(element) {
     if (!element) return;
     const rect = element.getBoundingClientRect();
-    const margin = 80;
-    const withinViewport =
-      rect.top >= margin &&
-      rect.bottom <= window.innerHeight - margin &&
-      rect.left >= 8 &&
-      rect.right <= window.innerWidth - 8;
+    const targetTop = Math.max(
+      0,
+      window.scrollY + rect.top - (window.innerHeight / 2 - rect.height / 2)
+    );
+    const distance = Math.abs(window.scrollY - targetTop);
+    if (distance < 4) return;
 
-    if (withinViewport) return;
+    const wasLocked = this.isLocked;
+    if (wasLocked) {
+      this.setScrollLock(false);
+      this.detachScrollBlockers();
+    }
 
-    this.setScrollLock(false);
-    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    window.scrollTo({ top: targetTop, behavior: 'smooth' });
     await this.waitForScrollRest();
-    this.setScrollLock(true);
+
+    if (wasLocked) {
+      this.attachScrollBlockers();
+      this.setScrollLock(true);
+    }
   }
 
   async showStep(stepIndex) {
@@ -1429,6 +1457,9 @@ function maybeStartOnboardingTour(stageKey, userEmail) {
       });
     } catch {}
     markOnboardingSkipped();
+    if (typeof showPopup === "function") {
+      showPopup("Onboarding skipped. You can restart the tour from your dashboard anytime.", "info");
+    }
   };
 
   startOnboardingTour(userEmail, {

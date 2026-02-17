@@ -627,11 +627,42 @@ Works with:
     });
   }
 
+  function setChallengesRetryVisible(show) {
+    const btn = getById("challengesRetryBtn");
+    if (!btn) return;
+    btn.classList.toggle("d-none", !show);
+  }
+
+  function maybeShowChallengesToastOnce() {
+    try {
+      if (sessionStorage.getItem("netology_challenges_toast") === "1") return;
+      sessionStorage.setItem("netology_challenges_toast", "1");
+    } catch {}
+    if (typeof window.showPopup === "function") {
+      window.showPopup("Challenges are temporarily unavailable. We’ll keep trying in the background.", "warning");
+    }
+  }
+
+  function clearChallengesToastFlag() {
+    try {
+      sessionStorage.removeItem("netology_challenges_toast");
+    } catch {}
+  }
+
+  function challengeFallbackHtml() {
+    const timeLabel = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return `
+      <div class="small text-muted">Challenges are temporarily unavailable.</div>
+      <div class="small text-muted">Try again later • ${timeLabel}</div>
+    `;
+  }
+
   async function loadChallenges(email, { force = false } = {}) {
     if (!email) return;
     if (!force && window.__dashChallengesCache && Date.now() - (window.__dashChallengesAt || 0) < 60000) {
       renderChallengeList(getById("dailyTasks"), window.__dashChallengesCache.daily, email, "daily");
       renderChallengeList(getById("weeklyTasks"), window.__dashChallengesCache.weekly, email, "weekly");
+      setChallengesRetryVisible(false);
       return;
     }
 
@@ -640,24 +671,58 @@ Works with:
     if (dailyTarget) dailyTarget.innerHTML = '<div class="small text-muted">Loading daily focus…</div>';
     if (weeklyTarget) weeklyTarget.innerHTML = '<div class="small text-muted">Loading weekly challenges…</div>';
 
-    try {
+    const fetchChallengesByType = async (type) => {
+      const base = String(window.API_BASE || "").trim();
       const endpoint = ENDPOINTS.challenges?.list || "/api/user/challenges";
-      const [dailyData, weeklyData] = await Promise.all([
-        apiGet(endpoint, { type: "daily", user_email: email }),
-        apiGet(endpoint, { type: "weekly", user_email: email })
-      ]);
-      const daily = listFrom(dailyData, "challenges");
-      const weekly = listFrom(weeklyData, "challenges");
+      const url = base ? new URL(base.replace(/\/$/, "") + endpoint) : new URL(endpoint, window.location.origin);
+      url.searchParams.set("type", type);
+      url.searchParams.set("user_email", email);
 
+      try {
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const contentType = String(res.headers.get("content-type") || "");
+        if (!contentType.includes("application/json")) throw new Error("Non-JSON response");
+        const data = await res.json();
+        return { ok: true, data };
+      } catch (err) {
+        return { ok: false, error: err };
+      }
+    };
+
+    const [dailyRes, weeklyRes] = await Promise.all([
+      fetchChallengesByType("daily"),
+      fetchChallengesByType("weekly")
+    ]);
+
+    const daily = dailyRes.ok ? listFrom(dailyRes.data, "challenges") : [];
+    const weekly = weeklyRes.ok ? listFrom(weeklyRes.data, "challenges") : [];
+    const hasError = !dailyRes.ok || !weeklyRes.ok;
+
+    if (dailyRes.ok && weeklyRes.ok) {
       window.__dashChallengesCache = { daily, weekly };
       window.__dashChallengesAt = Date.now();
+    }
 
+    if (!dailyRes.ok) {
+      console.warn("Daily challenges unavailable:", dailyRes.error);
+      if (dailyTarget) dailyTarget.innerHTML = challengeFallbackHtml();
+    } else {
       renderChallengeList(dailyTarget, daily, email, "daily");
+    }
+
+    if (!weeklyRes.ok) {
+      console.warn("Weekly challenges unavailable:", weeklyRes.error);
+      if (weeklyTarget) weeklyTarget.innerHTML = challengeFallbackHtml();
+    } else {
       renderChallengeList(weeklyTarget, weekly, email, "weekly");
-    } catch (err) {
-      console.error("Failed to load challenges:", err);
-      if (dailyTarget) dailyTarget.innerHTML = '<div class="small text-muted">Unable to load daily challenges.</div>';
-      if (weeklyTarget) weeklyTarget.innerHTML = '<div class="small text-muted">Unable to load weekly challenges.</div>';
+    }
+
+    setChallengesRetryVisible(hasError);
+    if (hasError) {
+      maybeShowChallengesToastOnce();
+    } else {
+      clearChallengesToastFlag();
     }
   }
 
@@ -2023,6 +2088,7 @@ Works with:
     safeStep("setupGoalToggle", setupGoalToggle);
     safeStep("setDailyTip", setDailyTip);
     safeStep("initStatsCarousel", initStatsCarousel);
+    safeStep("wireChallengesRetry", wireChallengesRetry);
 
     // Init Bootstrap Tooltips
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
@@ -2049,6 +2115,8 @@ Works with:
 
       if (typeof window.maybeStartOnboardingTour === "function") {
         setTimeout(() => {
+          const welcomeShown = maybeShowDashboardWelcome(user);
+          if (welcomeShown) return;
           const started = window.maybeStartOnboardingTour("dashboard", user.email);
           if (!started) {
             window.maybeStartOnboardingTour("wrapup", user.email);
@@ -2094,6 +2162,74 @@ Works with:
       if (!e.key) return;
       if (e.key === "user" || e.key.startsWith("netology_")) scheduleDashboardRefresh();
     });
+  }
+
+  function wireChallengesRetry() {
+    const btn = getById("challengesRetryBtn");
+    if (!btn || btn._netBound) return;
+    btn._netBound = true;
+    const originalHtml = btn.innerHTML;
+
+    btn.addEventListener("click", async () => {
+      const user = getCurrentUser();
+      if (!user?.email) return;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Retrying';
+      await loadChallenges(user.email, { force: true });
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    });
+  }
+
+  function maybeShowDashboardWelcome(user) {
+    const overlay = getById("dashboardWelcomeOverlay");
+    if (!overlay || !user?.email) return false;
+
+    const normalizedEmail = String(user.email || "").trim().toLowerCase();
+    const onboardingUser = String(localStorage.getItem("netology_onboarding_user") || "")
+      .trim()
+      .toLowerCase();
+    const stage = String(localStorage.getItem("netology_onboarding_stage") || "").trim().toLowerCase();
+
+    let sessionAllowed = false;
+    let alreadyShown = false;
+    try {
+      sessionAllowed = sessionStorage.getItem("netology_onboarding_session") === "true";
+      alreadyShown = sessionStorage.getItem("netology_welcome_shown") === "true";
+    } catch {}
+
+    if (!sessionAllowed || alreadyShown || stage !== "dashboard" || onboardingUser !== normalizedEmail) {
+      return false;
+    }
+
+    const nameEl = getById("dashboardWelcomeName");
+    if (nameEl) nameEl.textContent = user.first_name || "there";
+
+    overlay.classList.remove("d-none");
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+
+    try {
+      sessionStorage.setItem("netology_welcome_shown", "true");
+    } catch {}
+
+    const closeOverlay = () => {
+      overlay.classList.add("is-exiting");
+      window.setTimeout(() => {
+        overlay.classList.add("d-none");
+        overlay.classList.remove("is-exiting");
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+
+        if (typeof window.maybeStartOnboardingTour === "function") {
+          const started = window.maybeStartOnboardingTour("dashboard", user.email);
+          if (!started) window.maybeStartOnboardingTour("wrapup", user.email);
+        }
+      }, 420);
+    };
+
+    window.setTimeout(closeOverlay, 2400);
+    return true;
   }
 
   // Expose helpers needed by inline scripts on dashboard.html
