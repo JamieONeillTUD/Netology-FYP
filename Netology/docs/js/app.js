@@ -383,7 +383,13 @@ function wireLoginSubmit(form) {
         const alreadyCompletedOnboarding = Boolean(data.onboarding_completed)
           || localStorage.getItem("netology_onboarding_completed") === "true"
           || localStorage.getItem("netology_onboarding_skipped") === "true";
-        const shouldStartOnboarding = !alreadyCompletedOnboarding
+        
+        // Check if this email has ever completed onboarding (based on backend flag OR stored completion flag)
+        const hasEverCompletedOnboarding = Boolean(data.onboarding_completed) 
+          || localStorage.getItem(`netology_onboarding_completed_${normalizedEmail}`) === "true";
+        
+        // Onboarding should trigger on first login OR if they just signed up (have first_login flag set)
+        const shouldStartOnboarding = !hasEverCompletedOnboarding
           && (Boolean(data.is_first_login) || (firstLoginFlag && firstLoginFlag === normalizedEmail));
 
         if (shouldStartOnboarding) {
@@ -1512,6 +1518,13 @@ function markOnboardingComplete() {
   localStorage.setItem("netology_onboarding_completed", "true");
   localStorage.removeItem("netology_onboarding_stage");
   localStorage.removeItem("netology_onboarding_skipped");
+  
+  // Also store per-email completion so onboarding doesn't re-trigger for this email
+  const onboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
+  if (onboardingUser) {
+    localStorage.setItem(`netology_onboarding_completed_${onboardingUser}`, "true");
+  }
+  
   localStorage.removeItem("netology_onboarding_user");
   try {
     sessionStorage.removeItem("netology_onboarding_session");
@@ -1533,6 +1546,13 @@ function markOnboardingComplete() {
 function markOnboardingSkipped() {
   localStorage.setItem("netology_onboarding_skipped", "true");
   localStorage.removeItem("netology_onboarding_stage");
+  
+  // Also store per-email skipped flag
+  const onboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
+  if (onboardingUser) {
+    localStorage.setItem(`netology_onboarding_skipped_${onboardingUser}`, "true");
+  }
+  
   localStorage.removeItem("netology_onboarding_user");
   try {
     sessionStorage.removeItem("netology_onboarding_session");
@@ -1558,8 +1578,11 @@ function maybeStartOnboardingTour(stageKey, userEmail) {
     return false;
   }
 
-  const completed = localStorage.getItem("netology_onboarding_completed") === "true";
-  const skipped = localStorage.getItem("netology_onboarding_skipped") === "true";
+  // Check both global and per-email completion flags
+  const completed = localStorage.getItem("netology_onboarding_completed") === "true"
+    || localStorage.getItem(`netology_onboarding_completed_${normalizedEmail}`) === "true";
+  const skipped = localStorage.getItem("netology_onboarding_skipped") === "true"
+    || localStorage.getItem(`netology_onboarding_skipped_${normalizedEmail}`) === "true";
   if (completed || skipped) return false;
 
   const stage = localStorage.getItem("netology_onboarding_stage");
