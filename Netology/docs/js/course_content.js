@@ -1436,11 +1436,135 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "Switch vs hub",
-            learn: "Switches build MAC tables and forward frames only where needed. Hubs repeat to all ports."
+            learn: "Switches build MAC tables and forward frames only where needed. Hubs repeat to all ports.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "A hub is a simple device that repeats every incoming frame out every port.",
+                  "A switch is smarter — it learns which MAC address lives on which port by reading the source address of every incoming frame.",
+                  "When a switch knows the destination MAC, it sends the frame only to the correct port (unicast forwarding).",
+                  "If the destination is unknown, the switch floods the frame to all ports except the source — just like a hub would.",
+                  "Over time the MAC address table fills in and almost all traffic is forwarded efficiently.",
+                  "Hubs create one big collision domain; switches give each port its own collision domain.",
+                  "This means switches handle much higher throughput and support full-duplex on every port."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: MAC address learning",
+                content: [
+                  "Every frame has a source MAC. The switch records that MAC and the port it arrived on.",
+                  "This entry stays in the MAC table for a set time (typically 300 seconds).",
+                  "If no more frames arrive from that MAC, the entry ages out and is removed."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What does a switch do when it does not know the destination MAC?",
+                options: ["Drops the frame", "Floods to all ports except the source", "Sends it to the router"],
+                correctIndex: 1,
+                explanation: "Unknown unicast frames are flooded until the switch learns the destination."
+              },
+              {
+                type: "activity",
+                title: "Match device behaviour",
+                mode: "drag",
+                prompt: "Match each behaviour to the correct device.",
+                targets: [
+                  { id: "hub", label: "Hub" },
+                  { id: "switch", label: "Switch" }
+                ],
+                items: [
+                  { id: "flood", label: "Repeats every frame to all ports", targetId: "hub" },
+                  { id: "learn", label: "Builds a MAC address table", targetId: "switch" },
+                  { id: "collision", label: "One shared collision domain", targetId: "hub" },
+                  { id: "unicast", label: "Forwards known unicast to one port", targetId: "switch" }
+                ]
+              }
+            ],
+            content: [
+              "A hub repeats every incoming frame out every port, creating unnecessary traffic.",
+              "A switch learns which MAC address lives on which port by reading the source address.",
+              "When the destination MAC is known, the switch forwards the frame only to the correct port.",
+              "Unknown destinations are flooded to all ports except the source.",
+              "Switches give each port its own collision domain, enabling full-duplex and higher throughput.",
+              "MAC table entries age out after a timeout, typically 300 seconds.",
+              "Modern networks use switches almost exclusively; hubs are legacy devices."
+            ],
+            objectives: [
+              "Compare how hubs and switches forward frames",
+              "Explain MAC address learning",
+              "Describe why switches are preferred over hubs"
+            ],
+            summary: "Switches forward frames intelligently using MAC tables while hubs repeat everything."
           },
           {
             title: "Spanning Tree basics",
             learn: "STP calculates a loop-free topology by blocking some redundant links.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Redundant links between switches improve availability but create a risk of switching loops.",
+                  "A loop causes frames to circle endlessly, flooding the network and crashing it within seconds.",
+                  "Spanning Tree Protocol (STP) prevents loops by electing a Root Bridge and blocking redundant paths.",
+                  "The Root Bridge is the switch with the lowest Bridge ID — all traffic paths are calculated from it.",
+                  "Each non-root switch finds its shortest path to the root; ports on redundant links are placed in blocking state.",
+                  "If an active link fails, STP recalculates and unblocks a previously blocked port to restore connectivity.",
+                  "Modern variants like RSTP converge much faster than the original 802.1D standard."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why loops are dangerous",
+                content: [
+                  "Without STP, a single broadcast frame would be copied endlessly between switches.",
+                  "This broadcast storm consumes all bandwidth and CPU on every switch.",
+                  "STP stops this by ensuring only one active path exists between any two switches."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What role does the Root Bridge play in STP?",
+                options: ["It blocks all traffic", "It is the reference point for path calculations", "It assigns IP addresses"],
+                correctIndex: 1,
+                explanation: "All STP path costs are calculated relative to the Root Bridge."
+              },
+              {
+                type: "activity",
+                title: "Order the STP process",
+                mode: "drag",
+                prompt: "Match each STP concept to the correct description.",
+                targets: [
+                  { id: "root", label: "Root Bridge" },
+                  { id: "blocking", label: "Blocking state" },
+                  { id: "convergence", label: "Convergence" }
+                ],
+                items: [
+                  { id: "lowest", label: "Switch with the lowest Bridge ID", targetId: "root" },
+                  { id: "noforward", label: "Port that does not forward frames", targetId: "blocking" },
+                  { id: "recalc", label: "Recalculating paths after a failure", targetId: "convergence" }
+                ]
+              }
+            ],
+            content: [
+              "Redundant links between switches improve availability but create a risk of switching loops.",
+              "Spanning Tree Protocol prevents loops by electing a Root Bridge and blocking redundant paths.",
+              "The Root Bridge is the switch with the lowest Bridge ID.",
+              "Each non-root switch finds its shortest path to the root.",
+              "Ports on redundant links are placed in blocking state to prevent loops.",
+              "If an active link fails, STP recalculates and unblocks a previously blocked port.",
+              "RSTP converges much faster than the original 802.1D standard."
+            ],
+            objectives: [
+              "Explain why switching loops are dangerous",
+              "Describe how STP elects a Root Bridge",
+              "Explain how STP prevents loops"
+            ],
+            summary: "STP prevents dangerous switching loops by electing a Root Bridge and blocking redundant paths.",
             quiz: {
               title: "Switching quick check",
               xp: 50,
@@ -1510,11 +1634,115 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "IPv4 address classes",
-            learn: "Classful addressing is historical, but private ranges still map to A/B/C blocks."
+            learn: "Classful addressing is historical, but private ranges still map to A/B/C blocks.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "IPv4 addresses are 32 bits long, written as four octets separated by dots (e.g. 192.168.1.1).",
+                  "Historically, addresses were divided into classes: A (1–126), B (128–191), and C (192–223).",
+                  "Class A gives huge networks with millions of hosts; Class C gives small networks with 254 hosts.",
+                  "Classful addressing wasted addresses — a company needing 500 hosts had to take a full Class B.",
+                  "Modern networking uses CIDR to size networks precisely, but private ranges still follow the class boundaries.",
+                  "Private ranges: 10.0.0.0/8 (Class A), 172.16.0.0/12 (Class B), 192.168.0.0/16 (Class C)."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why classful addressing is obsolete",
+                content: [
+                  "Class-based allocation was too rigid and wasted huge blocks of addresses.",
+                  "CIDR replaced classes with variable-length prefixes for flexible sizing.",
+                  "However, private IP ranges are still defined by the old class boundaries."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which class of IPv4 address starts with 192?",
+                options: ["Class A", "Class B", "Class C"],
+                correctIndex: 2,
+                explanation: "Class C addresses range from 192 to 223 in the first octet."
+              },
+              {
+                type: "activity",
+                title: "Match IP ranges",
+                mode: "drag",
+                prompt: "Match each private range to the correct class.",
+                targets: [
+                  { id: "a", label: "Class A" },
+                  { id: "b", label: "Class B" },
+                  { id: "c", label: "Class C" }
+                ],
+                items: [
+                  { id: "ten", label: "10.0.0.0/8", targetId: "a" },
+                  { id: "oneseventwo", label: "172.16.0.0/12", targetId: "b" },
+                  { id: "oneninety", label: "192.168.0.0/16", targetId: "c" }
+                ]
+              }
+            ],
+            content: [
+              "IPv4 addresses are 32 bits long, written as four octets separated by dots.",
+              "Classes A, B, and C defined network sizes based on the first octet.",
+              "Classful addressing wasted addresses; CIDR replaced it with variable prefixes.",
+              "Private ranges still follow class boundaries: 10/8, 172.16/12, 192.168/16.",
+              "Class A supports millions of hosts; Class C supports 254 hosts.",
+              "Understanding classes helps you recognise private IP ranges quickly."
+            ],
+            objectives: [
+              "Identify IPv4 address classes",
+              "List the three private IP ranges",
+              "Explain why CIDR replaced classful addressing"
+            ],
+            summary: "IPv4 classes are historical but private ranges still map to Class A, B, and C blocks."
           },
           {
             title: "Private vs public IPs",
             learn: "Private IPs (10/8, 172.16/12, 192.168/16) are not routed on the Internet.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Public IP addresses are globally unique and routable on the Internet.",
+                  "Private IP addresses are reserved for internal use and cannot be routed publicly.",
+                  "NAT (Network Address Translation) allows private IPs to share a single public IP for Internet access.",
+                  "The three private ranges are: 10.0.0.0/8, 172.16.0.0/12, and 192.168.0.0/16.",
+                  "Using private IPs conserves the limited IPv4 address space.",
+                  "Most home and office networks use private IPs internally with NAT at the router."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: How NAT works",
+                content: [
+                  "NAT translates private source IPs to a public IP when traffic leaves the network.",
+                  "Return traffic is mapped back to the original private IP using a translation table.",
+                  "PAT (Port Address Translation) allows many devices to share one public IP by tracking port numbers."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What allows private IPs to access the Internet?",
+                options: ["DNS", "NAT", "DHCP"],
+                correctIndex: 1,
+                explanation: "NAT translates private IPs to public IPs for Internet access."
+              }
+            ],
+            content: [
+              "Public IPs are globally unique and routable on the Internet.",
+              "Private IPs are reserved for internal use and not routed publicly.",
+              "NAT translates private IPs to public IPs at the network boundary.",
+              "The three private ranges are 10/8, 172.16/12, and 192.168/16.",
+              "Using private IPs conserves the limited IPv4 address space.",
+              "Most networks use private IPs internally with NAT at the router."
+            ],
+            objectives: [
+              "Distinguish private from public IP addresses",
+              "Explain how NAT enables Internet access",
+              "List the three private IP ranges"
+            ],
+            summary: "Private IPs are used internally and NAT translates them to public IPs for Internet access.",
             quiz: {
               title: "Addressing quick check",
               xp: 50,
@@ -1635,6 +1863,38 @@ const COURSE_CONTENT = {
           {
             title: "Why subnet?",
             learn: "Subnetting improves performance, security, and manageability by limiting broadcasts.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Subnetting splits a large network into smaller networks, each with its own broadcast domain.",
+                  "Smaller broadcast domains reduce unnecessary traffic and make troubleshooting easier.",
+                  "Subnetting also helps enforce security boundaries between departments or services.",
+                  "Example: HR, Finance, and Engineering can each have their own subnet with firewall rules between them.",
+                  "Good subnetting reduces wasted addresses and prevents one noisy segment from impacting everyone.",
+                  "Subnetting makes IP planning realistic; you assign only as many addresses as each group needs.",
+                  "Security improves: broadcast-dependent attacks are confined to one subnet.",
+                  "Performance improves: multicast and broadcast storm are limited to one subnet only."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Broadcast domains and subnets",
+                content: [
+                  "Each subnet is its own broadcast domain.",
+                  "Broadcast frames stay inside one subnet; routers never forward broadcasts.",
+                  "This is why splitting a large network into subnets reduces broadcast traffic and improves performance."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What limits broadcasts to just one subnet?",
+                options: ["Switches", "Routers", "Gateways"],
+                correctIndex: 1,
+                explanation: "Routers separate broadcast domains; broadcasts never cross a router."
+              }
+            ],
             content: [
               "Subnetting splits a large network into smaller networks, each with its own broadcast domain.",
               "Smaller broadcast domains reduce unnecessary traffic and make troubleshooting easier.",
@@ -1655,6 +1915,38 @@ const COURSE_CONTENT = {
           {
             title: "CIDR and prefix lengths",
             learn: "Prefix length determines how many addresses are in a subnet.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "CIDR uses prefix notation (like /24) to define network size and range.",
+                  "The shorter the prefix, the larger the subnet (more hosts).",
+                  "The longer the prefix, the smaller the subnet (fewer hosts).",
+                  "A /24 gives 256 total addresses (254 usable). A /26 gives 64 total (62 usable).",
+                  "Prefix length directly controls the block size and the step between subnets.",
+                  "Knowing the prefix lets you calculate network, broadcast, and host ranges quickly.",
+                  "Example: a /28 gives 16 total addresses (14 usable), perfect for a small printer or IoT VLAN.",
+                  "The math: block size = 256 / (2^(32-prefix)) and each subnet starts at the next block boundary."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Block size formula",
+                content: [
+                  "Block size determines the step between network IDs.",
+                  "For a /26: block size = 256 / 4 = 64, so networks are .0, .64, .128, .192.",
+                  "For a /28: block size = 256 / 16 = 16, so networks are .0, .16, .32, .48, .64..."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What is the block size for a /25?",
+                options: ["64", "128", "256"],
+                correctIndex: 1,
+                explanation: "A /25 gives 128 addresses per subnet; networks start at .0, .128."
+              }
+            ],
             content: [
               "CIDR uses prefix notation (like /24) to define network size and range.",
               "The shorter the prefix, the larger the subnet (more hosts).",
@@ -2301,11 +2593,115 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "Static vs dynamic routing",
-            learn: "Static routes are simple but manual; dynamic routing scales better."
+            learn: "Static routes are simple but manual; dynamic routing scales better.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "A static route is a manually configured path: you tell the router exactly where to send traffic for a given network.",
+                  "Static routes are predictable and do not use CPU or bandwidth for updates.",
+                  "However, if a link fails, a static route will not adjust unless you change it manually.",
+                  "Dynamic routing protocols (like OSPF, EIGRP, or BGP) discover neighbours and exchange route information automatically.",
+                  "When a link fails, dynamic protocols recalculate and find a new path without human intervention.",
+                  "Static routes work best for small networks or default routes; dynamic routing is essential for larger environments."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: When to use static routes",
+                content: [
+                  "Static routes are ideal for stub networks with only one exit path.",
+                  "A default static route (0.0.0.0/0) sends all unknown traffic to a gateway of last resort.",
+                  "Use dynamic routing when the network has multiple paths and redundancy."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What is the main disadvantage of static routes?",
+                options: ["They use too much bandwidth", "They do not adapt to link failures", "They require special hardware"],
+                correctIndex: 1,
+                explanation: "Static routes must be manually updated if the network changes."
+              },
+              {
+                type: "activity",
+                title: "Match routing types",
+                mode: "drag",
+                prompt: "Match each trait to the correct routing type.",
+                targets: [
+                  { id: "static", label: "Static" },
+                  { id: "dynamic", label: "Dynamic" }
+                ],
+                items: [
+                  { id: "manual", label: "Configured manually", targetId: "static" },
+                  { id: "auto", label: "Discovers routes automatically", targetId: "dynamic" },
+                  { id: "failover", label: "Adjusts to link failures", targetId: "dynamic" },
+                  { id: "stub", label: "Best for single-exit networks", targetId: "static" }
+                ]
+              }
+            ],
+            content: [
+              "A static route is a manually configured path telling the router where to send traffic.",
+              "Static routes are predictable but do not adapt to link failures.",
+              "Dynamic protocols discover neighbours and exchange route information automatically.",
+              "When a link fails, dynamic protocols recalculate and find a new path.",
+              "Static routes work best for small networks or default routes.",
+              "Dynamic routing is essential for larger environments with multiple paths."
+            ],
+            objectives: [
+              "Compare static and dynamic routing",
+              "Explain when to use static routes",
+              "Describe the advantage of dynamic protocols"
+            ],
+            summary: "Static routes are manual and simple while dynamic routing adapts automatically to changes."
           },
           {
             title: "OSPF overview",
             learn: "OSPF builds a link-state database and computes shortest paths.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "OSPF (Open Shortest Path First) is a link-state routing protocol used inside organisations.",
+                  "Every OSPF router builds a complete map of the network (the link-state database).",
+                  "Dijkstra's SPF algorithm calculates the shortest path to every destination.",
+                  "OSPF routers form neighbour relationships by exchanging Hello packets.",
+                  "Changes are advertised immediately as LSAs (Link-State Advertisements).",
+                  "OSPF converges quickly and uses cost (based on bandwidth) as its metric."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: OSPF areas",
+                content: [
+                  "Large OSPF networks are divided into areas to reduce the size of the link-state database.",
+                  "Area 0 is the backbone; all other areas must connect to it.",
+                  "This hierarchy keeps convergence fast even in very large networks."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What algorithm does OSPF use to calculate shortest paths?",
+                options: ["Bellman-Ford", "Dijkstra SPF", "Round-robin"],
+                correctIndex: 1,
+                explanation: "OSPF uses Dijkstra's Shortest Path First algorithm."
+              }
+            ],
+            content: [
+              "OSPF is a link-state routing protocol used inside organisations.",
+              "Every router builds a complete map of the network topology.",
+              "Dijkstra's algorithm calculates the shortest path to every destination.",
+              "OSPF routers form neighbour relationships by exchanging Hello packets.",
+              "Changes are advertised immediately as Link-State Advertisements.",
+              "OSPF uses cost based on bandwidth as its metric."
+            ],
+            objectives: [
+              "Describe how OSPF works",
+              "Explain the role of the link-state database",
+              "Identify the OSPF metric"
+            ],
+            summary: "OSPF builds a link-state database and uses Dijkstra to find shortest paths.",
             quiz: {
               title: "Routing quick check",
               xp: 60,
@@ -2368,11 +2764,132 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "Wi‑Fi standards",
-            learn: "Wireless standards define performance and compatibility for Wi‑Fi networks."
+            learn: "Wireless standards define performance and compatibility for Wi‑Fi networks.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Wi‑Fi is defined by the IEEE 802.11 family of standards.",
+                  "802.11n (Wi‑Fi 4) introduced MIMO and operates on 2.4 GHz and 5 GHz bands.",
+                  "802.11ac (Wi‑Fi 5) added wider channels and beamforming for faster 5 GHz speeds.",
+                  "802.11ax (Wi‑Fi 6) improved efficiency in crowded areas using OFDMA and BSS colouring.",
+                  "The 2.4 GHz band has longer range but more interference; 5 GHz is faster but shorter range.",
+                  "Choosing the right standard and band depends on coverage needs and device density."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: 2.4 GHz vs 5 GHz",
+                content: [
+                  "2.4 GHz has three non-overlapping channels and better wall penetration.",
+                  "5 GHz has many more channels and less interference but shorter range.",
+                  "Modern access points support both bands simultaneously (dual-band)."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which Wi‑Fi standard introduced OFDMA for better efficiency?",
+                options: ["Wi‑Fi 4 (802.11n)", "Wi‑Fi 5 (802.11ac)", "Wi‑Fi 6 (802.11ax)"],
+                correctIndex: 2,
+                explanation: "Wi‑Fi 6 (802.11ax) introduced OFDMA for more efficient airtime usage."
+              },
+              {
+                type: "activity",
+                title: "Match the standards",
+                mode: "drag",
+                prompt: "Match each feature to the correct Wi‑Fi generation.",
+                targets: [
+                  { id: "wifi4", label: "Wi‑Fi 4" },
+                  { id: "wifi5", label: "Wi‑Fi 5" },
+                  { id: "wifi6", label: "Wi‑Fi 6" }
+                ],
+                items: [
+                  { id: "mimo", label: "Introduced MIMO", targetId: "wifi4" },
+                  { id: "beam", label: "Beamforming on 5 GHz", targetId: "wifi5" },
+                  { id: "ofdma", label: "OFDMA for dense environments", targetId: "wifi6" }
+                ]
+              }
+            ],
+            content: [
+              "Wi‑Fi is defined by the IEEE 802.11 family of standards.",
+              "Wi‑Fi 4 introduced MIMO on 2.4 GHz and 5 GHz bands.",
+              "Wi‑Fi 5 added wider channels and beamforming on 5 GHz.",
+              "Wi‑Fi 6 improved efficiency with OFDMA and BSS colouring.",
+              "2.4 GHz has longer range but more interference.",
+              "5 GHz is faster but shorter range."
+            ],
+            objectives: [
+              "Compare major Wi‑Fi standards",
+              "Explain the difference between 2.4 GHz and 5 GHz",
+              "Describe key features of Wi‑Fi 6"
+            ],
+            summary: "Wi‑Fi standards define speed and efficiency for wireless networks across different bands."
           },
           {
             title: "DHCP & DNS basics",
             learn: "DHCP automates IP assignment; DNS resolves domain names.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "DHCP (Dynamic Host Configuration Protocol) assigns IP addresses, subnet masks, gateways, and DNS servers automatically.",
+                  "Without DHCP, every device would need a manually configured IP — impractical at scale.",
+                  "The DHCP process follows four steps: Discover, Offer, Request, Acknowledge (DORA).",
+                  "DNS (Domain Name System) translates human-friendly names like google.com into IP addresses.",
+                  "DNS uses a hierarchy: root servers, TLD servers, and authoritative servers for each domain.",
+                  "If DNS fails, users cannot reach websites by name even though the network is functioning."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: The DORA process",
+                content: [
+                  "1. Discover — the client broadcasts a request for an IP address.",
+                  "2. Offer — the DHCP server offers an available IP.",
+                  "3. Request — the client accepts the offer.",
+                  "4. Acknowledge — the server confirms the lease."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What does the D in DORA stand for?",
+                options: ["Deliver", "Discover", "Deny"],
+                correctIndex: 1,
+                explanation: "The first step of DHCP is Discover — the client broadcasts looking for a server."
+              },
+              {
+                type: "activity",
+                title: "Match the services",
+                mode: "drag",
+                prompt: "Match each function to the correct service.",
+                targets: [
+                  { id: "dhcp", label: "DHCP" },
+                  { id: "dns", label: "DNS" }
+                ],
+                items: [
+                  { id: "ip", label: "Assigns IP addresses automatically", targetId: "dhcp" },
+                  { id: "name", label: "Translates names to IP addresses", targetId: "dns" },
+                  { id: "dora", label: "Uses Discover, Offer, Request, Acknowledge", targetId: "dhcp" },
+                  { id: "hierarchy", label: "Uses root, TLD, and authoritative servers", targetId: "dns" }
+                ]
+              }
+            ],
+            content: [
+              "DHCP assigns IP addresses, subnet masks, gateways, and DNS servers automatically.",
+              "The DHCP process uses four steps: Discover, Offer, Request, Acknowledge.",
+              "DNS translates human-friendly names into IP addresses.",
+              "DNS uses a hierarchy of root, TLD, and authoritative servers.",
+              "Without DHCP, every device would need manual IP configuration.",
+              "If DNS fails, users cannot reach websites by name."
+            ],
+            objectives: [
+              "Describe how DHCP works",
+              "Explain the DORA process",
+              "Describe the DNS hierarchy"
+            ],
+            summary: "DHCP automates IP assignment and DNS resolves domain names to IP addresses.",
             quiz: {
               title: "Services quick check",
               xp: 60,
@@ -3104,11 +3621,115 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "WAN technologies",
-            learn: "WAN links connect sites using carrier services or encrypted tunnels."
+            learn: "WAN links connect sites using carrier services or encrypted tunnels.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "WAN (Wide Area Network) technologies connect offices, data centres, and cloud services over long distances.",
+                  "MPLS provides private, low-latency paths through a service provider's network.",
+                  "SD-WAN uses software-defined policies to route traffic over multiple links including broadband and LTE.",
+                  "IPsec VPNs encrypt traffic end-to-end across the public Internet for secure remote access.",
+                  "Each technology has trade-offs: MPLS is reliable but expensive; SD-WAN is flexible but depends on underlay quality.",
+                  "Modern enterprises often combine MPLS for critical traffic with SD-WAN for cost savings and redundancy."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Why SD-WAN is growing",
+                content: [
+                  "SD-WAN can use cheap Internet links instead of expensive MPLS circuits.",
+                  "It provides centralised policy management for all branches.",
+                  "Application-aware routing ensures the best path for each traffic type."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "Which WAN technology provides application-aware routing over multiple links?",
+                options: ["MPLS", "SD-WAN", "Leased line"],
+                correctIndex: 1,
+                explanation: "SD-WAN uses software-defined policies for intelligent path selection."
+              },
+              {
+                type: "activity",
+                title: "Match WAN technologies",
+                mode: "drag",
+                prompt: "Match each trait to the correct WAN technology.",
+                targets: [
+                  { id: "mpls", label: "MPLS" },
+                  { id: "sdwan", label: "SD-WAN" },
+                  { id: "vpn", label: "IPsec VPN" }
+                ],
+                items: [
+                  { id: "private", label: "Private paths through a provider", targetId: "mpls" },
+                  { id: "policy", label: "Software-defined policy routing", targetId: "sdwan" },
+                  { id: "encrypt", label: "Encrypts traffic over the Internet", targetId: "vpn" }
+                ]
+              }
+            ],
+            content: [
+              "WAN technologies connect offices and cloud services over long distances.",
+              "MPLS provides private low-latency paths through a service provider network.",
+              "SD-WAN routes traffic over multiple links using software-defined policies.",
+              "IPsec VPNs encrypt traffic across the public Internet.",
+              "MPLS is reliable but expensive; SD-WAN is flexible and cost-effective.",
+              "Modern networks combine multiple WAN technologies for optimal performance."
+            ],
+            objectives: [
+              "Compare MPLS, SD-WAN, and VPN technologies",
+              "Explain why SD-WAN is growing",
+              "Describe trade-offs between WAN options"
+            ],
+            summary: "WAN technologies like MPLS, SD-WAN, and VPNs connect sites securely over distance."
           },
           {
             title: "BGP basics",
             learn: "BGP uses path attributes to choose the best route between ASes.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "BGP (Border Gateway Protocol) is the routing protocol that glues the Internet together.",
+                  "It exchanges routing information between Autonomous Systems (ASes) — each an independent network.",
+                  "BGP uses path attributes like AS-PATH and LOCAL_PREF to choose the best route.",
+                  "Unlike OSPF, BGP is a path-vector protocol that makes policy-based routing decisions.",
+                  "eBGP runs between ASes; iBGP runs within a single AS to distribute external routes.",
+                  "BGP is deliberately conservative: it converges slowly to prioritise stability over speed."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: AS-PATH attribute",
+                content: [
+                  "AS-PATH lists every AS a route has traversed.",
+                  "Shorter AS-PATHs are preferred because they represent fewer network hops.",
+                  "Prepending extra AS numbers to the path is a common way to influence inbound traffic."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What does BGP use to select the best route?",
+                options: ["Bandwidth cost", "Path attributes like AS-PATH", "Hop count only"],
+                correctIndex: 1,
+                explanation: "BGP uses multiple path attributes including AS-PATH and LOCAL_PREF."
+              }
+            ],
+            content: [
+              "BGP is the routing protocol that connects Autonomous Systems on the Internet.",
+              "It uses path attributes like AS-PATH and LOCAL_PREF for route selection.",
+              "eBGP runs between ASes; iBGP distributes routes within one AS.",
+              "BGP is a path-vector protocol focused on policy-based decisions.",
+              "Shorter AS-PATHs are generally preferred.",
+              "BGP converges slowly to prioritise stability."
+            ],
+            objectives: [
+              "Explain what BGP does",
+              "Describe key BGP path attributes",
+              "Compare eBGP and iBGP"
+            ],
+            summary: "BGP exchanges routes between Autonomous Systems using path attributes for policy-based decisions.",
             quiz: {
               title: "WAN quick check",
               xp: 60,
@@ -3171,11 +3792,131 @@ const COURSE_CONTENT = {
         lessons: [
           {
             title: "Network automation overview",
-            learn: "Automation improves reliability and speed by reusing tested workflows."
+            learn: "Automation improves reliability and speed by reusing tested workflows.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Network automation replaces manual, error-prone tasks with repeatable, tested workflows.",
+                  "Common tools include Ansible, Python scripts, and vendor APIs (REST, NETCONF).",
+                  "Automation starts with simple tasks: backing up configs, checking compliance, and pushing changes.",
+                  "Infrastructure as Code (IaC) means defining network state in version-controlled files.",
+                  "Benefits include faster deployments, fewer human errors, and consistent configuration across devices.",
+                  "Start small — automate one task well before expanding to a full pipeline."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: Infrastructure as Code",
+                content: [
+                  "IaC stores the desired state of your network in config files (YAML, JSON, or templates).",
+                  "Changes are reviewed, approved, and deployed just like software code.",
+                  "This makes rollbacks easy and ensures every change is documented."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What is the main benefit of network automation?",
+                options: ["It eliminates all hardware", "It reduces manual errors and speeds up changes", "It replaces all security tools"],
+                correctIndex: 1,
+                explanation: "Automation reduces errors and makes changes faster and more consistent."
+              },
+              {
+                type: "activity",
+                title: "Match automation concepts",
+                mode: "drag",
+                prompt: "Match each concept to its description.",
+                targets: [
+                  { id: "iac", label: "Infrastructure as Code" },
+                  { id: "ansible", label: "Ansible" },
+                  { id: "api", label: "REST API" }
+                ],
+                items: [
+                  { id: "version", label: "Network state in version-controlled files", targetId: "iac" },
+                  { id: "playbook", label: "Agentless tool using YAML playbooks", targetId: "ansible" },
+                  { id: "http", label: "HTTP-based interface for device config", targetId: "api" }
+                ]
+              }
+            ],
+            content: [
+              "Network automation replaces manual tasks with repeatable tested workflows.",
+              "Common tools include Ansible, Python scripts, and vendor REST APIs.",
+              "Infrastructure as Code stores network state in version-controlled files.",
+              "Benefits include faster deployments and fewer human errors.",
+              "Start small by automating one task before expanding.",
+              "Automation makes configuration consistent across all devices."
+            ],
+            objectives: [
+              "Explain why network automation matters",
+              "Describe Infrastructure as Code",
+              "Identify common automation tools"
+            ],
+            summary: "Automation reduces errors and speeds up network changes through repeatable workflows."
           },
           {
             title: "Monitoring & SNMP",
             learn: "Monitoring tools use SNMP and logs to detect issues early.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "SNMP (Simple Network Management Protocol) exposes device metrics: CPU, memory, interface utilisation, and errors.",
+                  "A monitoring server (NMS) polls devices using SNMP GET requests at regular intervals.",
+                  "Devices can also send unsolicited alerts called SNMP traps when thresholds are exceeded.",
+                  "Syslog collects log messages from devices for centralised analysis and correlation.",
+                  "Dashboards visualise trends so you can spot degradation before users notice.",
+                  "Good monitoring combines SNMP metrics, syslog events, and synthetic tests for full visibility."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Explain: SNMP versions",
+                content: [
+                  "SNMPv1 and v2c use community strings (basically passwords in plain text).",
+                  "SNMPv3 adds authentication and encryption for secure monitoring.",
+                  "Always use SNMPv3 in production to protect credentials and data."
+                ]
+              },
+              {
+                type: "check",
+                title: "Quick check",
+                question: "What is an SNMP trap?",
+                options: ["A scheduled poll from the server", "An unsolicited alert sent by a device", "A type of firewall rule"],
+                correctIndex: 1,
+                explanation: "SNMP traps are alerts sent proactively by devices when something changes."
+              },
+              {
+                type: "activity",
+                title: "Match monitoring concepts",
+                mode: "drag",
+                prompt: "Match each concept to the correct protocol or tool.",
+                targets: [
+                  { id: "snmp", label: "SNMP" },
+                  { id: "syslog", label: "Syslog" }
+                ],
+                items: [
+                  { id: "metrics", label: "Polls device metrics like CPU and bandwidth", targetId: "snmp" },
+                  { id: "logs", label: "Collects log messages centrally", targetId: "syslog" },
+                  { id: "trap", label: "Sends unsolicited alerts", targetId: "snmp" },
+                  { id: "events", label: "Records events with severity levels", targetId: "syslog" }
+                ]
+              }
+            ],
+            content: [
+              "SNMP exposes device metrics like CPU, memory, and interface utilisation.",
+              "The monitoring server polls devices using SNMP GET requests.",
+              "Devices send unsolicited SNMP traps when thresholds are exceeded.",
+              "Syslog collects log messages for centralised analysis.",
+              "SNMPv3 adds authentication and encryption for secure monitoring.",
+              "Good monitoring combines SNMP, syslog, and synthetic tests."
+            ],
+            objectives: [
+              "Describe how SNMP works",
+              "Compare SNMP polling and traps",
+              "Explain why SNMPv3 is preferred"
+            ],
+            summary: "SNMP and syslog provide the metrics and logs needed for proactive network monitoring.",
             quiz: {
               title: "Automation quick check",
               xp: 60,

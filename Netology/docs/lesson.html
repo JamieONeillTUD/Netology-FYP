@@ -1,13 +1,14 @@
 <!--
 Student Number: C22320301
-Student Name: Jamie O’Neill
+Student Name: Jamie O'Neill
 Course Code: TU857/4
-Date: 10/02/2026
+Date: 18/02/2026
 
-lesson.html – Netology Lesson Page
-- Full lesson view (new page per lesson)
-- Matches course/dashboard chrome
-- Actions: quiz, practice, challenge
+lesson.html – Netology Interactive Lesson Experience
+- Full rebuild: Duolingo-inspired step-based lesson flow
+- Interactive exercises: drag-drop, fill-blank, MCQ, matching, tap-word, flashcard
+- Streak & XP system with animations
+- Mobile-first, accessible, production-ready
 -->
 
 <!DOCTYPE html>
@@ -17,23 +18,21 @@ lesson.html – Netology Lesson Page
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Lesson</title>
 
-  <!-- API base -->
-<!-- Vendor -->
+  <!-- Vendor -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
   <!-- App CSS -->
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/lesson.css">
 </head>
 
 <body class="net-bg net-landing net-lesson-page net-loading">
 
-  <!-- AI Prompt: Explain the Slide Sidebar Backdrop section in clear, simple terms. -->
-  <!-- Slide Sidebar Backdrop -->
+  <!-- Sidebar Backdrop -->
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
 
-  <!-- AI Prompt: Explain the Slide Sidebar section in clear, simple terms. -->
-  <!-- Slide Sidebar -->
+  <!-- Sidebar -->
   <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
     <div class="net-sidehead">
       <div class="d-flex align-items-center justify-content-between gap-2">
@@ -41,13 +40,11 @@ lesson.html – Netology Lesson Page
           <div class="net-logo" aria-hidden="true"></div>
           <div class="net-brandname">Netology</div>
         </a>
-
         <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu" type="button">
           <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
       </div>
     </div>
-
     <nav class="net-sidenav" aria-label="Sidebar navigation">
       <a class="net-sidelink" href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
       <a class="net-sidelink" href="account.html"><i class="bi bi-person-circle"></i> My Profile</a>
@@ -55,7 +52,6 @@ lesson.html – Netology Lesson Page
       <a class="net-sidelink" href="sandbox.html"><i class="bi bi-diagram-3"></i> Network Sandbox</a>
       <a class="net-sidelink" href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
     </nav>
-
     <div class="net-sidefoot">
       <div class="net-userbox">
         <div class="d-flex align-items-center gap-3">
@@ -66,7 +62,6 @@ lesson.html – Netology Lesson Page
           </div>
           <span class="badge text-bg-light border" id="sideLevelBadge">Lv 1</span>
         </div>
-
         <div class="mt-3">
           <div class="d-flex justify-content-between align-items-center small mb-1">
             <span class="text-muted">XP</span>
@@ -77,7 +72,6 @@ lesson.html – Netology Lesson Page
           </div>
         </div>
       </div>
-
       <div class="d-grid mt-3">
         <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
           <i class="bi bi-box-arrow-right me-2"></i>Logout
@@ -86,42 +80,27 @@ lesson.html – Netology Lesson Page
     </div>
   </aside>
 
-  <!-- AI Prompt: Explain the TOP NAV (no search now) section in clear, simple terms. -->
-  <!-- TOP NAV (no search now) -->
+  <!-- Top Nav -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
       <div class="net-topnav-inner">
-
-        <!-- Left -->
         <div class="net-topnav-left">
-          <button class="net-hambtn"
-                  id="openSidebarBtn"
-                  type="button"
-                  aria-label="Open menu">
+          <button class="net-hambtn" id="openSidebarBtn" type="button" aria-label="Open menu">
             <span class="net-hambtn-bars" aria-hidden="true"><span></span><span></span><span></span></span>
-            <span class="visually-hidden">Open menu</span>
           </button>
         </div>
-
-        <!-- Center brand -->
         <div class="net-topnav-center">
           <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
             <h2 class="net-brand-text">Netology</h2>
           </a>
         </div>
-
-        <!-- Right (dropdown only) -->
         <div class="net-topnav-right position-relative">
-
-          <!-- User dropdown -->
           <div class="position-relative">
             <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
-
-            <!-- Dropdown shows details -->
             <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
               <div class="net-ddhead">
                 <div class="d-flex align-items-center gap-2">
@@ -144,304 +123,182 @@ lesson.html – Netology Lesson Page
               </button>
             </div>
           </div>
-
         </div>
-
       </div>
     </div>
   </header>
 
-  <!-- AI Prompt: Explain the Main section in clear, simple terms. -->
-  <!-- Main -->
-  <main class="container my-4 net-lesson-shell" role="main">
-    <section class="net-card p-4 net-loading-only" aria-label="Loading lesson">
-      <div class="net-skel net-w-60 mb-3"></div>
-      <div class="net-skel net-w-90 mb-2"></div>
-      <div class="net-skel net-w-80 mb-2"></div>
-      <div class="net-skel net-w-60"></div>
-    </section>
-
-    <div class="net-loading-hide">
-      <div class="mb-3">
-        <nav class="net-breadcrumb" aria-label="Breadcrumb">
-          <a href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
-          <i class="bi bi-chevron-right"></i>
-          <a href="courses.html">Courses</a>
-          <i class="bi bi-chevron-right"></i>
-          <span id="breadcrumbCourse">Course</span>
-          <i class="bi bi-chevron-right"></i>
-          <span id="breadcrumbModule">Module</span>
-          <i class="bi bi-chevron-right"></i>
-          <span id="breadcrumbLesson">Lesson</span>
-        </nav>
-      </div>
-    <div class="mb-3">
-      <a href="course.html" class="link-teal d-inline-flex align-items-center gap-2 fw-semibold" id="backToCourse">
-        <i class="bi bi-arrow-left" aria-hidden="true"></i>
-        Back to Course
+  <!-- Lesson Top Bar (progress + close) -->
+  <div class="les-topbar" id="lessonTopBar">
+    <div class="les-topbar-inner">
+      <a href="course.html" class="les-close-btn" id="lesCloseBtn" aria-label="Exit lesson">
+        <i class="bi bi-x-lg"></i>
       </a>
+      <div class="les-progress-wrap">
+        <div class="les-progress-bar">
+          <div class="les-progress-fill" id="lesProgressFill" style="width: 0%"></div>
+        </div>
+      </div>
+      <div class="les-streak-pill" id="lesStreakPill" aria-label="Current streak">
+        <i class="bi bi-fire"></i>
+        <span id="lesStreakCount">0</span>
+      </div>
+      <div class="les-xp-pill" id="lesXpPill">
+        <i class="bi bi-lightning-charge-fill"></i>
+        <span id="lesXpCount">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Skeleton -->
+  <main class="les-main" role="main">
+    <div class="les-loading-screen" id="lesLoadingScreen">
+      <div class="les-loading-spinner"></div>
+      <p class="les-loading-text">Preparing your lesson...</p>
     </div>
 
-    <!-- AI Prompt: Explain the Lesson Hero section in clear, simple terms. -->
-    <!-- Lesson Hero -->
-    <section class="net-card net-lesson-hero p-4 p-lg-4 mb-4" aria-label="Lesson overview">
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <div class="net-lesson-kicker net-section-eyebrow" id="lessonCourseTitle">Course</div>
-        <span class="net-pill-badge badge text-bg-light border px-3 py-2" id="lessonDifficulty">Difficulty</span>
-        <span class="badge text-bg-light border" id="lessonUnitTitle">Unit</span>
-      </div>
-      <h1 class="net-course-title net-section-title mb-2" id="lessonTitle">Lesson title</h1>
-      <p class="text-muted net-section-sub mb-3" id="lessonSubtitle">Lesson summary</p>
-
-      <div class="net-lesson-meta d-flex flex-wrap gap-3">
-        <span class="d-inline-flex align-items-center gap-1">
-          <i class="bi bi-clock" aria-hidden="true"></i>
-          <span id="lessonMetaTime">—</span>
-        </span>
-        <span class="text-muted">•</span>
-        <span class="d-inline-flex align-items-center gap-1 fw-semibold net-xp-accent">
-          <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
-          <span id="lessonMetaXP">0</span> XP
-        </span>
-      </div>
-
-      <div class="net-lesson-nextup">
-        <div class="net-lesson-nextup-label">
-          <div class="net-lesson-nextup-title">Next up</div>
-          <div class="net-lesson-nextup-sub" id="nextUpTitle">Loading next lesson…</div>
+    <!-- Lesson Intro Screen -->
+    <section class="les-screen les-intro-screen" id="lesIntroScreen" style="display:none;">
+      <div class="les-intro-card">
+        <div class="les-intro-badge" id="lesIntroBadge">
+          <i class="bi bi-book"></i>
         </div>
-        <div class="net-lesson-nextup-actions">
-          <a class="btn btn-outline-secondary btn-sm" id="prevLessonLink" href="#">Previous lesson</a>
-          <a class="btn btn-teal btn-sm" id="nextLessonLink" href="#">Next lesson</a>
+        <div class="les-intro-kicker" id="lesIntroKicker">LESSON 1</div>
+        <h1 class="les-intro-title" id="lesIntroTitle">Lesson Title</h1>
+        <p class="les-intro-desc" id="lesIntroDesc">What you'll learn in this lesson.</p>
+
+        <div class="les-intro-meta">
+          <div class="les-intro-meta-item">
+            <i class="bi bi-clock"></i>
+            <span id="lesIntroTime">10 min</span>
+          </div>
+          <div class="les-intro-meta-item">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span id="lesIntroXP">50 XP</span>
+          </div>
+          <div class="les-intro-meta-item">
+            <i class="bi bi-bar-chart-steps"></i>
+            <span id="lesIntroSteps">8 steps</span>
+          </div>
+        </div>
+
+        <div class="les-intro-objectives" id="lesIntroObjectives">
+          <!-- Filled by JS -->
+        </div>
+
+        <button class="les-btn les-btn-primary les-btn-lg" id="lesStartBtn">
+          <span>Start Lesson</span>
+          <i class="bi bi-arrow-right"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- Step Container (exercises render here) -->
+    <section class="les-screen les-step-screen" id="lesStepScreen" style="display:none;">
+      <div class="les-step-container" id="lesStepContainer">
+        <!-- Dynamic step content renders here -->
+      </div>
+
+      <!-- Step Footer -->
+      <div class="les-step-footer" id="lesStepFooter">
+        <div class="les-step-footer-inner">
+          <button class="les-btn les-btn-ghost" id="lesSkipBtn" style="display:none;">
+            Skip
+          </button>
+          <div class="les-step-hint" id="lesStepHint" style="display:none;">
+            <i class="bi bi-lightbulb"></i>
+            <span id="lesHintText"></span>
+          </div>
+          <button class="les-btn les-btn-primary" id="lesCheckBtn" disabled>
+            Check
+          </button>
         </div>
       </div>
     </section>
 
-    <section class="net-card net-lesson-progress p-3 p-lg-4 mb-4" aria-label="Lesson progress" data-tour="lesson-top-progress">
-      <div class="d-flex align-items-center justify-content-between mb-2">
-        <div>
-          <div class="fw-semibold">Slide progress</div>
-          <div class="small text-muted" id="lessonTopProgressText">Slide 1 of 1</div>
+    <!-- Feedback Overlay -->
+    <div class="les-feedback-overlay" id="lesFeedbackOverlay" style="display:none;" role="alert">
+      <div class="les-feedback-card" id="lesFeedbackCard">
+        <div class="les-feedback-icon" id="lesFeedbackIcon">
+          <i class="bi bi-check-circle-fill"></i>
         </div>
-        <div class="net-lesson-progress-pct" id="lessonProgressPct">0%</div>
+        <div class="les-feedback-title" id="lesFeedbackTitle">Correct!</div>
+        <div class="les-feedback-text" id="lesFeedbackText"></div>
+        <div class="les-feedback-xp" id="lesFeedbackXP" style="display:none;">
+          <i class="bi bi-lightning-charge-fill"></i>
+          <span id="lesFeedbackXPAmount">+10 XP</span>
+        </div>
+        <button class="les-btn les-btn-primary" id="lesFeedbackContinue">Continue</button>
       </div>
-      <div class="net-quiz-progress-bars" id="lessonTopProgressBars"></div>
-      <div class="net-lesson-unlock d-none" id="lessonUnlockBanner">
-        <i class="bi bi-unlock me-2" aria-hidden="true"></i>
-        Next lesson unlocked: <span class="fw-semibold" id="lessonUnlockTitle">Lesson</span>
+    </div>
+
+    <!-- Completion Screen -->
+    <section class="les-screen les-complete-screen" id="lesCompleteScreen" style="display:none;">
+      <div class="les-complete-card">
+        <div class="les-confetti-container" id="lesConfetti"></div>
+
+        <div class="les-complete-badge">
+          <i class="bi bi-trophy-fill"></i>
+        </div>
+        <h2 class="les-complete-title">Lesson Complete!</h2>
+        <p class="les-complete-subtitle" id="lesCompleteSubtitle">Great work mastering this topic.</p>
+
+        <div class="les-complete-stats">
+          <div class="les-complete-stat">
+            <div class="les-complete-stat-value" id="lesCompleteXP">0</div>
+            <div class="les-complete-stat-label">XP Earned</div>
+          </div>
+          <div class="les-complete-stat">
+            <div class="les-complete-stat-value" id="lesCompleteAccuracy">0%</div>
+            <div class="les-complete-stat-label">Accuracy</div>
+          </div>
+          <div class="les-complete-stat">
+            <div class="les-complete-stat-value" id="lesCompleteStreak">0</div>
+            <div class="les-complete-stat-label">Best Streak</div>
+          </div>
+          <div class="les-complete-stat">
+            <div class="les-complete-stat-value" id="lesCompleteTime">0:00</div>
+            <div class="les-complete-stat-label">Time</div>
+          </div>
+        </div>
+
+        <div class="les-complete-review" id="lesCompleteReview">
+          <!-- Step review items rendered by JS -->
+        </div>
+
+        <div class="les-complete-actions">
+          <button class="les-btn les-btn-primary les-btn-lg" id="lesNextLessonBtn">
+            <span>Next Lesson</span>
+            <i class="bi bi-arrow-right"></i>
+          </button>
+          <button class="les-btn les-btn-ghost" id="lesReviewBtn">
+            <i class="bi bi-arrow-repeat"></i>
+            <span>Review Mistakes</span>
+          </button>
+          <a class="les-btn les-btn-ghost" id="lesBackToCourseBtn" href="course.html">
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to Course</span>
+          </a>
+        </div>
       </div>
     </section>
 
-    <!-- Quick-access toolbar: Overview, Bookmarks, Outline -->
-    <div class="net-lesson-toolbar mb-4" data-tour="lesson-outline">
-      <div class="net-lesson-toolbar-tabs" role="tablist">
-        <button class="net-lesson-tab is-active" id="tabSlides" role="tab" aria-selected="true" aria-controls="panelSlides">
-          <i class="bi bi-play-circle"></i> Slides
-        </button>
-        <button class="net-lesson-tab" id="tabOutline" role="tab" aria-selected="false" aria-controls="panelOutline">
-          <i class="bi bi-list-ul"></i> Outline
-        </button>
-        <button class="net-lesson-tab" id="tabBookmarks" role="tab" aria-selected="false" aria-controls="panelBookmarks" data-tour="lesson-bookmark">
-          <i class="bi bi-bookmark"></i> Bookmarks <span class="net-lesson-tab-count" id="bookmarkCount">0</span>
-        </button>
-        <button class="net-lesson-tab" id="tabOverview" role="tab" aria-selected="false" aria-controls="panelOverview">
-          <i class="bi bi-info-circle"></i> Overview
-        </button>
-      </div>
-    </div>
-
-    <!-- Tab panels (only overview, outline, bookmarks shown as panels; slides is the main view) -->
-    <div class="net-lesson-panel net-card p-4 mb-4 d-none" id="panelOutline" role="tabpanel">
-      <h5 class="fw-bold mb-3"><i class="bi bi-list-ul me-2"></i>Lesson Outline</h5>
-      <div id="slidesList" class="slide-outline net-lesson-outline-grid">
-        <div class="small text-muted py-2">Loading slides...</div>
-      </div>
-    </div>
-
-    <div class="net-lesson-panel net-card p-4 mb-4 d-none" id="panelBookmarks" role="tabpanel">
-      <h5 class="fw-bold mb-3"><i class="bi bi-bookmark me-2"></i>Bookmarked Slides</h5>
-      <div id="bookmarksList" class="net-lesson-bookmarks-grid">
-        <div class="net-lesson-empty-state">
-          <i class="bi bi-bookmark-plus"></i>
-          <p>No bookmarks yet. Click the bookmark icon on any slide to save it for later.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="net-lesson-panel net-card p-4 mb-4 d-none" id="panelOverview" role="tabpanel">
-      <div class="net-lesson-overview-grid">
-        <div class="net-lesson-overview-item">
-          <div class="net-lesson-overview-icon"><i class="bi bi-journal-text"></i></div>
-          <div>
-            <div class="small text-muted fw-semibold">Course</div>
-            <div class="fw-semibold" id="sidebarCourseName">Loading...</div>
-          </div>
-        </div>
-        <div class="net-lesson-overview-item">
-          <div class="net-lesson-overview-icon"><i class="bi bi-speedometer2"></i></div>
-          <div>
-            <div class="small text-muted fw-semibold">Difficulty</div>
-            <div id="sidebarDifficulty"><span class="badge text-bg-light">—</span></div>
-          </div>
-        </div>
-        <div class="net-lesson-overview-item">
-          <div class="net-lesson-overview-icon"><i class="bi bi-clock"></i></div>
-          <div>
-            <div class="small text-muted fw-semibold">Estimated Time</div>
-            <div class="fw-semibold" id="sidebarEstimatedTime">5 min</div>
-          </div>
-        </div>
-        <div class="net-lesson-overview-item">
-          <div class="net-lesson-overview-icon"><i class="bi bi-star-fill"></i></div>
-          <div>
-            <div class="small text-muted fw-semibold">XP Reward</div>
-            <div class="fw-bold net-xp-accent" id="sidebarXpReward"><i class="bi bi-lightning-charge-fill me-1"></i>50 XP</div>
-          </div>
-        </div>
-        <div class="net-lesson-overview-item net-lesson-overview-item--wide">
-          <div class="net-lesson-overview-icon"><i class="bi bi-check2-circle"></i></div>
-          <div class="flex-grow-1">
-            <div class="small text-muted fw-semibold mb-1">Completion</div>
-            <div class="d-flex align-items-center gap-3">
-              <div class="progress flex-grow-1" style="height: 8px;">
-                <div class="progress-bar net-progress-fill" id="completionBar" style="width: 0%"></div>
-              </div>
-              <span class="fw-bold small" id="completionPct">0%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="mt-3">
-        <div class="alert alert-sm p-2 mb-0" id="statusAlert" role="alert">
-          <small><i class="bi bi-info-circle me-1"></i><span id="statusText">Start learning by reviewing the slides above.</span></small>
-        </div>
-      </div>
-      <div class="mt-3">
-        <h6 class="fw-bold mb-2"><i class="bi bi-link-45deg me-2"></i>Resources</h6>
-        <div id="resourcesList" class="small">
-          <span class="text-muted">No additional resources for this lesson.</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Slide Area (full width now) -->
-    <div id="panelSlides" role="tabpanel">
-      <div class="row g-4">
-        <div class="col-12">
-
-          <!-- Slide Viewer Card -->
-          <section class="net-card net-slide-viewer net-slide-viewer--full p-0 overflow-hidden mb-4" data-tour="lesson-slide-viewer">
-
-            <!-- Slide Header -->
-            <div class="net-slide-header p-4 border-bottom">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="net-slide-counter badge text-bg-light" id="slideCounter">Slide 1</div>
-                  <span class="text-muted small" id="slideTotal">Loading...</span>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                  <button class="btn btn-sm btn-outline-secondary" id="bookmarkBtn" title="Bookmark this slide">
-                    <i class="bi bi-bookmark"></i> <span class="d-none d-sm-inline">Bookmark</span>
-                  </button>
-                </div>
-              </div>
-              <h3 class="fw-bold mb-1" id="slideTitle">Lesson Title</h3>
-              <p class="text-muted small mb-0" id="slideSubtitle">Subtitle or key concept</p>
-            </div>
-
-            <!-- Slide Content -->
-            <div class="net-slide-content net-slide-content--spacious p-4 p-lg-5" id="slideContent">
-              <div class="text-center py-4">
-                <div class="spinner-border text-teal" role="status">
-                  <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="text-muted mt-3">Loading slide content...</p>
-              </div>
-            </div>
-
-            <!-- Slide Footer with Navigation -->
-            <div class="net-slide-footer p-4 border-top" data-tour="lesson-navigation">
-              <div class="d-flex align-items-center justify-content-between">
-                <button class="btn btn-outline-teal" id="prevSlideBtn" disabled>
-                  <i class="bi bi-chevron-left me-1"></i>Previous
-                </button>
-
-                <div class="net-slide-pager d-none d-md-flex align-items-center gap-1" id="slidePagerDots">
-                  <!-- dots injected by JS -->
-                </div>
-
-                <button class="btn btn-teal" id="nextSlideBtn">
-                  Next<i class="bi bi-chevron-right ms-1"></i>
-                </button>
-              </div>
-              <div class="progress mt-3" style="height: 4px;">
-                <div class="progress-bar net-progress-fill" id="slideProgressBar" style="width: 0%"></div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Learning Objectives Card -->
-          <section class="net-card p-4 mb-4" id="objectivesCard" style="display: none;">
-            <h5 class="fw-bold mb-3"><i class="bi bi-target me-2"></i>What You'll Learn</h5>
-            <ul class="list-unstyled" id="objectivesList">
-              <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><span>Objective placeholder</span></li>
-            </ul>
-          </section>
-
-          <!-- Interactive Quiz Card -->
-          <section class="net-card p-4 mb-4" id="quizCard" style="display: none;">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <h5 class="fw-bold mb-0"><i class="bi bi-question-circle me-2"></i>Quick Check</h5>
-              <span class="badge text-bg-info">Interactive</span>
-            </div>
-
-            <div id="quizContent">
-              <div class="mb-3" id="quizQuestion"></div>
-              <div id="quizOptions" class="d-flex flex-column gap-2"></div>
-              <div id="quizFeedback" class="alert alert-info mt-3" style="display: none;"></div>
-              <button class="btn btn-teal btn-sm mt-3" id="submitQuizBtn">Submit Answer</button>
-            </div>
-          </section>
-
-          <!-- Key Takeaway Card -->
-          <section class="net-card p-4 mb-4 border-left border-5 border-teal" id="takeawayCard" style="display: none;">
-            <h5 class="fw-bold mb-2"><i class="bi bi-lightbulb me-2"></i>Key Takeaway</h5>
-            <p class="mb-0" id="takeawayText"></p>
-          </section>
-
-          <!-- Sandbox Practice Card -->
-          <section class="net-card p-4 mb-4 bg-light" id="practiceCard" style="display: none;">
-            <div class="d-flex align-items-start justify-content-between">
-              <div class="flex-grow-1">
-                <h5 class="fw-bold mb-2"><i class="bi bi-diagram-3 me-2 text-info"></i>Practice in Sandbox</h5>
-                <p class="text-muted small mb-2">Try building the topology described in this lesson.</p>
-                <span class="badge text-bg-info" id="practiceXpReward">+50 XP</span>
-              </div>
-              <button class="btn btn-outline-info btn-sm" id="practiceLaunchBtn">
-                <i class="bi bi-play-fill me-1"></i>Launch
-              </button>
-            </div>
-          </section>
-
-          <!-- Challenge Card -->
-          <section class="net-card p-4 bg-light" id="challengeCard" style="display: none;">
-            <div class="d-flex align-items-start justify-content-between">
-              <div class="flex-grow-1">
-                <h5 class="fw-bold mb-2"><i class="bi bi-flag-fill me-2 text-danger"></i>Complete Challenge</h5>
-                <p class="text-muted small mb-2" id="challengeDescription">Build and validate the network configuration from this lesson.</p>
-                <span class="badge text-bg-danger" id="challengeXpReward">+100 XP</span>
-              </div>
-              <button class="btn btn-danger btn-sm" id="challengeStartBtn">
-                <i class="bi bi-play-fill me-1"></i>Start
-              </button>
-            </div>
-          </section>
-
-        </div>
-      </div>
-    </div>
-    </div>
   </main>
+
+  <!-- XP Popup (floats from bottom) -->
+  <div class="les-xp-popup" id="lesXpPopup" aria-hidden="true">
+    <i class="bi bi-lightning-charge-fill"></i>
+    <span id="lesXpPopupText">+10 XP</span>
+  </div>
+
+  <!-- Streak Popup -->
+  <div class="les-streak-popup" id="lesStreakPopup" aria-hidden="true">
+    <div class="les-streak-popup-inner">
+      <i class="bi bi-fire"></i>
+      <span id="lesStreakPopupText">3 in a row!</span>
+    </div>
+  </div>
+
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>
   <script src="js/course_content.js"></script>
