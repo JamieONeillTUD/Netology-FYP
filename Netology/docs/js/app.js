@@ -1384,16 +1384,31 @@ class OnboardingTour {
   updateTooltip(step, targetElement) {
     const rect = targetElement.getBoundingClientRect();
 
+    // Special case for first step (welcome message)
+    const isFirstStep = this.currentStepIndex === 0;
+
     let html = `
       <h3>${escapeHtml(step.title)}</h3>
       <p>${escapeHtml(step.description)}</p>
-      <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+      <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">`;
+
+    if (isFirstStep) {
+      // First step: Show Start button and Skip
+      html += `
+        <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
+        <button class="btn-tour" onclick="window.onboardingTour.nextStep()" style="font-weight: 600;">Start</button>`;
+    } else {
+      // Subsequent steps: Show step counter and navigation buttons
+      html += `
         <span style="font-size: 12px; color: #999;">Step ${this.currentStepIndex + 1} of ${this.steps.length}</span>
         ${this.currentStepIndex > 0 ? '<button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()">← Back</button>' : ''}
         <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
         ${this.currentStepIndex < this.steps.length - 1
           ? '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Next →</button>'
-          : '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish!</button>'}
+          : '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish!</button>'}`;
+    }
+
+    html += `
       </div>
     `;
 
