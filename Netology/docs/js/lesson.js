@@ -16,6 +16,12 @@
    ═══════════════════════════════════════════════════════════ */
 const LESSON_API = (window.API_BASE || "").replace(/\/$/, "");
 
+function getCourseContentMap() {
+  if (typeof window !== "undefined" && window.COURSE_CONTENT) return window.COURSE_CONTENT;
+  if (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) return COURSE_CONTENT;
+  return {};
+}
+
 function getCurrentUser() {
   try {
     const s = localStorage.getItem("netology_user") || localStorage.getItem("user");
@@ -24,7 +30,7 @@ function getCurrentUser() {
 }
 
 function resolveCourseContent(courseId, contentId) {
-  const c = window.COURSE_CONTENT || {};
+  const c = getCourseContentMap();
   if (contentId && c[String(contentId)]) return c[String(contentId)];
   if (courseId && c[String(courseId)]) return c[String(courseId)];
   return null;
@@ -978,47 +984,78 @@ class LessonEngine {
   parseURL() {
     const p = new URLSearchParams(window.location.search);
     this.courseId = p.get("course_id") || p.get("course");
-    this.lessonNumber = Number(p.get("lesson") || 0);
+    const rawLesson = Number(p.get("lesson") || 0);
+    this.lessonNumber = Number.isFinite(rawLesson) && rawLesson > 0 ? rawLesson : 1;
     this.contentId = p.get("content_id") || p.get("content");
 
-    // Update close/back links
-    if (this.courseId) {
-      const bp = new URLSearchParams();
-      bp.set("id", this.courseId);
-      if (this.contentId) bp.set("content_id", this.contentId);
-      const courseUrl = `course.html?${bp.toString()}`;
-      if (this.els.lesCloseBtn) this.els.lesCloseBtn.href = courseUrl;
-      if (this.els.lesBackToCourseBtn) this.els.lesBackToCourseBtn.href = courseUrl;
+    this.updateBackLinks();
+  }
+
+  updateBackLinks() {
+    if (!this.courseId) return;
+    const bp = new URLSearchParams();
+    bp.set("id", this.courseId);
+    if (this.contentId) bp.set("content_id", this.contentId);
+    const courseUrl = `course.html?${bp.toString()}`;
+    if (this.els.lesCloseBtn) this.els.lesCloseBtn.href = courseUrl;
+    if (this.els.lesBackToCourseBtn) this.els.lesBackToCourseBtn.href = courseUrl;
+  }
+
+  showLoadError(message) {
+    this.showScreen("lesLoadingScreen");
+    const container = this.els.lesLoadingScreen;
+    if (container) {
+      container.innerHTML = `
+        <div class="les-error">
+          <i class="bi bi-exclamation-triangle"></i>
+          <h3>Lesson unavailable</h3>
+          <p>${escHtml(message || "We couldn't load this lesson. Please go back and try again.")}</p>
+          <a href="courses.html" class="les-btn les-btn-primary">Browse Courses</a>
+        </div>
+      `;
     }
   }
 
   loadLesson() {
-    this.course = resolveCourseContent(this.courseId, this.contentId);
-    this.lesson = getLessonByNumber(this.course, this.lessonNumber);
+    try {
+      const contentMap = getCourseContentMap();
 
-    if (!this.course || !this.lesson) {
-      this.showScreen("lesLoadingScreen");
-      const container = this.els.lesLoadingScreen;
-      if (container) {
-        container.innerHTML = `
-          <div class="les-error">
-            <i class="bi bi-exclamation-triangle"></i>
-            <h3>Lesson not found</h3>
-            <p>We couldn't find this lesson. Please go back and try again.</p>
-            <a href="courses.html" class="les-btn les-btn-primary">Browse Courses</a>
-          </div>
-        `;
+      this.course = resolveCourseContent(this.courseId, this.contentId);
+      this.lesson = getLessonByNumber(this.course, this.lessonNumber);
+
+      if (this.course && !this.lesson) {
+        this.lessonNumber = 1;
+        this.lesson = getLessonByNumber(this.course, this.lessonNumber);
       }
-      document.body.classList.remove("net-loading");
-      return;
-    }
 
-    this.steps = buildStepsFromLesson(this.lesson, this.course);
-    this.progressTotalSteps = Math.max(1, this.steps.length || 1);
-    this.lessonXP = Number(this.lesson.xp || this.course.xpReward || 50) || 0;
-    this.restoreProgress();
-    this.showIntro();
-    document.body.classList.remove("net-loading");
+      if (!this.course) {
+        const firstId = Object.keys(contentMap || {})[0];
+        if (firstId) {
+          this.courseId = this.courseId || firstId;
+          this.contentId = this.contentId || firstId;
+          this.course = contentMap[firstId];
+          this.lessonNumber = this.lessonNumber || 1;
+          this.lesson = getLessonByNumber(this.course, this.lessonNumber) || getLessonByNumber(this.course, 1);
+          this.updateBackLinks();
+        }
+      }
+
+      if (!this.course || !this.lesson) {
+        this.showLoadError("We couldn't find this lesson. Please go back and try again.");
+        return;
+      }
+
+      this.steps = buildStepsFromLesson(this.lesson, this.course);
+      this.progressTotalSteps = Math.max(1, this.steps.length || 1);
+      this.lessonXP = Number(this.lesson.xp || this.course.xpReward || 50) || 0;
+      this.restoreProgress();
+      this.showIntro();
+    } catch (error) {
+      console.error("Lesson load failed:", error);
+      this.showLoadError("We hit a loading error. Please refresh the page and try again.");
+    } finally {
+      document.body.classList.remove("net-loading");
+    }
   }
 
   showScreen(screenId) {
