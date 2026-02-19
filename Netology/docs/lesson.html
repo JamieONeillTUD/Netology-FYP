@@ -24,7 +24,6 @@ lesson.html – Netology Interactive Lesson Experience
 
   <!-- App CSS -->
   <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/lesson.css">
 </head>
 
 <body class="net-bg net-landing net-lesson-page net-loading">
@@ -131,8 +130,9 @@ lesson.html – Netology Interactive Lesson Experience
   <!-- Lesson Top Bar (progress + close) -->
   <div class="les-topbar" id="lessonTopBar" data-tour="lesson-top-progress">
     <div class="les-topbar-inner">
-      <a href="course.html" class="les-close-btn" id="lesCloseBtn" aria-label="Exit lesson">
-        <i class="bi bi-x-lg"></i>
+      <a href="course.html" class="les-close-btn les-back-btn" id="lesCloseBtn" aria-label="Back to course">
+        <i class="bi bi-arrow-left"></i>
+        <span>Back</span>
       </a>
       <div class="les-progress-wrap">
         <div class="les-progress-bar">
@@ -184,6 +184,10 @@ lesson.html – Netology Interactive Lesson Experience
 
         <div class="les-intro-objectives" id="lesIntroObjectives">
           <!-- Filled by JS -->
+        </div>
+
+        <div class="les-resume-hint" id="lesResumeHint" style="display:none;">
+          Resume at 0% complete
         </div>
 
         <button class="les-btn les-btn-primary les-btn-lg" id="lesStartBtn">

@@ -1047,6 +1047,25 @@ Works with:
     return required;
   }
 
+  function mergeSoftLessonCompletions(set, email, courseId) {
+    if (!set || !courseId) return;
+    const who = email || "guest";
+    const prefix = `netology_lesson_progress:${who}:${courseId}:`;
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      const record = parseJsonSafe(localStorage.getItem(key), null) || {};
+      const total = Math.max(1, Number(record.total_steps || 0) || 1);
+      const completed = Math.max(0, Number(record.completed_steps || 0) || 0);
+      const pctFromSteps = Math.round((completed / total) * 100);
+      const pct = Math.max(pctFromSteps, Number(record.progress_pct || 0));
+      if (pct < 40) continue;
+      const parts = key.split(":");
+      const lessonNum = Number(parts[parts.length - 1] || 0);
+      if (lessonNum) set.add(lessonNum);
+    }
+  }
+
   function getCourseCompletionsLocal(email, courseId) {
     if (!email || !courseId) {
       return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
@@ -1076,6 +1095,8 @@ Works with:
         else if (t === "challenge") base.challenge.add(n);
       });
     }
+
+    mergeSoftLessonCompletions(base.lesson, email, courseId);
 
     return base;
   }
@@ -1148,6 +1169,8 @@ Works with:
         else if (t === "challenge") base.challenge.add(n);
       });
     }
+
+    mergeSoftLessonCompletions(base.lesson, email, courseId);
 
     return base;
   }
@@ -2198,12 +2221,15 @@ Works with:
     overlay.classList.remove("d-none");
     overlay.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
-
-    try {
-      sessionStorage.setItem("netology_welcome_shown", "true");
-    } catch {}
-
+    const startBtn = getById("dashboardWelcomeStart");
+    let closing = false;
     const closeOverlay = () => {
+      if (closing) return;
+      closing = true;
+      if (startBtn) startBtn.disabled = true;
+      try {
+        sessionStorage.setItem("netology_welcome_shown", "true");
+      } catch {}
       overlay.classList.add("is-exiting");
       window.setTimeout(() => {
         overlay.classList.add("d-none");
@@ -2218,7 +2244,14 @@ Works with:
       }, 420);
     };
 
-    window.setTimeout(closeOverlay, 4500);
+    if (startBtn && !startBtn._netBound) {
+      startBtn._netBound = true;
+      startBtn.addEventListener("click", closeOverlay);
+    }
+    if (startBtn && typeof startBtn.focus === "function") {
+      startBtn.focus({ preventScroll: true });
+    }
+
     return true;
   }
 

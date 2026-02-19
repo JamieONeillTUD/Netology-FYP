@@ -58,6 +58,8 @@ What this file does:
 
   // localStorage fallback key
   const LS_KEY = (email, courseId) => `netology_completions:${email}:${courseId}`;
+  const LESSON_PROGRESS_KEY = (email, courseId, lessonNumber) =>
+    `netology_lesson_progress:${email || "guest"}:${courseId}:${lessonNumber}`;
   const STARTED_KEY = (email) => `netology_started_courses:${email}`;
   const LOG_KEY = (email) => `netology_progress_log:${email}`;
 
@@ -106,6 +108,38 @@ What this file does:
     const x = Number(n);
     if (Number.isNaN(x)) return min;
     return Math.min(max, Math.max(min, x));
+  }
+
+  function getLessonProgressRecord(email, courseId, lessonNumber) {
+    if (!courseId || !lessonNumber) return null;
+    const key = LESSON_PROGRESS_KEY(email, courseId, lessonNumber);
+    const data = parseJsonSafe(localStorage.getItem(key), null);
+    return data && typeof data === "object" ? data : null;
+  }
+
+  function getLessonProgressPct(email, courseId, lessonNumber) {
+    const n = Number(lessonNumber || 0);
+    if (!n) return 0;
+    if (state.completed.lesson.has(n)) return 100;
+    const rec = getLessonProgressRecord(email, courseId, n);
+    if (!rec) return 0;
+    const total = Math.max(1, Number(rec.total_steps || 0) || 1);
+    const completed = clamp(Number(rec.completed_steps || 0), 0, total);
+    const pctFromSteps = Math.round((completed / total) * 100);
+    const pct = clamp(Number(rec.progress_pct || pctFromSteps), 0, 100);
+    return Math.max(pct, pctFromSteps);
+  }
+
+  function isLessonSoftCompleted(email, courseId, lessonNumber) {
+    const pct = getLessonProgressPct(email, courseId, lessonNumber);
+    return pct >= 40;
+  }
+
+  function getLessonXPEarned(email, courseId, lessonNumber, totalXP) {
+    const pct = getLessonProgressPct(email, courseId, lessonNumber);
+    if (pct <= 0) return 0;
+    const xp = Math.max(0, Number(totalXP || 0) || 0);
+    return Math.min(xp, Math.floor((xp * pct) / 100));
   }
 
   function totalXpForLevel(level) {
@@ -1112,7 +1146,9 @@ What this file does:
     const n = Number(it.lesson_number || 0);
     if (!n) return false;
 
-    if (it.type === "learn") return state.completed.lesson.has(n);
+    if (it.type === "learn") {
+      return state.completed.lesson.has(n) || isLessonSoftCompleted(state.user?.email, state.courseId, n);
+    }
     if (it.type === "quiz") return state.completed.quiz.has(n);
     if (it.type === "challenge") return state.completed.challenge.has(n);
     if (it.type === "sandbox" || it.type === "practice") return state.completed.tutorial.has(n);
@@ -1642,7 +1678,15 @@ What this file does:
     setText("sideModules", `${modulesDone}/${totalModules}`);
 
     let xpEarned = 0;
-    getRequiredItems().forEach((it) => { if (isItemCompleted(it)) xpEarned += Number(it.xp || 0); });
+    getRequiredItems().forEach((it) => {
+      if (it.type === "learn") {
+        const earned = getLessonXPEarned(state.user?.email, state.courseId, it.lesson_number, it.xp || 0);
+        if (earned > 0) xpEarned += earned;
+        else if (state.completed.lesson.has(Number(it.lesson_number))) xpEarned += Number(it.xp || 0);
+        return;
+      }
+      if (isItemCompleted(it)) xpEarned += Number(it.xp || 0);
+    });
     setText("sideXPEarned", xpEarned);
 
     const next = getRequiredItems().find((it) => !isItemCompleted(it));
@@ -1966,11 +2010,17 @@ What this file does:
         `lesson.html?course_id=${encodeURIComponent(state.courseId)}&content_id=${encodeURIComponent(state.courseContentId || state.courseId)}&lesson=${encodeURIComponent(item.lesson_number)}`
       );
       const started = getStartedLessonNumber(state.user?.email, state.courseId);
-      const done = state.completed.lesson.has(Number(item.lesson_number));
-      if (started && Number(started) === Number(item.lesson_number) && !done) {
+      const progressPct = getLessonProgressPct(state.user?.email, state.courseId, item.lesson_number);
+      const inProgress = progressPct > 0 && progressPct < 100;
+      const done = isLessonSoftCompleted(state.user?.email, state.courseId, item.lesson_number);
+      if (inProgress || (started && Number(started) === Number(item.lesson_number) && !done)) {
         openBtn.textContent = "Continue lesson";
         openBtn.classList.remove("btn-outline-secondary");
         openBtn.classList.add("btn-teal");
+      } else if (progressPct >= 100) {
+        openBtn.textContent = "Review lesson";
+        openBtn.classList.remove("btn-teal");
+        openBtn.classList.add("btn-outline-secondary");
       } else {
         openBtn.textContent = "Open lesson";
         openBtn.classList.remove("btn-teal");
@@ -2105,7 +2155,7 @@ What this file does:
     if (nextBtn) nextBtn.disabled = state.activeLearnIndex >= state.learnItemsFlat.length - 1;
 
     if (completeBtn && state.activeLearn) {
-      const done = state.completed.lesson.has(Number(state.activeLearn.lesson_number));
+      const done = isLessonSoftCompleted(state.user?.email, state.courseId, state.activeLearn.lesson_number);
       completeBtn.disabled = done || state.courseLocked;
       setButtonIconText(completeBtn, "bi bi-check2-circle me-1", done ? "Completed" : "Mark Complete");
     }

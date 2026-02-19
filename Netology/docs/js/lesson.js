@@ -65,6 +65,64 @@ function escHtml(s) {
   return d.innerHTML;
 }
 
+function clamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
+const PROGRESS_SOFT_PCT = 40;
+const ENDPOINTS = window.ENDPOINTS || {};
+
+function lessonProgressKey(email, courseId, lessonNumber) {
+  if (!courseId || !lessonNumber) return null;
+  const who = email || "guest";
+  return `netology_lesson_progress:${who}:${courseId}:${lessonNumber}`;
+}
+
+function safeParseJson(raw, fallback = null) {
+  if (typeof parseJsonSafe === "function") return parseJsonSafe(raw, fallback);
+  try {
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readLessonProgress(email, courseId, lessonNumber) {
+  const key = lessonProgressKey(email, courseId, lessonNumber);
+  if (!key) return null;
+  const data = safeParseJson(localStorage.getItem(key), null);
+  return data && typeof data === "object" ? data : null;
+}
+
+function writeLessonProgress(email, courseId, lessonNumber, payload) {
+  const key = lessonProgressKey(email, courseId, lessonNumber);
+  if (!key) return;
+  localStorage.setItem(key, JSON.stringify(payload));
+}
+
+function computeProgressXP(totalXP, pct) {
+  const xp = Math.max(0, Number(totalXP) || 0);
+  const p = clamp(Number(pct) || 0, 0, 100);
+  return Math.min(xp, Math.floor((xp * p) / 100));
+}
+
+async function awardLessonXP(email, courseId, lessonNumber, targetXP, deltaXP) {
+  const base = String(window.API_BASE || "").replace(/\/$/, "");
+  if (!email || !base || !deltaXP) return { success: false, xp_added: 0 };
+  const path = ENDPOINTS.auth?.awardXp || "/award-xp";
+  const action = `lesson-progress:${courseId}:${lessonNumber}:${targetXP}`;
+  try {
+    const res = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, action, xp: Number(deltaXP || 0) })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data && typeof data.success !== "undefined") return data;
+  } catch {}
+  return { success: false, xp_added: 0 };
+}
+
 /* ═══════════════════════════════════════════════════════════
    STEP BUILDER – converts lesson blocks into exercise steps
    ═══════════════════════════════════════════════════════════ */
@@ -828,6 +886,15 @@ class LessonEngine {
     this.steps = [];
     this.currentStepIndex = -1;
     this.currentRenderer = null;
+    this.progressTotalSteps = 0;
+    this.progressCompletedSteps = 0;
+    this.progressPct = 0;
+    this.progressXP = 0;
+    this.lessonXP = 0;
+    this.resumeStepIndex = 0;
+    this.hasSavedProgress = false;
+    this.isReviewMode = false;
+    this.userEmail = null;
 
     // Stats
     this.xpEarned = 0;
@@ -856,7 +923,7 @@ class LessonEngine {
       "lesProgressFill", "lesStreakCount", "lesXpCount", "lesStreakPill", "lesXpPill",
       "lesIntroBadge", "lesIntroKicker", "lesIntroTitle", "lesIntroDesc",
       "lesIntroTime", "lesIntroXP", "lesIntroSteps", "lesIntroObjectives",
-      "lesStartBtn", "lesStepContainer", "lesStepFooter",
+      "lesResumeHint", "lesStartBtn", "lesStepContainer", "lesStepFooter",
       "lesCheckBtn", "lesSkipBtn", "lesStepHint", "lesHintText",
       "lesFeedbackOverlay", "lesFeedbackCard", "lesFeedbackIcon",
       "lesFeedbackTitle", "lesFeedbackText", "lesFeedbackXP", "lesFeedbackXPAmount",
@@ -877,6 +944,12 @@ class LessonEngine {
     this.els.lesFeedbackContinue?.addEventListener("click", () => this.dismissFeedback());
     this.els.lesNextLessonBtn?.addEventListener("click", () => this.goToNextLesson());
     this.els.lesReviewBtn?.addEventListener("click", () => this.reviewMistakes());
+    this.els.lesCloseBtn?.addEventListener("click", (e) => {
+      if (e) e.preventDefault();
+      this.saveProgressSnapshot({ reason: "exit" });
+      const href = this.els.lesCloseBtn?.href || "courses.html";
+      window.location.href = href;
+    });
 
     // Keyboard shortcuts
     document.addEventListener("keydown", (e) => {
@@ -887,6 +960,18 @@ class LessonEngine {
           this.checkAnswer();
         }
       }
+      if (e.key === "Escape") {
+        if (this.els.lesFeedbackOverlay?.style.display !== "none") {
+          this.dismissFeedback();
+        }
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) this.saveProgressSnapshot({ reason: "visibility" });
+    });
+    window.addEventListener("beforeunload", () => {
+      this.saveProgressSnapshot({ reason: "unload", silent: true });
     });
   }
 
@@ -929,6 +1014,9 @@ class LessonEngine {
     }
 
     this.steps = buildStepsFromLesson(this.lesson, this.course);
+    this.progressTotalSteps = Math.max(1, this.steps.length || 1);
+    this.lessonXP = Number(this.lesson.xp || this.course.xpReward || 50) || 0;
+    this.restoreProgress();
     this.showIntro();
     document.body.classList.remove("net-loading");
   }
@@ -968,12 +1056,169 @@ class LessonEngine {
 
     // Title for browser tab
     document.title = `Netology – ${this.lesson.title}`;
+
+    if (this.els.lesStartBtn) {
+      this.els.lesStartBtn.textContent = this.hasSavedProgress ? "Continue Lesson" : "Start Lesson";
+    }
+    if (this.els.lesResumeHint) {
+      if (this.hasSavedProgress) {
+        this.els.lesResumeHint.textContent = `Resume at ${this.progressPct}% complete`;
+        this.els.lesResumeHint.style.display = "";
+      } else {
+        this.els.lesResumeHint.style.display = "none";
+      }
+    }
+  }
+
+  restoreProgress() {
+    const user = getCurrentUser();
+    this.userEmail = user?.email || null;
+    const saved = readLessonProgress(this.userEmail, this.courseId, this.lessonNumber);
+
+    if (!saved) {
+      this.progressCompletedSteps = 0;
+      this.progressPct = 0;
+      this.progressXP = 0;
+      this.xpEarned = 0;
+      this.resumeStepIndex = 0;
+      this.hasSavedProgress = false;
+      return;
+    }
+
+    const total = this.progressTotalSteps || this.steps.length || 1;
+    const completedSteps = clamp(Number(saved.completed_steps || 0), 0, total);
+    const pctFromSteps = Math.round((completedSteps / total) * 100);
+    const pctSaved = clamp(Number(saved.progress_pct || pctFromSteps), 0, 100);
+    const pct = Math.max(pctFromSteps, pctSaved);
+    const targetXP = computeProgressXP(this.lessonXP, pct);
+    const savedXP = clamp(Number(saved.xp_earned || targetXP), 0, this.lessonXP);
+
+    this.progressCompletedSteps = completedSteps;
+    this.progressPct = pct;
+    this.progressXP = Math.min(targetXP, savedXP);
+    this.xpEarned = this.progressXP;
+    this.hasSavedProgress = pct > 0 && pct < 100;
+
+    const resume = Number(saved.resume_step ?? saved.current_step ?? completedSteps);
+    this.resumeStepIndex = pct >= 100 ? 0 : clamp(resume, 0, Math.max(0, total - 1));
+
+    if (this.els.lesXpCount) this.els.lesXpCount.textContent = String(this.xpEarned);
+  }
+
+  syncProgressRemote(payload, reason) {
+    const base = LESSON_API;
+    if (!base || !this.userEmail) return;
+    const template = ENDPOINTS.slides?.progress || ENDPOINTS.progress?.userProgress || "";
+    if (!template) return;
+    const lessonId =
+      this.lesson?.id ||
+      this.lesson?.lesson_id ||
+      this.lesson?.lessonId ||
+      this.lessonNumber ||
+      `${payload.course_id}-${payload.lesson_number}`;
+    const path = template.includes(":lessonId")
+      ? template.replace(":lessonId", encodeURIComponent(lessonId))
+      : template;
+    const body = {
+      ...payload,
+      user_email: this.userEmail,
+      lesson_id: lessonId,
+      reason: reason || "progress"
+    };
+    fetch(`${base}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).catch(() => {});
+  }
+
+  persistProgress({ completedSteps, resumeIndex, silent = false, reason = "progress" } = {}) {
+    if (!this.courseId || !this.lessonNumber) return;
+    const total = this.progressTotalSteps || this.steps.length || 1;
+    const safeCompleted = clamp(Number(completedSteps || 0), 0, total);
+    const pct = Math.round((safeCompleted / total) * 100);
+    const targetXP = computeProgressXP(this.lessonXP, pct);
+    const existing = readLessonProgress(this.userEmail, this.courseId, this.lessonNumber);
+
+    const prevCompleted = clamp(Number(existing?.completed_steps || 0), 0, total);
+    const prevPct = clamp(Number(existing?.progress_pct || 0), 0, 100);
+    const prevXP = clamp(Number(existing?.xp_earned || 0), 0, this.lessonXP);
+
+    const finalCompleted = Math.max(prevCompleted, safeCompleted);
+    const finalPct = Math.max(prevPct, pct);
+    const finalXP = Math.max(prevXP, targetXP);
+    const finalResume = Number.isFinite(resumeIndex)
+      ? clamp(resumeIndex, 0, Math.max(0, total - 1))
+      : undefined;
+
+    const payload = {
+      course_id: String(this.courseId),
+      lesson_number: Number(this.lessonNumber),
+      total_steps: total,
+      completed_steps: finalCompleted,
+      progress_pct: finalPct,
+      xp_earned: finalXP,
+      soft_completed: finalPct >= PROGRESS_SOFT_PCT,
+      resume_step: finalResume,
+      updated_at: new Date().toISOString()
+    };
+
+    writeLessonProgress(this.userEmail, this.courseId, this.lessonNumber, payload);
+    if (!silent) this.syncProgressRemote(payload, reason);
+  }
+
+  saveProgressSnapshot({ reason = "snapshot", silent = false } = {}) {
+    if (!this.steps.length) return;
+    const completedSteps = this.currentStepIndex >= 0
+      ? this.currentStepIndex
+      : this.progressCompletedSteps;
+    const resumeIndex = this.currentStepIndex >= 0
+      ? this.currentStepIndex
+      : this.resumeStepIndex;
+    this.persistProgress({ completedSteps, resumeIndex, silent, reason });
+  }
+
+  applyProgressAndXP(completedSteps, options = {}) {
+    if (this.isReviewMode) return 0;
+    const total = this.progressTotalSteps || this.steps.length || 1;
+    const safeCompleted = clamp(Number(completedSteps || 0), 0, total);
+    const pct = Math.round((safeCompleted / total) * 100);
+    const targetXP = computeProgressXP(this.lessonXP, pct);
+    const delta = Math.max(0, targetXP - this.progressXP);
+    const showPopup = options.showPopup !== false;
+
+    this.progressCompletedSteps = safeCompleted;
+    this.progressPct = pct;
+    this.hasSavedProgress = pct > 0 && pct < 100;
+
+    if (delta > 0) {
+      this.addXP(delta, { showPopup });
+      this.progressXP = targetXP;
+      if (this.userEmail && typeof bumpUserXP === "function") {
+        awardLessonXP(this.userEmail, this.courseId, this.lessonNumber, targetXP, delta)
+          .then((result) => {
+            const xpAdded = result?.success ? Number(result.xp_added || 0) : delta;
+            if (xpAdded > 0) bumpUserXP(this.userEmail, xpAdded);
+          })
+          .catch(() => {
+            bumpUserXP(this.userEmail, delta);
+          });
+      }
+    } else {
+      this.progressXP = targetXP;
+      this.xpEarned = targetXP;
+      this.updateStats();
+    }
+
+    this.persistProgress({ completedSteps: safeCompleted, resumeIndex: safeCompleted, reason: "step" });
+    return delta;
   }
 
   startLesson() {
     this.startTime = Date.now();
     this.showScreen("lesStepScreen");
-    this.loadStep(0);
+    const startIndex = Number.isFinite(this.resumeStepIndex) ? this.resumeStepIndex : 0;
+    this.loadStep(startIndex);
   }
 
   loadStep(index) {
@@ -1059,10 +1304,10 @@ class LessonEngine {
     // Learn steps just advance
     if (renderer.type === "learn" || renderer.type === "flashcard") {
       if (renderer.type === "flashcard" && renderer.check) {
-        const result = renderer.check();
-        this.addXP(result.xp || 5);
+        renderer.check();
       }
       this.stepResults.push({ type: renderer.type, correct: true, step: this.steps[this.currentStepIndex] });
+      this.applyProgressAndXP(this.currentStepIndex + 1);
       this.loadStep(this.currentStepIndex + 1);
       return;
     }
@@ -1076,7 +1321,6 @@ class LessonEngine {
         this.correctCount++;
         this.streak++;
         if (this.streak > this.bestStreak) this.bestStreak = this.streak;
-        this.addXP(result.xp || 10);
         this.showStreakPopup();
       } else {
         this.streak = 0;
@@ -1089,7 +1333,8 @@ class LessonEngine {
         step: this.steps[this.currentStepIndex]
       });
 
-      this.showFeedback(result.correct, result.explanation, result.xp);
+      const xpDelta = this.applyProgressAndXP(this.currentStepIndex + 1, { showPopup: false });
+      this.showFeedback(result.correct, result.explanation, xpDelta);
     }
   }
 
@@ -1097,6 +1342,7 @@ class LessonEngine {
     this.stepResults.push({ type: this.currentRenderer?.type || "unknown", correct: false, skipped: true, step: this.steps[this.currentStepIndex] });
     this.streak = 0;
     this.updateStats();
+    this.applyProgressAndXP(this.currentStepIndex + 1);
     this.loadStep(this.currentStepIndex + 1);
   }
 
@@ -1135,10 +1381,10 @@ class LessonEngine {
     this.loadStep(this.currentStepIndex + 1);
   }
 
-  addXP(amount) {
+  addXP(amount, options = {}) {
     if (!amount) return;
     this.xpEarned += amount;
-    this.showXPPopup(amount);
+    if (options.showPopup !== false) this.showXPPopup(amount);
     this.updateStats();
   }
 
@@ -1205,6 +1451,11 @@ class LessonEngine {
 
   showCompletion() {
     this.showScreen("lesCompleteScreen");
+    this.persistProgress({
+      completedSteps: this.progressTotalSteps,
+      resumeIndex: 0,
+      reason: "complete"
+    });
 
     // Set progress bar to 100%
     if (this.els.lesProgressFill) this.els.lesProgressFill.style.width = "100%";
@@ -1276,7 +1527,8 @@ class LessonEngine {
           email: user.email,
           course_id: String(this.courseId),
           lesson_number: this.lessonNumber,
-          earned_xp: this.xpEarned
+          earned_xp: 0,
+          progress_pct: 100
         })
       });
     } catch (e) {
@@ -1310,6 +1562,8 @@ class LessonEngine {
       if (this.els.lesReviewBtn) this.els.lesReviewBtn.textContent = "No mistakes!";
       return;
     }
+
+    this.isReviewMode = true;
 
     // Rebuild steps from mistakes only
     this.steps = mistakes.map(m => m.step);
