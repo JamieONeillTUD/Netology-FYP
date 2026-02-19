@@ -1485,28 +1485,22 @@ Works with:
     const box = getById("continueBox");
     if (!box) return;
 
+    // Remove skeleton loading state
+    box.classList.remove("net-continue-skel");
+
+    const subtitle = getById("continueSubtitle");
+    const setSubtitle = (text) => { if (subtitle) subtitle.textContent = text; };
+
     const user = getCurrentUser();
     const email = user?.email;
 
     if (!email) {
       box.className = "dash-continue-list";
       clearChildren(box);
-      const content = getCourseIndex();
-      const suggestions = Object.values(content).slice(0, 2);
-      if (suggestions.length) {
-        suggestions.forEach((c) => {
-          box.appendChild(buildContinueItem({
-            id: c.id, title: c.title, description: c.description,
-            category: c.category, diff: c.difficulty, pct: 0, done: 0, required: countRequiredItems(c),
-            xpReward: c.xpReward || 50, estimatedTime: c.estimatedTime
-          }));
-        });
-      } else {
-        box.appendChild(makeEl("div", "text-muted small", "Explore our courses to start learning."));
-      }
+      setSubtitle("Sign in to track your course progress.");
+      box.appendChild(makeEl("div", "text-muted small", "Sign in and start a course to see your progress here."));
       return;
     }
-
 
     const content = getCourseIndex();
     const apiCourses = await fetchContinueCourses(email);
@@ -1514,9 +1508,12 @@ Works with:
       .filter((c) => c && c.id)
       .sort((a, b) => Number(b.lastViewed || 0) - Number(a.lastViewed || 0));
     const startedMap = new Map(startedList.map((entry) => [String(entry.id), Number(entry.lastLesson || 0)]));
+
+    // Only show API courses the user has genuinely started (progress > 0)
     if (Array.isArray(apiCourses) && apiCourses.length) {
       box.className = "dash-continue-list";
       clearChildren(box);
+      setSubtitle("Pick up where you left off.");
       apiCourses.forEach((entry) => {
         const course = content[String(entry.id)] || {};
         const title = entry.title || course.title || "Course";
@@ -1548,20 +1545,20 @@ Works with:
           done,
           required,
           xpReward,
-          estimatedTime,
-          lastLesson: startedMap.get(String(entry.id))
+          estimatedTime
         });
         box.appendChild(item);
       });
       return;
     }
 
-    // Fallback: use local started courses
-    const started = startedList.slice(0, 3);
+    // Fallback: use local started courses (only those with a lastViewed timestamp — genuine visits)
+    const started = startedList.filter((e) => Number(e.lastViewed || 0) > 0).slice(0, 3);
 
     if (started.length) {
       box.className = "dash-continue-list";
       clearChildren(box);
+      setSubtitle("Pick up where you left off.");
       started.forEach((entry) => {
         const course = content[String(entry.id)] || (COURSE_CONTENT?.[String(entry.id)] || {});
         const title = course.title || "Course";
@@ -1586,8 +1583,7 @@ Works with:
           done,
           required,
           xpReward,
-          estimatedTime,
-          lastLesson: entry.lastLesson
+          estimatedTime
         });
         box.appendChild(item);
       });
@@ -1596,10 +1592,11 @@ Works with:
 
     box.className = "dash-continue-list";
     clearChildren(box);
-    box.appendChild(makeEl("div", "text-muted small", "No started courses yet. Pick a course to begin."));
+    setSubtitle("Start a course to track your progress here.");
+    box.appendChild(makeEl("div", "text-muted small", "No started courses yet. Head to the Courses page to begin."));
   }
 
-  function buildContinueItem({ id, title, description, category, diff, pct, done, required, xpReward, estimatedTime, lastLesson }) {
+  function buildContinueItem({ id, title, description, category, diff, pct, done, required, xpReward, estimatedTime }) {
     const item = document.createElement("div");
     item.className = "net-coursecard-enhanced net-card net-pop position-relative overflow-hidden p-0";
     item.setAttribute("data-course-id", String(id));
@@ -1667,13 +1664,10 @@ Works with:
     bgDeco.innerHTML = '<svg width="200" height="200" viewBox="0 0 200 200" fill="currentColor"><circle cx="100" cy="100" r="80"/></svg>';
     item.appendChild(bgDeco);
 
-    // Navigation
+    // Navigation — always go to the course overview page so the user
+    // can see their full progress before resuming.
     const nav = () => {
-      if (lastLesson) {
-        window.location.href = `lesson.html?course_id=${encodeURIComponent(id)}&lesson=${encodeURIComponent(lastLesson)}`;
-      } else {
-        window.location.href = `course.html?id=${encodeURIComponent(id)}`;
-      }
+      window.location.href = `course.html?id=${encodeURIComponent(id)}`;
     };
     item.addEventListener("click", nav);
     item.addEventListener("keydown", (e) => {
