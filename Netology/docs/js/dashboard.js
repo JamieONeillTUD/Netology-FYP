@@ -597,30 +597,13 @@ Works with:
       item.append(left, xpBadge);
 
       if (!isDone) {
-        item.style.cursor = "pointer";
-        item.setAttribute("role", "button");
-        item.setAttribute("tabindex", "0");
-        const complete = async () => {
-          item.classList.add("is-done");
-          xpBadge.classList.add("is-done");
-          xpBadge.innerHTML = '<i class="bi bi-check2-circle"></i>';
-          item.style.cursor = "default";
-          c.progress = 100;
-
-          const action = `challenge:${type}:${c.id}`;
-          const result = await awardXpOnce(email, action, Number(c.xp || 0));
-          if (result?.success && result.xp_added) {
-            bumpUserXP(email, Number(result.xp_added || 0));
-            safeStep("fillUserUI", fillUserUI);
-          }
-        };
-        item.addEventListener("click", complete, { once: true });
-        item.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            complete();
-          }
-        });
+        // Challenges can only be completed by finishing the real linked task —
+        // not by clicking. Show a non-interactive hint instead.
+        item.style.cursor = "default";
+        const hint = makeEl("div", "small text-muted mt-1");
+        hint.style.fontSize = "0.72rem";
+        hint.textContent = "Complete the linked task to earn this reward.";
+        left.appendChild(hint);
       }
 
       container.appendChild(item);

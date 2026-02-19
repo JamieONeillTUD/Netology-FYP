@@ -138,7 +138,6 @@ window.ONBOARDING_FLOW = [
   "dashboard",
   "courses",
   "course",
-  "lesson",
   "sandbox",
   "progress",
   "account",
@@ -149,8 +148,7 @@ window.ONBOARDING_STAGE_URLS = {
   dashboard: "dashboard.html",
   courses: "courses.html",
   course: "course.html?id=1",
-  lesson: "lesson.html?course_id=1&lesson=1",
-  sandbox: "sandbox.html?course_id=1&lesson=1&mode=practice",
+  sandbox: "sandbox.html?mode=practice",
   progress: "progress.html",
   account: "account.html",
   wrapup: "dashboard.html"
@@ -161,8 +159,7 @@ window.ONBOARDING_STEPS = {
     { target: "dashboard-header", title: "Welcome to Netology", description: "An interactive, gamified way to learn computer networking by doing." },
     { target: "dashboard-stats", title: "Quick Stats", description: "XP, streaks, challenges, and sandbox activity in one place." },
     { target: "progress-widget", title: "Streaks & Progress", description: "Keep your learning momentum visible every day." },
-    { target: "first-lesson-btn", title: "Resume Instantly", description: "Jump straight into your latest lesson." },
-    { target: "courses-section", title: "Continue Learning", description: "Pick up your courses with clear, step-by-step lessons." },
+    { target: "courses-section", title: "Continue Learning", description: "Pick up your courses with clear, step-by-step modules." },
     { target: "achievements-section", title: "Achievements", description: "Earn badges as you master new skills." },
     { target: "challenges-section", title: "Daily & Weekly Focus", description: "Short challenges help you learn by doing." },
     { target: "sandbox-link", title: "Network Sandbox", description: "Build and test real network topologies in a safe lab." }
@@ -178,14 +175,7 @@ window.ONBOARDING_STEPS = {
   course: [
     { target: "course-hero", title: "Course Overview", description: "Your course title, difficulty, and progress ring — everything at a glance." },
     { target: "course-continue", title: "Up Next", description: "See what is coming up and jump straight in. Your stats are here too." },
-    { target: "course-modules", title: "Modules", description: "Expand any module to see its lessons, quizzes, and challenges." }
-  ],
-  lesson: [
-    { target: "lesson-top-progress", title: "Lesson Progress", description: "Track every slide as you move forward." },
-    { target: "lesson-slide-viewer", title: "Interactive Slides", description: "Short, focused steps that explain concepts clearly." },
-    { target: "lesson-navigation", title: "Slide Navigation", description: "A simple, Duolingo-style flow." },
-    { target: "lesson-bookmark", title: "Bookmarks", description: "Save key slides to review later." },
-    { target: "lesson-outline", title: "Lesson Outline", description: "Jump to any part of the lesson fast." }
+    { target: "course-modules", title: "Modules", description: "Expand any module to see learning items, quizzes, and challenges." }
   ],
   sandbox: [
     { target: "sandbox-toolbar", title: "Sandbox Tools", description: "Select, connect, undo, and save your work." },
@@ -196,7 +186,7 @@ window.ONBOARDING_STEPS = {
     { target: "sandbox-console", title: "Console", description: "Run commands and view results instantly." }
   ],
   progress: [
-    { target: "progress-categories", title: "Progress Views", description: "Switch between courses, modules, lessons, quizzes, and sandbox." },
+    { target: "progress-categories", title: "Progress Views", description: "Switch between courses, modules, quizzes, and sandbox." },
     { target: "progress-split", title: "Split View", description: "See what’s in progress vs. completed." }
   ],
   account: [
@@ -209,7 +199,7 @@ window.ONBOARDING_STEPS = {
   ],
   wrapup: [
     { target: "dashboard-header", title: "You’re Ready", description: "Netology makes networking simple, visual, and hands-on." },
-    { target: "first-lesson-btn", title: "Start Learning", description: "Continue your next lesson anytime." }
+    { target: "courses-section", title: "Start Learning", description: "Continue your next course anytime." }
   ]
 };
 

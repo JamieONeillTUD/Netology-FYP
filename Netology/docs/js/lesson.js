@@ -14,7 +14,12 @@
 /* ═══════════════════════════════════════════════════════════
    HELPERS
    ═══════════════════════════════════════════════════════════ */
-const LESSON_API = (window.API_BASE || "").replace(/\/$/, "");
+// Resolve API base lazily so it always picks up the value set by config.js
+function getLessonAPI() {
+  return (window.API_BASE || "").replace(/\/$/, "");
+}
+// Keep backward compat for any internal usage of LESSON_API
+const LESSON_API = "";  // deprecated – use getLessonAPI() instead
 
 function getCourseContentMap() {
   if (typeof window !== "undefined" && window.COURSE_CONTENT) return window.COURSE_CONTENT;
@@ -76,7 +81,9 @@ function clamp(val, min, max) {
 }
 
 const PROGRESS_SOFT_PCT = 40;
-const ENDPOINTS = window.ENDPOINTS || {};
+/* NOTE: ENDPOINTS is declared globally by config.js via window.ENDPOINTS.
+   We reference it directly to avoid duplicate-declaration errors. */
+var ENDPOINTS = window.ENDPOINTS || {};
 
 function lessonProgressKey(email, courseId, lessonNumber) {
   if (!courseId || !lessonNumber) return null;
@@ -113,7 +120,7 @@ function computeProgressXP(totalXP, pct) {
 }
 
 async function awardLessonXP(email, courseId, lessonNumber, targetXP, deltaXP) {
-  const base = String(window.API_BASE || "").replace(/\/$/, "");
+  const base = getLessonAPI();
   if (!email || !base || !deltaXP) return { success: false, xp_added: 0 };
   const path = ENDPOINTS.auth?.awardXp || "/award-xp";
   const action = `lesson-progress:${courseId}:${lessonNumber}:${targetXP}`;
@@ -1017,8 +1024,27 @@ class LessonEngine {
   }
 
   loadLesson() {
+    // Safety timeout: if loading takes > 5 seconds, show an error
+    const loadTimeout = setTimeout(() => {
+      if (document.body.classList.contains("net-loading")) {
+        document.body.classList.remove("net-loading");
+        this.showLoadError("Lesson took too long to load. Please go back and try again.");
+      }
+    }, 5000);
+
     try {
+      // Ensure ENDPOINTS is always fresh from window
+      ENDPOINTS = window.ENDPOINTS || {};
+
       const contentMap = getCourseContentMap();
+
+      // Debug: log what we received to help diagnose blank-lesson issues
+      console.log("[lesson.js] loadLesson", {
+        courseId: this.courseId,
+        contentId: this.contentId,
+        lessonNumber: this.lessonNumber,
+        contentMapKeys: Object.keys(contentMap || {})
+      });
 
       this.course = resolveCourseContent(this.courseId, this.contentId);
       this.lesson = getLessonByNumber(this.course, this.lessonNumber);
@@ -1041,6 +1067,7 @@ class LessonEngine {
       }
 
       if (!this.course || !this.lesson) {
+        clearTimeout(loadTimeout);
         this.showLoadError("We couldn't find this lesson. Please go back and try again.");
         return;
       }
@@ -1054,6 +1081,7 @@ class LessonEngine {
       console.error("Lesson load failed:", error);
       this.showLoadError("We hit a loading error. Please refresh the page and try again.");
     } finally {
+      clearTimeout(loadTimeout);
       document.body.classList.remove("net-loading");
     }
   }
@@ -1143,7 +1171,7 @@ class LessonEngine {
   }
 
   syncProgressRemote(payload, reason) {
-    const base = LESSON_API;
+    const base = getLessonAPI();
     if (!base || !this.userEmail) return;
     const template = ENDPOINTS.slides?.progress || ENDPOINTS.progress?.userProgress || "";
     if (!template) return;
@@ -1201,6 +1229,13 @@ class LessonEngine {
     };
 
     writeLessonProgress(this.userEmail, this.courseId, this.lessonNumber, payload);
+
+    // Fire soft-complete report when crossing the 40% threshold for the first time
+    const wasAlreadySoftDone = prevPct >= PROGRESS_SOFT_PCT;
+    if (!wasAlreadySoftDone && finalPct >= PROGRESS_SOFT_PCT && finalPct < 100 && reason !== "complete") {
+      this.reportSoftComplete?.();
+    }
+
     if (!silent) this.syncProgressRemote(payload, reason);
   }
 
@@ -1392,7 +1427,14 @@ class LessonEngine {
     const xpEl = this.els.lesFeedbackXP;
     const xpAmount = this.els.lesFeedbackXPAmount;
 
+    // Ensure overlay is a centered fixed modal (not inline)
     overlay.style.display = "";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.zIndex = "9999";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
     card.className = "les-feedback-card " + (correct ? "is-correct" : "is-wrong");
 
     icon.innerHTML = correct
@@ -1414,7 +1456,9 @@ class LessonEngine {
   }
 
   dismissFeedback() {
-    if (this.els.lesFeedbackOverlay) this.els.lesFeedbackOverlay.style.display = "none";
+    if (this.els.lesFeedbackOverlay) {
+      this.els.lesFeedbackOverlay.style.display = "none";
+    }
     this.loadStep(this.currentStepIndex + 1);
   }
 
@@ -1507,7 +1551,21 @@ class LessonEngine {
     if (this.els.lesCompleteAccuracy) this.els.lesCompleteAccuracy.textContent = `${accuracy}%`;
     if (this.els.lesCompleteStreak) this.els.lesCompleteStreak.textContent = String(this.bestStreak);
     if (this.els.lesCompleteTime) this.els.lesCompleteTime.textContent = `${mins}:${String(secs).padStart(2, "0")}`;
-    if (this.els.lesCompleteSubtitle) this.els.lesCompleteSubtitle.textContent = `You've completed "${this.lesson.title}"`;
+
+    // Show "Lesson Mastered" if fully completed, else show standard completion text
+    const saved = readLessonProgress(this.userEmail, this.courseId, this.lessonNumber);
+    const isMastered = saved?.progress_pct >= 100;
+    if (this.els.lesCompleteSubtitle) {
+      this.els.lesCompleteSubtitle.textContent = isMastered
+        ? `🏆 Lesson Mastered – "${this.lesson.title}"`
+        : `You've completed "${this.lesson.title}"`;
+    }
+
+    // Show mastered badge on title if applicable
+    const titleEl = document.querySelector(".les-complete-title");
+    if (titleEl && isMastered) {
+      titleEl.textContent = "Lesson Mastered!";
+    }
 
     // Review items
     if (this.els.lesCompleteReview) {
@@ -1555,7 +1613,7 @@ class LessonEngine {
     if (!user?.email || !this.courseId || !this.lessonNumber) return;
 
     try {
-      const api = LESSON_API;
+      const api = getLessonAPI();
       if (!api) return;
       await fetch(`${api}/complete-lesson`, {
         method: "POST",
@@ -1564,12 +1622,42 @@ class LessonEngine {
           email: user.email,
           course_id: String(this.courseId),
           lesson_number: this.lessonNumber,
-          earned_xp: 0,
-          progress_pct: 100
+          earned_xp: this.xpEarned || 0,
+          progress_pct: 100,
+          completed_stamp: true,
+          mastered: true
         })
       });
     } catch (e) {
       console.warn("Could not report lesson completion:", e);
+    }
+  }
+
+  /**
+   * Report 40% soft-complete milestone to the backend.
+   * Called automatically when progress crosses the PROGRESS_SOFT_PCT threshold.
+   */
+  async reportSoftComplete() {
+    const user = getCurrentUser();
+    if (!user?.email || !this.courseId || !this.lessonNumber) return;
+    try {
+      const api = getLessonAPI();
+      if (!api) return;
+      await fetch(`${api}/complete-lesson`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          course_id: String(this.courseId),
+          lesson_number: this.lessonNumber,
+          earned_xp: this.xpEarned || 0,
+          progress_pct: this.progressPct,
+          completed_stamp: true,
+          mastered: false
+        })
+      });
+    } catch (e) {
+      console.warn("Could not report soft complete:", e);
     }
   }
 

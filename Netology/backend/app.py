@@ -109,11 +109,11 @@ def get_tour_steps():
     steps = [
         {"id": 1, "title": "Welcome to Netology!", "description": "Let's get you started on your learning journey.", "target": "dashboard-header", "position": "bottom"},
         {"id": 2, "title": "Your Learning Courses", "description": "Browse 9 networking courses from Novice to Advanced.", "target": "courses-section", "position": "top"},
-        {"id": 3, "title": "Track Your Progress", "description": "Watch your progress grow as you complete lessons.", "target": "progress-widget", "position": "left"},
+        {"id": 3, "title": "Track Your Progress", "description": "Watch your progress grow as you complete modules and challenges.", "target": "progress-widget", "position": "left"},
         {"id": 4, "title": "Earn Achievements", "description": "Unlock badges as you advance through the platform.", "target": "achievements-section", "position": "bottom"},
         {"id": 5, "title": "Daily Challenges", "description": "Complete challenges to earn bonus XP and streaks.", "target": "challenges-section", "position": "top"},
         {"id": 6, "title": "Practice in Sandbox", "description": "Execute real commands and build network topologies.", "target": "sandbox-link", "position": "right"},
-        {"id": 7, "title": "Let's Start Learning!", "description": "Start your first lesson and begin earning XP.", "target": "first-lesson-btn", "position": "center"}
+        {"id": 7, "title": "Let's Start Learning!", "description": "Open your courses and continue building XP.", "target": "courses-section", "position": "center"}
     ]
     return jsonify({'success': True, 'steps': steps, 'total_steps': len(steps)})
 

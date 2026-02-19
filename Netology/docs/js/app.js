@@ -25,7 +25,9 @@ Notes:
 
 // Safety: ensure API base is never undefined
 const API_BASE = (window.API_BASE || "").replace(/\/$/, "");
-const ENDPOINTS = window.ENDPOINTS || {};
+/* NOTE: ENDPOINTS is declared globally by config.js via window.ENDPOINTS.
+   Using var here prevents duplicate-declaration errors across scripts. */
+var ENDPOINTS = window.ENDPOINTS || {};
 const apiGet = window.apiGet || (async (path, params = {}) => {
   const base = API_BASE.trim();
   const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
@@ -1521,7 +1523,7 @@ function startOnboardingTour(userEmail, options = {}) {
 }
 
 function getOnboardingFlow() {
-  return window.ONBOARDING_FLOW || ["dashboard", "courses", "course", "lesson", "sandbox", "progress", "account"];
+  return window.ONBOARDING_FLOW || ["dashboard", "courses", "course", "sandbox", "progress", "account", "wrapup"];
 }
 
 function getOnboardingStageUrl(stage) {
@@ -1600,13 +1602,18 @@ function maybeStartOnboardingTour(stageKey, userEmail) {
     || localStorage.getItem(`netology_onboarding_skipped_${normalizedEmail}`) === "true";
   if (completed || skipped) return false;
 
-  const stage = localStorage.getItem("netology_onboarding_stage");
+  const flow = getOnboardingFlow();
+  let stage = localStorage.getItem("netology_onboarding_stage");
+  if (stage && !flow.includes(stage)) {
+    stage = flow.includes("sandbox") ? "sandbox" : (flow[0] || "");
+    if (stage) localStorage.setItem("netology_onboarding_stage", stage);
+    else localStorage.removeItem("netology_onboarding_stage");
+  }
   if (!stage || stage !== stageKey) return false;
 
   const steps = window.ONBOARDING_STEPS?.[stageKey] || [];
   if (!steps.length || typeof startOnboardingTour !== "function") return false;
 
-  const flow = getOnboardingFlow();
   const idx = flow.indexOf(stageKey);
   const nextStage = idx >= 0 ? flow[idx + 1] : null;
 
