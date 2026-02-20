@@ -51,6 +51,7 @@ Features:
     wireChrome(user);
     wireTabNavigation();
     initAppearanceControls();
+    wireRestartOnboarding(user);
 
     await loadProfileData(user);
     await loadLearningStats(user);
@@ -96,6 +97,33 @@ Features:
         }
       });
     }
+  }
+
+  /* Restart Onboarding Tour */
+  function wireRestartOnboarding(user) {
+    const btn = document.getElementById('restartOnboardingBtn');
+    if (!btn || !user?.email) return;
+
+    btn.addEventListener('click', () => {
+      const normalizedEmail = String(user.email || "").trim().toLowerCase();
+      
+      // Clear all onboarding flags
+      localStorage.removeItem('netology_onboarding_completed');
+      localStorage.removeItem('netology_onboarding_skipped');
+      localStorage.removeItem(`netology_onboarding_completed_${normalizedEmail}`);
+      localStorage.removeItem(`netology_onboarding_skipped_${normalizedEmail}`);
+      
+      // Set up onboarding for this user starting from dashboard
+      localStorage.setItem('netology_onboarding_user', normalizedEmail);
+      localStorage.setItem('netology_onboarding_stage', 'dashboard');
+      try {
+        sessionStorage.setItem('netology_onboarding_session', 'true');
+        sessionStorage.removeItem('netology_welcome_shown');
+      } catch {}
+      
+      // Redirect to dashboard to start the tour
+      window.location.href = 'dashboard.html';
+    });
   }
 
   /* ── Chrome: sidebar, dropdown, identity ── */
