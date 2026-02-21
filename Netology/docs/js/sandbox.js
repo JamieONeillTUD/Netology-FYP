@@ -92,6 +92,91 @@ Reworked to match the Figma AI version:
     console: { label: "Console", color: "#6366f1", width: 2, dash: "2,6" },
   };
 
+  // Device compatibility map – drives smart connection suggestions.
+  // Uses only existing CONNECTION_TYPES keys.
+  const DEVICE_COMPAT = {
+    pc:            [{ targets: ["switch"],       conn: "ethernet" },
+                   { targets: ["wireless-ap"],  conn: "wireless" },
+                   { targets: ["router"],        conn: "ethernet" }],
+    laptop:        [{ targets: ["switch"],       conn: "ethernet" },
+                   { targets: ["wireless-ap"],  conn: "wireless" }],
+    smartphone:    [{ targets: ["wireless-ap"],  conn: "wireless" },
+                   { targets: ["switch"],       conn: "ethernet" }],
+    printer:       [{ targets: ["switch"],       conn: "ethernet" },
+                   { targets: ["router"],        conn: "ethernet" }],
+    router:        [{ targets: ["switch"],       conn: "ethernet" },
+                   { targets: ["router"],        conn: "fiber"    },
+                   { targets: ["cloud"],         conn: "serial"   },
+                   { targets: ["firewall"],      conn: "ethernet" }],
+    switch:        [{ targets: ["router"],       conn: "ethernet" },
+                   { targets: ["server"],        conn: "ethernet" },
+                   { targets: ["pc", "laptop", "printer", "smartphone"], conn: "ethernet" },
+                   { targets: ["wireless-ap"],  conn: "ethernet" }],
+    "wireless-ap": [{ targets: ["switch"],       conn: "ethernet" },
+                   { targets: ["router"],        conn: "ethernet" }],
+    firewall:      [{ targets: ["router"],       conn: "ethernet" },
+                   { targets: ["switch"],        conn: "ethernet" }],
+    server:        [{ targets: ["switch"],       conn: "ethernet" },
+                   { targets: ["router"],        conn: "ethernet" }],
+    cloud:         [{ targets: ["router"],       conn: "serial"   },
+                   { targets: ["firewall"],      conn: "fiber"    }],
+  };
+
+  // Built-in quick tutorials available in free-sandbox mode.
+  const SAMPLE_TUTORIALS = [
+    {
+      id: "basic-lan", title: "Build a Basic LAN", desc: "Connect PCs to a Switch",
+      difficulty: "Beginner", icon: "bi-diagram-2",
+      steps: [
+        { text: "Add a Switch to the canvas.", checks: [{ type: "device", deviceType: "switch", count: 1 }], hint: "Drag Switch from the Device Library on the left." },
+        { text: "Add 2 PCs to the canvas.",   checks: [{ type: "device", deviceType: "pc",     count: 2 }], hint: "Drag two PC cards onto the canvas." },
+        { text: "Connect each PC to the Switch.", checks: [{ type: "connection", from: "pc", to: "switch", count: 2 }], hint: "Use the Connect tool (⚡) and click PC → Switch." },
+      ],
+    },
+    {
+      id: "add-router", title: "Add Internet Access", desc: "Connect a Router to the Cloud",
+      difficulty: "Beginner", icon: "bi-globe",
+      steps: [
+        { text: "Add a Router to the canvas.", checks: [{ type: "device", deviceType: "router", count: 1 }] },
+        { text: "Add an Internet (Cloud) node.", checks: [{ type: "device", deviceType: "cloud",  count: 1 }] },
+        { text: "Connect the Router to the Internet using a Serial link.", checks: [{ type: "connection", from: "router", to: "cloud", count: 1 }], hint: "Select Serial in the toolbar, then connect Router to Cloud." },
+      ],
+    },
+    {
+      id: "wireless", title: "Wireless Network", desc: "Set up an AP and connect wirelessly",
+      difficulty: "Beginner", icon: "bi-wifi",
+      steps: [
+        { text: "Add a Wireless AP to the canvas.", checks: [{ type: "device", deviceType: "wireless-ap", count: 1 }] },
+        { text: "Add a Smartphone.", checks: [{ type: "device", deviceType: "smartphone", count: 1 }] },
+        { text: "Connect Smartphone to Wireless AP using a Wireless link.", checks: [{ type: "connection", from: "smartphone", to: "wireless-ap", count: 1 }], hint: "Select Wireless in the toolbar before connecting." },
+      ],
+    },
+    {
+      id: "firewall", title: "Add a Firewall", desc: "Secure your network with a Firewall",
+      difficulty: "Intermediate", icon: "bi-shield-lock",
+      steps: [
+        { text: "Add a Router to the canvas.", checks: [{ type: "device", deviceType: "router",   count: 1 }] },
+        { text: "Add a Firewall to the canvas.", checks: [{ type: "device", deviceType: "firewall", count: 1 }] },
+        { text: "Connect the Firewall to the Router.", checks: [{ type: "connection", from: "firewall", to: "router", count: 1 }] },
+        { text: "Add a Switch behind the Firewall.", checks: [{ type: "device", deviceType: "switch", count: 1 }] },
+        { text: "Connect the Switch to the Firewall.", checks: [{ type: "connection", from: "switch", to: "firewall", count: 1 }] },
+      ],
+    },
+    {
+      id: "full-net", title: "Full Office Network", desc: "Build a complete office topology",
+      difficulty: "Advanced", icon: "bi-building",
+      steps: [
+        { text: "Add a Router.",      checks: [{ type: "device", deviceType: "router",      count: 1 }] },
+        { text: "Add a Switch.",      checks: [{ type: "device", deviceType: "switch",      count: 1 }] },
+        { text: "Add a Wireless AP.", checks: [{ type: "device", deviceType: "wireless-ap", count: 1 }] },
+        { text: "Add a Server.",      checks: [{ type: "device", deviceType: "server",      count: 1 }] },
+        { text: "Connect Switch to Router.",     checks: [{ type: "connection", from: "switch",      to: "router", count: 1 }] },
+        { text: "Connect AP to Switch.",         checks: [{ type: "connection", from: "wireless-ap", to: "switch", count: 1 }] },
+        { text: "Connect Server to Switch.",     checks: [{ type: "connection", from: "server",      to: "switch", count: 1 }] },
+      ],
+    },
+  ];
+
   const state = {
     devices: [],
     connections: [],
@@ -328,6 +413,311 @@ Reworked to match the Figma AI version:
     });
   }
 
+  // ----------------------------------------
+  // Well-Done Toast (tutorial complete)
+  // ----------------------------------------
+  function showWellDoneToast(title, message) {
+    const stack = toastStack || document.body;
+    const toast = document.createElement("div");
+    toast.className = "sbx-toast is-welldone";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+
+    const iconWrap = makeEl("div", "sbx-toast-icon");
+    iconWrap.appendChild(makeIcon("bi bi-trophy-fill"));
+
+    const body = document.createElement("div");
+    body.append(
+      makeEl("div", "sbx-toast-title", title || "Well done!"),
+      makeEl("div", "sbx-toast-message", message || "")
+    );
+
+    const closeBtn = makeEl("button", "sbx-toast-close", "×");
+    closeBtn.type = "button";
+    closeBtn.setAttribute("aria-label", "Close");
+
+    toast.append(iconWrap, body, closeBtn);
+    stack.appendChild(toast);
+
+    requestAnimationFrame(() => toast.classList.add("is-show"));
+    closeBtn.addEventListener("click", () => {
+      toast.classList.remove("is-show");
+      setTimeout(() => toast.remove(), 400);
+    });
+    setTimeout(() => {
+      toast.classList.remove("is-show");
+      setTimeout(() => toast.remove(), 400);
+    }, 5000);
+  }
+
+  // ----------------------------------------
+  // Objectives Banner
+  // ----------------------------------------
+  function updateObjectivesBanner() {
+    const banner = getById("sbxObjectivesBanner");
+    if (!banner) return;
+
+    if (state.mode === "tutorial" && state.tutorialMeta) {
+      const steps = normalizeTutorialSteps(state.tutorialMeta.steps || []);
+      const progress = normalizeTutorialProgress(state.tutorialMeta, steps);
+      const step = steps[progress.current];
+      if (!step || !steps.length) { banner.style.display = "none"; return; }
+      const labelEl = getById("sbxObjectivesBannerLabel");
+      const titleEl = getById("sbxObjectivesBannerTitle");
+      const stepEl  = getById("sbxObjectivesBannerStep");
+      const statusEl = getById("sbxObjectivesBannerStatus");
+      if (labelEl)  labelEl.textContent  = state.tutorialMeta.title || "Tutorial";
+      if (titleEl)  titleEl.textContent  = step.text || "Follow the instruction.";
+      if (stepEl)   stepEl.textContent   = `Step ${progress.current + 1} of ${steps.length}`;
+      if (statusEl) {
+        const done = progress.checked.filter(Boolean).length;
+        statusEl.textContent = `${done}/${steps.length} complete`;
+      }
+      banner.style.display = "";
+    } else if (state.mode === "challenge" && state.challengeMeta) {
+      const labelEl = getById("sbxObjectivesBannerLabel");
+      const titleEl = getById("sbxObjectivesBannerTitle");
+      const stepEl  = getById("sbxObjectivesBannerStep");
+      const statusEl = getById("sbxObjectivesBannerStatus");
+      if (labelEl)  labelEl.textContent  = "Challenge";
+      if (titleEl)  titleEl.textContent  = state.challengeMeta.title || "Complete the challenge objectives";
+      if (stepEl)   stepEl.textContent   = "";
+      if (statusEl) statusEl.textContent = "";
+      banner.style.display = "";
+    } else {
+      banner.style.display = "none";
+    }
+  }
+
+  // ----------------------------------------
+  // Smart Device Connection Suggestions
+  // ----------------------------------------
+  function showConnectionSuggestions(device) {
+    const panel = getById("sbxConnSuggest");
+    const body  = getById("sbxConnSuggestBody");
+    if (!panel || !body) return;
+
+    const compat = DEVICE_COMPAT[device.type] || [];
+    const suggestions = [];
+
+    compat.forEach(({ targets, conn }) => {
+      targets.forEach((targetType) => {
+        const candidates = state.devices.filter(
+          (d) => d.type === targetType && d.id !== device.id
+        );
+        candidates.forEach((candidate) => {
+          const alreadyLinked = state.connections.some(
+            (c) =>
+              (c.from === device.id && c.to === candidate.id) ||
+              (c.from === candidate.id && c.to === device.id)
+          );
+          if (!alreadyLinked) suggestions.push({ candidate, conn });
+        });
+      });
+    });
+
+    // If no existing devices to connect to, show "what to add next" hints
+    if (!suggestions.length) {
+      const alreadyTypes = new Set(state.devices.map((d) => d.type));
+      compat.forEach(({ targets, conn }) => {
+        targets.forEach((targetType) => {
+          if (!alreadyTypes.has(targetType)) {
+            const dt = DEVICE_TYPES[targetType];
+            if (dt) suggestions.push({ addDevice: targetType, conn, label: dt.label });
+          }
+        });
+      });
+
+      if (!suggestions.length) return;
+
+      clearChildren(body);
+      // Show "add device" suggestions
+      suggestions.slice(0, 4).forEach(({ addDevice: devType, conn, label }) => {
+        const ct = CONNECTION_TYPES[conn];
+        const dt = DEVICE_TYPES[devType];
+        const btn = makeEl("button", "sbx-conn-suggest-item");
+        btn.type = "button";
+        btn.innerHTML = `
+          <span class="sbx-conn-suggest-item-icon" style="color:${dt.color.includes("gradient") ? "#06b6d4" : dt.color}">
+            <i class="bi ${dt.icon}"></i>
+          </span>
+          <span class="sbx-conn-suggest-item-text">
+            <strong>Add a ${label}</strong>
+            <span class="sbx-conn-suggest-item-meta">Then connect via ${ct.label}</span>
+          </span>
+          <span class="sbx-conn-suggest-item-arrow"><i class="bi bi-plus-circle"></i></span>`;
+        btn.addEventListener("click", () => {
+          dismissSuggestions();
+          addDevice(devType);
+        });
+        body.appendChild(btn);
+      });
+      panel.style.display = "";
+      return;
+    }
+
+    // Show connect-to-existing suggestions
+    clearChildren(body);
+    suggestions.slice(0, 4).forEach(({ candidate, conn }) => {
+      const ct = CONNECTION_TYPES[conn];
+      const btn = makeEl("button", "sbx-conn-suggest-item");
+      btn.type = "button";
+      btn.innerHTML = `
+        <span class="sbx-conn-suggest-item-icon" style="color:${ct.color}">
+          <i class="bi bi-plug"></i>
+        </span>
+        <span class="sbx-conn-suggest-item-text">
+          <strong>${candidate.name}</strong>
+          <span class="sbx-conn-suggest-item-meta">${ct.label} cable</span>
+        </span>
+        <span class="sbx-conn-suggest-item-arrow"><i class="bi bi-arrow-right"></i></span>`;
+      btn.addEventListener("click", () => {
+        dismissSuggestions();
+        // Set connection type
+        state.connectType = conn;
+        qsa("[data-conn-type]", connTypeGroup).forEach((b) => b.classList.remove("is-active"));
+        qs(`[data-conn-type="${conn}"]`, connTypeGroup)?.classList.add("is-active");
+        // Switch to connect tool and pre-select source device
+        state.tool = TOOL.CONNECT;
+        qsa("[data-tool]").forEach((b) => b.classList.remove("is-active"));
+        getById("toolConnectBtn")?.classList.add("is-active");
+        updateConnGroupVisibility();
+        state.connectFrom = device.id;
+        state.selectedIds = [device.id];
+        renderDevices();
+        // Highlight the target
+        addGuided(qs(`.sbx-device[data-id="${candidate.id}"]`, deviceLayer));
+        const ct2 = CONNECTION_TYPES[conn];
+        setTip(`Click ${candidate.name} to complete the ${ct2.label} connection.`);
+      });
+      body.appendChild(btn);
+    });
+
+    // Also highlight compatible devices on canvas
+    suggestions.slice(0, 4).forEach(({ candidate }) => {
+      if (candidate) {
+        addGuided(qs(`.sbx-device[data-id="${candidate.id}"]`, deviceLayer));
+      }
+    });
+
+    panel.style.display = "";
+  }
+
+  function dismissSuggestions() {
+    const panel = getById("sbxConnSuggest");
+    if (panel) panel.style.display = "none";
+    clearGuidedHighlights();
+  }
+
+  // ----------------------------------------
+  // Tutorial Carousel (free mode)
+  // ----------------------------------------
+  function renderTutorialCarousel() {
+    const wrap   = getById("sbxTutorialCarousel");
+    const scroll = getById("sbxTutorialCarouselScroll");
+    if (!wrap || !scroll) return;
+    if (state.mode !== "free") { wrap.style.display = "none"; return; }
+    wrap.style.display = "";
+    clearChildren(scroll);
+    SAMPLE_TUTORIALS.forEach((tut) => {
+      const card = makeEl("div", "sbx-tut-card");
+      const icon = makeEl("div", "sbx-tut-card-icon");
+      icon.appendChild(makeIcon(`bi ${tut.icon}`));
+      const cardBody = makeEl("div", "sbx-tut-card-body");
+      const title = makeEl("div", "sbx-tut-card-title", tut.title);
+      const desc  = makeEl("div", "sbx-tut-card-desc", tut.desc);
+      const diff  = makeEl("span", `sbx-tut-card-diff sbx-tut-diff--${tut.difficulty.toLowerCase()}`, tut.difficulty);
+      cardBody.append(title, desc, diff);
+      card.append(icon, cardBody);
+      card.addEventListener("click", () => launchSampleTutorial(tut));
+      scroll.appendChild(card);
+    });
+  }
+
+  function launchSampleTutorial(tut) {
+    const rawUser = parseJsonSafe(localStorage.getItem("netology_user") || localStorage.getItem("user"));
+    state.tutorialMeta = {
+      courseId: 0,
+      lesson: 0,
+      email: rawUser?.email || "guest",
+      steps: tut.steps,
+      title: tut.title,
+      tips: tut.desc,
+    };
+    state.mode = "tutorial";
+    // Reset progress so the tutorial starts fresh
+    const key = tutorialProgressKey(state.tutorialMeta);
+    if (key) localStorage.removeItem(key);
+    renderObjectives();
+    updateTutorialGuidance();
+    setRightTab("objectives");
+    showRightPanel();
+    updateObjectivesBanner();
+  }
+
+  // ----------------------------------------
+  // Idle Guidance (7 s timeout)
+  // ----------------------------------------
+  let idleTimer = null;
+  const IDLE_DELAY = 7000;
+
+  function resetIdleTimer() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(showIdleGuidance, IDLE_DELAY);
+  }
+
+  function showIdleGuidance() {
+    if (state.mode !== "free") return;
+    let msg, sub;
+    if (!state.devices.length) {
+      msg = "Start building your network!";
+      sub = "Try dragging a Router or Switch from the device library onto the canvas.";
+    } else if (!state.connections.length) {
+      msg = "Now connect your devices.";
+      sub = "Use the Connect tool (⚡) in the toolbar, or press C on your keyboard.";
+    } else {
+      msg = "Looking for a challenge?";
+      sub = "Open the Objectives tab to browse quick guided tutorials.";
+    }
+    showIdleBanner(msg, sub);
+  }
+
+  function showIdleBanner(msg, sub) {
+    let banner = getById("sbxIdleBanner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "sbxIdleBanner";
+      banner.className = "sbx-idle-banner";
+      const iconEl = makeEl("div", "sbx-idle-icon");
+      iconEl.appendChild(makeIcon("bi bi-lightbulb-fill"));
+      const textEl = makeEl("div", "sbx-idle-text");
+      const titleEl = makeEl("div", "sbx-idle-title");
+      titleEl.id = "sbxIdleTitle";
+      const subEl = makeEl("div", "sbx-idle-sub");
+      subEl.id = "sbxIdleSub";
+      textEl.append(titleEl, subEl);
+      const closeEl = makeEl("button", "sbx-idle-close");
+      closeEl.type = "button";
+      closeEl.id = "sbxIdleClose";
+      closeEl.setAttribute("aria-label", "Dismiss");
+      closeEl.appendChild(makeIcon("bi bi-x"));
+      banner.append(iconEl, textEl, closeEl);
+      // Append to the stage wrap so it floats inside the canvas area
+      stageWrap?.appendChild(banner);
+      closeEl.addEventListener("click", hideIdleBanner);
+    }
+    const titleEl = getById("sbxIdleTitle");
+    const subEl   = getById("sbxIdleSub");
+    if (titleEl) titleEl.textContent = msg;
+    if (subEl)   subEl.textContent   = sub;
+    banner.classList.add("is-show");
+  }
+
+  function hideIdleBanner() {
+    getById("sbxIdleBanner")?.classList.remove("is-show");
+    resetIdleTimer();
+  }
+
   function showLeftPanel() {
     if (!leftPanel) return;
     leftPanel.style.display = "";
@@ -541,12 +931,27 @@ Reworked to match the Figma AI version:
     progress.checked[index] = true;
     progress.current = findNextIncomplete(progress.checked, steps.length, index);
     saveTutorialProgress(meta, progress);
-    showToast({
-      title: "Step complete",
-      message: steps[index]?.text || "Step completed.",
-      variant: "success",
-      timeout: 2200,
-    });
+
+    const allDone = steps.every((_, i) => progress.checked[i]);
+    if (allDone) {
+      showWellDoneToast(
+        "Tutorial Complete! 🎉",
+        "Amazing work! Returning you to the lesson now…"
+      );
+      // For lesson-linked tutorials, redirect back after 3 s
+      if (meta?.courseId && meta?.lesson != null && meta.courseId !== 0) {
+        setTimeout(() => {
+          window.location.href = `lesson.html?course_id=${meta.courseId}&lesson=${meta.lesson}`;
+        }, 3000);
+      }
+    } else {
+      showToast({
+        title: "Step complete",
+        message: steps[index]?.text || "Step completed.",
+        variant: "success",
+        timeout: 2200,
+      });
+    }
   }
 
   function updateTutorialGuidance() {
@@ -566,8 +971,26 @@ Reworked to match the Figma AI version:
       progress.checked[currentIndex] = true;
       progress.current = findNextIncomplete(progress.checked, steps.length, currentIndex);
       saveTutorialProgress(meta, progress);
+
+      // Check if ALL steps are now complete
+      const allDone = steps.every((_, i) => progress.checked[i]);
+      if (allDone) {
+        renderObjectives();
+        updateObjectivesBanner();
+        showWellDoneToast(
+          "Tutorial Complete! 🎉",
+          "Amazing work — every step is done! Returning you to the lesson…"
+        );
+        if (meta?.courseId && meta?.lesson != null && meta.courseId !== 0) {
+          setTimeout(() => {
+            window.location.href = `lesson.html?course_id=${meta.courseId}&lesson=${meta.lesson}`;
+          }, 3000);
+        }
+        return;
+      }
+
       showToast({
-        title: "Step complete",
+        title: "Step complete ✓",
         message: currentStep.text || "Step completed.",
         variant: "success",
         timeout: 2200,
@@ -584,6 +1007,7 @@ Reworked to match the Figma AI version:
     }
 
     renderObjectives();
+    updateObjectivesBanner();
     const activeStep = steps[nextProgress.current] || currentStep;
     const tipText = activeStep.tip || activeStep.hint || activeStep.text || meta.tips;
     if (tipText) setTip(tipText);
@@ -1723,6 +2147,9 @@ Reworked to match the Figma AI version:
 
   function renderObjectives() {
     if (!objectivesBody) return;
+    // Update tutorial carousel visibility (free mode) and objectives banner
+    renderTutorialCarousel();
+    updateObjectivesBanner();
     if (!state.tutorialMeta) {
       clearGuidedHighlights();
       hideGuide();
@@ -1777,15 +2204,17 @@ Reworked to match the Figma AI version:
           currentCard.appendChild(reqList);
         }
 
-        const actionRow = makeEl("div", "sbx-tutorial-actions");
-        const primaryBtn = makeEl("button", "btn btn-teal btn-sm", evaluation.manual ? "Mark step complete" : "Continue");
-        primaryBtn.disabled = evaluation.manual ? false : !evaluation.ok;
-        primaryBtn.addEventListener("click", () => {
-          completeTutorialStep(meta, steps, currentIndex);
-          updateTutorialGuidance();
-        });
-        actionRow.appendChild(primaryBtn);
-        currentCard.appendChild(actionRow);
+        // Only render a button for manual steps — auto-detected steps advance automatically
+        if (evaluation.manual) {
+          const actionRow = makeEl("div", "sbx-tutorial-actions");
+          const primaryBtn = makeEl("button", "btn btn-teal btn-sm", "Mark step complete");
+          primaryBtn.addEventListener("click", () => {
+            completeTutorialStep(meta, steps, currentIndex);
+            updateTutorialGuidance();
+          });
+          actionRow.appendChild(primaryBtn);
+          currentCard.appendChild(actionRow);
+        }
         wrap.appendChild(currentCard);
 
         const list = makeEl("div", "sbx-tutorial-step-list");
@@ -2555,6 +2984,9 @@ Reworked to match the Figma AI version:
     renderAll();
     notifyTutorialProgress();
     markDirtyAndSaveSoon();
+    // Dismiss idle banner on activity and show connection suggestions
+    hideIdleBanner();
+    showConnectionSuggestions(device);
   }
 
   function deleteDevices(ids) {
@@ -2577,6 +3009,10 @@ Reworked to match the Figma AI version:
       (c) => (c.from === fromId && c.to === toId) || (c.from === toId && c.to === fromId)
     );
     if (exists) return;
+
+    // Dismiss suggestions and idle banner when a connection is made
+    dismissSuggestions();
+    hideIdleBanner();
 
     const fromDevice = findDevice(fromId);
     const toDevice = findDevice(toId);
@@ -4322,6 +4758,18 @@ Reworked to match the Figma AI version:
     window.addEventListener("beforeunload", () => {
       saveLessonSessionToDb();
     });
+
+    // ── Wire suggestion close button ──
+    getById("sbxConnSuggestClose")?.addEventListener("click", dismissSuggestions);
+
+    // ── Dismiss suggestions on any canvas click (not on a suggestion item) ──
+    stage.addEventListener("click", () => dismissSuggestions());
+
+    // ── Idle guidance activity listeners (7 s timeout) ──
+    ["mousemove", "mousedown", "keydown", "wheel", "touchstart"].forEach((ev) => {
+      document.addEventListener(ev, resetIdleTimer, { passive: true });
+    });
+    resetIdleTimer(); // start the clock
   }
 
   init();

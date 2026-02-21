@@ -6576,6 +6576,65 @@ body[data-theme="sunrise"] {
 @keyframes sbxRouteGlow { 0% { opacity: 0; transform: scale(.96); } 40% { opacity: .6; transform: scale(1.02); } 100% { opacity: 0; transform: scale(1.08); } }
 @keyframes sbxMenuPop { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
+/* ── Objectives Banner ── */
+.sbx-objectives-banner { background: linear-gradient(90deg,#0c4a6e,#075985); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+.sbx-objectives-banner-inner { display: flex; align-items: center; gap: 12px; }
+.sbx-objectives-banner-icon { font-size: 1.5rem; color: #38bdf8; flex-shrink: 0; }
+.sbx-objectives-banner-content { flex: 1; min-width: 0; }
+.sbx-objectives-banner-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.6); font-weight: 600; }
+.sbx-objectives-banner-title { font-size: .9rem; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbx-objectives-banner-meta { flex-shrink: 0; text-align: right; }
+.sbx-objectives-banner-step { font-size: .75rem; color: rgba(255,255,255,.7); display: block; }
+.sbx-objectives-banner-status { font-size: .72rem; color: #7dd3fc; font-weight: 600; }
+
+/* ── Connection Suggestions ── */
+.sbx-conn-suggest { background: #fff; border: 1.5px solid #06b6d4; border-radius: 10px; box-shadow: 0 4px 20px rgba(6,182,212,.2); padding: 12px; margin: 0 0 8px; }
+.sbx-conn-suggest-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #06b6d4; font-weight: 700; font-size: .82rem; }
+.sbx-conn-suggest-close { margin-left: auto; background: none; border: none; cursor: pointer; color: #64748b; padding: 2px 4px; border-radius: 4px; line-height: 1; }
+.sbx-conn-suggest-close:hover { background: #f1f5f9; color: #0f172a; }
+.sbx-conn-suggest-body { display: flex; flex-direction: column; gap: 6px; }
+.sbx-conn-suggest-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; cursor: pointer; transition: all .15s; }
+.sbx-conn-suggest-item:hover { background: #e0f7fa; border-color: #06b6d4; transform: translateX(2px); }
+.sbx-conn-suggest-item-icon { font-size: 1.1rem; flex-shrink: 0; }
+.sbx-conn-suggest-item-text { flex: 1; line-height: 1.3; font-size: .82rem; }
+.sbx-conn-suggest-item-text strong { display: block; color: #0f172a; }
+.sbx-conn-suggest-item-meta { color: #64748b; font-size: .74rem; }
+.sbx-conn-suggest-item-arrow { color: #94a3b8; font-size: .85rem; }
+.sbx-conn-suggest-footer { margin-top: 8px; }
+.sbx-conn-suggest-hint { font-size: .73rem; color: #64748b; display: flex; align-items: center; gap: 5px; }
+
+/* ── Tutorial Carousel ── */
+.sbx-tutorial-carousel { padding: 8px 0 4px; }
+.sbx-tutorial-carousel-title { font-size: .78rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.sbx-tutorial-carousel-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+.sbx-tutorial-carousel-scroll::-webkit-scrollbar { height: 4px; }
+.sbx-tutorial-carousel-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.sbx-tut-card { min-width: 155px; max-width: 155px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px; cursor: pointer; scroll-snap-align: start; transition: all .18s; flex-shrink: 0; }
+.sbx-tut-card:hover { background: #e0f7fa; border-color: #06b6d4; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(6,182,212,.18); }
+.sbx-tut-card-icon { font-size: 1.4rem; color: #06b6d4; margin-bottom: 6px; }
+.sbx-tut-card-title { font-size: .8rem; font-weight: 700; color: #1e293b; margin-bottom: 2px; line-height: 1.3; }
+.sbx-tut-card-desc { font-size: .72rem; color: #64748b; line-height: 1.35; margin-bottom: 7px; }
+.sbx-tut-card-diff { font-size: .68rem; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
+.sbx-tut-diff--beginner { background: #dcfce7; color: #166534; }
+.sbx-tut-diff--intermediate { background: #fef3c7; color: #92400e; }
+.sbx-tut-diff--advanced { background: #fee2e2; color: #991b1b; }
+
+/* ── Idle Guidance Banner ── */
+.sbx-idle-banner { display: flex; align-items: flex-start; gap: 12px; background: linear-gradient(135deg,#0f172a,#1e293b); color: #fff; border-radius: 12px; padding: 14px 16px; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(24px); opacity: 0; pointer-events: none; transition: opacity .35s, transform .35s; z-index: 20; min-width: 290px; max-width: 440px; box-shadow: 0 6px 24px rgba(0,0,0,.4); }
+.sbx-idle-banner.is-show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.sbx-idle-icon { font-size: 1.5rem; color: #fbbf24; flex-shrink: 0; margin-top: 1px; }
+.sbx-idle-text { flex: 1; }
+.sbx-idle-title { font-weight: 700; font-size: .88rem; margin-bottom: 3px; }
+.sbx-idle-sub { font-size: .76rem; color: rgba(255,255,255,.75); line-height: 1.45; }
+.sbx-idle-close { background: none; border: none; color: rgba(255,255,255,.55); cursor: pointer; padding: 0 2px; border-radius: 4px; flex-shrink: 0; font-size: 1rem; line-height: 1; margin-top: 1px; }
+.sbx-idle-close:hover { color: #fff; }
+
+/* ── Well-Done Toast (tutorial complete) ── */
+.sbx-toast.is-welldone { background: linear-gradient(135deg,#065f46,#047857); border-left: 4px solid #34d399; min-width: 270px; max-width: 340px; }
+.sbx-toast.is-welldone .sbx-toast-title { color: #a7f3d0; font-size: .85rem; }
+.sbx-toast.is-welldone .sbx-toast-message { color: #d1fae5; }
+.sbx-toast.is-welldone .sbx-toast-icon { background: rgba(52,211,153,.2); color: #34d399; }
+
 /* --- Responsive --- */
 @media (max-width: 1399.98px) { .sbx-workspace { grid-template-columns: 250px minmax(0,1fr) 300px; } }
 @media (max-width: 1199.98px) { .sbx-workspace { grid-template-columns: 230px minmax(0,1fr) 280px; height: calc(100vh - 170px); } }
@@ -9384,6 +9443,7 @@ body.net-sigma .net-meter-fill {
   border: 3px solid #06b6d4;
   border-radius: 8px;
   box-shadow: 0 0 30px rgba(6, 182, 212, 0.6);
+  background: rgba(6, 182, 212, 0.08);
   z-index: 9999;
   pointer-events: none;
   animation: spotlightPulse 2s ease-in-out infinite;
@@ -9482,9 +9542,9 @@ body.net-onboarding-lock .onboarding-tooltip * {
 }
 
 @keyframes spotlightPulse {
-  0% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.4); }
-  50% { box-shadow: 0 0 40px rgba(6, 182, 212, 0.8); }
-  100% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.4); }
+  0%   { box-shadow: 0 0 20px rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.06); }
+  50%  { box-shadow: 0 0 40px rgba(6, 182, 212, 0.9); background: rgba(6, 182, 212, 0.14); }
+  100% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.06); }
 }
 
 @keyframes tooltipSlideIn {

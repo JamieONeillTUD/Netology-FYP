@@ -1400,14 +1400,15 @@ class OnboardingTour {
         <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
         <button class="btn-tour" onclick="window.onboardingTour.nextStep()" style="font-weight: 600;">Start</button>`;
     } else {
-      // Subsequent steps: Show step counter and navigation buttons
+      // Subsequent steps: Back | Continue > | Skip (consistent layout)
       html += `
         <span style="font-size: 12px; color: #999;">Step ${this.currentStepIndex + 1} of ${this.steps.length}</span>
-        ${this.currentStepIndex > 0 ? '<button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()">← Back</button>' : ''}
-        <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
+        <button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()"
+          ${this.currentStepIndex === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>< Back</button>
         ${this.currentStepIndex < this.steps.length - 1
-          ? '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Next →</button>'
-          : '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish!</button>'}`;
+          ? '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Continue ></button>'
+          : '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish ></button>'}
+        <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>`;
     }
 
     html += `

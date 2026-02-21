@@ -173,6 +173,23 @@ sandbox.html – Interactive networking sandbox.
     </section>
 
     <div class="net-loading-hide">
+      <!-- Objectives Banner (visible during tutorial/challenge mode) -->
+      <div class="sbx-objectives-banner" id="sbxObjectivesBanner" style="display:none;" aria-live="polite">
+        <div class="sbx-objectives-banner-inner">
+          <div class="sbx-objectives-banner-icon">
+            <i class="bi bi-bullseye" aria-hidden="true"></i>
+          </div>
+          <div class="sbx-objectives-banner-content">
+            <div class="sbx-objectives-banner-label" id="sbxObjectivesBannerLabel">Objective</div>
+            <div class="sbx-objectives-banner-title" id="sbxObjectivesBannerTitle">Complete the step below</div>
+          </div>
+          <div class="sbx-objectives-banner-meta">
+            <span class="sbx-objectives-banner-step" id="sbxObjectivesBannerStep">Step 1 of 1</span>
+            <span class="sbx-objectives-banner-status" id="sbxObjectivesBannerStatus"></span>
+          </div>
+        </div>
+      </div>
+
       <!-- AI Prompt: Explain the Sandbox Toolbar section in clear, simple terms. -->
       <!-- Toolbar -->
       <div class="sbx-float-bar" data-tour="sandbox-toolbar">
@@ -336,6 +353,21 @@ sandbox.html – Interactive networking sandbox.
             </div>
           </div>
 
+          <!-- Connection Suggestions Panel -->
+          <div class="sbx-conn-suggest" id="sbxConnSuggest" style="display:none;" aria-live="polite" role="status">
+            <div class="sbx-conn-suggest-header">
+              <i class="bi bi-lightning-fill" aria-hidden="true"></i>
+              <span class="sbx-conn-suggest-title">Suggested Connections</span>
+              <button class="sbx-conn-suggest-close" id="sbxConnSuggestClose" type="button" aria-label="Dismiss suggestions">
+                <i class="bi bi-x" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div class="sbx-conn-suggest-body" id="sbxConnSuggestBody"></div>
+            <div class="sbx-conn-suggest-footer">
+              <span class="sbx-conn-suggest-hint"><i class="bi bi-cursor" aria-hidden="true"></i> Click a suggestion to start connecting</span>
+            </div>
+          </div>
+
           <!-- Quick Stats Bar -->
           <div class="sbx-stats-bar" id="sbxStatsBar" data-tour="sandbox-stats">
             <span class="sbx-stat"><i class="bi bi-cpu" aria-hidden="true"></i> <span id="sbxStatDevices">0</span> devices</span>
@@ -417,6 +449,11 @@ sandbox.html – Interactive networking sandbox.
 
             <div class="sbx-tabpanel" id="panelObjectives">
               <div class="sbx-panel-content">
+                <!-- Tutorial Carousel (free mode only) -->
+                <div class="sbx-tutorial-carousel" id="sbxTutorialCarousel" style="display:none;">
+                  <div class="sbx-tutorial-carousel-title"><i class="bi bi-stars" aria-hidden="true"></i> Quick Challenges</div>
+                  <div class="sbx-tutorial-carousel-scroll" id="sbxTutorialCarouselScroll"></div>
+                </div>
                 <div class="sbx-challenge-banner" id="challengeBanner" style="display:none;">
                   <div class="sbx-challenge-head">
                     <div class="sbx-challenge-icon"><i class="bi bi-mortarboard-fill"></i></div>
