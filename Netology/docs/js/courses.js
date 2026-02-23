@@ -89,13 +89,46 @@ Features:
     });
   }
 
+  /* Merge API course data with static COURSE_CONTENT for any missing fields */
+  function enrichCourse(apiCourse) {
+    const staticContent = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT)
+      ? (COURSE_CONTENT[String(apiCourse.id)] || {})
+      : {};
+
+    // Count total lessons from static content if API value is missing or 0
+    let staticLessons = 0;
+    if (staticContent.units) {
+      for (const unit of staticContent.units) {
+        staticLessons += (unit.lessons || []).length;
+      }
+    }
+
+    return {
+      ...apiCourse,
+      title:          apiCourse.title       || staticContent.title       || "Course",
+      description:    apiCourse.description || staticContent.description || "",
+      difficulty:     apiCourse.difficulty  || staticContent.difficulty  || "novice",
+      category:       apiCourse.category    || staticContent.category    || "Core",
+      xp_reward:      apiCourse.xp_reward   || staticContent.xpReward   || staticContent.totalXP || 0,
+      total_lessons:  apiCourse.total_lessons || staticLessons           || 0,
+      estimated_time: apiCourse.estimated_time || staticContent.estimatedTime || "",
+    };
+  }
+
   /* Load all courses into grids */
   async function loadAllCourses(user) {
     try {
       const coursesData = await apiGet(ENDPOINTS.courses?.list || "/courses");
       const courses = listFrom(coursesData, "courses");
 
-      if (!courses || courses.length === 0) {
+      // Fallback: if API returns nothing, build list from static COURSE_CONTENT
+      let courseList = Array.isArray(courses) && courses.length
+        ? courses.map(enrichCourse)
+        : (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT
+            ? Object.keys(COURSE_CONTENT).map(k => enrichCourse({ id: k, ...COURSE_CONTENT[k] }))
+            : []);
+
+      if (!courseList.length) {
         console.warn('No courses available');
         return;
       }
@@ -104,9 +137,12 @@ Features:
       const progressData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
       const userProgress = listFrom(progressData, "courses");
       const progressMap = {};
-      userProgress.forEach(p => {
-        progressMap[p.id] = p;
-      });
+      userProgress.forEach(p => { progressMap[String(p.id)] = p; });
+
+      // User's unlock tier determines which courses they can access
+      const unlockTier = String(user.unlock_tier || user.start_level || "novice").toLowerCase();
+      const tierOrder = ["novice", "intermediate", "advanced"];
+      const tierIndex = tierOrder.indexOf(unlockTier);
 
       // Get user level for lock checking
       const level = Number.isFinite(Number(user.numeric_level))
@@ -115,11 +151,10 @@ Features:
 
       // Group courses by difficulty
       const grouped = { novice: [], intermediate: [], advanced: [] };
-      courses.forEach(course => {
-        const difficulty = (course.difficulty || 'novice').toLowerCase();
-        if (grouped[difficulty]) {
-          grouped[difficulty].push(course);
-        }
+      courseList.forEach(course => {
+        const difficulty = String(course.difficulty || 'novice').toLowerCase();
+        const track = ['novice', 'intermediate', 'advanced'].includes(difficulty) ? difficulty : 'novice';
+        grouped[track].push(course);
       });
 
       // Render each grid
@@ -129,10 +164,22 @@ Features:
 
         if (gridElement) {
           gridElement.innerHTML = '';
+          // Determine if this entire track is locked based on unlock tier
+          const trackIndex = tierOrder.indexOf(track);
+          const trackLocked = trackIndex > tierIndex;
+
           trackCourses.forEach(course => {
-            const card = createCourseCard(course, progressMap, level);
+            const card = createCourseCard(course, progressMap, level, trackLocked);
             gridElement.appendChild(card);
           });
+
+          // Show a lock notice if the whole track is unavailable
+          if (trackLocked && trackCourses.length > 0) {
+            const notice = document.createElement('div');
+            notice.className = 'net-track-locked-notice text-muted small px-2 pb-2';
+            notice.innerHTML = `<i class="bi bi-lock me-1"></i>Upgrade your learning path to access ${track} courses.`;
+            gridElement.prepend(notice);
+          }
         }
       });
 
@@ -142,23 +189,26 @@ Features:
   }
 
   /* Create a single course card */
-  function createCourseCard(course, progressMap, userLevel) {
+  function createCourseCard(course, progressMap, userLevel, trackLocked) {
     const card = document.createElement('div');
     card.className = 'net-course-card';
     card.setAttribute('data-difficulty', (course.difficulty || 'novice').toLowerCase());
 
-    const progress = progressMap[course.id] || {};
-    const isLocked = course.required_level && course.required_level > userLevel;
+    const progress = progressMap[String(course.id)] || {};
+    // Locked if the whole track is locked OR if the course has a level requirement above user's
+    const isLocked = trackLocked || (course.required_level && course.required_level > userLevel);
     const status = (progress.status || '').toLowerCase();
-    const isInProgress = status === 'in-progress';
-    const isCompleted = status === 'completed';
+    const progressPct = Number.isFinite(Number(progress.progress_pct)) ? Math.round(Number(progress.progress_pct)) : 0;
+    const isInProgress = status === 'in-progress' || (progressPct > 0 && progressPct < 100);
+    const isCompleted = status === 'completed' || progressPct >= 100;
 
     if (isLocked) card.classList.add('locked');
     if (isInProgress) card.classList.add('in-progress');
 
     const icon = getIconForDifficulty(course.difficulty || 'novice');
     const totalLessons = course.total_lessons || 0;
-    const progressPct = Number.isFinite(Number(progress.progress_pct)) ? Number(progress.progress_pct) : 0;
+    const xpReward = Number(course.xp_reward) || 0;
+    const estimatedTime = course.estimated_time || course.estimatedTime || "";
 
     card.innerHTML = `
       <div class="net-course-header">
@@ -172,33 +222,37 @@ Features:
       <div class="net-course-lessons">
         <i class="bi bi-file-text"></i>
         <span>${totalLessons} ${totalLessons === 1 ? 'lesson' : 'lessons'}</span>
+        ${estimatedTime ? `<span class="ms-2 text-muted"><i class="bi bi-clock me-1"></i>${escapeHtml(estimatedTime)}</span>` : ''}
       </div>
 
       <div class="net-course-desc">${escapeHtml(course.description || '')}</div>
 
-      ${course.xp_reward ? `
+      ${xpReward > 0 ? `
         <div class="net-course-xp">
-          <i class="bi bi-star-fill"></i>
-          <span>${course.xp_reward} XP</span>
+          <i class="bi bi-lightning-charge-fill"></i>
+          <span>${xpReward} XP</span>
         </div>
       ` : ''}
 
       <div class="net-course-footer">
-        ${isInProgress ? `
+        ${(isInProgress || isCompleted) ? `
           <div class="net-course-progress">
             <div class="net-course-bar">
               <div class="net-course-bar-fill" style="width: ${progressPct}%"></div>
             </div>
-            <span>${progressPct}%</span>
+            <span>${progressPct}% Complete</span>
           </div>
         ` : ''}
         <button class="net-course-cta ${isInProgress ? 'btn-continue' : isCompleted ? 'btn-review' : isLocked ? 'btn-locked' : 'btn-start'}"
                 data-course-id="${course.id}"
                 ${isLocked ? 'disabled' : ''}>
-          ${isLocked ? `<i class="bi bi-lock"></i> Level ${course.required_level}` :
-            isCompleted ? `<i class="bi bi-check-circle"></i> Review` :
-            isInProgress ? `<i class="bi bi-play-fill"></i> Continue` :
-            `<i class="bi bi-plus-circle"></i> Start`}
+          ${isLocked
+            ? `<i class="bi bi-lock"></i> Locked`
+            : isCompleted
+              ? `<i class="bi bi-check-circle"></i> Review`
+              : isInProgress
+                ? `<i class="bi bi-play-fill"></i> Continue`
+                : `<i class="bi bi-plus-circle"></i> Start`}
         </button>
       </div>
 

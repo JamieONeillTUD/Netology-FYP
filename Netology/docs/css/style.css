@@ -9706,17 +9706,24 @@ body.net-sigma .net-meter-fill {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.75);
-  z-index: 9998;
+  /* Use a very high z-index above Bootstrap modals (max ~1080) and sticky headers */
+  z-index: 2147483640;
   animation: fadeIn 0.3s ease-in-out;
+  /* Create a new stacking context so children always render correctly */
+  isolation: isolate;
 }
 
 .onboarding-spotlight {
   position: fixed;
   border: 2.5px solid #06b6d4;
   border-radius: 10px;
-  box-shadow: 0 0 0 4px rgba(6,182,212,0.12), 0 0 40px rgba(6, 182, 212, 0.55);
+  /* Layer above backdrop; use box-shadow to reinforce the spotlight glow */
+  box-shadow:
+    0 0 0 4px rgba(6,182,212,0.18),
+    0 0 50px rgba(6, 182, 212, 0.6),
+    0 0 0 9999px rgba(0, 0, 0, 0);   /* kept transparent – backdrop handles dimming */
   background: transparent;
-  z-index: 9999;
+  z-index: 2147483641;
   pointer-events: none;
   animation: spotlightPulse 2s ease-in-out infinite;
   transition: top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
@@ -9725,26 +9732,35 @@ body.net-sigma .net-meter-fill {
               height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Target element elevated above backdrop while spotlit — must appear at full brightness */
+/* Target element elevated above backdrop while spotlit.
+   NOTE: This only works when the element is not inside an overflow:hidden container.
+   The backdrop + spotlight approach means the element is still dimmed; the glow border
+   from .onboarding-spotlight is what creates the visual focus.  */
 .onboarding-target-active {
   position: relative !important;
-  z-index: 10001 !important;
+  z-index: 2147483642 !important;
   opacity: 1 !important;
   filter: none !important;
   mix-blend-mode: normal !important;
+  /* Force a new stacking context so the element rises above its parent */
+  isolation: isolate !important;
+  transform: translateZ(0) !important;
 }
 
 .onboarding-tooltip {
   position: fixed;
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-  z-index: 10000;
-  max-width: 350px;
-  min-width: 260px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 22px 24px;
+  box-shadow:
+    0 4px 6px -1px rgba(0,0,0,0.1),
+    0 20px 50px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(6,182,212,0.12);
+  /* Always on top of everything — even Bootstrap modals and sticky headers */
+  z-index: 2147483647;
+  max-width: 360px;
+  min-width: 270px;
   animation: tooltipSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  /* Ensure tooltip is never clipped or hidden */
   overflow: visible;
   box-sizing: border-box;
 }
@@ -13605,7 +13621,169 @@ body.net-onboarding-lock .onboarding-tooltip * {
   margin: 0;
 }
 
-/* ── Learn Step ────────────────────────────────────────── */
+/* ── Learn Step – Redesigned ───────────────────────────── */
+/* Key term highlighting */
+.les-key-term {
+  color: #0d9488;
+  font-weight: 700;
+}
+
+/* Fact-block layout */
+.les-learn-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.les-learn-fact {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  animation: les-factIn 0.25s ease both;
+}
+
+@keyframes les-factIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.les-learn-fact-icon {
+  color: var(--net-teal);
+  font-size: 1.05rem;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.les-learn-fact-text {
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--net-ink-2);
+}
+
+/* Example callout */
+.les-learn-example {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(255,255,255,0.98));
+  border: 1px solid rgba(99,102,241,0.18);
+  border-radius: 12px;
+  padding: 14px 16px;
+  animation: les-factIn 0.25s ease both;
+}
+
+.les-learn-example-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6366f1;
+  white-space: nowrap;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.les-learn-example-text {
+  font-size: 0.97rem;
+  line-height: 1.6;
+  color: var(--net-ink-2);
+  font-style: italic;
+}
+
+/* Callout card (key concept) */
+.les-learn-callout-card {
+  background: linear-gradient(135deg, rgba(13,148,136,0.07) 0%, rgba(255,255,255,0.98) 100%);
+  border: 1.5px solid rgba(13,148,136,0.22);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(13,148,136,0.08);
+}
+
+.les-callout-accent {
+  background: rgba(13,148,136,0.1);
+  color: #0d9488;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid rgba(13,148,136,0.12);
+}
+
+.les-callout-body {
+  padding: 18px 20px;
+}
+
+.les-callout-body p {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--net-ink-2);
+  margin: 0 0 10px;
+}
+
+.les-callout-body p:last-child {
+  margin: 0;
+}
+
+/* Steps list */
+.les-learn-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.les-learn-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  animation: les-factIn 0.25s ease both;
+}
+
+.les-learn-step-num {
+  min-width: 28px;
+  height: 28px;
+  background: var(--net-teal);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.les-learn-step-text {
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--net-ink-2);
+  padding-top: 3px;
+}
+
+/* Step icon for callout style */
+.les-step-icon--callout {
+  background: rgba(245,158,11,0.12);
+  color: #f59e0b;
+}
+
+/* Legacy body styles kept for backward compatibility */
 .les-learn-body {
   background: #fff;
   border-radius: var(--net-radius);
@@ -13936,17 +14114,47 @@ body.net-onboarding-lock .onboarding-tooltip * {
   animation: les-shake 0.4s ease;
 }
 
-/* ── Flashcard ─────────────────────────────────────────── */
-.les-flash-counter {
+/* ── Flashcard – Redesigned ────────────────────────────── */
+.les-flash-progress-bar {
+  height: 5px;
+  background: rgba(0,0,0,0.06);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.les-flash-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0d9488, #06b6d4);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.les-flash-counter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.les-flash-counter-text {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--net-muted);
-  margin-top: 6px;
+}
+
+.les-flash-rating-summary {
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--net-muted);
 }
 
 .les-flash-card-wrap {
   perspective: 1000px;
-  margin: 0 auto 20px;
+  margin: 0 auto 14px;
   max-width: 460px;
   width: 100%;
 }
@@ -13954,14 +14162,27 @@ body.net-onboarding-lock .onboarding-tooltip * {
 .les-flash-card {
   position: relative;
   width: 100%;
-  min-height: 220px;
+  min-height: 200px;
   cursor: pointer;
-  transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+  transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
   transform-style: preserve-3d;
 }
 
 .les-flash-card.is-flipped {
   transform: rotateY(180deg);
+}
+
+/* Rating visual feedback */
+.les-flash-card.is-rated-got .les-flash-front,
+.les-flash-card.is-rated-got .les-flash-back {
+  border-color: rgba(34,197,94,0.35);
+  background-image: linear-gradient(135deg, rgba(34,197,94,0.05), #fff);
+}
+
+.les-flash-card.is-rated-learning .les-flash-front,
+.les-flash-card.is-rated-learning .les-flash-back {
+  border-color: rgba(245,158,11,0.35);
+  background-image: linear-gradient(135deg, rgba(245,158,11,0.05), #fff);
 }
 
 .les-flash-front,
@@ -13974,10 +14195,11 @@ body.net-onboarding-lock .onboarding-tooltip * {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 24px;
+  padding: 28px 24px;
   border-radius: var(--net-radius);
-  box-shadow: var(--net-shadow-card);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  border: 1.5px solid rgba(0, 0, 0, 0.07);
+  transition: border-color 0.3s, background-image 0.3s;
 }
 
 .les-flash-front {
@@ -13985,10 +14207,98 @@ body.net-onboarding-lock .onboarding-tooltip * {
 }
 
 .les-flash-back {
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.06), #fff);
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.07), #fff);
+  border-color: rgba(13,148,136,0.2);
   transform: rotateY(180deg);
 }
 
+/* Category label replaces old .les-flash-label */
+.les-flash-category {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--net-teal);
+  margin-bottom: 14px;
+  opacity: 0.7;
+}
+
+.les-flash-text {
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: var(--net-ink);
+  text-align: center;
+  line-height: 1.55;
+}
+
+/* Flip hint */
+.les-flash-flip-hint {
+  font-size: 0.78rem;
+  color: var(--net-muted-2);
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.7;
+}
+
+/* Self-rating buttons row */
+.les-flash-rate-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 12px;
+  animation: les-fadeUp 0.2s ease both;
+}
+
+.les-flash-rate-btn {
+  flex: 1;
+  max-width: 180px;
+  padding: 10px 16px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.les-flash-rate-learning {
+  background: rgba(245,158,11,0.08);
+  border-color: rgba(245,158,11,0.3);
+  color: #b45309;
+}
+
+.les-flash-rate-learning:hover {
+  background: rgba(245,158,11,0.15);
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+}
+
+.les-flash-rate-got {
+  background: rgba(34,197,94,0.08);
+  border-color: rgba(34,197,94,0.3);
+  color: #15803d;
+}
+
+.les-flash-rate-got:hover {
+  background: rgba(34,197,94,0.15);
+  border-color: #22c55e;
+  transform: translateY(-1px);
+}
+
+.les-flash-nav {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Legacy label compat */
 .les-flash-label {
   font-size: 0.72rem;
   font-weight: 800;
@@ -13998,24 +14308,17 @@ body.net-onboarding-lock .onboarding-tooltip * {
   margin-bottom: 12px;
 }
 
-.les-flash-text {
-  font-size: 1.1rem;
+.les-flash-counter {
+  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--net-ink);
-  text-align: center;
-  line-height: 1.5;
+  color: var(--net-muted);
+  margin-top: 6px;
 }
 
 .les-flash-hint {
   font-size: 0.8rem;
   color: var(--net-muted-2);
   margin-top: 12px;
-}
-
-.les-flash-nav {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
 }
 
 /* ── Drag-and-Drop Order ───────────────────────────────── */
@@ -14094,6 +14397,98 @@ body.net-onboarding-lock .onboarding-tooltip * {
   background: rgba(239, 68, 68, 0.06);
   color: #ef4444;
   animation: les-shake 0.4s ease;
+}
+
+/* ── Sentence Complete ──────────────────────────────────── */
+.les-sc-sentence {
+  font-size: 1.15rem;
+  line-height: 2;
+  text-align: center;
+  padding: 20px 20px 16px;
+  background: var(--les-card-bg, #f8fafc);
+  border-radius: 14px;
+  border: 1px solid var(--les-border, #e2e8f0);
+  margin-bottom: 20px;
+  color: var(--les-text, #0f172a);
+}
+
+.les-sc-blank {
+  display: inline-block;
+  min-width: 90px;
+  border-bottom: 3px solid #6366f1;
+  padding: 0 8px 2px;
+  margin: 0 4px;
+  font-weight: 700;
+  color: #6366f1;
+  text-align: center;
+  transition: all 0.2s ease;
+  vertical-align: bottom;
+}
+
+.les-sc-blank.is-filled {
+  color: #0f172a;
+  border-bottom-color: #10b981;
+}
+
+.les-sc-blank.is-correct {
+  color: #10b981;
+  border-bottom-color: #10b981;
+}
+
+.les-sc-blank.is-wrong {
+  color: #ef4444;
+  border-bottom-color: #ef4444;
+  animation: les-shake 0.4s ease;
+}
+
+.les-sc-wordbank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+.les-sc-chip {
+  padding: 10px 24px;
+  border-radius: 999px;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  color: #334155;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  line-height: 1.3;
+}
+
+.les-sc-chip:hover:not(:disabled) {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.06);
+  color: #6366f1;
+}
+
+.les-sc-chip.is-selected {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+.les-sc-chip:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.les-sc-chip.is-correct-chip {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.les-sc-chip.is-wrong-chip {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+  color: #ef4444;
 }
 
 /* ── Feedback Overlay ──────────────────────────────────── */
@@ -14453,6 +14848,7 @@ body.net-onboarding-lock .onboarding-tooltip * {
   .les-matching-btn,
   .les-tap-chip,
   .les-drag-chip,
+  .les-sc-chip,
   .les-confetti-piece {
     animation: none !important;
     transition: none !important;
@@ -14536,15 +14932,18 @@ body[data-theme="dark"] .les-mcq-option,
 body[data-theme="dark"] .les-fill-chip,
 body[data-theme="dark"] .les-tap-chip,
 body[data-theme="dark"] .les-matching-btn,
-body[data-theme="dark"] .les-drag-chip {
+body[data-theme="dark"] .les-drag-chip,
+body[data-theme="dark"] .les-sc-chip {
   background: rgba(30, 41, 59, 0.8);
   border-color: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.85);
 }
 
-body[data-theme="dark"] .les-fill-sentence {
+body[data-theme="dark"] .les-fill-sentence,
+body[data-theme="dark"] .les-sc-sentence {
   background: rgba(30, 41, 59, 0.8);
   color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 body[data-theme="dark"] .les-flash-front {

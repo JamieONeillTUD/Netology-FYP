@@ -166,34 +166,226 @@ async function awardLessonXP(email, courseId, lessonNumber, targetXP, deltaXP) {
  */
 function objectiveToQuestion(objective) {
   const clean = String(objective || "").trim().replace(/\.$/, "");
-  const verbMap = {
-    define:      (r) => `What is ${r}?`,
-    explain:     (r) => `Why/how does ${r} work?`,
-    identify:    (r) => `What are ${r}?`,
-    describe:    (r) => `How would you describe ${r}?`,
-    list:        (r) => `What are the ${r}?`,
-    compare:     (r) => `How do ${r} compare?`,
-    understand:  (r) => `What should you understand about ${r}?`,
-    demonstrate: (r) => `How would you demonstrate ${r}?`,
-    apply:       (r) => `When would you apply ${r}?`,
-    recognise:   (r) => `How would you recognise ${r}?`,
-    recognize:   (r) => `How would you recognize ${r}?`,
-    name:        (r) => `Can you name ${r}?`,
-    outline:     (r) => `What does ${r} involve?`,
-    summarise:   (r) => `How would you summarise ${r}?`,
-    summarize:   (r) => `How would you summarize ${r}?`,
-  };
+
+  function toWhyQuestion(phrase) {
+    const p = String(phrase || "").trim().replace(/\?$/, "");
+    let m = p.match(/^(.+?)\s+is\s+(.+)$/i);
+    if (m) return `Why is ${m[1]} ${m[2]}?`;
+    m = p.match(/^(.+?)\s+are\s+(.+)$/i);
+    if (m) return `Why are ${m[1]} ${m[2]}?`;
+    return `Why ${p}?`;
+  }
+
+  function toHowQuestion(phrase) {
+    const p = String(phrase || "").trim().replace(/\?$/, "");
+    let m = p.match(/^(.+?)\s+is\s+(.+)$/i);
+    if (m) return `How is ${m[1]} ${m[2]}?`;
+    m = p.match(/^(.+?)\s+are\s+(.+)$/i);
+    if (m) return `How are ${m[1]} ${m[2]}?`;
+    m = p.match(/^(.+?)\s+([a-z]+)s\s+(.+)$/i);
+    if (m) return `How does ${m[1]} ${m[2]} ${m[3]}?`;
+    return `How ${p}?`;
+  }
+
   const match = clean.match(/^(\w+)\s+(.+)$/i);
   if (match) {
     const verb = match[1].toLowerCase();
-    const rest = match[2];
-    if (verbMap[verb]) return verbMap[verb](rest);
+    const rest = match[2].trim();
+
+    if (verb === "define") {
+      let m = rest.match(/^what\s+(.+?)\s+is$/i);
+      if (m) return `What is ${m[1]}?`;
+      m = rest.match(/^what\s+(.+)$/i);
+      if (m) return `What is ${m[1]}?`;
+      return `What is ${rest}?`;
+    }
+
+    if (verb === "explain") {
+      if (/^why\s+/i.test(rest)) return toWhyQuestion(rest.replace(/^why\s+/i, ""));
+      if (/^how\s+/i.test(rest)) return toHowQuestion(rest.replace(/^how\s+/i, ""));
+      return `Why is ${rest} important?`;
+    }
+
+    if (verb === "identify") return `What are ${rest}?`;
+    if (verb === "describe") {
+      if (/^why\s+/i.test(rest)) return toWhyQuestion(rest.replace(/^why\s+/i, ""));
+      if (/^how\s+/i.test(rest)) return toHowQuestion(rest.replace(/^how\s+/i, ""));
+      return `How would you describe ${rest}?`;
+    }
+    if (verb === "distinguish") {
+      const m = rest.match(/^(.+?)\s+from\s+(.+)$/i);
+      if (m) return `How do ${m[1]} and ${m[2]} differ?`;
+      return `How would you distinguish ${rest}?`;
+    }
+    if (verb === "list") return `What are ${rest}?`;
+    if (verb === "compare") {
+      if (/^how\s+/i.test(rest)) return `How do ${rest.replace(/^how\s+/i, "")} compare?`;
+      return `How do ${rest} compare?`;
+    }
+    if (verb === "understand") return `What should you understand about ${rest}?`;
+    if (verb === "demonstrate") return `How would you demonstrate ${rest}?`;
+    if (verb === "apply") return `When would you apply ${rest}?`;
+    if (verb === "recognise" || verb === "recognize") return `How would you recognize ${rest}?`;
+    if (verb === "name") return `Can you name ${rest}?`;
+    if (verb === "outline") return `What does ${rest} involve?`;
+    if (verb === "summarise" || verb === "summarize") return `How would you summarize ${rest}?`;
   }
   return clean.endsWith("?") ? clean : `${clean}?`;
 }
 
+function normalizeWhitespace(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function collectLessonKnowledgeLines(lesson) {
+  const raw = [];
+  if (Array.isArray(lesson.content)) raw.push(...lesson.content);
+
+  if (Array.isArray(lesson.blocks)) {
+    lesson.blocks.forEach((block) => {
+      if (block.type === "text") {
+        const lines = Array.isArray(block.text) ? block.text : [block.text || ""];
+        raw.push(...lines);
+      } else if (block.type === "explain") {
+        const lines = Array.isArray(block.content) ? block.content : [block.content || ""];
+        raw.push(...lines);
+      }
+    });
+  }
+
+  if (lesson.summary) raw.push(lesson.summary);
+
+  const seen = new Set();
+  return raw
+    .map(normalizeWhitespace)
+    .filter(Boolean)
+    .filter((line) => {
+      const key = line.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function extractObjectiveKeywords(objective) {
+  const verbs = new Set([
+    "define", "explain", "identify", "describe", "list", "compare",
+    "understand", "demonstrate", "apply", "recognise", "recognize",
+    "name", "outline", "summarise", "summarize"
+  ]);
+  const stop = new Set([
+    "a", "an", "the", "and", "or", "to", "of", "in", "on", "for",
+    "with", "by", "how", "why", "what", "when", "where", "is", "are",
+    "be", "that", "this", "these", "those"
+  ]);
+
+  return normalizeWhitespace(objective)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((w) => !verbs.has(w) && !stop.has(w));
+}
+
+function findBestAnswerForObjective(objective, lessonLines, fallback) {
+  const lines = Array.isArray(lessonLines) ? lessonLines : [];
+  if (!lines.length) return fallback || normalizeWhitespace(objective);
+
+  const keywords = extractObjectiveKeywords(objective);
+  const objectiveLower = String(objective || "").toLowerCase();
+  if (!keywords.length) return fallback || lines[0];
+
+  function keywordVariants(kw) {
+    const variants = new Set([kw]);
+    if (kw.endsWith("ing") && kw.length > 5) variants.add(kw.slice(0, -3));
+    if (kw.endsWith("ed") && kw.length > 4) variants.add(kw.slice(0, -2));
+    if (kw.endsWith("es") && kw.length > 4) variants.add(kw.slice(0, -2));
+    if (kw.endsWith("s") && kw.length > 3) variants.add(kw.slice(0, -1));
+    return [...variants].filter(v => v.length >= 3);
+  }
+
+  function countMatches(line, words, objectiveText) {
+    const lower = line.toLowerCase();
+    let score = 0;
+
+    words.forEach((word) => {
+      const forms = keywordVariants(word);
+      const startsWith = forms.some((f) => {
+        const safe = f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return new RegExp(`^${safe}\\b`, "i").test(lower);
+      });
+      const hasWord = forms.some((f) => {
+        const safe = f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return new RegExp(`\\b${safe}\\b`, "i").test(lower);
+      });
+      if (startsWith) score += 2;
+      else if (hasWord) score += 1;
+    });
+
+    if (/^(identify|list)\b/.test(objectiveText) && /\b(include|includes|including|such as)\b/.test(lower)) {
+      score += 1;
+    }
+
+    if (/^explain\b/.test(objectiveText) && keywords.some((word) => {
+      const forms = keywordVariants(word);
+      return forms.some((f) => {
+        const safe = f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return new RegExp(`^${safe}\\b`, "i").test(lower);
+      });
+    })) {
+      score += 1;
+    }
+
+    if (/^(define|distinguish)\b/.test(objectiveText) && /\b(is|are|means|refers)\b/.test(lower)) {
+      score += 1;
+    }
+
+    if (/\bexample\b/.test(lower) && !/\bexample\b/.test(objectiveText)) {
+      score -= 1;
+    }
+
+    return Math.max(0, score);
+  }
+
+  let bestLine = "";
+  let bestScore = 0;
+
+  lines.forEach((line) => {
+    const score = countMatches(line, keywords, objectiveLower);
+    if (score > bestScore || (score === bestScore && score > 0 && !bestLine)) {
+      bestLine = line;
+      bestScore = score;
+    }
+  });
+
+  return bestScore > 0 ? bestLine : (fallback || lines[0]);
+}
+
+function buildFlashcardStepFromLesson(lesson) {
+  if (!lesson.summary || !Array.isArray(lesson.objectives) || lesson.objectives.length < 2) return null;
+
+  const summary = normalizeWhitespace(lesson.summary);
+  const lessonLines = collectLessonKnowledgeLines(lesson);
+  const cards = [
+    {
+      front: "What is the main takeaway from this lesson?",
+      back: summary
+    }
+  ];
+
+  lesson.objectives.slice(0, 3).forEach((objective) => {
+    cards.push({
+      front: objectiveToQuestion(objective),
+      back: findBestAnswerForObjective(objective, lessonLines, summary)
+    });
+  });
+
+  return { type: "flashcard", cards };
+}
+
 function buildStepsFromLesson(lesson, course) {
   const steps = [];
+  const flashcardStep = buildFlashcardStepFromLesson(lesson);
 
   // 1. Learn steps from text blocks
   if (Array.isArray(lesson.blocks)) {
@@ -287,7 +479,8 @@ function buildStepsFromLesson(lesson, course) {
         const distractors = shuffleArray(unique).slice(0, 3);
         if (distractors.length >= 2) {
           steps.push({
-            type: "fill_blank",
+            type: "sentence_complete",
+            prompt: "Finish the sentence:",
             sentence: blanked,
             answer: cleanWord,
             options: shuffleArray([cleanWord, ...distractors.slice(0, 3)]),
@@ -319,21 +512,7 @@ function buildStepsFromLesson(lesson, course) {
     }
   }
 
-  // 4. Flashcard from lesson summary + objectives
-  if (lesson.summary && Array.isArray(lesson.objectives) && lesson.objectives.length >= 2) {
-    steps.push({
-      type: "flashcard",
-      cards: [
-        { front: "What is the main takeaway?", back: lesson.summary },
-        ...lesson.objectives.slice(0, 3).map((obj) => ({
-          front: objectiveToQuestion(obj),
-          back: obj
-        }))
-      ]
-    });
-  }
-
-  // 5. Drag-and-drop word order if we have a summary
+  // 4. Drag-and-drop word order if we have a summary
   if (lesson.summary && lesson.summary.split(/\s+/).length >= 4 && lesson.summary.split(/\s+/).length <= 14) {
     const words = lesson.summary.split(/\s+/);
     steps.push({
@@ -357,6 +536,11 @@ function buildStepsFromLesson(lesson, course) {
     });
   }
 
+  // 5. Flashcard recap as the final lesson step
+  if (flashcardStep) {
+    steps.push(flashcardStep);
+  }
+
   return steps;
 }
 
@@ -366,43 +550,97 @@ function buildStepsFromLesson(lesson, course) {
    ═══════════════════════════════════════════════════════════ */
 
 /**
- * Renders a learning/content step
+ * Auto-bold key networking terms within a text node
+ */
+function highlightKeyTerms(text) {
+  const terms = [
+    "network", "router", "switch", "firewall", "DNS", "DHCP", "IP", "TCP", "UDP",
+    "HTTP", "HTTPS", "LAN", "WAN", "VPN", "MAC", "Ethernet", "Wi-Fi", "bandwidth",
+    "latency", "packet", "protocol", "subnet", "gateway", "OSI", "VLAN", "NAT",
+    "encryption", "SSL", "TLS", "ACL", "topology", "OSPF", "BGP", "ARP", "ping",
+    "byte", "bit", "port", "hub", "bridge", "NIC", "ISP", "cloud"
+  ];
+  let result = escHtml(text);
+  const escaped = terms.map(t => t.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"));
+  const pattern = new RegExp(`\\b(${escaped.join("|")})\\b`, "gi");
+  result = result.replace(pattern, (m) => `<strong class="les-key-term">${m}</strong>`);
+  return result;
+}
+
+/**
+ * Renders a learning/content step – redesigned for visual engagement
  */
 function renderLearnStep(step) {
   const el = document.createElement("div");
   el.className = "les-step les-step-learn";
 
+  const iconCls = step.style === "callout" ? "bi-lightbulb-fill" : (step.icon || "bi-book-fill");
+  const iconColor = step.style === "callout" ? "les-step-icon--callout" : "les-step-icon--learn";
+
   const header = document.createElement("div");
   header.className = "les-step-header";
   header.innerHTML = `
-    <div class="les-step-icon les-step-icon--learn"><i class="bi ${step.icon || 'bi-book'}"></i></div>
+    <div class="les-step-icon ${iconColor}"><i class="bi ${iconCls}"></i></div>
     <h2 class="les-step-title">${escHtml(step.title)}</h2>
   `;
   el.appendChild(header);
 
-  const body = document.createElement("div");
-  body.className = step.style === "callout" ? "les-learn-body les-learn-callout" : step.style === "steps" ? "les-learn-body les-learn-steps" : "les-learn-body";
+  const lines = Array.isArray(step.content) ? step.content.filter(Boolean) : [step.content || ""];
 
-  if (step.style === "steps" && Array.isArray(step.content)) {
-    const ol = document.createElement("ol");
-    ol.className = "les-learn-ol";
-    step.content.forEach(line => {
-      const li = document.createElement("li");
-      li.textContent = line;
-      ol.appendChild(li);
+  if (step.style === "callout") {
+    // Highlighted "key concept" callout box
+    const callout = document.createElement("div");
+    callout.className = "les-learn-callout-card";
+    callout.innerHTML = `
+      <div class="les-callout-accent"><i class="bi bi-lightbulb-fill"></i> Key Concept</div>
+      <div class="les-callout-body">
+        ${lines.map(l => `<p>${highlightKeyTerms(l)}</p>`).join("")}
+      </div>
+    `;
+    el.appendChild(callout);
+
+  } else if (step.style === "steps") {
+    // Numbered steps
+    const stepsWrap = document.createElement("div");
+    stepsWrap.className = "les-learn-steps-list";
+    lines.forEach((line, i) => {
+      const item = document.createElement("div");
+      item.className = "les-learn-step-item";
+      item.innerHTML = `
+        <div class="les-learn-step-num">${i + 1}</div>
+        <div class="les-learn-step-text">${highlightKeyTerms(line)}</div>
+      `;
+      stepsWrap.appendChild(item);
     });
-    body.appendChild(ol);
+    el.appendChild(stepsWrap);
+
   } else {
-    const lines = Array.isArray(step.content) ? step.content : [step.content || ""];
+    // Standard content: split into fact blocks, with special rendering for examples
+    const wrap = document.createElement("div");
+    wrap.className = "les-learn-facts";
+
     lines.forEach(line => {
-      const p = document.createElement("p");
-      p.className = "les-learn-text";
-      p.textContent = line;
-      body.appendChild(p);
+      const isExample = /^(example|real.?world|e\.g\.|for instance)/i.test(line.trim());
+      const block = document.createElement("div");
+
+      if (isExample) {
+        block.className = "les-learn-example";
+        block.innerHTML = `
+          <span class="les-learn-example-label"><i class="bi bi-play-circle-fill"></i> Example</span>
+          <span class="les-learn-example-text">${highlightKeyTerms(line.replace(/^(example|real.?world example|e\.g\.|for instance)[:\s]*/i, ""))}</span>
+        `;
+      } else {
+        block.className = "les-learn-fact";
+        block.innerHTML = `
+          <i class="bi bi-arrow-right-circle-fill les-learn-fact-icon"></i>
+          <span class="les-learn-fact-text">${highlightKeyTerms(line)}</span>
+        `;
+      }
+      wrap.appendChild(block);
     });
+    el.appendChild(wrap);
   }
 
-  el.appendChild(body);
   return { el, type: "learn" };
 }
 
@@ -720,7 +958,7 @@ function renderTapWord(step) {
 }
 
 /**
- * Renders Flashcard step
+ * Renders Flashcard step – redesigned with self-rating and progress bar
  */
 function renderFlashcard(step) {
   const el = document.createElement("div");
@@ -728,29 +966,49 @@ function renderFlashcard(step) {
 
   const cards = step.cards || [];
   let currentCard = 0;
+  let hasFlipped = false;
+  const ratings = new Array(cards.length).fill(null); // null | "got" | "learning"
 
   el.innerHTML = `
     <div class="les-step-header">
-      <div class="les-step-icon les-step-icon--flash"><i class="bi bi-card-text"></i></div>
-      <h2 class="les-step-prompt">Review these key concepts</h2>
-      <div class="les-flash-counter"><span id="flashCurrent">1</span> / ${cards.length}</div>
+      <div class="les-step-icon les-step-icon--flash"><i class="bi bi-layers-fill"></i></div>
+      <h2 class="les-step-prompt">Flashcard Review</h2>
+    </div>
+    <div class="les-flash-progress-bar">
+      <div class="les-flash-progress-fill" id="flashProgressFill" style="width:0%"></div>
+    </div>
+    <div class="les-flash-counter-row">
+      <span class="les-flash-counter-text"><span id="flashCurrent">1</span> of ${cards.length}</span>
+      <span class="les-flash-rating-summary" id="flashRatingSummary"></span>
     </div>
     <div class="les-flash-card-wrap">
-      <div class="les-flash-card" id="lesFlashCard" tabindex="0" role="button" aria-label="Click to flip card">
+      <div class="les-flash-card" id="lesFlashCard" tabindex="0" role="button" aria-label="Tap to reveal answer">
         <div class="les-flash-front">
-          <div class="les-flash-label">Question</div>
+          <div class="les-flash-category">Question</div>
           <div class="les-flash-text" id="lesFlashFront"></div>
-          <div class="les-flash-hint">Tap to reveal</div>
+          <div class="les-flash-flip-hint"><i class="bi bi-arrow-repeat"></i> Tap to flip</div>
         </div>
         <div class="les-flash-back">
-          <div class="les-flash-label">Answer</div>
+          <div class="les-flash-category">Answer</div>
           <div class="les-flash-text" id="lesFlashBack"></div>
         </div>
       </div>
     </div>
+    <div class="les-flash-rate-row" id="flashRateRow" style="display:none">
+      <button class="les-flash-rate-btn les-flash-rate-learning" id="flashRateLearning">
+        <i class="bi bi-arrow-repeat"></i> Still learning
+      </button>
+      <button class="les-flash-rate-btn les-flash-rate-got" id="flashRateGot">
+        <i class="bi bi-check-circle-fill"></i> Got it!
+      </button>
+    </div>
     <div class="les-flash-nav">
-      <button class="les-btn les-btn-ghost les-btn-sm" id="flashPrev" disabled><i class="bi bi-chevron-left"></i> Prev</button>
-      <button class="les-btn les-btn-primary les-btn-sm" id="flashNext">${cards.length > 1 ? "Next <i class='bi bi-chevron-right'></i>" : "Done <i class='bi bi-check-lg'></i>"}</button>
+      <button class="les-btn les-btn-ghost les-btn-sm" id="flashPrev" disabled>
+        <i class="bi bi-chevron-left"></i> Back
+      </button>
+      <button class="les-btn les-btn-primary les-btn-sm" id="flashNext" style="display:none">
+        ${cards.length > 1 ? "Next <i class='bi bi-chevron-right'></i>" : "Done <i class='bi bi-check-lg'></i>"}
+      </button>
     </div>
   `;
 
@@ -760,33 +1018,93 @@ function renderFlashcard(step) {
   const counterEl = el.querySelector("#flashCurrent");
   const prevBtn = el.querySelector("#flashPrev");
   const nextBtn = el.querySelector("#flashNext");
+  const rateRow = el.querySelector("#flashRateRow");
+  const rateGot = el.querySelector("#flashRateGot");
+  const rateLearning = el.querySelector("#flashRateLearning");
+  const progressFill = el.querySelector("#flashProgressFill");
+  const ratingSummary = el.querySelector("#flashRatingSummary");
+  const flipHint = el.querySelector(".les-flash-flip-hint");
+
+  function updateProgress() {
+    const done = ratings.filter(r => r !== null).length;
+    const pct = cards.length ? (done / cards.length) * 100 : 0;
+    if (progressFill) progressFill.style.width = `${pct}%`;
+    const got = ratings.filter(r => r === "got").length;
+    if (ratingSummary && done > 0) {
+      ratingSummary.innerHTML = `<i class="bi bi-check-circle-fill" style="color:#22c55e"></i> ${got} &nbsp;<i class="bi bi-arrow-repeat" style="color:#f59e0b"></i> ${done - got}`;
+    }
+  }
 
   function showCard(idx) {
     currentCard = idx;
     cardEl.classList.remove("is-flipped");
+    hasFlipped = false;
     frontEl.textContent = cards[idx].front;
     backEl.textContent = cards[idx].back;
     counterEl.textContent = String(idx + 1);
     prevBtn.disabled = idx === 0;
+    nextBtn.style.display = "none";
+    rateRow.style.display = "none";
+    if (flipHint) flipHint.style.display = "";
+
+    // Highlight card if already rated
+    cardEl.classList.remove("is-rated-got", "is-rated-learning");
+    if (ratings[idx] === "got") cardEl.classList.add("is-rated-got");
+    else if (ratings[idx] === "learning") cardEl.classList.add("is-rated-learning");
+
     if (idx === cards.length - 1) {
-      nextBtn.innerHTML = "Done <i class='bi bi-check-lg'></i>";
+      nextBtn.innerHTML = "Finish <i class='bi bi-check-lg'></i>";
     } else {
       nextBtn.innerHTML = "Next <i class='bi bi-chevron-right'></i>";
     }
   }
 
-  cardEl.addEventListener("click", () => cardEl.classList.toggle("is-flipped"));
+  function flipCard() {
+    cardEl.classList.toggle("is-flipped");
+    if (!hasFlipped && cardEl.classList.contains("is-flipped")) {
+      hasFlipped = true;
+      if (flipHint) flipHint.style.display = "none";
+      rateRow.style.display = "flex";
+      nextBtn.style.display = "";
+    }
+  }
+
+  function rateCard(rating) {
+    ratings[currentCard] = rating;
+    cardEl.classList.remove("is-rated-got", "is-rated-learning");
+    cardEl.classList.add(rating === "got" ? "is-rated-got" : "is-rated-learning");
+    updateProgress();
+
+    // Auto-advance after rating
+    setTimeout(() => {
+      if (currentCard < cards.length - 1) {
+        showCard(currentCard + 1);
+      } else {
+        // All done — show "Continue" on check button
+        const checkBtn = document.getElementById("lesCheckBtn");
+        if (checkBtn) {
+          checkBtn.disabled = false;
+          checkBtn.textContent = "Continue";
+        }
+      }
+    }, 400);
+  }
+
+  cardEl.addEventListener("click", flipCard);
   cardEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cardEl.classList.toggle("is-flipped"); }
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flipCard(); }
   });
+
+  rateGot.addEventListener("click", () => rateCard("got"));
+  rateLearning.addEventListener("click", () => rateCard("learning"));
 
   prevBtn.addEventListener("click", () => { if (currentCard > 0) showCard(currentCard - 1); });
   nextBtn.addEventListener("click", () => {
     if (currentCard < cards.length - 1) {
       showCard(currentCard + 1);
     } else {
-      document.getElementById("lesCheckBtn").disabled = false;
-      document.getElementById("lesCheckBtn").textContent = "Continue";
+      const checkBtn = document.getElementById("lesCheckBtn");
+      if (checkBtn) { checkBtn.disabled = false; checkBtn.textContent = "Continue"; }
     }
   });
 
@@ -796,7 +1114,97 @@ function renderFlashcard(step) {
     el,
     type: "flashcard",
     check() {
-      return { correct: true, explanation: "Great review!", xp: 5 };
+      const got = ratings.filter(r => r === "got").length;
+      const total = cards.length;
+      const allReviewed = ratings.filter(r => r !== null).length === total;
+      return {
+        correct: true,
+        explanation: allReviewed
+          ? `You reviewed all ${total} cards — ${got} marked as known!`
+          : `Keep practising — flip and rate each card to track what you know.`,
+        xp: Math.max(5, Math.round((got / Math.max(total, 1)) * (step.xp || 10)))
+      };
+    }
+  };
+}
+
+/**
+ * Renders a Sentence Complete (finish-the-sentence) exercise.
+ * Larger, more visually distinct chips vs fill_blank — better for mobile/beginners.
+ */
+function renderSentenceComplete(step) {
+  const el = document.createElement("div");
+  el.className = "les-step les-step-sentence-complete";
+
+  const parts = (step.sentence || "___").split("___");
+  let selectedWord = null;
+
+  el.innerHTML = `
+    <div class="les-step-header">
+      <div class="les-step-icon les-step-icon--fill"><i class="bi bi-pencil-square"></i></div>
+      <h2 class="les-step-prompt">${escHtml(step.prompt || "Finish the sentence:")}</h2>
+    </div>
+    <div class="les-sc-sentence">
+      <span class="les-sc-before">${highlightKeyTerms(parts[0] || "")}</span><span class="les-sc-blank" id="lesScBlank" aria-label="blank to complete">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="les-sc-after">${highlightKeyTerms(parts[1] || "")}</span>
+    </div>
+    <div class="les-sc-wordbank" id="lesScWordbank" role="group" aria-label="Word choices"></div>
+  `;
+
+  const blank = el.querySelector("#lesScBlank");
+  const wordbank = el.querySelector("#lesScWordbank");
+  const checkBtn = document.getElementById("lesCheckBtn");
+  if (checkBtn) checkBtn.disabled = true;
+
+  function renderChips() {
+    wordbank.innerHTML = "";
+    (step.options || []).forEach(word => {
+      const chip = document.createElement("button");
+      chip.className = "les-sc-chip" + (word === selectedWord ? " is-selected" : "");
+      chip.textContent = word;
+      chip.setAttribute("aria-pressed", word === selectedWord ? "true" : "false");
+
+      chip.addEventListener("click", () => {
+        if (selectedWord === word) {
+          selectedWord = null;
+          blank.innerHTML = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+          blank.classList.remove("is-filled");
+          if (checkBtn) checkBtn.disabled = true;
+        } else {
+          selectedWord = word;
+          blank.textContent = word;
+          blank.classList.add("is-filled");
+          if (checkBtn) checkBtn.disabled = false;
+        }
+        renderChips();
+      });
+
+      wordbank.appendChild(chip);
+    });
+  }
+
+  renderChips();
+
+  return {
+    el,
+    type: "sentence_complete",
+    check() {
+      const correct = selectedWord && selectedWord.toLowerCase() === step.answer.toLowerCase();
+      blank.classList.add(correct ? "is-correct" : "is-wrong");
+      wordbank.querySelectorAll(".les-sc-chip").forEach(chip => {
+        chip.disabled = true;
+        if (chip.textContent.toLowerCase() === step.answer.toLowerCase()) {
+          chip.classList.add("is-correct-chip");
+        } else if (chip.classList.contains("is-selected")) {
+          chip.classList.add("is-wrong-chip");
+        }
+      });
+      return {
+        correct,
+        explanation: correct
+          ? "Great job! You completed the sentence correctly."
+          : `The correct word was "${step.answer}".`,
+        xp: correct ? (step.xp || 10) : 0
+      };
     }
   };
 }
@@ -1400,6 +1808,10 @@ class LessonEngine {
         break;
       case "drag_order":
         renderer = renderDragOrder(step);
+        if (skipBtn) skipBtn.style.display = "";
+        break;
+      case "sentence_complete":
+        renderer = renderSentenceComplete(step);
         if (skipBtn) skipBtn.style.display = "";
         break;
       default:

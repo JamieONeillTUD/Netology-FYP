@@ -243,19 +243,55 @@ function wireSignupSubmit(form) {
       const data = await res.json();
 
       if (data.success) {
-        localStorage.setItem("unlock_tier_pending", selectedTier);
-        const firstLoginEmail = String(email || "").trim().toLowerCase();
-        if (firstLoginEmail) {
-          localStorage.setItem("netology_onboarding_first_login", firstLoginEmail);
-        }
+        const normalizedEmail = String(email || "").trim().toLowerCase();
 
-        // Show full-page celebration overlay
+        // Auto-login: call /login immediately so the user goes straight to dashboard
+        let autoLoginOk = false;
+        try {
+          const loginForm = new FormData();
+          loginForm.append("email", email);
+          loginForm.append("password", password);
+          const loginRes = await fetch(`${API_BASE}/login`, { method: "POST", body: loginForm });
+          const loginData = await loginRes.json();
+
+          if (loginData.success) {
+            const unlockTier = String(selectedTier || loginData.start_level || "novice").toLowerCase();
+            const loginPayload = {
+              email: normalizedEmail,
+              first_name: loginData.first_name,
+              last_name: loginData.last_name,
+              username: loginData.username,
+              level: loginData.level,
+              rank: loginData.rank || loginData.level,
+              numeric_level: Number.isFinite(Number(loginData.numeric_level)) ? Number(loginData.numeric_level) : 1,
+              xp: loginData.xp || 0,
+              xp_into_level: Number.isFinite(Number(loginData.xp_into_level)) ? Number(loginData.xp_into_level) : 0,
+              next_level_xp: Number.isFinite(Number(loginData.next_level_xp)) ? Number(loginData.next_level_xp) : 100,
+              unlock_tier: unlockTier,
+              is_first_login: true,
+              onboarding_completed: false,
+            };
+
+            localStorage.setItem("user", JSON.stringify(loginPayload));
+            localStorage.setItem("netology_user", JSON.stringify(loginPayload));
+            localStorage.setItem("netology_last_email", normalizedEmail);
+
+            // Set onboarding flags so the dashboard tour triggers automatically
+            localStorage.setItem("netology_onboarding_stage", "dashboard");
+            localStorage.setItem("netology_onboarding_user", normalizedEmail);
+            try { sessionStorage.setItem("netology_onboarding_session", "true"); } catch {}
+
+            recordLoginDay(normalizedEmail);
+            autoLoginOk = true;
+          }
+        } catch { /* fall through to overlay redirect */ }
+
+        // Show celebration overlay, then redirect to dashboard (not login)
         const overlay = getById("signupSuccessOverlay");
         if (overlay) {
           overlay.classList.remove("d-none");
           overlay.setAttribute("aria-hidden", "false");
           document.body.style.overflow = "hidden";
-          // Spawn network-packet particles
           const confettiContainer = overlay.querySelector(".net-signup-success-confetti");
           if (confettiContainer) {
             const colors = ["#06b6d4", "#14b8a6", "#38bdf8", "#67e8f9", "#a78bfa", "#0d9488", "#22d3ee"];
@@ -273,12 +309,12 @@ function wireSignupSubmit(form) {
             }
           }
           setTimeout(() => {
-            window.location.href = "login.html";
+            window.location.href = autoLoginOk ? "dashboard.html" : "login.html";
           }, 3800);
         } else {
-          showPopup("Account created! Redirecting to login…", "success");
+          showPopup(autoLoginOk ? "Account created! Heading to your dashboard…" : "Account created! Please sign in.", "success");
           setTimeout(() => {
-            window.location.href = "login.html";
+            window.location.href = autoLoginOk ? "dashboard.html" : "login.html";
           }, 1200);
         }
       } else {

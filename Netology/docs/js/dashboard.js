@@ -1870,7 +1870,10 @@ Works with:
   }
 
   async function refreshDashboard() {
-    const user = getCurrentUser();
+    // Re-fetch latest XP from the server so the display is accurate after
+    // returning from a lesson (where XP was earned and saved server-side).
+    const freshUser = await safeStepAsync("refreshUserFromApi", refreshUserFromApi);
+    const user = freshUser || getCurrentUser();
 
     safeStep("fillUserUI", fillUserUI);
     await safeStepAsync("renderContinueLearning", renderContinueLearning);
@@ -2114,6 +2117,26 @@ Works with:
       await safeStepAsync("loadChallenges", () => loadChallenges(user.email, { force: true }));
 
       if (typeof window.maybeStartOnboardingTour === "function") {
+        // Reliability fix: if the user is a first-timer (is_first_login) who hasn't
+        // completed onboarding, always ensure the session flags are set so the tour
+        // triggers even when sessionStorage was cleared (page refresh, new tab, etc.)
+        const normalizedOnboardingEmail = String(user.email || "").trim().toLowerCase();
+        const existingOnboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
+        const alreadyOnboarded = Boolean(user.onboarding_completed)
+          || localStorage.getItem("netology_onboarding_completed") === "true"
+          || localStorage.getItem(`netology_onboarding_completed_${normalizedOnboardingEmail}`) === "true"
+          || localStorage.getItem("netology_onboarding_skipped") === "true";
+
+        if (!alreadyOnboarded && user.is_first_login) {
+          if (!existingOnboardingUser || existingOnboardingUser !== normalizedOnboardingEmail) {
+            localStorage.setItem("netology_onboarding_stage", "dashboard");
+            localStorage.setItem("netology_onboarding_user", normalizedOnboardingEmail);
+          } else if (!localStorage.getItem("netology_onboarding_stage")) {
+            localStorage.setItem("netology_onboarding_stage", "dashboard");
+          }
+          try { sessionStorage.setItem("netology_onboarding_session", "true"); } catch {}
+        }
+
         setTimeout(() => {
           const welcomeShown = maybeShowDashboardWelcome(user);
           if (welcomeShown) return;
