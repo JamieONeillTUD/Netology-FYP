@@ -190,7 +190,7 @@ Reworked to match the Figma AI version:
     dragging: null,
     history: [],
     historyIndex: -1,
-    rightTab: "objects",
+    rightTab: "objectives",
     configTab: "general",
     bottomTab: "console",
     consoleOutput: ["Network Sandbox Pro v2.0", "Ready."],
@@ -493,6 +493,8 @@ Reworked to match the Figma AI version:
   // Smart Device Connection Suggestions
   // ----------------------------------------
   function showConnectionSuggestions(device) {
+    // Never show suggestions while a guided challenge/tutorial is active
+    if (state.challengeMeta) return;
     const panel = getById("sbxConnSuggest");
     const body  = getById("sbxConnSuggestBody");
     if (!panel || !body) return;
@@ -610,25 +612,27 @@ Reworked to match the Figma AI version:
   }
 
   // ----------------------------------------
-  // Tutorial Carousel (free mode)
+  // Tutorial Carousel — renders in the top canvas bar (free mode only)
   // ----------------------------------------
   function renderTutorialCarousel() {
-    const wrap   = getById("sbxTutorialCarousel");
-    const scroll = getById("sbxTutorialCarouselScroll");
+    // Old in-panel carousel (kept hidden, now unused)
+    const oldWrap = getById("sbxTutorialCarousel");
+    if (oldWrap) oldWrap.style.display = "none";
+
+    // New top-bar carousel
+    const wrap   = getById("sbxTopCarousel");
+    const scroll = getById("sbxTopCarouselScroll");
     if (!wrap || !scroll) return;
     if (state.mode !== "free") { wrap.style.display = "none"; return; }
     wrap.style.display = "";
-    clearChildren(scroll);
+    if (scroll.childElementCount > 0) return; // already populated
     SAMPLE_TUTORIALS.forEach((tut) => {
-      const card = makeEl("div", "sbx-tut-card");
-      const icon = makeEl("div", "sbx-tut-card-icon");
-      icon.appendChild(makeIcon(`bi ${tut.icon}`));
-      const cardBody = makeEl("div", "sbx-tut-card-body");
-      const title = makeEl("div", "sbx-tut-card-title", tut.title);
-      const desc  = makeEl("div", "sbx-tut-card-desc", tut.desc);
-      const diff  = makeEl("span", `sbx-tut-card-diff sbx-tut-diff--${tut.difficulty.toLowerCase()}`, tut.difficulty);
-      cardBody.append(title, desc, diff);
-      card.append(icon, cardBody);
+      const card = makeEl("button", "sbx-top-tut-card");
+      card.type = "button";
+      card.innerHTML = `
+        <i class="bi ${tut.icon} sbx-top-tut-icon"></i>
+        <span class="sbx-top-tut-title">${tut.title}</span>
+        <span class="sbx-top-tut-diff sbx-tut-diff--${tut.difficulty.toLowerCase()}">${tut.difficulty}</span>`;
       card.addEventListener("click", () => launchSampleTutorial(tut));
       scroll.appendChild(card);
     });
@@ -2119,7 +2123,15 @@ Reworked to match the Figma AI version:
     });
   }
 
+  function renderInspectActions() {
+    const actionsEl = getById("sbxInspectActions");
+    if (!actionsEl) return;
+    const dev = getSelectedDevice();
+    actionsEl.style.display = dev ? "" : "none";
+  }
+
   function renderInspector() {
+    renderInspectActions();
     if (!inspectorBody) return;
     if (!state.pingInspector) {
       clearChildren(inspectorBody);
@@ -2374,7 +2386,7 @@ Reworked to match the Figma AI version:
   function hideConfigTab() {
     const configTabBtn = getById("sbxConfigTabBtn");
     if (configTabBtn) configTabBtn.style.display = "none";
-    setRightTab("objects");
+    setRightTab("objectives");
     renderObjects();
   }
 
@@ -2386,7 +2398,7 @@ Reworked to match the Figma AI version:
       // Hide Config tab and switch to Objects if currently on Config
       const configTabBtn = getById("sbxConfigTabBtn");
       if (configTabBtn) configTabBtn.style.display = "none";
-      if (state.rightTab === "config") setRightTab("objects");
+      if (state.rightTab === "config") setRightTab("objectives");
       return;
     }
 
@@ -3445,6 +3457,53 @@ Reworked to match the Figma AI version:
     }
   }
 
+  // ----------------------------------------
+  // Challenge Completion Overlay
+  // ----------------------------------------
+  function showChallengeCompleteOverlay(xpGained, alreadyDone) {
+    const overlay = getById("sbxCompleteOverlay");
+    if (!overlay) return;
+
+    // Set return-to-module link
+    const returnBtn = getById("sbxCompleteReturn");
+    if (returnBtn && lessonSession?.course_id) {
+      returnBtn.href = `lesson.html?course_id=${lessonSession.course_id}&lesson=${lessonSession.lesson_number}`;
+    }
+
+    // Show XP badge
+    const xpEl  = getById("sbxCompleteXp");
+    const xpAmt = getById("sbxCompleteXpAmount");
+    if (xpEl && xpAmt) {
+      if (!alreadyDone && xpGained > 0) {
+        xpAmt.textContent = `+${xpGained}`;
+        xpEl.style.display = "";
+      } else {
+        xpEl.style.display = "none";
+      }
+    }
+
+    // Spawn confetti
+    const confettiEl = getById("sbxCompleteConfetti");
+    if (confettiEl) {
+      clearChildren(confettiEl);
+      const colors = ["#06b6d4", "#14b8a6", "#f59e0b", "#22c55e", "#a78bfa", "#38bdf8"];
+      for (let i = 0; i < 50; i++) {
+        const p = document.createElement("span");
+        const sz = 5 + Math.random() * 7;
+        p.style.cssText = `left:${Math.random() * 100}%;background:${colors[Math.floor(Math.random() * colors.length)]};width:${sz}px;height:${sz}px;animation-delay:${Math.random() * 1.2}s;animation-duration:${2 + Math.random() * 2}s;`;
+        confettiEl.appendChild(p);
+      }
+    }
+
+    overlay.classList.remove("d-none");
+
+    // Close button
+    const closeBtn = getById("sbxCompleteClose");
+    if (closeBtn) {
+      closeBtn.onclick = () => overlay.classList.add("d-none");
+    }
+  }
+
   // AI Prompt: Explain the Challenge validation section in clear, simple terms.
   // ----------------------------------------
   // Challenge validation
@@ -3483,18 +3542,22 @@ Reworked to match the Figma AI version:
 
       const xpData = await xpRes.json();
       if (xpData.success) {
-        if (xpData.already_completed) {
+        const alreadyDone = xpData.already_completed;
+        const xpGained = Number(xpData.xp_added || 0);
+        if (alreadyDone) {
           setStatusBox(resultBox, "small text-success fw-semibold", "bi-check2-circle", "Passed! Challenge already completed.");
         } else {
-          setStatusBox(resultBox, "small text-success fw-semibold", "bi-check2-circle", `Passed! +${xpData.xp_added} XP earned.`);
+          setStatusBox(resultBox, "small text-success fw-semibold", "bi-check2-circle", `Passed! +${xpGained} XP earned.`);
         }
         markChallengeCompletion(
           user.email,
           lessonSession.course_id,
           lessonSession.lesson_number,
-          Number(xpData.xp_added || 0)
+          xpGained
         );
         await refreshUserFromServer(user.email);
+        // Show celebration overlay
+        showChallengeCompleteOverlay(xpGained, alreadyDone);
       } else {
         setStatusBox(resultBox, "small text-warning fw-semibold", "bi-exclamation-triangle", "Passed, but XP award failed.");
       }
@@ -4764,6 +4827,60 @@ Reworked to match the Figma AI version:
 
     // ── Dismiss suggestions on any canvas click (not on a suggestion item) ──
     stage.addEventListener("click", () => dismissSuggestions());
+
+    // ── Inspector quick-action buttons ──
+    getById("inspActPing")?.addEventListener("click", () => {
+      getById("pingBtn")?.click();
+    });
+
+    getById("inspActShowIp")?.addEventListener("click", () => {
+      const dev = getSelectedDevice();
+      if (!dev) return;
+      const ip = dev.config?.ipAddress || "Not configured";
+      const mask = dev.config?.subnetMask || "";
+      const gw  = dev.config?.gateway || "";
+      addConsoleOutput(`[${dev.name}] IP: ${ip}${mask ? " / " + mask : ""}${gw ? "  GW: " + gw : ""}`);
+      setRightTab("inspector");
+    });
+
+    getById("inspActRestart")?.addEventListener("click", () => {
+      const dev = getSelectedDevice();
+      if (!dev) return;
+      addConsoleOutput(`[${dev.name}] Restarting… done.`);
+      addActionLog(`Restarted ${dev.name}`);
+    });
+
+    getById("inspActConfigure")?.addEventListener("click", () => {
+      const dev = getSelectedDevice();
+      if (!dev) return;
+      showConfigTab();
+      renderAll();
+    });
+
+    // ── Terminal: show bottom panel on device double-click ──
+    deviceLayer.addEventListener("dblclick", (e) => {
+      const deviceEl = e.target.closest(".sbx-device");
+      if (!deviceEl) return;
+      const id = deviceEl.dataset.id;
+      const dev = id ? findDevice(id) : null;
+      if (!dev) return;
+      // Select the device and open the console panel
+      state.selectedIds = [id];
+      renderAll();
+      if (bottomPanel) {
+        bottomPanel.classList.remove("is-collapsed");
+        const toggleIcon = bottomToggle?.querySelector("i");
+        if (toggleIcon) toggleIcon.className = "bi bi-chevron-down";
+      }
+      // Switch to console tab and focus input
+      qsa(".sbx-bottom-panel", bottomPanel).forEach((p) => p.classList.remove("is-active"));
+      getById("sbxConsolePanel")?.classList.add("is-active");
+      state.bottomTab = "console";
+      qsa(".sbx-tab", getById("sbxBottomTabs")).forEach((t) => t.classList.remove("is-active"));
+      qs('.sbx-tab[data-bottom-tab="console"]', getById("sbxBottomTabs"))?.classList.add("is-active");
+      addConsoleOutput(`[${dev.name}] Terminal ready. Type 'help' for commands.`);
+      getById("sbxConsoleInput")?.focus();
+    });
 
     // ── Idle guidance activity listeners (7 s timeout) ──
     ["mousemove", "mousedown", "keydown", "wheel", "touchstart"].forEach((ev) => {

@@ -530,20 +530,57 @@ Notes:
 
   <!-- Full-page success celebration overlay (hidden by default) -->
   <div id="signupSuccessOverlay" class="net-signup-success-overlay d-none" aria-hidden="true">
+    <!-- Animated network topology background -->
+    <svg class="net-signup-success-topology" aria-hidden="true" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
+      <g class="net-topo-connections">
+        <line class="net-topo-line" x1="120" y1="80" x2="300" y2="180"/>
+        <line class="net-topo-line" x1="300" y1="180" x2="500" y2="120"/>
+        <line class="net-topo-line" x1="500" y1="120" x2="680" y2="200"/>
+        <line class="net-topo-line" x1="300" y1="180" x2="400" y2="320"/>
+        <line class="net-topo-line" x1="500" y1="120" x2="400" y2="320"/>
+        <line class="net-topo-line" x1="400" y1="320" x2="200" y2="400"/>
+        <line class="net-topo-line" x1="400" y1="320" x2="620" y2="420"/>
+        <line class="net-topo-line" x1="680" y1="200" x2="620" y2="420"/>
+        <line class="net-topo-line" x1="120" y1="80" x2="60" y2="260"/>
+        <line class="net-topo-line" x1="60" y1="260" x2="200" y2="400"/>
+      </g>
+      <g class="net-topo-nodes">
+        <circle class="net-topo-node net-topo-node--router" cx="300" cy="180" r="14"/>
+        <circle class="net-topo-node net-topo-node--switch" cx="400" cy="320" r="12"/>
+        <circle class="net-topo-node net-topo-node--router" cx="500" cy="120" r="14"/>
+        <circle class="net-topo-node net-topo-node--pc" cx="120" cy="80" r="9"/>
+        <circle class="net-topo-node net-topo-node--pc" cx="680" cy="200" r="9"/>
+        <circle class="net-topo-node net-topo-node--pc" cx="200" cy="400" r="9"/>
+        <circle class="net-topo-node net-topo-node--pc" cx="620" cy="420" r="9"/>
+        <circle class="net-topo-node net-topo-node--pc" cx="60" cy="260" r="9"/>
+      </g>
+      <!-- Animated data packets travelling along connections -->
+      <circle class="net-topo-packet" r="4">
+        <animateMotion dur="3s" repeatCount="indefinite" path="M120,80 L300,180 L400,320"/>
+      </circle>
+      <circle class="net-topo-packet net-topo-packet--alt" r="3">
+        <animateMotion dur="4s" repeatCount="indefinite" begin="1s" path="M500,120 L400,320 L200,400"/>
+      </circle>
+      <circle class="net-topo-packet" r="3">
+        <animateMotion dur="3.5s" repeatCount="indefinite" begin="0.5s" path="M680,200 L500,120 L300,180"/>
+      </circle>
+    </svg>
+    <!-- Particle confetti layer -->
     <div class="net-signup-success-confetti" aria-hidden="true"></div>
     <div class="net-signup-success-content">
-      <div class="net-signup-success-check">
-        <i class="bi bi-check-lg"></i>
+      <div class="net-signup-success-icon">
+        <i class="bi bi-diagram-3-fill"></i>
+        <div class="net-signup-success-icon-ring"></div>
       </div>
-      <h2>Welcome to Netology!</h2>
-      <p>Your account has been created successfully.</p>
+      <h2>You're on the Network!</h2>
+      <p class="net-signup-success-sub">Your Netology account is live. Time to master networking from the ground up.</p>
       <div class="net-signup-success-features">
-        <span><i class="bi bi-book"></i> 9 Courses</span>
-        <span><i class="bi bi-lightning-charge"></i> Earn XP</span>
-        <span><i class="bi bi-award"></i> Badges</span>
-        <span><i class="bi bi-diagram-3"></i> Sandbox</span>
+        <span class="net-suf-1"><i class="bi bi-hdd-network"></i> 9 Courses</span>
+        <span class="net-suf-2"><i class="bi bi-lightning-charge-fill"></i> Earn XP</span>
+        <span class="net-suf-3"><i class="bi bi-award-fill"></i> Badges</span>
+        <span class="net-suf-4"><i class="bi bi-terminal-fill"></i> Live Sandbox</span>
       </div>
-      <p class="net-signup-success-redirect">Redirecting to sign in<span class="net-dots"></span></p>
+      <p class="net-signup-success-redirect">Connecting you to sign in<span class="net-dots"></span></p>
     </div>
   </div>
 

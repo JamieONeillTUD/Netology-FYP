@@ -343,6 +343,12 @@ sandbox.html – Interactive networking sandbox.
 
         <!-- Canvas -->
         <section class="sbx-stage-wrap" data-tour="sandbox-canvas">
+          <!-- Top Tutorial Carousel (free/sandbox mode only — hidden in challenge mode) -->
+          <div class="sbx-top-carousel" id="sbxTopCarousel" style="display:none;" aria-label="Available sandbox tutorials">
+            <div class="sbx-top-carousel-label"><i class="bi bi-stars" aria-hidden="true"></i> Quick Challenges</div>
+            <div class="sbx-top-carousel-scroll" id="sbxTopCarouselScroll"></div>
+          </div>
+
           <div class="sbx-stage-head">
             <div>
               <div class="sbx-stage-title">Topology Canvas</div>
@@ -394,14 +400,15 @@ sandbox.html – Interactive networking sandbox.
         <aside class="sbx-panel sbx-panel-right" id="sbxRightPanel" data-tour="sandbox-inspector">
           <div class="sbx-panel-head">
             <div class="sbx-tablist" id="sbxRightTabs">
-              <button class="sbx-tab is-active" data-tab="objects" type="button" data-tooltip="Canvas objects">
+              <!-- Tab order: Objectives → Objects → Inspector (Config hidden) -->
+              <button class="sbx-tab is-active" data-tab="objectives" type="button" data-tooltip="Lesson objectives &amp; challenges">
+                <i class="bi bi-bullseye"></i> Objectives
+              </button>
+              <button class="sbx-tab" data-tab="objects" type="button" data-tooltip="Canvas objects">
                 <i class="bi bi-collection"></i> Objects
               </button>
-              <button class="sbx-tab" data-tab="inspector" type="button" data-tooltip="Ping and diagnostics">
-                <i class="bi bi-activity"></i> Inspector
-              </button>
-              <button class="sbx-tab" data-tab="objectives" type="button" data-tooltip="Lesson objectives">
-                <i class="bi bi-bullseye"></i> Objectives
+              <button class="sbx-tab" data-tab="inspector" type="button" data-tooltip="Device actions &amp; diagnostics">
+                <i class="bi bi-activity"></i> Inspect
               </button>
               <button class="sbx-tab" data-tab="config" type="button" data-tooltip="Device configuration" id="sbxConfigTabBtn" style="display:none;">
                 <i class="bi bi-sliders2-vertical"></i> Config
@@ -414,12 +421,39 @@ sandbox.html – Interactive networking sandbox.
           </div>
 
           <div class="sbx-panel-body">
-            <div class="sbx-tabpanel is-active" id="panelObjects">
+            <!-- (1) Objectives — always first -->
+            <div class="sbx-tabpanel is-active" id="panelObjectives">
+              <div class="sbx-panel-content">
+                <!-- Tutorial Carousel (free mode only) -->
+                <div class="sbx-tutorial-carousel" id="sbxTutorialCarousel" style="display:none;">
+                  <div class="sbx-tutorial-carousel-title"><i class="bi bi-stars" aria-hidden="true"></i> Quick Challenges</div>
+                  <div class="sbx-tutorial-carousel-scroll" id="sbxTutorialCarouselScroll"></div>
+                </div>
+                <div class="sbx-challenge-banner" id="challengeBanner" style="display:none;">
+                  <div class="sbx-challenge-head">
+                    <div class="sbx-challenge-icon"><i class="bi bi-mortarboard-fill"></i></div>
+                    <div>
+                      <div class="sbx-challenge-title">Lesson Challenge</div>
+                      <div class="sbx-challenge-sub" id="challengeBannerText">Loading challenge…</div>
+                    </div>
+                  </div>
+                </div>
+                <div id="sbxObjectivesBody">No active challenge.</div>
+              </div>
+            </div>
+
+            <!-- (2) Objects -->
+            <div class="sbx-tabpanel" id="panelObjects">
+              <div class="sbx-panel-hint">
+                <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                Drag and drop objects onto the canvas to build your network.
+              </div>
               <div class="sbx-panel-content" id="sbxObjectsBody">
                 No devices on canvas yet.
               </div>
             </div>
 
+            <!-- Config (hidden tab, shown programmatically) -->
             <div class="sbx-tabpanel" id="panelConfig">
               <div class="sbx-config-header" id="sbxConfigHeader">
                 <button class="sbx-back-btn" id="sbxConfigBackBtn" type="button" data-tooltip="Back to Objects">
@@ -441,29 +475,36 @@ sandbox.html – Interactive networking sandbox.
               <div id="props" class="sbx-panel-content">Select a device to view properties.</div>
             </div>
 
+            <!-- (3) Inspect -->
             <div class="sbx-tabpanel" id="panelInspector">
+              <div class="sbx-panel-hint">
+                <i class="bi bi-cursor" aria-hidden="true"></i>
+                Select a device to view details or run actions.
+              </div>
+              <!-- Quick action buttons for selected device -->
+              <div class="sbx-inspect-actions" id="sbxInspectActions" style="display:none;">
+                <div class="sbx-inspect-actions-label">Quick Actions</div>
+                <div class="sbx-inspect-btn-grid">
+                  <button class="sbx-inspect-btn" id="inspActPing" data-tooltip="Send a ping from this device">
+                    <i class="bi bi-broadcast-pin"></i> Ping
+                  </button>
+                  <button class="sbx-inspect-btn" id="inspActShowIp" data-tooltip="Show IP addresses on this device">
+                    <i class="bi bi-info-circle"></i> Show IP
+                  </button>
+                  <button class="sbx-inspect-btn" id="inspActRestart" data-tooltip="Restart this device">
+                    <i class="bi bi-arrow-clockwise"></i> Restart
+                  </button>
+                  <button class="sbx-inspect-btn" id="inspActConfigure" data-tooltip="Open device configuration">
+                    <i class="bi bi-sliders2-vertical"></i> Configure
+                  </button>
+                </div>
+                <div class="sbx-inspect-terminal-hint">
+                  <i class="bi bi-terminal" aria-hidden="true"></i>
+                  Double-click a device to open its terminal.
+                </div>
+              </div>
               <div class="sbx-panel-content" id="sbxInspectorBody">
                 Run a ping test to see detailed results.
-              </div>
-            </div>
-
-            <div class="sbx-tabpanel" id="panelObjectives">
-              <div class="sbx-panel-content">
-                <!-- Tutorial Carousel (free mode only) -->
-                <div class="sbx-tutorial-carousel" id="sbxTutorialCarousel" style="display:none;">
-                  <div class="sbx-tutorial-carousel-title"><i class="bi bi-stars" aria-hidden="true"></i> Quick Challenges</div>
-                  <div class="sbx-tutorial-carousel-scroll" id="sbxTutorialCarouselScroll"></div>
-                </div>
-                <div class="sbx-challenge-banner" id="challengeBanner" style="display:none;">
-                  <div class="sbx-challenge-head">
-                    <div class="sbx-challenge-icon"><i class="bi bi-mortarboard-fill"></i></div>
-                    <div>
-                      <div class="sbx-challenge-title">Lesson Challenge</div>
-                      <div class="sbx-challenge-sub" id="challengeBannerText">Loading challenge…</div>
-                    </div>
-                  </div>
-                </div>
-                <div id="sbxObjectivesBody">No active challenge.</div>
               </div>
             </div>
           </div>
@@ -480,8 +521,8 @@ sandbox.html – Interactive networking sandbox.
       </button>
 
       <!-- AI Prompt: Explain the Bottom Console section in clear, simple terms. -->
-      <!-- Bottom Console -->
-      <section class="sbx-bottom" id="sbxBottomPanel" data-tour="sandbox-console">
+      <!-- Bottom Console (collapsed by default; opens on device double-click) -->
+      <section class="sbx-bottom is-collapsed" id="sbxBottomPanel" data-tour="sandbox-console">
         <div class="sbx-bottom-head">
           <div class="sbx-tablist" id="sbxBottomTabs">
             <button class="sbx-tab is-active" data-bottom-tab="console" type="button" data-tooltip="Console commands">
@@ -495,8 +536,8 @@ sandbox.html – Interactive networking sandbox.
             </button>
           </div>
           <button class="sbx-iconbtn sbx-panel-toggle" id="bottomPanelToggle" type="button"
-            data-tooltip="Hide console panel">
-            <i class="bi bi-chevron-down"></i>
+            data-tooltip="Show/hide terminal">
+            <i class="bi bi-chevron-up"></i>
           </button>
         </div>
 
@@ -684,6 +725,31 @@ sandbox.html – Interactive networking sandbox.
   </div>
 
   <div class="sbx-toast-stack" id="sbxToastStack" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Challenge Completion Celebration Modal -->
+  <div class="sbx-complete-overlay d-none" id="sbxCompleteOverlay" aria-modal="true" role="dialog" aria-labelledby="sbxCompleteTitle">
+    <div class="sbx-complete-confetti" id="sbxCompleteConfetti" aria-hidden="true"></div>
+    <div class="sbx-complete-card">
+      <div class="sbx-complete-icon">
+        <i class="bi bi-trophy-fill"></i>
+        <div class="sbx-complete-icon-ring"></div>
+      </div>
+      <div class="sbx-complete-title" id="sbxCompleteTitle">Challenge Complete!</div>
+      <div class="sbx-complete-sub">You've successfully completed the sandbox challenge.</div>
+      <div class="sbx-complete-xp" id="sbxCompleteXp" style="display:none;">
+        <i class="bi bi-lightning-charge-fill"></i>
+        <span id="sbxCompleteXpAmount">+0</span> XP earned
+      </div>
+      <div class="sbx-complete-actions">
+        <a class="sbx-complete-btn sbx-complete-btn--primary" id="sbxCompleteReturn" href="#">
+          <i class="bi bi-arrow-left-circle"></i> Return to Module
+        </a>
+        <button class="sbx-complete-btn sbx-complete-btn--secondary" id="sbxCompleteClose">
+          Keep Exploring
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Scripts -->
   <script src="js/config.js"></script>
