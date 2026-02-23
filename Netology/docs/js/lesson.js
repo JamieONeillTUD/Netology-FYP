@@ -54,6 +54,26 @@ function getLessonByNumber(course, num) {
   return null;
 }
 
+/**
+ * Finds the XP value shown on the course page for the nth lesson.
+ * Each "Learn" type item in sections corresponds to a lesson in order.
+ */
+function getLessonItemXP(course, lessonNumber) {
+  if (!course?.units) return null;
+  let idx = 0;
+  for (const unit of course.units) {
+    for (const section of (unit.sections || [])) {
+      for (const item of (section.items || [])) {
+        if (String(item.type || "").toLowerCase() === "learn") {
+          idx++;
+          if (idx === Number(lessonNumber)) return Number(item.xp) || null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function getTotalLessons(course) {
   if (!course?.units) return 0;
   let n = 0;
@@ -139,6 +159,39 @@ async function awardLessonXP(email, courseId, lessonNumber, targetXP, deltaXP) {
 /* ═══════════════════════════════════════════════════════════
    STEP BUILDER – converts lesson blocks into exercise steps
    ═══════════════════════════════════════════════════════════ */
+
+/**
+ * Converts an objective like "Explain why protocols matter"
+ * into a proper question like "Why do protocols matter?"
+ */
+function objectiveToQuestion(objective) {
+  const clean = String(objective || "").trim().replace(/\.$/, "");
+  const verbMap = {
+    define:      (r) => `What is ${r}?`,
+    explain:     (r) => `Why/how does ${r} work?`,
+    identify:    (r) => `What are ${r}?`,
+    describe:    (r) => `How would you describe ${r}?`,
+    list:        (r) => `What are the ${r}?`,
+    compare:     (r) => `How do ${r} compare?`,
+    understand:  (r) => `What should you understand about ${r}?`,
+    demonstrate: (r) => `How would you demonstrate ${r}?`,
+    apply:       (r) => `When would you apply ${r}?`,
+    recognise:   (r) => `How would you recognise ${r}?`,
+    recognize:   (r) => `How would you recognize ${r}?`,
+    name:        (r) => `Can you name ${r}?`,
+    outline:     (r) => `What does ${r} involve?`,
+    summarise:   (r) => `How would you summarise ${r}?`,
+    summarize:   (r) => `How would you summarize ${r}?`,
+  };
+  const match = clean.match(/^(\w+)\s+(.+)$/i);
+  if (match) {
+    const verb = match[1].toLowerCase();
+    const rest = match[2];
+    if (verbMap[verb]) return verbMap[verb](rest);
+  }
+  return clean.endsWith("?") ? clean : `${clean}?`;
+}
+
 function buildStepsFromLesson(lesson, course) {
   const steps = [];
 
@@ -272,8 +325,8 @@ function buildStepsFromLesson(lesson, course) {
       type: "flashcard",
       cards: [
         { front: "What is the main takeaway?", back: lesson.summary },
-        ...lesson.objectives.slice(0, 3).map((obj, i) => ({
-          front: `Objective ${i + 1}`,
+        ...lesson.objectives.slice(0, 3).map((obj) => ({
+          front: objectiveToQuestion(obj),
           back: obj
         }))
       ]
@@ -1074,7 +1127,7 @@ class LessonEngine {
 
       this.steps = buildStepsFromLesson(this.lesson, this.course);
       this.progressTotalSteps = Math.max(1, this.steps.length || 1);
-      this.lessonXP = Number(this.lesson.xp || this.course.xpReward || 50) || 0;
+      this.lessonXP = getLessonItemXP(this.course, this.lessonNumber) || Number(this.lesson.xp) || 50;
       this.restoreProgress();
       this.showIntro();
     } catch (error) {
@@ -1109,7 +1162,7 @@ class LessonEngine {
     setText("lesIntroTitle", this.lesson.title || "Lesson");
     setText("lesIntroDesc", this.lesson.learn || this.lesson.summary || "");
     setText("lesIntroTime", this.lesson.duration || this.lesson.estimatedTime || this.course.estimatedTime || "10 min");
-    setText("lesIntroXP", `${this.lesson.xp || this.course.xpReward || 50} XP`);
+    setText("lesIntroXP", `${this.lessonXP} XP`);
     setText("lesIntroSteps", `${this.steps.length} steps`);
 
     // Objectives

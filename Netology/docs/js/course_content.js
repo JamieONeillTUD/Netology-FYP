@@ -1387,7 +1387,7 @@ const COURSE_CONTENT = {
     difficulty: "novice",
     required_level: 1,
     estimatedTime: "1.2 hrs",
-    xpReward: 350,
+    xpReward: 700,
     category: "Switching",
     units: [
       {
@@ -1598,7 +1598,7 @@ const COURSE_CONTENT = {
     difficulty: "novice",
     required_level: 1,
     estimatedTime: "1.4 hrs",
-    xpReward: 360,
+    xpReward: 720,
     category: "IP",
     units: [
       {
@@ -2557,7 +2557,7 @@ const COURSE_CONTENT = {
     difficulty: "intermediate",
     required_level: 3,
     estimatedTime: "1.6 hrs",
-    xpReward: 420,
+    xpReward: 900,
     category: "Routing",
     units: [
       {
@@ -2728,7 +2728,7 @@ const COURSE_CONTENT = {
     difficulty: "intermediate",
     required_level: 3,
     estimatedTime: "1.8 hrs",
-    xpReward: 450,
+    xpReward: 920,
     category: "Services",
     units: [
       {
@@ -3585,7 +3585,7 @@ const COURSE_CONTENT = {
     difficulty: "advanced",
     required_level: 5,
     estimatedTime: "1.9 hrs",
-    xpReward: 520,
+    xpReward: 1100,
     category: "WAN",
     units: [
       {
@@ -3756,7 +3756,7 @@ const COURSE_CONTENT = {
     difficulty: "advanced",
     required_level: 5,
     estimatedTime: "2.1 hrs",
-    xpReward: 560,
+    xpReward: 1120,
     category: "Automation",
     units: [
       {

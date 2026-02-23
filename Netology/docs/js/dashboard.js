@@ -2199,11 +2199,14 @@ Works with:
     overlay.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
     const startBtn = getById("dashboardWelcomeStart");
+    const skipBtn = getById("dashboardWelcomeSkip");
     let closing = false;
-    const closeOverlay = () => {
+
+    const dismissOverlay = (startTour) => {
       if (closing) return;
       closing = true;
       if (startBtn) startBtn.disabled = true;
+      if (skipBtn) skipBtn.disabled = true;
       try {
         sessionStorage.setItem("netology_welcome_shown", "true");
       } catch {}
@@ -2214,16 +2217,22 @@ Works with:
         overlay.setAttribute("aria-hidden", "true");
         document.body.style.overflow = "";
 
-        if (typeof window.maybeStartOnboardingTour === "function") {
+        if (startTour && typeof window.maybeStartOnboardingTour === "function") {
           const started = window.maybeStartOnboardingTour("dashboard", user.email);
           if (!started) window.maybeStartOnboardingTour("wrapup", user.email);
+        } else {
+          if (typeof markOnboardingSkipped === "function") markOnboardingSkipped();
         }
       }, 420);
     };
 
     if (startBtn && !startBtn._netBound) {
       startBtn._netBound = true;
-      startBtn.addEventListener("click", closeOverlay);
+      startBtn.addEventListener("click", () => dismissOverlay(true));
+    }
+    if (skipBtn && !skipBtn._netBound) {
+      skipBtn._netBound = true;
+      skipBtn.addEventListener("click", () => dismissOverlay(false));
     }
     if (startBtn && typeof startBtn.focus === "function") {
       startBtn.focus({ preventScroll: true });

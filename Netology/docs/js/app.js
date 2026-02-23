@@ -1395,121 +1395,66 @@ class OnboardingTour {
 
   updateTooltip(step, targetElement) {
     const rect = targetElement.getBoundingClientRect();
-    const isFirstStep = this.currentStepIndex === 0;
     const totalSteps = this.steps.length;
 
-    if (isFirstStep) {
-      // ── Grand welcome intro card ──
-      this.tooltipElement.classList.add('is-intro');
-      this.tooltipElement.innerHTML = `
-        <svg class="net-tour-intro-topology" aria-hidden="true" viewBox="0 0 640 340" preserveAspectRatio="xMidYMid slice">
-          <g>
-            <line stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 4" x1="80" y1="60" x2="220" y2="140"/>
-            <line stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 4" x1="220" y1="140" x2="400" y2="100"/>
-            <line stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 4" x1="400" y1="100" x2="560" y2="160"/>
-            <line stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 4" x1="220" y1="140" x2="320" y2="250"/>
-            <line stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 4" x1="400" y1="100" x2="320" y2="250"/>
-            <line stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 4" x1="320" y1="250" x2="160" y2="310"/>
-            <line stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 4" x1="320" y1="250" x2="500" y2="300"/>
-            <circle cx="220" cy="140" r="12" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="2"/>
-            <circle cx="400" cy="100" r="12" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="2"/>
-            <circle cx="320" cy="250" r="10" fill="rgba(20,184,166,0.15)" stroke="#14b8a6" stroke-width="2"/>
-            <circle cx="80"  cy="60"  r="7"  fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1.5"/>
-            <circle cx="560" cy="160" r="7"  fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1.5"/>
-            <circle cx="160" cy="310" r="7"  fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1.5"/>
-            <circle cx="500" cy="300" r="7"  fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1.5"/>
-            <circle r="4" fill="#06b6d4" filter="url(#glow)" opacity="0.9">
-              <animateMotion dur="3s" repeatCount="indefinite" path="M80,60 L220,140 L320,250"/>
-            </circle>
-            <circle r="3" fill="#a78bfa" opacity="0.85">
-              <animateMotion dur="4s" repeatCount="indefinite" begin="1s" path="M400,100 L320,250 L160,310"/>
-            </circle>
-          </g>
-        </svg>
-        <div class="net-tour-intro-body">
-          <div class="net-tour-intro-icon">
-            <i class="bi bi-diagram-3-fill"></i>
-            <div class="net-tour-intro-icon-ring"></div>
-          </div>
-          <div class="net-tour-intro-title">Welcome to Netology!</div>
-          <div class="net-tour-intro-sub">Your hands-on networking academy. Build real topologies, earn XP, and go from zero to network engineer — step by step.</div>
-          <div class="net-tour-intro-features">
-            <span class="tif-1"><i class="bi bi-hdd-network"></i> 9 Courses</span>
-            <span class="tif-2"><i class="bi bi-terminal-fill"></i> Live Sandbox</span>
-            <span class="tif-3"><i class="bi bi-lightning-charge-fill"></i> Earn XP</span>
-            <span class="tif-4"><i class="bi bi-award-fill"></i> Badges</span>
-          </div>
-          <div class="net-tour-intro-actions">
-            <button class="btn-tour-start" onclick="window.onboardingTour.nextStep()">
-              <i class="bi bi-map"></i> Start Your Journey
-            </button>
-            <button class="btn-tour-skip-intro" onclick="window.onboardingTour.skipTour()">Skip tour</button>
-          </div>
-        </div>
-      `;
-      // Centre in viewport — no target-relative positioning needed
-      this.tooltipElement.style.top = '';
-      this.tooltipElement.style.left = '';
-      this.tooltipElement.style.visibility = '';
+    // ── Standard step tooltip ──
+    this.tooltipElement.classList.remove('is-intro');
+    const isLast = this.currentStepIndex === totalSteps - 1;
+    const stepNum = this.currentStepIndex + 1;
+    const stepLabel = `Step ${stepNum} of ${totalSteps}`;
+
+    this.tooltipElement.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span style="font-size:11px; color:#06b6d4; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;">${stepLabel}</span>
+      </div>
+      <h3>${escapeHtml(step.title)}</h3>
+      <p>${escapeHtml(step.description)}</p>
+      <div style="margin-top:16px; display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap;">
+        ${isLast
+          ? '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish &#8250;</button>'
+          : '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Continue &#8250;</button>'}
+        <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
+        <button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()"
+          ${this.currentStepIndex === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>&#8249; Back</button>
+      </div>
+    `;
+
+    // Position tooltip relative to target element
+    this.tooltipElement.style.top = '0';
+    this.tooltipElement.style.left = '0';
+    this.tooltipElement.style.visibility = 'hidden';
+
+    const gap = 18;
+    const margin = 16;
+    const tooltipWidth = this.tooltipElement.offsetWidth;
+    const tooltipHeight = this.tooltipElement.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const centerX = rect.left + rect.width / 2;
+
+    let left = Math.min(
+      Math.max(centerX - tooltipWidth / 2, margin),
+      vw - tooltipWidth - margin
+    );
+
+    const spaceBelow = vh - rect.bottom;
+    const spaceAbove = rect.top;
+    let top;
+
+    if (spaceBelow >= tooltipHeight + gap) {
+      top = rect.bottom + gap;
+    } else if (spaceAbove >= tooltipHeight + gap) {
+      top = rect.top - tooltipHeight - gap;
     } else {
-      // ── Standard step tooltip ──
-      this.tooltipElement.classList.remove('is-intro');
-      const isLast = this.currentStepIndex === totalSteps - 1;
-      const stepLabel = `Step ${this.currentStepIndex} of ${totalSteps - 1}`;
-
-      this.tooltipElement.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <span style="font-size:11px; color:#06b6d4; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;">${stepLabel}</span>
-        </div>
-        <h3>${escapeHtml(step.title)}</h3>
-        <p>${escapeHtml(step.description)}</p>
-        <div style="margin-top:16px; display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
-          ${isLast
-            ? '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish &#8250;</button>'
-            : '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Continue &#8250;</button>'}
-          <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
-          <button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()"
-            ${this.currentStepIndex <= 1 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>&#8249; Back</button>
-        </div>
-      `;
-
-      // Position relative to target element
-      this.tooltipElement.style.top = '0';
-      this.tooltipElement.style.left = '0';
-      this.tooltipElement.style.visibility = 'hidden';
-
-      const gap = 18;
-      const margin = 16;
-      const tooltipWidth = this.tooltipElement.offsetWidth;
-      const tooltipHeight = this.tooltipElement.offsetHeight;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const centerX = rect.left + rect.width / 2;
-
-      let left = Math.min(
-        Math.max(centerX - tooltipWidth / 2, margin),
-        vw - tooltipWidth - margin
-      );
-
-      const spaceBelow = vh - rect.bottom;
-      const spaceAbove = rect.top;
-      let top;
-
-      if (spaceBelow >= tooltipHeight + gap) {
-        top = rect.bottom + gap;
-      } else if (spaceAbove >= tooltipHeight + gap) {
-        top = rect.top - tooltipHeight - gap;
-      } else {
-        top = vh - tooltipHeight - margin;
-      }
-
-      top = Math.max(margin, Math.min(top, vh - tooltipHeight - margin));
-      left = Math.max(margin, Math.min(left, vw - tooltipWidth - margin));
-
-      this.tooltipElement.style.top = `${top}px`;
-      this.tooltipElement.style.left = `${left}px`;
-      this.tooltipElement.style.visibility = '';
+      top = vh - tooltipHeight - margin;
     }
+
+    top = Math.max(margin, Math.min(top, vh - tooltipHeight - margin));
+    left = Math.max(margin, Math.min(left, vw - tooltipWidth - margin));
+
+    this.tooltipElement.style.top = `${top}px`;
+    this.tooltipElement.style.left = `${left}px`;
+    this.tooltipElement.style.visibility = '';
 
     if (typeof this.tooltipElement.focus === 'function') {
       this.tooltipElement.focus({ preventScroll: true });
