@@ -1,15 +1,38 @@
 <!--
 Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
+Student Name:   Jamie O’Neill
+Course Code:    TU857/4
+Date:           10/11/2025
 
-HTML 
----------------------------------
-sandbox.html – Interactive networking sandbox.
+HTML
+---------------------------------------
+sandbox.html – Netology Network Sandbox
+
+Purpose:
+- Interactive drag-and-drop network topology editor (canvas-based)
+- Slide-out sidebar + sticky top navbar; three operating modes:
+  Free (open canvas), Tutorial (guided steps), Challenge (scored build task)
+- Objectives banner shown in tutorial/challenge mode with step progress
+- Floating toolbar: Select/Connect tools, connection types (Ethernet/Fiber/
+  Serial/Wireless), Undo/Redo, Auto-layout, Minimap, Clear, Save
+- Left panel: Device Library — three groups (End Devices, Network Devices,
+  Servers); drag or click to add devices to the canvas
+- Canvas: topology stage with SVG connections, device nodes, minimap,
+  tutorial quick-challenge carousel, and smart connection suggestions
+- Right panel: four tabs — Objectives, Objects, Inspect (device quick actions),
+  Config (device settings subtabs: General/Interfaces/Routing/DHCP/DNS/MAC)
+- Bottom console: Console (command input + output), Logs, Packets tabs
+- Modals: Saved Topologies, Save Topology, Clear Workspace, Ping Device
+- Challenge completion overlay with confetti and XP earned
+
+Notes:
+- Topology data saved to / loaded from backend API via sandbox.js
+- Challenge objectives validated client-side in sandbox.js (single 4,893-line IIFE)
+- sandbox-console.js handles the bottom console tab independently
+- Scripts: config.js → app.js → sandbox-console.js → sandbox.js → Bootstrap JS
 -->
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 
 <head>
@@ -29,11 +52,9 @@ sandbox.html – Interactive networking sandbox.
 
 <body class="net-bg net-landing net-loading">
 
-  <!-- AI Prompt: Explain the Slide Sidebar Backdrop section in clear, simple terms. -->
   <!-- Slide Sidebar Backdrop -->
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
 
-  <!-- AI Prompt: Explain the Slide Sidebar section in clear, simple terms. -->
   <!-- Slide Sidebar -->
   <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
     <div class="net-sidehead">
@@ -100,7 +121,6 @@ sandbox.html – Interactive networking sandbox.
     </div>
   </aside>
 
-  <!-- AI Prompt: Explain the TOP NAV section in clear, simple terms. -->
   <!-- TOP NAV -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
@@ -162,7 +182,6 @@ sandbox.html – Interactive networking sandbox.
     </div>
   </header>
 
-  <!-- AI Prompt: Explain the Main section in clear, simple terms. -->
   <!-- Main -->
   <main class="container-fluid px-3 px-lg-4 py-2 net-sbx">
     <section class="net-card p-4 net-loading-only" aria-label="Loading sandbox">
@@ -190,7 +209,6 @@ sandbox.html – Interactive networking sandbox.
         </div>
       </div>
 
-      <!-- AI Prompt: Explain the Sandbox Toolbar section in clear, simple terms. -->
       <!-- Toolbar -->
       <div class="sbx-float-bar" data-tour="sandbox-toolbar">
         <span class="sbx-toolbar-title">Toolbar</span>
@@ -520,7 +538,6 @@ sandbox.html – Interactive networking sandbox.
         <i class="bi bi-chevron-left"></i>
       </button>
 
-      <!-- AI Prompt: Explain the Bottom Console section in clear, simple terms. -->
       <!-- Bottom Console (collapsed by default; opens on device double-click) -->
       <section class="sbx-bottom is-collapsed" id="sbxBottomPanel" data-tour="sandbox-console">
         <div class="sbx-bottom-head">
@@ -562,13 +579,11 @@ sandbox.html – Interactive networking sandbox.
     </div>
   </main>
 
-  <!-- AI Prompt: Explain the Footer section in clear, simple terms. -->
   <!-- Footer -->
   <footer class="sbx-footer text-center py-2">
     <p class="small text-muted mb-0">2026 – Jamie O'Neill – TU857/4</p>
   </footer>
 
-  <!-- AI Prompt: Explain the Topology Manager Modal section in clear, simple terms. -->
   <!-- Topology Manager Modal -->
   <div class="modal fade" id="topologyModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -590,7 +605,6 @@ sandbox.html – Interactive networking sandbox.
               </tr>
             </thead>
             <tbody id="topologyList">
-              <!-- AI Prompt: Explain the JS loads content only when Load is clicked section in clear, simple terms. -->
               <!-- JS loads content only when Load is clicked -->
             </tbody>
           </table>
@@ -604,7 +618,6 @@ sandbox.html – Interactive networking sandbox.
     </div>
   </div>
 
-  <!-- AI Prompt: Explain the Save Topology Modal section in clear, simple terms. -->
   <!-- Save Topology Modal -->
   <div class="modal fade" id="saveTopologyModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -642,7 +655,6 @@ sandbox.html – Interactive networking sandbox.
     </div>
   </div>
 
-  <!-- AI Prompt: Explain the Clear Topology Modal section in clear, simple terms. -->
   <!-- Clear Topology Modal -->
   <div class="modal fade" id="clearTopologyModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -753,6 +765,9 @@ sandbox.html – Interactive networking sandbox.
 
   <!-- Scripts -->
   <script src="js/config.js"></script>
+  <script src="js/onboarding-config.js"></script>
+  <script src="js/ui-theme.js"></script>
+  <script src="js/ui-toasts.js"></script>
   <script src="js/app.js"></script>
   <script src="js/sandbox-console.js"></script>
   <script src="js/sandbox.js"></script>

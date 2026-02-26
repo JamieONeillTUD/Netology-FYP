@@ -1030,66 +1030,28 @@ function setInvalid(el, isInvalid) {
 ========================================================= */
 
 function showPopup(message, type) {
-  const stack = (() => {
-    let existing = document.getElementById("netToastStack");
-    if (!existing) {
-      existing = document.createElement("div");
-      existing.id = "netToastStack";
-      existing.className = "net-toast-stack";
-      document.body.appendChild(existing);
-    }
-    return existing;
-  })();
+  // Prefer shared toast helper if available.
+  if (window.NetologyToast?.showMessageToast) {
+    window.NetologyToast.showMessageToast(message, type || "info", 3200);
+    return;
+  }
 
-  const popup = document.createElement("div");
-  popup.className = "net-toast net-toast-enter in-stack";
-  popup.setAttribute("role", "status");
-  popup.setAttribute("aria-live", "polite");
-  popup.dataset.type = type || "info";
+  // Safe fallback if helper is not loaded.
+  if (typeof window.showCelebrateToast === "function") {
+    window.showCelebrateToast({
+      title: "Info",
+      message: String(message || ""),
+      type: type || "info",
+      mini: true,
+      duration: 3200
+    });
+    return;
+  }
 
-  const inner = document.createElement("div");
-  inner.className = "net-toast-inner";
-
-  const icon = document.createElement("div");
-  icon.className = "net-toast-icon";
-  icon.setAttribute("aria-hidden", "true");
-  const iconEl = document.createElement("i");
-  const iconType = type === "error" ? "bi-x-circle" : type === "success" ? "bi-check2-circle" : "bi-info-circle";
-  iconEl.className = `bi ${iconType}`;
-  icon.appendChild(iconEl);
-
-  const text = document.createElement("div");
-  text.className = "net-toast-text";
-  text.textContent = String(message || "");
-
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "net-toast-close";
-  closeBtn.type = "button";
-  closeBtn.setAttribute("aria-label", "Dismiss message");
-
-  const closeSpan = document.createElement("span");
-  closeSpan.setAttribute("aria-hidden", "true");
-  closeSpan.textContent = "×";
-
-  closeBtn.appendChild(closeSpan);
-  inner.append(icon, text, closeBtn);
-  popup.appendChild(inner);
-
-  stack.appendChild(popup);
-
-  const dismiss = () => {
-    popup.classList.remove("net-toast-enter");
-    popup.classList.add("net-toast-exit");
-    setTimeout(() => popup.remove(), 220);
-  };
-
-  closeBtn?.addEventListener("click", dismiss);
-  popup.addEventListener("click", (e) => {
-    if (e.target && e.target.closest(".net-toast-close")) return;
-    dismiss();
-  });
-
-  setTimeout(dismiss, 3200);
+  // Last fallback: native alert.
+  if (message) {
+    alert(String(message));
+  }
 }
 
 function escapeHtml(str) {

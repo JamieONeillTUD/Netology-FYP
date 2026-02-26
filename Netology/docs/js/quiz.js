@@ -1,94 +1,90 @@
 /*
-Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
-
-JavaScript
----------------------------------------
-quiz.js – Dedicated quiz page (multi-question, animated feel).
-
-- Reads course + lesson from URL: quiz.html?course=1&lesson=3
-- Loads questions from course_content.js
-- Shows per-question feedback (correct/wrong + explanation)
-- Shows results screen (score + XP)
-- Awards XP based on score
-- Calls backend /complete-quiz ONCE (best effort) to prevent duplicate awards
-
-NOTE:
-- Backend route /complete-quiz currently exists in your project.
-- This file sends "earned_xp" too; backend can ignore it safely if not used.
+---------------------------------------------------------
+Student: C22320301 - Jamie O’Neill
+File: quiz.js
+Purpose: Runs the quiz page from loading questions to saving results and awarding XP.
+Notes: Rewritten with simpler structure, clearer names, and short student-friendly comments.
+---------------------------------------------------------
 */
 
-const RESULTS_PASS_PCT = 70; // Used only for the results message/badge.
+const RESULTS_PASS_PERCENT = 70;
 const DEFAULT_QUIZ_XP = 40;
-const getApiBase = () => window.API_BASE || "";
-const apiGet = window.apiGet || (async (path, params = {}) => {
-  const base = String(getApiBase() || "").trim();
-  const url = base
-    ? new URL(base.replace(/\/$/, "") + path)
-    : new URL(path, window.location.origin);
-  Object.entries(params || {}).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
-  });
-  const res = await fetch(url.toString());
-  return res.json();
-});
 const ENDPOINTS = window.ENDPOINTS || {};
 
+// Use shared API helper when available.
+const apiGet = typeof window.apiGet === "function"
+  ? window.apiGet
+  : async function apiGetFallback(path, params = {}) {
+    const base = String(window.API_BASE || "").trim();
+    const url = base
+      ? new URL(base.replace(/\/$/, "") + path)
+      : new URL(path, window.location.origin);
+
+    Object.entries(params).forEach(([paramName, paramValue]) => {
+      if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
+        url.searchParams.set(paramName, String(paramValue));
+      }
+    });
+
+    const response = await fetch(url.toString());
+    return response.json();
+  };
+
 document.addEventListener("DOMContentLoaded", () => {
-  initQuizPage().catch((err) => {
-    console.error("Quiz init failed:", err);
+  initQuizPage().catch((error) => {
+    console.error("Quiz init failed:", error);
   });
 });
 
+// Main page startup.
 async function initQuizPage() {
-  const { courseId, contentId, lessonNumber } = readQuizParams();
-  const user = readUserFromStorage();
+  const quizParams = readQuizParams();
+  const currentUser = readUserFromStorage();
 
-  if (!user.email || !courseId || !lessonNumber) {
+  if (!currentUser.email || !quizParams.courseId || !quizParams.lessonNumber) {
     redirectToLogin();
     return;
   }
 
-  let resolved = resolveCourseContent(courseId, contentId);
-  if (!resolved.course || resolved.fallback) {
-    const titleHint = await fetchCourseTitle(courseId);
+  let resolvedCourse = resolveCourseContent(quizParams.courseId, quizParams.contentId);
+  if (!resolvedCourse.course || resolvedCourse.fallback) {
+    const titleHint = await fetchCourseTitle(quizParams.courseId);
     if (titleHint) {
-      resolved = resolveCourseContent(courseId, contentId, titleHint);
+      resolvedCourse = resolveCourseContent(quizParams.courseId, quizParams.contentId, titleHint);
     }
   }
 
-  const resolvedContentId = resolved.id || contentId || courseId;
-  if (resolvedContentId && resolvedContentId !== String(contentId || "")) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("content_id", String(resolvedContentId));
-    url.searchParams.delete("content");
-    history.replaceState(null, "", url.toString());
-  }
+  const resolvedContentId = resolvedCourse.id || quizParams.contentId || quizParams.courseId;
+  syncContentIdInUrl(resolvedContentId, quizParams.contentId);
 
-  const backUrl = buildCourseUrl(courseId, lessonNumber, resolvedContentId);
+  const backUrl = buildCourseUrl(quizParams.courseId, quizParams.lessonNumber, resolvedContentId);
   wireBackLinks(backUrl);
 
-  const quizModel = resolved.course ? getQuizModelFromCourse(resolved.course, lessonNumber) : null;
-  if (!quizModel || !quizModel.questions || quizModel.questions.length === 0) {
+  const quizModel = resolvedCourse.course
+    ? getQuizModelFromCourse(resolvedCourse.course, quizParams.lessonNumber)
+    : null;
+
+  if (!quizModel || !Array.isArray(quizModel.questions) || quizModel.questions.length === 0) {
     alert("No quiz found for this lesson yet.");
     window.location.href = backUrl;
     return;
   }
 
-  const moduleTitle = resolved.course ? resolveUnitTitle(resolved.course, lessonNumber) : "";
+  const moduleTitle = resolvedCourse.course
+    ? resolveUnitTitle(resolvedCourse.course, quizParams.lessonNumber)
+    : "";
+
   const state = createQuizState({
-    courseId,
-    lessonNumber,
-    email: user.email,
+    courseId: quizParams.courseId,
+    lessonNumber: quizParams.lessonNumber,
+    email: currentUser.email,
     model: quizModel,
-    courseTitle: resolved.course?.title || "",
+    courseTitle: resolvedCourse.course?.title || "",
     moduleTitle
   });
 
   const savedAttempt = readAttempt(state);
-  if (savedAttempt && savedAttempt.completed) {
+  if (savedAttempt?.completed) {
     renderResultsFromSaved(state, savedAttempt, backUrl);
     return;
   }
@@ -98,6 +94,7 @@ async function initQuizPage() {
   renderQuestion(state);
 }
 
+// Read course/lesson/content from query string.
 function readQuizParams() {
   const params = new URLSearchParams(window.location.search);
   return {
@@ -107,54 +104,31 @@ function readQuizParams() {
   };
 }
 
+// Read current user from local storage.
 function readUserFromStorage() {
   return (
-    parseJsonSafe(localStorage.getItem("netology_user")) ||
-    parseJsonSafe(localStorage.getItem("user")) ||
-    {}
+    parseJsonSafe(localStorage.getItem("netology_user"))
+    || parseJsonSafe(localStorage.getItem("user"))
+    || {}
   );
 }
 
-async function refreshUserFromServer(email) {
-  try {
-    if (!email) return;
-    const data = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", { email });
-    if (!data || !data.success) return;
+// Keep content_id in the URL so links stay stable.
+function syncContentIdInUrl(resolvedContentId, currentContentId) {
+  if (!resolvedContentId) return;
+  if (String(resolvedContentId) === String(currentContentId || "")) return;
 
-    const raw = readUserFromStorage();
-    const unlockTier = String(data.start_level || raw?.unlock_tier || raw?.unlock_level || raw?.unlockTier || "novice")
-      .trim()
-      .toLowerCase();
-
-    const merged = {
-      ...(raw || {}),
-      email,
-      first_name: data.first_name || raw?.first_name,
-      last_name: data.last_name || raw?.last_name,
-      username: data.username || raw?.username,
-      xp: Number(data.xp || data.total_xp || raw?.xp || 0),
-      unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
-    };
-
-    localStorage.setItem("user", JSON.stringify(merged));
-    localStorage.setItem("netology_user", JSON.stringify(merged));
-  } catch {
-    // ignore
-  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("content_id", String(resolvedContentId));
+  url.searchParams.delete("content");
+  history.replaceState(null, "", url.toString());
 }
 
 function redirectToLogin() {
   window.location.href = "login.html";
 }
 
-function buildLessonUrl(courseId, lessonNumber, contentId) {
-  const params = new URLSearchParams();
-  params.set("course_id", courseId);
-  if (contentId) params.set("content_id", contentId);
-  if (lessonNumber) params.set("lesson", String(lessonNumber));
-  return `lesson.html?${params.toString()}`;
-}
-
+// Build return link to course page.
 function buildCourseUrl(courseId, lessonNumber, contentId) {
   const params = new URLSearchParams();
   params.set("id", courseId);
@@ -163,82 +137,116 @@ function buildCourseUrl(courseId, lessonNumber, contentId) {
   return `course.html?${params.toString()}`;
 }
 
+// Try to read course title from API as a fallback resolver hint.
 async function fetchCourseTitle(courseId) {
   if (!courseId) return "";
+
   try {
     const data = await apiGet(ENDPOINTS.courses?.courseDetails || "/course", { id: courseId });
-    if (data && data.success && data.title) return data.title;
+    if (data?.success && data?.title) return data.title;
   } catch {
-    // ignore
+    // Ignore API fallback errors.
   }
+
   return "";
 }
 
+// Resolve a course object from COURSE_CONTENT by id, content id, or title.
 function resolveCourseContent(courseId, contentId, titleHint) {
   if (typeof COURSE_CONTENT === "undefined") {
     return { course: null, id: null, fallback: false };
   }
 
   const content = COURSE_CONTENT || {};
-  const keys = [contentId, courseId].filter(Boolean).map(String);
+  const lookupKeys = [contentId, courseId].filter(Boolean).map(String);
 
-  for (const key of keys) {
-    if (content[key]) {
-      return { course: content[key], id: String(content[key]?.id || key), fallback: false };
+  for (const lookupKey of lookupKeys) {
+    if (content[lookupKey]) {
+      return {
+        course: content[lookupKey],
+        id: String(content[lookupKey]?.id || lookupKey),
+        fallback: false
+      };
     }
   }
 
-  const list = Object.values(content);
-  const byId = list.find((c) => String(c?.id || "") === String(contentId || courseId));
-  if (byId) return { course: byId, id: String(byId.id || contentId || courseId), fallback: false };
-
-  const target = String(titleHint || "").trim().toLowerCase();
-  if (target) {
-    const byTitle = list.find((c) => String(c?.title || "").trim().toLowerCase() === target);
-    if (byTitle) return { course: byTitle, id: String(byTitle.id || contentId || courseId), fallback: false };
+  const allCourses = Object.values(content);
+  const byId = allCourses.find((courseEntry) => {
+    return String(courseEntry?.id || "") === String(contentId || courseId);
+  });
+  if (byId) {
+    return {
+      course: byId,
+      id: String(byId.id || contentId || courseId),
+      fallback: false
+    };
   }
 
-  const firstKey = Object.keys(content)[0];
-  if (firstKey) {
-    return { course: content[firstKey], id: String(content[firstKey]?.id || firstKey), fallback: true };
+  const normalizedTitle = String(titleHint || "").trim().toLowerCase();
+  if (normalizedTitle) {
+    const byTitle = allCourses.find((courseEntry) => {
+      return String(courseEntry?.title || "").trim().toLowerCase() === normalizedTitle;
+    });
+
+    if (byTitle) {
+      return {
+        course: byTitle,
+        id: String(byTitle.id || contentId || courseId),
+        fallback: false
+      };
+    }
+  }
+
+  const firstContentKey = Object.keys(content)[0];
+  if (firstContentKey) {
+    return {
+      course: content[firstContentKey],
+      id: String(content[firstContentKey]?.id || firstContentKey),
+      fallback: true
+    };
   }
 
   return { course: null, id: null, fallback: false };
 }
 
+// Find module title for breadcrumb by lesson number.
 function resolveUnitTitle(course, lessonNumber) {
   if (!course || !Array.isArray(course.units)) return "";
-  let counter = 1;
-  for (let i = 0; i < course.units.length; i += 1) {
-    const unit = course.units[i];
-    const unitTitle = unit.title || unit.name || `Module ${i + 1}`;
-    if (Array.isArray(unit.lessons) && unit.lessons.length) {
-      for (let j = 0; j < unit.lessons.length; j += 1) {
-        if (counter === lessonNumber) return unitTitle;
-        counter += 1;
+
+  let lessonCounter = 1;
+
+  for (let unitIndex = 0; unitIndex < course.units.length; unitIndex += 1) {
+    const unitEntry = course.units[unitIndex];
+    const unitTitle = unitEntry.title || unitEntry.name || `Module ${unitIndex + 1}`;
+
+    if (Array.isArray(unitEntry.lessons) && unitEntry.lessons.length) {
+      for (let lessonIndex = 0; lessonIndex < unitEntry.lessons.length; lessonIndex += 1) {
+        if (lessonCounter === lessonNumber) return unitTitle;
+        lessonCounter += 1;
       }
       continue;
     }
-    if (Array.isArray(unit.sections)) {
-      for (const sec of unit.sections) {
-        const items = Array.isArray(sec.items) ? sec.items : [];
-        for (const item of items) {
-          if (String(item.type || "").toLowerCase() === "learn") {
-            if (counter === lessonNumber) return unitTitle;
-            counter += 1;
-          }
+
+    if (Array.isArray(unitEntry.sections)) {
+      for (const section of unitEntry.sections) {
+        const sectionItems = Array.isArray(section.items) ? section.items : [];
+        for (const sectionItem of sectionItems) {
+          if (String(sectionItem?.type || "").toLowerCase() !== "learn") continue;
+          if (lessonCounter === lessonNumber) return unitTitle;
+          lessonCounter += 1;
         }
       }
     }
   }
+
   return "";
 }
 
 function wireBackLinks(backUrl) {
-  const backTop = document.getElementById("backToCourseTop");
-  const backBtn = document.getElementById("backToCourseBtn");
-  if (backTop) backTop.href = backUrl;
-  if (backBtn) backBtn.href = backUrl;
+  const topLink = document.getElementById("backToCourseTop");
+  const bottomLink = document.getElementById("backToCourseBtn");
+  if (topLink) topLink.href = backUrl;
+  if (bottomLink) bottomLink.href = backUrl;
 }
 
 function renderHeader(state) {
@@ -248,18 +256,19 @@ function renderHeader(state) {
   setText("breadcrumbCourse", state.courseTitle || "Course");
   setText("breadcrumbModule", state.moduleTitle || "Module");
   setText("breadcrumbQuiz", `Lesson ${state.lessonNumber}`);
+
   document.body.classList.remove("net-loading");
   document.body.classList.add("net-loaded");
 }
 
 function wireActionButtons(state) {
-  const submitBtn = document.getElementById("submitBtn");
-  const nextBtn = document.getElementById("nextBtn");
-  const retryBtn = document.getElementById("retryBtn");
+  const submitButton = document.getElementById("submitBtn");
+  const nextButton = document.getElementById("nextBtn");
+  const retryButton = document.getElementById("retryBtn");
 
-  if (submitBtn) submitBtn.addEventListener("click", () => submitAnswer(state));
-  if (nextBtn) nextBtn.addEventListener("click", () => nextQuestion(state));
-  if (retryBtn) retryBtn.addEventListener("click", () => retryQuiz(state));
+  if (submitButton) submitButton.addEventListener("click", () => submitAnswer(state));
+  if (nextButton) nextButton.addEventListener("click", () => nextQuestion(state));
+  if (retryButton) retryButton.addEventListener("click", () => retryQuiz(state));
 }
 
 function createQuizState({ courseId, lessonNumber, email, model, courseTitle, moduleTitle }) {
@@ -275,41 +284,69 @@ function createQuizState({ courseId, lessonNumber, email, model, courseTitle, mo
     currentIndex: 0,
     selected: null,
     showFeedback: false,
-    answers: [] // boolean per question
+    answers: []
   };
 }
 
-function parseJsonSafe(raw) {
+function parseJsonSafe(rawValue) {
   try {
-    return JSON.parse(raw);
+    return JSON.parse(rawValue);
   } catch {
     return null;
   }
 }
 
-function escapeHtml(str) {
-  return String(str ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+// Refresh user data from server after backend XP updates.
+async function refreshUserFromServer(email) {
+  try {
+    if (!email) return;
+
+    const data = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", { email });
+    if (!data?.success) return;
+
+    const localUser = readUserFromStorage();
+    const unlockTier = String(
+      data.start_level
+      || localUser?.unlock_tier
+      || localUser?.unlock_level
+      || localUser?.unlockTier
+      || "novice"
+    ).trim().toLowerCase();
+
+    const mergedUser = {
+      ...(localUser || {}),
+      email,
+      first_name: data.first_name || localUser?.first_name,
+      last_name: data.last_name || localUser?.last_name,
+      username: data.username || localUser?.username,
+      xp: Number(data.xp || data.total_xp || localUser?.xp || 0),
+      unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
+    };
+
+    localStorage.setItem("user", JSON.stringify(mergedUser));
+    localStorage.setItem("netology_user", JSON.stringify(mergedUser));
+  } catch {
+    // Ignore refresh errors.
+  }
 }
 
+// XP math helpers.
 function totalXpForLevel(level) {
-  const lvl = Math.max(1, Number(level) || 1);
-  return (lvl - 1) * lvl * 50;
+  const safeLevel = Math.max(1, Number(level) || 1);
+  return (safeLevel - 1) * safeLevel * 50;
 }
 
 function levelFromTotalXp(totalXp) {
   let level = 1;
-  let remaining = Math.max(0, Number(totalXp) || 0);
-  let step = 100;
-  while (remaining >= step) {
-    remaining -= step;
+  let remainingXp = Math.max(0, Number(totalXp) || 0);
+  let levelStepXp = 100;
+
+  while (remainingXp >= levelStepXp) {
+    remainingXp -= levelStepXp;
     level += 1;
-    step += 100;
+    levelStepXp += 100;
   }
+
   return level;
 }
 
@@ -319,36 +356,36 @@ function rankForLevel(level) {
   return "Novice";
 }
 
-function applyXpToUser(user, addXP) {
-  const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
-  const nextLevel = levelFromTotalXp(nextTotal);
-  const nextStart = totalXpForLevel(nextLevel);
-  const xpInto = Math.max(0, nextTotal - nextStart);
+function applyXpToUser(user, xpToAdd) {
+  const nextTotalXp = Math.max(0, Number(user?.xp || 0) + Number(xpToAdd || 0));
+  const nextLevel = levelFromTotalXp(nextTotalXp);
+  const levelStartXp = totalXpForLevel(nextLevel);
+
   return {
     ...user,
-    xp: nextTotal,
+    xp: nextTotalXp,
     numeric_level: nextLevel,
     level: rankForLevel(nextLevel),
     rank: rankForLevel(nextLevel),
-    xp_into_level: xpInto,
+    xp_into_level: Math.max(0, nextTotalXp - levelStartXp),
     next_level_xp: nextLevel * 100
   };
 }
 
-function bumpUserXP(email, addXP) {
-  if (!email || !addXP) return;
+function bumpUserXP(email, xpToAdd) {
+  if (!email || !xpToAdd) return;
 
-  const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
-  const user = parseJsonSafe(raw) || {};
-  if (!user || user.email !== email) return;
+  const rawUser = localStorage.getItem("netology_user") || localStorage.getItem("user");
+  const localUser = parseJsonSafe(rawUser) || {};
+  if (localUser.email !== email) return;
 
-  const updated = applyXpToUser(user, addXP);
+  const updatedUser = applyXpToUser(localUser, xpToAdd);
 
   if (localStorage.getItem("netology_user")) {
-    localStorage.setItem("netology_user", JSON.stringify(updated));
+    localStorage.setItem("netology_user", JSON.stringify(updatedUser));
   }
   if (localStorage.getItem("user")) {
-    localStorage.setItem("user", JSON.stringify(updated));
+    localStorage.setItem("user", JSON.stringify(updatedUser));
   }
 }
 
@@ -374,34 +411,35 @@ function trackCourseStart(email, courseId, lessonNumber) {
   if (!email || !courseId) return;
 
   const key = `netology_started_courses:${email}`;
-  const list = parseJsonSafe(localStorage.getItem(key)) || [];
-  const existing = list.find((c) => String(c.id) === String(courseId));
+  const startedList = parseJsonSafe(localStorage.getItem(key)) || [];
+  const existingCourse = startedList.find((courseEntry) => String(courseEntry.id) === String(courseId));
 
-  const payload = {
+  const nextData = {
     id: String(courseId),
     lastViewed: Date.now(),
     lastLesson: Number(lessonNumber || 0) || undefined
   };
 
-  if (existing) {
-    existing.lastViewed = payload.lastViewed;
-    if (payload.lastLesson) existing.lastLesson = payload.lastLesson;
+  if (existingCourse) {
+    existingCourse.lastViewed = nextData.lastViewed;
+    if (nextData.lastLesson) existingCourse.lastLesson = nextData.lastLesson;
   } else {
-    list.push(payload);
+    startedList.push(nextData);
   }
 
-  localStorage.setItem(key, JSON.stringify(list));
+  localStorage.setItem(key, JSON.stringify(startedList));
 }
 
-function markQuizCompletion(state, payload) {
+// Mark this quiz as completed in local records.
+function markQuizCompletion(state, result) {
   const key = `netology_completions:${state.email}:${state.courseId}`;
   const data = parseJsonSafe(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
-  const quizArr = data.quiz || data.quizzes || [];
+  const quizList = data.quiz || data.quizzes || [];
 
-  if (quizArr.includes(Number(state.lessonNumber))) return;
+  if (quizList.includes(Number(state.lessonNumber))) return;
 
-  quizArr.push(Number(state.lessonNumber));
-  data.quiz = quizArr;
+  quizList.push(Number(state.lessonNumber));
+  data.quiz = quizList;
   localStorage.setItem(key, JSON.stringify(data));
 
   trackCourseStart(state.email, state.courseId, state.lessonNumber);
@@ -409,72 +447,57 @@ function markQuizCompletion(state, payload) {
     type: "quiz",
     course_id: state.courseId,
     lesson_number: state.lessonNumber,
-    xp: Number(payload.earnedXP || 0)
+    xp: Number(result.earnedXP || 0)
   });
-  bumpUserXP(state.email, Number(payload.earnedXP || 0));
+  bumpUserXP(state.email, Number(result.earnedXP || 0));
 }
 
-/* AI Prompt: Explain the Quiz Model Helpers section in clear, simple terms. */
-/* ----------------------------
-   Quiz Model Helpers
----------------------------- */
-
-/*
-Supports BOTH shapes:
-A) lesson.quiz = { title, xp, questions: [...] }
-B) lesson.quiz = { question, options, answer, explain } (single question legacy)
-*/
+// Read quiz data from lesson content.
 function getQuizModelFromCourse(course, lessonNumber) {
-  if (!course || !course.units) return null;
+  if (!course || !Array.isArray(course.units)) return null;
 
-  // Flatten lessons exactly like course.js does (unit lessons order)
-  const flat = [];
-  let idx = 1;
+  const lessonEntries = [];
+  let lessonCounter = 1;
 
-  (course.units || []).forEach((unit) => {
-    (unit.lessons || []).forEach((lesson) => {
-      flat.push({ index: idx, lesson });
-      idx += 1;
+  course.units.forEach((unitEntry) => {
+    const lessons = Array.isArray(unitEntry?.lessons) ? unitEntry.lessons : [];
+    lessons.forEach((lessonEntry) => {
+      lessonEntries.push({ index: lessonCounter, lesson: lessonEntry });
+      lessonCounter += 1;
     });
   });
 
-  const entry = flat.find((x) => Number(x.index) === Number(lessonNumber));
-  if (!entry || !entry.lesson) return null;
+  const matchedEntry = lessonEntries.find((entry) => Number(entry.index) === Number(lessonNumber));
+  if (!matchedEntry?.lesson) return null;
 
-  const lesson = entry.lesson;
-  const q = lesson.quiz;
+  const lessonQuiz = matchedEntry.lesson.quiz;
+  const defaultTitle = `Lesson ${lessonNumber} Quiz`;
 
-  // Default title and XP if not set
-  const baseTitle = `Lesson ${lessonNumber} Quiz`;
-  const baseXp = DEFAULT_QUIZ_XP; // default max XP per quiz if you don’t specify yet
-
-  // New format (multi-question)
-  if (q && Array.isArray(q.questions)) {
+  if (lessonQuiz && Array.isArray(lessonQuiz.questions)) {
     return {
-      title: q.title || baseTitle,
-      xp: Number(q.xp || baseXp),
-      questions: q.questions.map((qq, i) => ({
-        id: qq.id || `q${i + 1}`,
-        question: qq.question || "",
-        options: qq.options || [],
-        correctAnswer: Number(qq.correctAnswer || 0),
-        explanation: qq.explanation || ""
+      title: lessonQuiz.title || defaultTitle,
+      xp: Number(lessonQuiz.xp || DEFAULT_QUIZ_XP),
+      questions: lessonQuiz.questions.map((questionEntry, questionIndex) => ({
+        id: questionEntry.id || `q${questionIndex + 1}`,
+        question: questionEntry.question || "",
+        options: Array.isArray(questionEntry.options) ? questionEntry.options : [],
+        correctAnswer: Number(questionEntry.correctAnswer || 0),
+        explanation: questionEntry.explanation || ""
       }))
     };
   }
 
-  // Legacy single question format
-  if (q && q.question && Array.isArray(q.options)) {
+  if (lessonQuiz && lessonQuiz.question && Array.isArray(lessonQuiz.options)) {
     return {
-      title: baseTitle,
-      xp: Number(q.xp || baseXp),
+      title: defaultTitle,
+      xp: Number(lessonQuiz.xp || DEFAULT_QUIZ_XP),
       questions: [
         {
           id: "q1",
-          question: q.question,
-          options: q.options,
-          correctAnswer: Number(q.answer || 0),
-          explanation: q.explain || ""
+          question: lessonQuiz.question,
+          options: lessonQuiz.options,
+          correctAnswer: Number(lessonQuiz.answer || 0),
+          explanation: lessonQuiz.explain || ""
         }
       ]
     };
@@ -483,10 +506,6 @@ function getQuizModelFromCourse(course, lessonNumber) {
   return null;
 }
 
-/* AI Prompt: Explain the Storage Keys section in clear, simple terms. */
-/* ----------------------------
-   Storage Keys
----------------------------- */
 function attemptKey(state) {
   return `netology_quiz_attempt:${state.email}:${state.courseId}:${state.lessonNumber}`;
 }
@@ -503,178 +522,190 @@ function writeAttempt(state, payload) {
   localStorage.setItem(attemptKey(state), JSON.stringify(payload));
 }
 
-/* AI Prompt: Explain the Rendering section in clear, simple terms. */
-/* ----------------------------
-   Rendering
----------------------------- */
+// Render current question and answers.
 function renderQuestion(state) {
-  const q = state.questions[state.currentIndex];
-  if (!q) return;
+  const currentQuestion = state.questions[state.currentIndex];
+  if (!currentQuestion) return;
 
-  // Reset selection/feedback
   state.selected = null;
   state.showFeedback = false;
 
-  // Header progress
-  const total = state.questions.length;
-  const stepText = `Question ${state.currentIndex + 1} of ${total}`;
-  const pct = Math.round((state.currentIndex / total) * 100);
+  const totalQuestions = state.questions.length;
+  const progressPercent = Math.round((state.currentIndex / totalQuestions) * 100);
 
-  setText("quizStepText", stepText);
-  setText("quizPctText", `${pct}%`);
-  setText("questionCountChip", `${state.currentIndex + 1}/${total}`);
-
-  const bar = document.getElementById("quizProgressBar");
-  if (bar) bar.style.width = `${pct}%`;
-
-  // Question text
-  setText("questionText", q.question || "Question");
+  setText("quizStepText", `Question ${state.currentIndex + 1} of ${totalQuestions}`);
+  setText("quizPctText", `${progressPercent}%`);
+  setText("questionCountChip", `${state.currentIndex + 1}/${totalQuestions}`);
+  setText("questionText", currentQuestion.question || "Question");
   setText("questionTag", "Question");
 
-  // Options
+  const progressBar = document.getElementById("quizProgressBar");
+  if (progressBar) progressBar.style.width = `${progressPercent}%`;
+
   const optionsBox = document.getElementById("optionsBox");
   if (!optionsBox) return;
+
   optionsBox.replaceChildren();
-
-  (q.options || []).forEach((opt, idx) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "net-quiz-option";
-    btn.setAttribute("aria-label", `Select answer: ${opt}`);
-    const letter = String.fromCharCode(65 + idx);
-    const letterEl = document.createElement("span");
-    letterEl.className = "net-quiz-option-letter";
-    letterEl.setAttribute("aria-hidden", "true");
-    letterEl.textContent = letter;
-
-    const textEl = document.createElement("span");
-    textEl.className = "net-quiz-option-text";
-    textEl.textContent = String(opt ?? "");
-
-    const statusEl = document.createElement("span");
-    statusEl.className = "net-quiz-option-status";
-    statusEl.setAttribute("aria-hidden", "true");
-
-    btn.append(letterEl, textEl, statusEl);
-
-    btn.addEventListener("click", () => selectAnswer(state, idx, btn));
-    optionsBox.appendChild(btn);
+  currentQuestion.options.forEach((optionText, optionIndex) => {
+    const optionButton = buildOptionButton(state, optionText, optionIndex);
+    optionsBox.appendChild(optionButton);
   });
 
-  // Hide feedback + toggle buttons
   hideFeedback();
   setSubmitEnabled(false);
   showNext(false);
   renderMiniProgress(state);
 
-  // Add a tiny entrance animation class (CSS handles it)
-  const card = document.getElementById("quizCard");
-  if (card) {
-    card.classList.remove("net-quiz-enter");
-    // force reflow
-    void card.offsetWidth;
-    card.classList.add("net-quiz-enter");
-  }
+  animateCard("quizCard");
 
   const progressCard = document.getElementById("progressCard");
   if (progressCard) progressCard.classList.remove("d-none");
 }
 
+function buildOptionButton(state, optionText, optionIndex) {
+  const optionButton = document.createElement("button");
+  optionButton.type = "button";
+  optionButton.className = "net-quiz-option";
+  optionButton.setAttribute("aria-label", `Select answer: ${optionText}`);
+
+  const optionLetter = String.fromCharCode(65 + optionIndex);
+
+  const letterElement = document.createElement("span");
+  letterElement.className = "net-quiz-option-letter";
+  letterElement.setAttribute("aria-hidden", "true");
+  letterElement.textContent = optionLetter;
+
+  const textElement = document.createElement("span");
+  textElement.className = "net-quiz-option-text";
+  textElement.textContent = String(optionText ?? "");
+
+  const statusElement = document.createElement("span");
+  statusElement.className = "net-quiz-option-status";
+  statusElement.setAttribute("aria-hidden", "true");
+
+  optionButton.append(letterElement, textElement, statusElement);
+  optionButton.addEventListener("click", () => {
+    selectAnswer(state, optionIndex, optionButton);
+  });
+
+  return optionButton;
+}
+
 function renderMiniProgress(state) {
-  const wrap = document.getElementById("miniProgress");
-  if (!wrap) return;
-  const total = state.questions.length;
-  const answeredCount = state.answers.filter((v) => typeof v === "boolean").length;
-  const correctCount = state.answers.filter((v) => v === true).length;
-  const remaining = Math.max(0, total - answeredCount);
+  const miniProgress = document.getElementById("miniProgress");
+  if (!miniProgress) return;
+
+  const totalQuestions = state.questions.length;
+  const answeredCount = state.answers.filter((answerValue) => typeof answerValue === "boolean").length;
+  const correctCount = state.answers.filter((answerValue) => answerValue === true).length;
+  const remainingCount = Math.max(0, totalQuestions - answeredCount);
 
   setText("progressCorrectCount", correctCount);
-  setText("progressRemaining", remaining);
+  setText("progressRemaining", remainingCount);
 
-  wrap.replaceChildren();
-  for (let i = 0; i < total; i += 1) {
-    const seg = document.createElement("span");
-    seg.className = "net-quiz-progress-bar";
-    const ans = state.answers[i];
-    if (typeof ans === "boolean") {
-      seg.classList.add(ans ? "is-correct" : "is-wrong");
-    } else if (i === state.currentIndex) {
-      seg.classList.add("is-current");
+  miniProgress.replaceChildren();
+
+  for (let questionIndex = 0; questionIndex < totalQuestions; questionIndex += 1) {
+    const segment = document.createElement("span");
+    segment.className = "net-quiz-progress-bar";
+
+    const answerState = state.answers[questionIndex];
+    if (typeof answerState === "boolean") {
+      segment.classList.add(answerState ? "is-correct" : "is-wrong");
+    } else if (questionIndex === state.currentIndex) {
+      segment.classList.add("is-current");
     }
-    wrap.appendChild(seg);
+
+    miniProgress.appendChild(segment);
   }
 }
 
-function selectAnswer(state, idx, clickedBtn) {
+function selectAnswer(state, optionIndex, clickedButton) {
   if (state.showFeedback) return;
 
-  state.selected = idx;
+  state.selected = optionIndex;
 
-  // Visual: mark selected
   const optionsBox = document.getElementById("optionsBox");
   if (optionsBox) {
-    Array.from(optionsBox.querySelectorAll("button")).forEach((b) => {
-      b.classList.remove("is-selected");
+    Array.from(optionsBox.querySelectorAll("button")).forEach((buttonElement) => {
+      buttonElement.classList.remove("is-selected");
     });
   }
-  if (clickedBtn) clickedBtn.classList.add("is-selected");
 
+  if (clickedButton) clickedButton.classList.add("is-selected");
   setSubmitEnabled(true);
 }
 
 function submitAnswer(state) {
   if (state.selected === null || state.selected === undefined) return;
 
-  const q = state.questions[state.currentIndex];
-  const correct = Number(state.selected) === Number(q.correctAnswer);
+  const currentQuestion = state.questions[state.currentIndex];
+  const isCorrect = Number(state.selected) === Number(currentQuestion.correctAnswer);
 
-  state.answers[state.currentIndex] = correct;
+  state.answers[state.currentIndex] = isCorrect;
   state.showFeedback = true;
 
-  // Lock options + show correct/wrong
-  const optionsBox = document.getElementById("optionsBox");
-  if (optionsBox) {
-    const buttons = Array.from(optionsBox.querySelectorAll("button"));
-    buttons.forEach((b, idx) => {
-      b.disabled = true;
-      b.classList.remove("is-correct", "is-wrong");
-      if (idx === Number(q.correctAnswer)) b.classList.add("is-correct");
-      if (idx === Number(state.selected) && !correct) b.classList.add("is-wrong");
-      const status = b.querySelector(".net-quiz-option-status");
-      if (status) {
-        status.replaceChildren();
-        if (b.classList.contains("is-correct")) {
-          const ico = document.createElement("i");
-          ico.className = "bi bi-check-lg";
-          ico.setAttribute("aria-hidden", "true");
-          status.appendChild(ico);
-        } else if (b.classList.contains("is-wrong")) {
-          const ico = document.createElement("i");
-          ico.className = "bi bi-x-lg";
-          ico.setAttribute("aria-hidden", "true");
-          status.appendChild(ico);
-        }
-      }
-    });
-  }
+  applyOptionResultStyles(currentQuestion, state.selected, isCorrect);
 
-  // Show feedback panel
-  showFeedback(correct, q.explanation || "", xpPerQuestion(state, correct));
+  const xpEarned = xpPerQuestion(state, isCorrect);
+  showFeedback(isCorrect, currentQuestion.explanation || "", xpEarned);
   renderMiniProgress(state);
 
-  // Toggle buttons
   setSubmitEnabled(false);
   showNext(true);
 
-  // If last question, label button differently
-  const nextBtn = document.getElementById("nextBtn");
-  const isLast = state.currentIndex === state.questions.length - 1;
-  if (nextBtn) nextBtn.textContent = isLast ? "View Results →" : "Next →";
+  const nextButton = document.getElementById("nextBtn");
+  const isLastQuestion = state.currentIndex === state.questions.length - 1;
+  if (nextButton) {
+    nextButton.textContent = isLastQuestion ? "View Results →" : "Next →";
+  }
+}
+
+function applyOptionResultStyles(currentQuestion, selectedIndex, isCorrect) {
+  const optionsBox = document.getElementById("optionsBox");
+  if (!optionsBox) return;
+
+  const buttons = Array.from(optionsBox.querySelectorAll("button"));
+
+  buttons.forEach((buttonElement, buttonIndex) => {
+    buttonElement.disabled = true;
+    buttonElement.classList.remove("is-correct", "is-wrong");
+
+    const isCorrectOption = buttonIndex === Number(currentQuestion.correctAnswer);
+    const isWrongSelection = buttonIndex === Number(selectedIndex) && !isCorrect;
+
+    if (isCorrectOption) buttonElement.classList.add("is-correct");
+    if (isWrongSelection) buttonElement.classList.add("is-wrong");
+
+    const statusElement = buttonElement.querySelector(".net-quiz-option-status");
+    updateOptionStatusIcon(statusElement, isCorrectOption, isWrongSelection);
+  });
+}
+
+function updateOptionStatusIcon(statusElement, isCorrectOption, isWrongSelection) {
+  if (!statusElement) return;
+
+  statusElement.replaceChildren();
+
+  if (isCorrectOption) {
+    const iconElement = document.createElement("i");
+    iconElement.className = "bi bi-check-lg";
+    iconElement.setAttribute("aria-hidden", "true");
+    statusElement.appendChild(iconElement);
+    return;
+  }
+
+  if (isWrongSelection) {
+    const iconElement = document.createElement("i");
+    iconElement.className = "bi bi-x-lg";
+    iconElement.setAttribute("aria-hidden", "true");
+    statusElement.appendChild(iconElement);
+  }
 }
 
 function nextQuestion(state) {
-  const isLast = state.currentIndex === state.questions.length - 1;
-  if (isLast) {
+  const isLastQuestion = state.currentIndex === state.questions.length - 1;
+  if (isLastQuestion) {
     finishQuiz(state);
     return;
   }
@@ -683,127 +714,140 @@ function nextQuestion(state) {
   renderQuestion(state);
 }
 
+// Clear saved attempt and restart.
 function retryQuiz(state) {
-  // Clear attempt + reload page fresh (simple + reliable)
   localStorage.removeItem(attemptKey(state));
   window.location.reload();
 }
 
+// Finish quiz, save attempt, update progress, and show results.
 async function finishQuiz(state) {
-  const total = state.questions.length;
-  const correctCount = state.answers.filter(Boolean).length;
-  const percentage = total ? (correctCount / total) * 100 : 0;
-  const earnedXP = Math.round((percentage / 100) * state.maxXp);
+  const totalQuestions = state.questions.length;
+  const correctCount = state.answers.filter((answerValue) => answerValue === true).length;
+  const rawPercent = totalQuestions ? (correctCount / totalQuestions) * 100 : 0;
+  const localEarnedXp = Math.round((rawPercent / 100) * state.maxXp);
 
-  const payload = {
+  const result = {
     completed: true,
     correctCount,
-    total,
-    percentage: Math.round(percentage),
-    earnedXP,
+    total: totalQuestions,
+    percentage: Math.round(rawPercent),
+    earnedXP: localEarnedXp,
     answers: state.answers
   };
 
-  const award = await awardQuizXpOnce(state, earnedXP);
-  const finalXP = Number(award?.xpAwarded ?? earnedXP);
+  const awardResponse = await awardQuizXpOnce(state, localEarnedXp);
+  const finalEarnedXp = Number(awardResponse?.xpAwarded ?? localEarnedXp);
 
-  payload.earnedXP = finalXP;
-  if (award?.alreadyCompleted) payload.alreadyCompleted = true;
+  result.earnedXP = finalEarnedXp;
+  if (awardResponse?.alreadyCompleted) {
+    result.alreadyCompleted = true;
+  }
 
-  writeAttempt(state, payload);
-  markQuizCompletion(state, payload);
-  if (award?.usedBackend) {
+  writeAttempt(state, result);
+  markQuizCompletion(state, result);
+
+  if (awardResponse?.usedBackend) {
     await refreshUserFromServer(state.email);
   }
-  renderResults(state, payload);
 
-  if (!payload.alreadyCompleted && typeof window.showCelebrateToast === "function") {
-    const passed = payload.percentage >= RESULTS_PASS_PCT;
-    const perfect = payload.percentage === 100;
-    const title = perfect ? "Perfect quiz score" : (passed ? "Quiz completed" : "Quiz attempt saved");
-    const message = perfect
-      ? "Outstanding accuracy."
-      : (passed ? "Nice work — keep going." : "Review the lesson and try again.");
-    window.showCelebrateToast({
-      title,
-      message,
-      sub: `Score ${payload.correctCount}/${payload.total}`,
-      xp: payload.earnedXP || 0,
-      mini: true,
-      type: passed ? "success" : "info",
-      duration: 20000
-    });
-  }
+  renderResults(state, result);
+  maybeShowResultToast(result);
 }
 
-function renderResultsFromSaved(state, saved, backUrl) {
-  markQuizCompletion(state, saved || {});
+function maybeShowResultToast(result) {
+  if (result.alreadyCompleted) return;
+  if (typeof window.showCelebrateToast !== "function") return;
+
+  const passed = result.percentage >= RESULTS_PASS_PERCENT;
+  const perfect = result.percentage === 100;
+
+  const title = perfect
+    ? "Perfect quiz score"
+    : (passed ? "Quiz completed" : "Quiz attempt saved");
+
+  const message = perfect
+    ? "Outstanding accuracy."
+    : (passed ? "Nice work — keep going." : "Review the lesson and try again.");
+
+  window.showCelebrateToast({
+    title,
+    message,
+    sub: `Score ${result.correctCount}/${result.total}`,
+    xp: result.earnedXP || 0,
+    mini: true,
+    type: passed ? "success" : "info",
+    duration: 20000
+  });
+}
+
+function renderResultsFromSaved(state, savedAttempt, backUrl) {
+  markQuizCompletion(state, savedAttempt || {});
   renderHeader(state);
-  renderResults(state, saved);
+  renderResults(state, savedAttempt);
   wireBackLinks(backUrl);
 }
 
 function renderResults(state, result) {
-  // Hide question card, show results
   const quizCard = document.getElementById("quizCard");
   const resultsCard = document.getElementById("resultsCard");
   const progressCard = document.getElementById("progressCard");
+
   if (quizCard) quizCard.classList.add("d-none");
   if (resultsCard) resultsCard.classList.remove("d-none");
   if (progressCard) progressCard.classList.add("d-none");
 
-  // Progress bar to 100%
   setText("quizStepText", "Completed");
   setText("quizPctText", "100%");
-  const bar = document.getElementById("quizProgressBar");
-  if (bar) bar.style.width = "100%";
 
-  // Stats
+  const progressBar = document.getElementById("quizProgressBar");
+  if (progressBar) progressBar.style.width = "100%";
+
   setText("statCorrect", `${result.correctCount}/${result.total}`);
   setText("statPct", `${result.percentage}%`);
   setText("statXp", `${result.earnedXP}`);
 
-  // Title/subtitle/badge based on result
-  const passed = result.percentage >= RESULTS_PASS_PCT;
+  const passed = result.percentage >= RESULTS_PASS_PERCENT;
   const perfect = result.percentage === 100;
 
-  const badge = document.getElementById("resultsBadge");
-  const title = document.getElementById("resultsTitle");
-  const sub = document.getElementById("resultsSubtitle");
+  renderResultsBadge(perfect, passed);
 
-  if (badge) {
-    badge.replaceChildren();
-    const ico = document.createElement("i");
-    ico.setAttribute("aria-hidden", "true");
-    if (perfect) ico.className = "bi bi-trophy-fill";
-    else if (passed) ico.className = "bi bi-check2-circle";
-    else ico.className = "bi bi-lightbulb";
-    badge.appendChild(ico);
-  }
   if (perfect) {
-    if (title) title.textContent = "Perfect Score!";
-    if (sub) sub.textContent = "Outstanding work — you got everything correct.";
+    setText("resultsTitle", "Perfect Score!");
+    setText("resultsSubtitle", "Outstanding work — you got everything correct.");
   } else if (passed) {
-    if (title) title.textContent = "Quiz Passed!";
-    if (sub) sub.textContent = "Nice job — keep going to the next lesson.";
+    setText("resultsTitle", "Quiz Passed!");
+    setText("resultsSubtitle", "Nice job — keep going to the next lesson.");
   } else {
-    if (title) title.textContent = "Keep Practicing!";
-    if (sub) sub.textContent = "Review the lesson and retry — you’ll get it.";
+    setText("resultsTitle", "Keep Practicing!");
+    setText("resultsSubtitle", "Review the lesson and retry — you’ll get it.");
   }
 
-  // Animate results card in (CSS class)
-  if (resultsCard) {
-    resultsCard.classList.remove("net-quiz-enter");
-    void resultsCard.offsetWidth;
-    resultsCard.classList.add("net-quiz-enter");
-  }
+  animateCard("resultsCard");
 }
 
-/* AI Prompt: Explain the Feedback helpers section in clear, simple terms. */
-/* ----------------------------
-   Feedback helpers
----------------------------- */
-function showFeedback(correct, explanation, xpEarned) {
+function renderResultsBadge(perfect, passed) {
+  const badge = document.getElementById("resultsBadge");
+  if (!badge) return;
+
+  badge.replaceChildren();
+
+  const iconElement = document.createElement("i");
+  iconElement.setAttribute("aria-hidden", "true");
+
+  if (perfect) {
+    iconElement.className = "bi bi-trophy-fill";
+  } else if (passed) {
+    iconElement.className = "bi bi-check2-circle";
+  } else {
+    iconElement.className = "bi bi-lightbulb";
+  }
+
+  badge.appendChild(iconElement);
+}
+
+// Show right/wrong feedback under the question.
+function showFeedback(isCorrect, explanation, xpEarned) {
   const box = document.getElementById("feedbackBox");
   const icon = document.getElementById("feedbackIcon");
   const title = document.getElementById("feedbackTitle");
@@ -811,91 +855,86 @@ function showFeedback(correct, explanation, xpEarned) {
 
   if (!box || !icon || !title || !text) return;
 
-  box.classList.remove("d-none");
-  box.classList.remove("is-correct", "is-wrong", "is-show");
+  box.classList.remove("d-none", "is-correct", "is-wrong", "is-show");
+  icon.replaceChildren();
 
-  if (correct) {
+  const iconElement = document.createElement("i");
+  iconElement.setAttribute("aria-hidden", "true");
+
+  if (isCorrect) {
     box.classList.add("is-correct");
-    icon.replaceChildren();
-    const ico = document.createElement("i");
-    ico.className = "bi bi-check-lg";
-    ico.setAttribute("aria-hidden", "true");
-    icon.appendChild(ico);
+    iconElement.className = "bi bi-check-lg";
     title.textContent = "Correct";
   } else {
     box.classList.add("is-wrong");
-    icon.replaceChildren();
-    const ico = document.createElement("i");
-    ico.className = "bi bi-x-lg";
-    ico.setAttribute("aria-hidden", "true");
-    icon.appendChild(ico);
+    iconElement.className = "bi bi-x-lg";
     title.textContent = "Incorrect";
   }
 
+  icon.appendChild(iconElement);
   text.textContent = explanation || "Explanation not available.";
   box.classList.add("is-show");
 
-  // XP row
-  const row = document.getElementById("xpEarnedRow");
+  const xpRow = document.getElementById("xpEarnedRow");
   const xpText = document.getElementById("xpEarnedText");
-  if (row && xpText) {
-    if (correct) {
-      row.classList.remove("d-none");
+  if (xpRow && xpText) {
+    if (isCorrect) {
+      xpRow.classList.remove("d-none");
       xpText.textContent = `+${xpEarned} XP`;
     } else {
-      row.classList.add("d-none");
+      xpRow.classList.add("d-none");
     }
   }
 }
 
 function hideFeedback() {
   const box = document.getElementById("feedbackBox");
-  if (box) {
-    box.classList.add("d-none");
-    box.classList.remove("is-show", "is-correct", "is-wrong");
+  if (!box) return;
+
+  box.classList.add("d-none");
+  box.classList.remove("is-show", "is-correct", "is-wrong");
+}
+
+function setSubmitEnabled(enabled) {
+  const submitButton = document.getElementById("submitBtn");
+  if (submitButton) submitButton.disabled = !enabled;
+}
+
+function showNext(show) {
+  const nextButton = document.getElementById("nextBtn");
+  const submitButton = document.getElementById("submitBtn");
+  if (!nextButton || !submitButton) return;
+
+  if (show) {
+    nextButton.classList.remove("d-none");
+    submitButton.classList.add("d-none");
+  } else {
+    nextButton.classList.add("d-none");
+    submitButton.classList.remove("d-none");
   }
 }
 
-function setSubmitEnabled(on) {
-  const submitBtn = document.getElementById("submitBtn");
-  if (submitBtn) submitBtn.disabled = !on;
+function xpPerQuestion(state, isCorrect) {
+  if (!isCorrect) return 0;
+  const xpPerQuestionValue = Math.round(state.maxXp / Math.max(state.questions.length, 1));
+  return Math.max(xpPerQuestionValue, 1);
 }
 
-function showNext(on) {
-  const nextBtn = document.getElementById("nextBtn");
-  const submitBtn = document.getElementById("submitBtn");
-  if (nextBtn && submitBtn) {
-    if (on) {
-      nextBtn.classList.remove("d-none");
-      submitBtn.classList.add("d-none");
-    } else {
-      nextBtn.classList.add("d-none");
-      submitBtn.classList.remove("d-none");
-    }
-  }
+function animateCard(elementId) {
+  const card = document.getElementById(elementId);
+  if (!card) return;
+
+  card.classList.remove("net-quiz-enter");
+  void card.offsetWidth;
+  card.classList.add("net-quiz-enter");
 }
 
-function xpPerQuestion(state, correct) {
-  if (!correct) return 0;
-  const per = Math.round(state.maxXp / Math.max(state.questions.length, 1));
-  return Math.max(per, 1);
-}
-
-/* AI Prompt: Explain the Backend XP (best effort) section in clear, simple terms. */
-/* ----------------------------
-   Backend XP (best effort)
----------------------------- */
-/*
-Calls your existing backend route once.
-- Prevents duplicates with a local cache flag per course+lesson+user.
-- Sends earned_xp as an extra field (backend can ignore).
-*/
 function awardKey(state) {
   return `netology_quiz_awarded:${state.email}:${state.courseId}:${state.lessonNumber}`;
 }
 
-async function awardQuizXpOnce(state, earnedXP) {
-  // If already awarded (front-end flag), do nothing
+// Award XP once using backend route when available.
+async function awardQuizXpOnce(state, earnedXp) {
   if (localStorage.getItem(awardKey(state)) === "1") {
     return { xpAwarded: 0, alreadyCompleted: true, usedBackend: false };
   }
@@ -903,45 +942,41 @@ async function awardQuizXpOnce(state, earnedXP) {
   const apiBase = window.API_BASE;
   if (!apiBase) {
     localStorage.setItem(awardKey(state), "1");
-    return { xpAwarded: Number(earnedXP || 0), alreadyCompleted: false, usedBackend: false };
+    return { xpAwarded: Number(earnedXp || 0), alreadyCompleted: false, usedBackend: false };
   }
 
   try {
     const endpoint = ENDPOINTS.courses?.completeQuiz || "/complete-quiz";
-    const res = await fetch(`${apiBase}${endpoint}`, {
+    const response = await fetch(`${apiBase}${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: state.email,
         course_id: state.courseId,
         lesson_number: state.lessonNumber,
-        earned_xp: earnedXP
+        earned_xp: earnedXp
       })
     });
 
-    // Even if backend awards fixed XP, we mark awarded so it won’t spam
-    const data = await res.json().catch(() => ({}));
+    const data = await response.json().catch(() => ({}));
 
-    if (data && data.success) {
+    if (data?.success) {
       localStorage.setItem(awardKey(state), "1");
       return {
         xpAwarded: Number(data.xp_added || 0),
-        alreadyCompleted: !!data.already_completed,
+        alreadyCompleted: Boolean(data.already_completed),
         usedBackend: true
       };
     }
-    return { xpAwarded: Number(earnedXP || 0), alreadyCompleted: false, usedBackend: false };
-  } catch (e) {
-    console.error("awardQuizXpOnce error:", e);
-    return { xpAwarded: Number(earnedXP || 0), alreadyCompleted: false, usedBackend: false };
+
+    return { xpAwarded: Number(earnedXp || 0), alreadyCompleted: false, usedBackend: false };
+  } catch (error) {
+    console.error("awardQuizXpOnce error:", error);
+    return { xpAwarded: Number(earnedXp || 0), alreadyCompleted: false, usedBackend: false };
   }
 }
 
-/* AI Prompt: Explain the Tiny DOM helpers section in clear, simple terms. */
-/* ----------------------------
-   Tiny DOM helpers
----------------------------- */
-function setText(id, text) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = text;
+function setText(elementId, text) {
+  const element = document.getElementById(elementId);
+  if (element) element.textContent = text;
 }

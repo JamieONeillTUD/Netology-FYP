@@ -1,251 +1,313 @@
 /*
-Student Number: C22320301
-Student Name: Jamie O'Neill
-Course Code: TU857/4
-Date: 16/02/2026
-
-courses.js – Grid-based course browsing with lesson progression focus.
-Features:
-- Three difficulty tracks (Novice/Intermediate/Advanced)
-- Responsive grid layout for each track (scrolls naturally)
-- Lesson-focused cards showing course progression
-- My Learning Progress section tracking enrolled courses
+---------------------------------------------------------
+Student: C22320301 - Jamie O’Neill
+File: courses.js
+Purpose: Loads the courses page, shows course cards, and shows user progress.
+Notes: Rewritten into small clear functions with simple comments and same page behavior.
+---------------------------------------------------------
 */
 
 (() => {
   "use strict";
 
-  const getApiBase = () => window.API_BASE || "";
-  const BASE_XP = 100;
-  const apiGet = window.apiGet || (async (path, params = {}) => {
-    const base = getApiBase().trim();
-    const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
-    Object.entries(params || {}).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
-    });
-    const res = await fetch(url.toString());
-    return res.json();
-  });
-  const listFrom = window.API_HELPERS?.list || ((data, ...keys) => {
-    if (Array.isArray(data)) return data;
-    for (const key of keys) {
-      if (Array.isArray(data?.[key])) return data[key];
-    }
-    return [];
-  });
+  const TRACK_NAMES = ["novice", "intermediate", "advanced"];
+  const BASE_LEVEL_XP = 100;
   const ENDPOINTS = window.ENDPOINTS || {};
 
-  /* Initialization */
+  // Use shared API helper when available, otherwise use a simple fetch helper.
+  const apiGet = typeof window.apiGet === "function"
+    ? window.apiGet
+    : async function apiGetFallback(path, params = {}) {
+      const base = String(window.API_BASE || "").trim();
+      const url = base
+        ? new URL(base.replace(/\/$/, "") + path)
+        : new URL(path, window.location.origin);
+
+      Object.entries(params).forEach(([paramName, paramValue]) => {
+        if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
+          url.searchParams.set(paramName, String(paramValue));
+        }
+      });
+
+      const response = await fetch(url.toString());
+      return response.json();
+    };
+
+  // Get arrays from API responses safely.
+  const listFrom = window.API_HELPERS?.list || function listFromFallback(data, ...keys) {
+    if (Array.isArray(data)) return data;
+    for (const keyName of keys) {
+      if (Array.isArray(data?.[keyName])) return data[keyName];
+    }
+    return [];
+  };
+
   document.addEventListener("DOMContentLoaded", () => {
     initCoursesPage();
   });
 
+  // Main page startup.
   async function initCoursesPage() {
-    const user = getCurrentUser();
-    if (!user?.email) {
+    const currentUser = getCurrentUser();
+    if (!currentUser?.email) {
       window.location.href = "login.html";
       return;
     }
 
-    wireChrome(user);
-    wirePathFilters();
+    wirePageChrome(currentUser);
+    wireTrackFilters();
 
-    await loadAllCourses(user);
-    await loadMyLearningProgress(user);
+    await loadAndRenderCourses(currentUser);
+    await loadAndRenderProgress(currentUser);
 
     document.body.classList.remove("net-loading");
     document.body.classList.add("net-loaded");
 
     if (typeof window.maybeStartOnboardingTour === "function") {
-      window.maybeStartOnboardingTour("courses", user.email);
+      window.maybeStartOnboardingTour("courses", currentUser.email);
     }
   }
 
-  /* Path Filtering */
-  function wirePathFilters() {
-    const filterButtons = document.querySelectorAll('[data-path]');
-    filterButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const path = btn.dataset.path;
+  // Path filter buttons (All / Novice / Intermediate / Advanced).
+  function wireTrackFilters() {
+    const filterButtons = document.querySelectorAll("[data-path]");
+    if (!filterButtons.length) return;
 
-        filterButtons.forEach(b => {
-          b.classList.remove('active', 'btn-teal');
-          b.classList.add('btn-outline-teal');
-          b.setAttribute('aria-selected', 'false');
+    filterButtons.forEach((filterButton) => {
+      filterButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        const selectedPath = String(filterButton.dataset.path || "all").toLowerCase();
+
+        filterButtons.forEach((buttonElement) => {
+          buttonElement.classList.remove("active", "btn-teal");
+          buttonElement.classList.add("btn-outline-teal");
+          buttonElement.setAttribute("aria-selected", "false");
         });
-        btn.classList.add('active', 'btn-teal');
-        btn.classList.remove('btn-outline-teal');
-        btn.setAttribute('aria-selected', 'true');
 
-        document.querySelectorAll('.net-course-section').forEach(section => {
-          if (path === 'all') {
-            section.style.display = 'block';
-          } else {
-            section.style.display = section.dataset.difficulty === path ? 'block' : 'none';
+        filterButton.classList.add("active", "btn-teal");
+        filterButton.classList.remove("btn-outline-teal");
+        filterButton.setAttribute("aria-selected", "true");
+
+        document.querySelectorAll(".net-course-section").forEach((sectionElement) => {
+          if (selectedPath === "all") {
+            sectionElement.style.display = "block";
+            return;
           }
+
+          const sectionTrack = String(sectionElement.dataset.difficulty || "").toLowerCase();
+          sectionElement.style.display = sectionTrack === selectedPath ? "block" : "none";
         });
       });
     });
   }
 
-  /* Merge API course data with static COURSE_CONTENT for any missing fields */
-  function enrichCourse(apiCourse) {
-    const staticContent = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT)
-      ? (COURSE_CONTENT[String(apiCourse.id)] || {})
-      : {};
-
-    // Count total lessons from static content if API value is missing or 0
-    let staticLessons = 0;
-    if (staticContent.units) {
-      for (const unit of staticContent.units) {
-        staticLessons += (unit.lessons || []).length;
-      }
-    }
-
-    return {
-      ...apiCourse,
-      title:          apiCourse.title       || staticContent.title       || "Course",
-      description:    apiCourse.description || staticContent.description || "",
-      difficulty:     apiCourse.difficulty  || staticContent.difficulty  || "novice",
-      category:       apiCourse.category    || staticContent.category    || "Core",
-      xp_reward:      apiCourse.xp_reward   || staticContent.xpReward   || staticContent.totalXP || 0,
-      total_lessons:  apiCourse.total_lessons || staticLessons           || 0,
-      estimated_time: apiCourse.estimated_time || staticContent.estimatedTime || "",
-    };
-  }
-
-  /* Load all courses into grids */
-  async function loadAllCourses(user) {
+  // Load courses, apply lock rules, and render each track grid.
+  async function loadAndRenderCourses(currentUser) {
     try {
-      const coursesData = await apiGet(ENDPOINTS.courses?.list || "/courses");
-      const courses = listFrom(coursesData, "courses");
-
-      // Fallback: if API returns nothing, build list from static COURSE_CONTENT
-      let courseList = Array.isArray(courses) && courses.length
-        ? courses.map(enrichCourse)
-        : (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT
-            ? Object.keys(COURSE_CONTENT).map(k => enrichCourse({ id: k, ...COURSE_CONTENT[k] }))
-            : []);
-
+      const courseList = await fetchCourseList();
       if (!courseList.length) {
-        console.warn('No courses available');
+        console.warn("No courses available");
         return;
       }
 
-      // Get user progress
-      const progressData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
-      const userProgress = listFrom(progressData, "courses");
-      const progressMap = {};
-      userProgress.forEach(p => { progressMap[String(p.id)] = p; });
+      const progressByCourseId = await fetchProgressMap(currentUser.email);
+      const userLevel = readUserLevel(currentUser);
+      const unlockTierIndex = readUnlockTierIndex(currentUser);
+      const coursesByTrack = groupCoursesByTrack(courseList);
 
-      // User's unlock tier determines which courses they can access
-      const unlockTier = String(user.unlock_tier || user.start_level || "novice").toLowerCase();
-      const tierOrder = ["novice", "intermediate", "advanced"];
-      const tierIndex = tierOrder.indexOf(unlockTier);
+      TRACK_NAMES.forEach((trackName) => {
+        const gridElement = document.getElementById(`${trackName}Grid`);
+        if (!gridElement) return;
 
-      // Get user level for lock checking
-      const level = Number.isFinite(Number(user.numeric_level))
-        ? Number(user.numeric_level)
-        : (Number.isFinite(Number(user.level)) ? Number(user.level) : 1);
+        gridElement.innerHTML = "";
 
-      // Group courses by difficulty
-      const grouped = { novice: [], intermediate: [], advanced: [] };
-      courseList.forEach(course => {
-        const difficulty = String(course.difficulty || 'novice').toLowerCase();
-        const track = ['novice', 'intermediate', 'advanced'].includes(difficulty) ? difficulty : 'novice';
-        grouped[track].push(course);
-      });
+        const trackIndex = TRACK_NAMES.indexOf(trackName);
+        const isTrackLocked = trackIndex > unlockTierIndex;
+        const trackCourses = coursesByTrack[trackName] || [];
 
-      // Render each grid
-      ['novice', 'intermediate', 'advanced'].forEach(track => {
-        const trackCourses = grouped[track] || [];
-        const gridElement = document.getElementById(`${track}Grid`);
+        trackCourses.forEach((courseItem) => {
+          const cardElement = createCourseCard(courseItem, progressByCourseId, userLevel, isTrackLocked);
+          gridElement.appendChild(cardElement);
+        });
 
-        if (gridElement) {
-          gridElement.innerHTML = '';
-          // Determine if this entire track is locked based on unlock tier
-          const trackIndex = tierOrder.indexOf(track);
-          const trackLocked = trackIndex > tierIndex;
-
-          trackCourses.forEach(course => {
-            const card = createCourseCard(course, progressMap, level, trackLocked);
-            gridElement.appendChild(card);
-          });
-
-          // Show a lock notice if the whole track is unavailable
-          if (trackLocked && trackCourses.length > 0) {
-            const notice = document.createElement('div');
-            notice.className = 'net-track-locked-notice text-muted small px-2 pb-2';
-            notice.innerHTML = `<i class="bi bi-lock me-1"></i>Upgrade your learning path to access ${track} courses.`;
-            gridElement.prepend(notice);
-          }
+        if (isTrackLocked && trackCourses.length > 0) {
+          const lockNotice = document.createElement("div");
+          lockNotice.className = "net-track-locked-notice text-muted small px-2 pb-2";
+          lockNotice.innerHTML = `<i class="bi bi-lock me-1"></i>Upgrade your learning path to access ${trackName} courses.`;
+          gridElement.prepend(lockNotice);
         }
       });
-
-    } catch (err) {
-      console.error('Error loading courses:', err);
+    } catch (error) {
+      console.error("Error loading courses:", error);
     }
   }
 
-  /* Create a single course card */
-  function createCourseCard(course, progressMap, userLevel, trackLocked) {
-    const card = document.createElement('div');
-    card.className = 'net-course-card';
-    card.setAttribute('data-difficulty', (course.difficulty || 'novice').toLowerCase());
+  // Get courses from API, or fallback to COURSE_CONTENT.
+  async function fetchCourseList() {
+    const apiData = await apiGet(ENDPOINTS.courses?.list || "/courses");
+    const apiCourses = listFrom(apiData, "courses");
 
-    const progress = progressMap[String(course.id)] || {};
-    // Locked if the whole track is locked OR if the course has a level requirement above user's
-    const isLocked = trackLocked || (course.required_level && course.required_level > userLevel);
-    const status = (progress.status || '').toLowerCase();
-    const progressPct = Number.isFinite(Number(progress.progress_pct)) ? Math.round(Number(progress.progress_pct)) : 0;
-    const isInProgress = status === 'in-progress' || (progressPct > 0 && progressPct < 100);
-    const isCompleted = status === 'completed' || progressPct >= 100;
+    if (apiCourses.length > 0) {
+      return apiCourses.map((apiCourse) => enrichCourse(apiCourse));
+    }
 
-    if (isLocked) card.classList.add('locked');
-    if (isInProgress) card.classList.add('in-progress');
+    if (typeof COURSE_CONTENT === "undefined" || !COURSE_CONTENT) {
+      return [];
+    }
 
-    const icon = getIconForDifficulty(course.difficulty || 'novice');
-    const totalLessons = course.total_lessons || 0;
-    const xpReward = Number(course.xp_reward) || 0;
-    const estimatedTime = course.estimated_time || course.estimatedTime || "";
+    return Object.keys(COURSE_CONTENT).map((contentKey) => {
+      const contentCourse = COURSE_CONTENT[contentKey] || {};
+      return enrichCourse({ id: contentKey, ...contentCourse });
+    });
+  }
 
-    card.innerHTML = `
+  // Merge API values with static course content so cards always have full data.
+  function enrichCourse(apiCourse) {
+    const courseId = String(apiCourse?.id || "");
+    const staticCourse = getStaticCourseById(courseId);
+    const totalLessons = getCourseLessonCount(apiCourse, staticCourse);
+
+    return {
+      ...apiCourse,
+      id: courseId || String(staticCourse?.id || ""),
+      title: apiCourse?.title || staticCourse?.title || "Course",
+      description: apiCourse?.description || staticCourse?.description || "",
+      difficulty: normalizeTrackName(apiCourse?.difficulty || staticCourse?.difficulty || "novice"),
+      category: apiCourse?.category || staticCourse?.category || "Core",
+      required_level: Number(apiCourse?.required_level || staticCourse?.required_level || 1),
+      xp_reward: Number(apiCourse?.xp_reward || staticCourse?.xpReward || staticCourse?.totalXP || 0),
+      total_lessons: totalLessons,
+      estimated_time: apiCourse?.estimated_time || staticCourse?.estimatedTime || ""
+    };
+  }
+
+  function getStaticCourseById(courseId) {
+    if (typeof COURSE_CONTENT === "undefined" || !COURSE_CONTENT) return {};
+    return COURSE_CONTENT[String(courseId)] || {};
+  }
+
+  function getCourseLessonCount(apiCourse, staticCourse) {
+    const apiLessonCount = Number(apiCourse?.total_lessons);
+    if (Number.isFinite(apiLessonCount) && apiLessonCount > 0) {
+      return apiLessonCount;
+    }
+
+    let staticLessonCount = 0;
+    if (Array.isArray(staticCourse?.units)) {
+      staticCourse.units.forEach((unitEntry) => {
+        staticLessonCount += Array.isArray(unitEntry?.lessons) ? unitEntry.lessons.length : 0;
+      });
+    }
+
+    return staticLessonCount;
+  }
+
+  // Build a map so cards can read progress quickly by course id.
+  async function fetchProgressMap(email) {
+    const progressData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email });
+    const progressList = listFrom(progressData, "courses");
+    const progressByCourseId = {};
+
+    progressList.forEach((progressEntry) => {
+      progressByCourseId[String(progressEntry?.id)] = progressEntry;
+    });
+
+    return progressByCourseId;
+  }
+
+  function groupCoursesByTrack(courseList) {
+    const grouped = { novice: [], intermediate: [], advanced: [] };
+
+    courseList.forEach((courseItem) => {
+      const trackName = normalizeTrackName(courseItem?.difficulty);
+      grouped[trackName].push(courseItem);
+    });
+
+    return grouped;
+  }
+
+  function normalizeTrackName(rawTrackName) {
+    const lowerTrackName = String(rawTrackName || "").trim().toLowerCase();
+    return TRACK_NAMES.includes(lowerTrackName) ? lowerTrackName : "novice";
+  }
+
+  function readUnlockTierIndex(currentUser) {
+    const unlockTier = normalizeTrackName(currentUser?.unlock_tier || currentUser?.start_level || "novice");
+    return TRACK_NAMES.indexOf(unlockTier);
+  }
+
+  function readUserLevel(currentUser) {
+    const numericLevel = Number(currentUser?.numeric_level);
+    if (Number.isFinite(numericLevel) && numericLevel > 0) {
+      return numericLevel;
+    }
+
+    const rawLevel = Number(currentUser?.level);
+    if (Number.isFinite(rawLevel) && rawLevel > 0) {
+      return rawLevel;
+    }
+
+    return 1;
+  }
+
+  // Build one course card with lock/progress states.
+  function createCourseCard(courseItem, progressByCourseId, userLevel, isTrackLocked) {
+    const cardElement = document.createElement("div");
+    cardElement.className = "net-course-card";
+    cardElement.setAttribute("data-difficulty", normalizeTrackName(courseItem?.difficulty));
+
+    const progress = progressByCourseId[String(courseItem.id)] || {};
+    const progressPercent = Number.isFinite(Number(progress.progress_pct)) ? Math.round(Number(progress.progress_pct)) : 0;
+    const progressStatus = String(progress.status || "").toLowerCase();
+
+    const requiredLevel = Number(courseItem?.required_level || 1);
+    const isLocked = isTrackLocked || requiredLevel > Number(userLevel || 1);
+    const isInProgress = progressStatus === "in-progress" || (progressPercent > 0 && progressPercent < 100);
+    const isCompleted = progressStatus === "completed" || progressPercent >= 100;
+
+    if (isLocked) cardElement.classList.add("locked");
+    if (isInProgress) cardElement.classList.add("in-progress");
+
+    const totalLessons = Number(courseItem?.total_lessons || 0);
+    const xpReward = Number(courseItem?.xp_reward || 0);
+    const estimatedTime = String(courseItem?.estimated_time || courseItem?.estimatedTime || "");
+
+    cardElement.innerHTML = `
       <div class="net-course-header">
-        <div class="net-course-icon">${icon}</div>
+        <div class="net-course-icon">${getTrackIcon(courseItem?.difficulty)}</div>
         <div class="net-course-meta">
-          <div class="net-course-category">${escapeHtml(course.category || 'Core')}</div>
-          <div class="net-course-title">${escapeHtml(course.title || 'Course')}</div>
+          <div class="net-course-category">${escapeHtml(courseItem?.category || "Core")}</div>
+          <div class="net-course-title">${escapeHtml(courseItem?.title || "Course")}</div>
         </div>
       </div>
 
       <div class="net-course-lessons">
         <i class="bi bi-file-text"></i>
-        <span>${totalLessons} ${totalLessons === 1 ? 'lesson' : 'lessons'}</span>
-        ${estimatedTime ? `<span class="ms-2 text-muted"><i class="bi bi-clock me-1"></i>${escapeHtml(estimatedTime)}</span>` : ''}
+        <span>${totalLessons} ${totalLessons === 1 ? "lesson" : "lessons"}</span>
+        ${estimatedTime ? `<span class="ms-2 text-muted"><i class="bi bi-clock me-1"></i>${escapeHtml(estimatedTime)}</span>` : ""}
       </div>
 
-      <div class="net-course-desc">${escapeHtml(course.description || '')}</div>
+      <div class="net-course-desc">${escapeHtml(courseItem?.description || "")}</div>
 
       ${xpReward > 0 ? `
         <div class="net-course-xp">
           <i class="bi bi-lightning-charge-fill"></i>
           <span>${xpReward} XP</span>
         </div>
-      ` : ''}
+      ` : ""}
 
       <div class="net-course-footer">
         ${(isInProgress || isCompleted) ? `
           <div class="net-course-progress">
             <div class="net-course-bar">
-              <div class="net-course-bar-fill" style="width: ${progressPct}%"></div>
+              <div class="net-course-bar-fill" style="width: ${progressPercent}%"></div>
             </div>
-            <span>${progressPct}% Complete</span>
+            <span>${progressPercent}% Complete</span>
           </div>
-        ` : ''}
-        <button class="net-course-cta ${isInProgress ? 'btn-continue' : isCompleted ? 'btn-review' : isLocked ? 'btn-locked' : 'btn-start'}"
-                data-course-id="${course.id}"
-                ${isLocked ? 'disabled' : ''}>
+        ` : ""}
+        <button class="net-course-cta ${isInProgress ? "btn-continue" : isCompleted ? "btn-review" : isLocked ? "btn-locked" : "btn-start"}"
+                data-course-id="${escapeHtml(String(courseItem.id || ""))}"
+                ${isLocked ? "disabled" : ""}>
           ${isLocked
             ? `<i class="bi bi-lock"></i> Locked`
             : isCompleted
@@ -256,193 +318,219 @@ Features:
         </button>
       </div>
 
-      ${isLocked ? `<div class="net-course-lock"><i class="bi bi-lock"></i></div>` : ''}
+      ${isLocked ? `<div class="net-course-lock"><i class="bi bi-lock"></i></div>` : ""}
     `;
 
-    // Wire course card click
     if (!isLocked) {
-      const ctaBtn = card.querySelector('.net-course-cta');
-      if (ctaBtn) {
-        ctaBtn.addEventListener('click', () => {
-          window.location.href = `course.html?id=${encodeURIComponent(ctaBtn.dataset.courseId)}`;
+      const courseUrl = `course.html?id=${encodeURIComponent(String(courseItem.id || ""))}`;
+      const actionButton = cardElement.querySelector(".net-course-cta");
+
+      if (actionButton) {
+        actionButton.addEventListener("click", () => {
+          window.location.href = courseUrl;
         });
       }
-      card.style.cursor = 'pointer';
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.net-course-cta')) return;
-        window.location.href = `course.html?id=${encodeURIComponent(course.id)}`;
+
+      cardElement.style.cursor = "pointer";
+      cardElement.addEventListener("click", (event) => {
+        if (event.target.closest(".net-course-cta")) return;
+        window.location.href = courseUrl;
       });
     }
 
-    return card;
+    return cardElement;
   }
 
-  /* Get icon for difficulty */
-  function getIconForDifficulty(difficulty) {
-    const d = (difficulty || '').toLowerCase();
-    if (d.includes('advanced')) return '<i class="bi bi-star-fill"></i>';
-    if (d.includes('intermediate')) return '<i class="bi bi-lightning-fill"></i>';
+  function getTrackIcon(rawDifficulty) {
+    const difficulty = normalizeTrackName(rawDifficulty);
+    if (difficulty === "advanced") return '<i class="bi bi-star-fill"></i>';
+    if (difficulty === "intermediate") return '<i class="bi bi-lightning-fill"></i>';
     return '<i class="bi bi-gem"></i>';
   }
 
-  /* Load My Learning Progress section */
-  async function loadMyLearningProgress(user) {
-    const container = document.getElementById('myProgressContainer');
-    const placeholder = document.getElementById('noProgressPlaceholder');
-
+  // Load and show the small "Your Learning Progress" cards.
+  async function loadAndRenderProgress(currentUser) {
+    const container = document.getElementById("myProgressContainer");
+    const placeholder = document.getElementById("noProgressPlaceholder");
     if (!container || !placeholder) return;
 
     try {
-      const data = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
-      const userCourses = listFrom(data, "courses");
+      const responseData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", {
+        email: currentUser.email
+      });
+      const userCourses = listFrom(responseData, "courses");
 
-      const startedCourses = userCourses.filter(c => (c.progress_pct || 0) > 0 || (c.status || '').toLowerCase() === 'completed');
+      const startedCourses = userCourses.filter((userCourse) => {
+        const progressPercent = Number(userCourse?.progress_pct || 0);
+        const status = String(userCourse?.status || "").toLowerCase();
+        return progressPercent > 0 || status === "completed";
+      });
 
       if (startedCourses.length === 0) {
-        placeholder.classList.remove('d-none');
+        placeholder.classList.remove("d-none");
         return;
       }
 
-      container.innerHTML = '';
+      container.innerHTML = "";
+      placeholder.classList.add("d-none");
 
-      startedCourses.slice(0, 4).forEach(course => {
-        const pct = Number.isFinite(Number(course.progress_pct)) ? Number(course.progress_pct) : 0;
-        const col = document.createElement('div');
-        col.className = 'col-md-6 col-lg-3 mb-3';
-        col.innerHTML = `
+      startedCourses.slice(0, 4).forEach((userCourse) => {
+        const progressPercent = Number.isFinite(Number(userCourse?.progress_pct))
+          ? Number(userCourse.progress_pct)
+          : 0;
+        const totalLessons = Math.max(Number(userCourse?.total_lessons || 0), 0);
+        const completedLessons = Math.round((progressPercent / 100) * totalLessons);
+
+        const columnElement = document.createElement("div");
+        columnElement.className = "col-md-6 col-lg-3 mb-3";
+        columnElement.innerHTML = `
           <div class="card border-0 h-100 shadow-sm">
             <div class="card-body">
-              <h6 class="fw-bold mb-2">${escapeHtml(course.title || 'Course')}</h6>
+              <h6 class="fw-bold mb-2">${escapeHtml(userCourse?.title || "Course")}</h6>
               <div class="progress mb-2" style="height: 6px;">
-                <div class="progress-bar net-progress-fill" style="width: ${pct}%"></div>
+                <div class="progress-bar net-progress-fill" style="width: ${progressPercent}%"></div>
               </div>
-              <div class="small text-muted mb-3">${Math.round((pct / 100) * Math.max(course.total_lessons || 0, 0))}/${course.total_lessons || 0} lessons</div>
-              <a href="course.html?id=${encodeURIComponent(course.id)}" class="btn btn-sm btn-teal w-100">
+              <div class="small text-muted mb-3">${completedLessons}/${totalLessons} lessons</div>
+              <a href="course.html?id=${encodeURIComponent(String(userCourse?.id || ""))}" class="btn btn-sm btn-teal w-100">
                 <i class="bi bi-play-fill me-1"></i>Continue
               </a>
             </div>
           </div>
         `;
-        container.appendChild(col);
-      });
 
-    } catch (err) {
-      console.error('Error loading progress:', err);
-      placeholder.classList.remove('d-none');
+        container.appendChild(columnElement);
+      });
+    } catch (error) {
+      console.error("Error loading progress:", error);
+      placeholder.classList.remove("d-none");
     }
   }
 
-  /* ── Chrome: sidebar, dropdown, identity, logout ── */
-  function wireChrome(user) {
+  // Wire sidebar, dropdown, and logout actions.
+  function wirePageChrome(currentUser) {
     wireSidebar();
     wireUserDropdown();
-    fillIdentity(user);
+    fillIdentity(currentUser);
+    wireLogoutButtons();
+  }
 
-    const topLogout = document.getElementById('topLogoutBtn');
-    const sideLogout = document.getElementById('sideLogoutBtn');
-    const doLogout = () => {
-      localStorage.removeItem('netology_user');
-      localStorage.removeItem('user');
-      localStorage.removeItem('netology_token');
-      window.location.href = 'index.html';
+  function wireLogoutButtons() {
+    const topLogoutButton = document.getElementById("topLogoutBtn");
+    const sideLogoutButton = document.getElementById("sideLogoutBtn");
+
+    const logout = () => {
+      localStorage.removeItem("netology_user");
+      localStorage.removeItem("user");
+      localStorage.removeItem("netology_token");
+      window.location.href = "index.html";
     };
-    if (topLogout) topLogout.addEventListener('click', doLogout);
-    if (sideLogout) sideLogout.addEventListener('click', doLogout);
+
+    if (topLogoutButton) topLogoutButton.addEventListener("click", logout);
+    if (sideLogoutButton) sideLogoutButton.addEventListener("click", logout);
   }
 
   function wireSidebar() {
-    const openBtn = document.getElementById('openSidebarBtn');
-    const closeBtn = document.getElementById('closeSidebarBtn');
-    const sidebar = document.getElementById('slideSidebar');
-    const backdrop = document.getElementById('sideBackdrop');
+    const openButton = document.getElementById("openSidebarBtn");
+    const closeButton = document.getElementById("closeSidebarBtn");
+    const sidebar = document.getElementById("slideSidebar");
+    const backdrop = document.getElementById("sideBackdrop");
 
-    const open = () => {
+    const openSidebar = () => {
       if (!sidebar || !backdrop) return;
-      sidebar.classList.add('is-open');
-      backdrop.classList.add('is-open');
-      document.body.classList.add('net-noscroll');
-      sidebar.setAttribute('aria-hidden', 'false');
-      backdrop.setAttribute('aria-hidden', 'false');
-    };
-    const close = () => {
-      if (!sidebar || !backdrop) return;
-      sidebar.classList.remove('is-open');
-      backdrop.classList.remove('is-open');
-      document.body.classList.remove('net-noscroll');
-      sidebar.setAttribute('aria-hidden', 'true');
-      backdrop.setAttribute('aria-hidden', 'true');
+      sidebar.classList.add("is-open");
+      backdrop.classList.add("is-open");
+      document.body.classList.add("net-noscroll");
+      sidebar.setAttribute("aria-hidden", "false");
+      backdrop.setAttribute("aria-hidden", "false");
     };
 
-    if (openBtn) openBtn.addEventListener('click', open);
-    if (closeBtn) closeBtn.addEventListener('click', close);
-    if (backdrop) backdrop.addEventListener('click', close);
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && sidebar?.classList.contains('is-open')) close();
-    });
-  }
+    const closeSidebar = () => {
+      if (!sidebar || !backdrop) return;
+      sidebar.classList.remove("is-open");
+      backdrop.classList.remove("is-open");
+      document.body.classList.remove("net-noscroll");
+      sidebar.setAttribute("aria-hidden", "true");
+      backdrop.setAttribute("aria-hidden", "true");
+    };
 
-  function wireUserDropdown() {
-    const btn = document.getElementById('userBtn');
-    const dd = document.getElementById('userDropdown');
-    if (!btn || !dd) return;
+    if (openButton) openButton.addEventListener("click", openSidebar);
+    if (closeButton) closeButton.addEventListener("click", closeSidebar);
+    if (backdrop) backdrop.addEventListener("click", closeSidebar);
 
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const open = dd.classList.toggle('is-open');
-      btn.setAttribute('aria-expanded', String(open));
-    });
-
-    document.addEventListener('click', (e) => {
-      if (!dd.contains(e.target) && !btn.contains(e.target)) {
-        dd.classList.remove('is-open');
-        btn.setAttribute('aria-expanded', 'false');
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && sidebar?.classList.contains("is-open")) {
+        closeSidebar();
       }
     });
   }
 
-  function fillIdentity(user) {
-    const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Student';
-    const email = user.email || '';
-    const initial = (name.charAt(0) || 'S').toUpperCase();
-    const xp = Number(user.xp || 0);
+  function wireUserDropdown() {
+    const button = document.getElementById("userBtn");
+    const dropdown = document.getElementById("userDropdown");
+    if (!button || !dropdown) return;
+
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const isOpen = dropdown.classList.toggle("is-open");
+      button.setAttribute("aria-expanded", String(isOpen));
+    });
+
+    document.addEventListener("click", (event) => {
+      if (dropdown.contains(event.target) || button.contains(event.target)) return;
+      dropdown.classList.remove("is-open");
+      button.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  function fillIdentity(currentUser) {
+    const fullName = [currentUser?.first_name, currentUser?.last_name].filter(Boolean).join(" ")
+      || currentUser?.username
+      || "Student";
+    const email = String(currentUser?.email || "");
+    const avatarInitial = (fullName.charAt(0) || "S").toUpperCase();
+    const xp = Number(currentUser?.xp || 0);
     const level = levelFromXP(xp);
 
-    const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-    // Top nav
-    set('topAvatar', initial);
-    set('ddName', name);
-    set('ddEmail', email);
-    // Sidebar
-    set('sideAvatar', initial);
-    set('sideUserName', name);
-    set('sideUserEmail', email);
-    set('sideLevelBadge', `Lv ${level}`);
+    setTextById("topAvatar", avatarInitial);
+    setTextById("ddName", fullName);
+    setTextById("ddEmail", email);
+
+    setTextById("sideAvatar", avatarInitial);
+    setTextById("sideUserName", fullName);
+    setTextById("sideUserEmail", email);
+    setTextById("sideLevelBadge", `Lv ${level}`);
   }
 
-  /* XP & Level Helpers */
-  function levelFromXP(totalXP) {
-    const xp = Math.max(0, Number(totalXP) || 0);
-    const t = xp / BASE_XP;
-    const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
-    return Math.max(1, lvl);
+  function setTextById(elementId, text) {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = text;
   }
 
-  /* Utility: Get current user */
+  function levelFromXP(totalXp) {
+    const xp = Math.max(0, Number(totalXp) || 0);
+    const xpFactor = xp / BASE_LEVEL_XP;
+    const computedLevel = Math.floor((1 + Math.sqrt(1 + 8 * xpFactor)) / 2);
+    return Math.max(1, computedLevel);
+  }
+
   function getCurrentUser() {
+    return parseJson(localStorage.getItem("netology_user"))
+      || parseJson(localStorage.getItem("user"))
+      || null;
+  }
+
+  function parseJson(rawValue) {
     try {
-      const stored = localStorage.getItem('netology_user');
-      return stored ? JSON.parse(stored) : null;
-    } catch (e) {
-      console.error('Error getting user:', e);
+      return rawValue ? JSON.parse(rawValue) : null;
+    } catch {
       return null;
     }
   }
 
-  /* Utility: HTML escape */
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
+  // Escape text before inserting into HTML templates.
+  function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = String(value || "");
     return div.innerHTML;
   }
-
 })();

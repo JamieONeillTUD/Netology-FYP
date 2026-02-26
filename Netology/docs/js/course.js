@@ -2308,81 +2308,36 @@ What this file does:
   }
 
   function showCourseProgressToast(progress) {
-    const existing = document.getElementById("courseProgressToast");
-    if (existing) existing.remove();
-
-    const stack = (() => {
-      let existingStack = document.getElementById("netToastStack");
-      if (!existingStack) {
-        existingStack = document.createElement("div");
-        existingStack.id = "netToastStack";
-        existingStack.className = "net-toast-stack";
-        document.body.appendChild(existingStack);
-      }
-      return existingStack;
-    })();
-
-    const popup = document.createElement("div");
-    popup.id = "courseProgressToast";
-    popup.className = "net-toast net-toast-enter in-stack";
-    popup.setAttribute("role", "status");
-    popup.setAttribute("aria-live", "polite");
-    popup.dataset.type = "success";
-
-    const pct = Number(progress?.pct || 0);
-    const done = Number(progress?.done || 0);
-    const total = Number(progress?.total || 0);
-    const sub = total
-      ? `You're now ${pct}% complete · ${done}/${total} required items done.`
+    const percentComplete = Number(progress?.pct || 0);
+    const completedItems = Number(progress?.done || 0);
+    const requiredItems = Number(progress?.total || 0);
+    const progressMessage = requiredItems
+      ? `You're now ${percentComplete}% complete · ${completedItems}/${requiredItems} required items done.`
       : "Your course progress just refreshed.";
-    const xpHint =
+    const nextLevelHint =
       state.user && state.stats && Number.isFinite(Number(state.stats.toNext))
         ? `Next level in ${Math.max(0, Number(state.stats.toNext))} XP.`
         : "";
 
-    const inner = makeEl("div", "net-toast-inner");
-    const icon = makeEl("div", "net-toast-icon");
-    icon.setAttribute("aria-hidden", "true");
-    const iconEl = makeIcon("bi bi-check2-circle");
-    iconEl.setAttribute("aria-hidden", "true");
-    icon.appendChild(iconEl);
-
-    const body = makeEl("div", "net-toast-body");
-    const title = makeEl("div", "net-toast-title");
-    title.textContent = "Course progress updated";
-    const subEl = makeEl("div", "net-toast-sub", sub);
-
-    body.append(title, subEl);
-    if (xpHint) {
-      const xpRow = makeEl("div", "net-toast-sub mt-1");
-      const bolt = makeIcon("bi bi-lightning-charge-fill me-1");
-      bolt.setAttribute("aria-hidden", "true");
-      xpRow.append(bolt, document.createTextNode(xpHint));
-      body.append(xpRow);
+    if (window.NetologyToast?.show) {
+      window.NetologyToast.show({
+        skin: "net",
+        id: "courseProgressToast",
+        type: "success",
+        title: "Course progress updated",
+        sub: progressMessage,
+        hint: nextLevelHint,
+        duration: 2800
+      });
+      return;
     }
 
-    const closeBtn = makeEl("button", "net-toast-close");
-    closeBtn.type = "button";
-    closeBtn.setAttribute("aria-label", "Dismiss");
-    const closeSpan = makeEl("span");
-    closeSpan.setAttribute("aria-hidden", "true");
-    closeSpan.textContent = "×";
-    closeBtn.appendChild(closeSpan);
+    if (typeof window.showPopup === "function") {
+      window.showPopup(progressMessage, "success");
+      return;
+    }
 
-    inner.append(icon, body, closeBtn);
-    popup.appendChild(inner);
-
-    stack.appendChild(popup);
-
-    const removeToast = () => {
-      popup.classList.remove("net-toast-enter");
-      popup.classList.add("net-toast-exit");
-      setTimeout(() => popup.remove(), 220);
-    };
-
-    closeBtn.addEventListener("click", removeToast);
-
-    setTimeout(removeToast, 2800);
+    showAria(progressMessage);
   }
 
   /* AI Prompt: Explain the ICON HELPERS (Bootstrap Icons) section in clear, simple terms. */

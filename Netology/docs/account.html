@@ -1,4 +1,32 @@
-<!DOCTYPE html>
+<!--
+Student Number: C22320301
+Student Name:   Jamie O'Neill
+Course Code:    TU857/4
+Date:           09/02/2026
+
+HTML
+---------------------------------------
+account.html – Netology Account & Profile
+
+Purpose:
+- Account hub showing the user's profile information and learning stats
+- Slide-out sidebar + sticky top navbar (My Profile is the active nav link)
+- Profile hero card: large avatar, full name, email, rank badge, join date
+- Learning stats row: Total XP, Courses Done, Day Streak, Achievements
+- Four tabs: Profile / Appearance / Security / Activity
+  - Profile:    read-only profile fields, learning stats, and rank progress card
+  - Appearance: theme selector (Light/Dark/Ocean/Sunrise), dyslexic font toggle,
+                onboarding tour restart button
+  - Security:   password reset link and current session status
+  - Activity:   90-day learning activity heatmap with colour legend
+
+Notes:
+- All tab content populated by account.js from the backend API
+- Tab anchoring supported: account.html#preferences jumps to the Appearance tab
+- Scripts: config.js → app.js → course_content.js → account.js → Bootstrap JS
+-->
+
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -12,11 +40,9 @@
 
 <body class="net-bg net-landing net-account-page">
 
-  <!-- AI Prompt: Explain the Slide Sidebar Backdrop section in clear, simple terms. -->
   <!-- Slide Sidebar Backdrop -->
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
 
-  <!-- AI Prompt: Explain the Slide Sidebar section in clear, simple terms. -->
   <!-- Slide Sidebar -->
   <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
     <div class="net-sidehead">
@@ -59,7 +85,6 @@
     </div>
   </aside>
 
-  <!-- AI Prompt: Explain the TOP NAV section in clear, simple terms. -->
   <!-- TOP NAV -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
@@ -401,6 +426,9 @@
   </footer>
 
   <script src="js/config.js"></script>
+  <script src="js/onboarding-config.js"></script>
+  <script src="js/ui-theme.js"></script>
+  <script src="js/ui-toasts.js"></script>
   <script src="js/app.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/account.js"></script>

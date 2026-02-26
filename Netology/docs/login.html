@@ -1,25 +1,24 @@
 <!doctype html>
 <!--
 Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
+Student Name:   Jamie O’Neill
+Course Code:    TU857/4
+Date:           10/11/2025
 
 HTML
 ---------------------------------------
-login.html – Netology Login Page (Modern UI)
+login.html – Netology Login Page
 
 Purpose:
-- Allows existing users to log into the Netology platform
-- Routes users to dashboard on successful login
-- Provides clear, mobile-friendly error banners for incorrect inputs
+- Sign-in page for existing users; redirects to dashboard on success
+- Animated background matching the landing page theme
+- Login form: email, password with show/hide toggle, ‘Forgot password?’ link
+- Inline alert banner for real-time feedback (wrong password, server errors)
+- Full-page success overlay with animated network topology and ‘Welcome back’ message
 
-Key Improvements (Figma AI inspired):
-- Matches landing page color scheme + background overlay (net-landing)
-- “Pop-in” animation on page load (reduced-motion safe)
-- Icon inputs + show/hide password toggle
-- Inline error banner (email format / password rule / login failed / offline)
-- Accessibility: ARIA live region, labels, focus-visible styles
+Notes:
+- Form submission and success overlay handled by app.js (POST /login)
+- Scripts: config.js → app.js → Bootstrap JS
 -->
 
 <html lang="en">
@@ -29,8 +28,7 @@ Key Improvements (Figma AI inspired):
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Login</title>
 
-  <!-- REQUIRED (C3): Render API base -->
-<!-- Bootstrap + Icons -->
+  <!-- Vendor: Bootstrap + Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
@@ -64,7 +62,6 @@ Key Improvements (Figma AI inspired):
     <span class="net-figma-icon icon-6"><i class="bi bi-book"></i></span>
   </div>
 
-  <!-- AI Prompt: Explain the TOP BAR section in clear, simple terms. -->
   <!-- =========================================================
        TOP BAR
        - Brand links back to index.html
@@ -87,7 +84,6 @@ Key Improvements (Figma AI inspired):
     <div class="row justify-content-center">
       <div class="col-12 col-md-10 col-lg-6 col-xl-5">
 
-        <!-- AI Prompt: Explain the LOGO / TITLE (Figma-style) section in clear, simple terms. -->
         <!-- =========================================================
              LOGO / TITLE (Figma-style)
         ========================================================== -->
@@ -100,7 +96,6 @@ Key Improvements (Figma AI inspired):
           <p class="text-muted mb-0">Master Computer Networking Through Play</p>
         </div>
 
-        <!-- AI Prompt: Explain the LOGIN CARD section in clear, simple terms. -->
         <!-- =========================================================
              LOGIN CARD
              - Includes inline banner region for mobile-friendly feedback
@@ -245,6 +240,9 @@ Key Improvements (Figma AI inspired):
 
   <!-- Scripts -->
   <script src="js/config.js"></script>
+  <script src="js/onboarding-config.js"></script>
+  <script src="js/ui-theme.js"></script>
+  <script src="js/ui-toasts.js"></script>
   <script src="js/app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

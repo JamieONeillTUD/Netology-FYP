@@ -1,3 +1,26 @@
+<!--
+Student Number: C22320301
+Student Name:   Jamie O'Neill
+Course Code:    TU857/4
+Date:           09/02/2026
+
+HTML
+---------------------------------------
+progress.html – Netology Progress Tracker
+
+Purpose:
+- Shows a full breakdown of the user's learning activity
+- Slide-out sidebar + sticky top navbar with an extra back-to-dashboard button
+- Hero stats: active courses, lessons done, achievements, day streak
+- Category tabs: Courses / Modules / Lessons / Quizzes / Sandbox Tutorials / Sandbox Challenges
+- Each tab populates a list of completed items with details and empty state
+
+Notes:
+- All progress data fetched from the backend API by progress.js
+- Sidebar and top nav user info populated by app.js
+- Scripts: Bootstrap JS → config.js → app.js → course_content.js → progress.js
+-->
+
 <!doctype html>
 <html lang="en">
 
@@ -239,6 +262,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/onboarding-config.js"></script>
+  <script src="js/ui-theme.js"></script>
+  <script src="js/ui-toasts.js"></script>
   <script src="js/app.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/progress.js"></script>

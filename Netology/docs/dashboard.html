@@ -1,19 +1,27 @@
 <!--
 Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 09/02/2026
+Student Name:   Jamie O’Neill
+Course Code:    TU857/4
+Date:           09/02/2026
 
-dashboard.html – Netology Dashboard (Figma-style, Vanilla HTML/JS)
+HTML
+---------------------------------------
+dashboard.html – Netology Dashboard (Main Hub)
 
-Updates requested:
-- Remove TOPBAR search completely
-- Reduce topbar height slightly
-- User dropdown shows user details + first-letter avatar (already supported by dashboard.js IDs)
-- Welcome section re-organised:
-  - Left: Welcome back + name + buttons
-  - Right: XP ring progress (like course.html ring) + level + XP text
-- Continue Learning + Courses grid remain, but will show unlocked + locked courses (dashboard.js already gates)
+Purpose:
+- Main hub shown after every login
+- Slide-out sidebar + sticky top navbar with user avatar dropdown
+- Hero banner: ‘Welcome back’ greeting, rotating daily tip, Start Learning / Open Sandbox CTAs
+- Stats row: rank/level card, animated XP arc gauge, streak + 7-day calendar, activity carousel
+- ‘Continue Learning’ card: in-progress courses with progress bars
+- Achievements scroller: earned badges and next-up achievements
+- Focus card: Daily and Weekly challenge tabs
+- First-login welcome overlay with animated network topology and platform intro
+
+Notes:
+- All dynamic data loaded by dashboard.js from the backend API
+- Sidebar and top nav user info populated by app.js
+- Scripts: config.js → app.js → course_content.js → dashboard.js → Bootstrap JS
 -->
 
 <!doctype html>
@@ -32,18 +40,15 @@ Updates requested:
   <!-- Netology CSS -->
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- AI Prompt: Explain the Tiny topbar-size reduction (kept here so you don't have to touch CSS yet) section in clear, simple terms. -->
   <!-- Tiny topbar-size reduction (kept here so you don't have to touch CSS yet) -->
   <!-- Dashboard styles moved to `css/style.css` (scoped to body.net-landing) -->
 </head>
 
 <body class="net-bg net-landing">
 
-  <!-- AI Prompt: Explain the Slide Sidebar Backdrop section in clear, simple terms. -->
   <!-- Slide Sidebar Backdrop -->
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
 
-  <!-- AI Prompt: Explain the Slide Sidebar section in clear, simple terms. -->
   <!-- Slide Sidebar -->
   <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
     <div class="net-sidehead">
@@ -108,7 +113,6 @@ Updates requested:
     </div>
   </aside>
 
-  <!-- AI Prompt: Explain the TOP NAV (no search now) section in clear, simple terms. -->
   <!-- TOP NAV (no search now) -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
@@ -141,7 +145,6 @@ Updates requested:
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
-            <!-- AI Prompt: Explain the Dropdown shows details (dashboard.js fills ddName + ddEmail) section in clear, simple terms. -->
             <!-- Dropdown shows details (dashboard.js fills ddName + ddEmail) -->
             <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
               <div class="net-ddhead">
@@ -172,15 +175,9 @@ Updates requested:
     </div>
   </header>
 
-  <!-- AI Prompt: Explain the MAIN section in clear, simple terms. -->
-  <!-- MAIN -->
-
-
-  <!-- AI Prompt: Explain the MAIN section in clear, simple terms. -->
   <!-- MAIN -->
   <main class="container py-4 net-shell net-dashboard net-shell--wide">
 
-    <!-- AI Prompt: Explain the HERO / OVERVIEW section in clear, simple terms. -->
     <!-- HERO / OVERVIEW -->
     <!-- HERO BANNER -->
     <section class="net-dash-hero p-4 p-md-5 mb-4 rounded-4 position-relative overflow-hidden shadow-sm" data-tour="dashboard-header">
@@ -353,7 +350,6 @@ Updates requested:
       </div>
     </div>
 
-    <!-- AI Prompt: Explain the MAIN GRID section in clear, simple terms. -->
     <!-- MAIN GRID -->
     <section class="dash-grid">
       <div class="dash-main">
@@ -469,6 +465,9 @@ Updates requested:
 
   <!-- Scripts -->
   <script src="js/config.js"></script>
+  <script src="js/onboarding-config.js"></script>
+  <script src="js/ui-theme.js"></script>
+  <script src="js/ui-toasts.js"></script>
   <script src="js/app.js"></script>
   <script src="js/course_content.js"></script>
   <script>

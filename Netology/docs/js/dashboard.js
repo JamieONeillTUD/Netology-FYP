@@ -1,92 +1,23 @@
 /*
-Student Number: C22320301
-Student Name: Jamie O'Neill
-Course Code: TU857/4
-Date: 09/02/2026
-
-dashboard.js – Dashboard interactions (UPDATED for your latest dashboard.html)
-
-Works with:
-- NO topbar search (topSearch removed)
-- Slide sidebar open/close (backdrop + ESC)
-- User dropdown toggle + click outside + ESC
-- Brand routing: dashboard if logged in, index if not
-- Welcome/Sidebar UI fill:
-    sets name, email, avatar initial, level, XP bar, and updates the ring (#welcomeRing)
-- Continue Learning:
-    surfaces in-progress courses using API or local progress
+---------------------------------------------------------
+Student: C22320301 - Jamie O’Neill
+File: dashboard.js
+Purpose: Runs the dashboard page widgets, progress cards, achievements, and onboarding welcome flow.
+Notes: Rebuilt with simpler structure, removed old/unused sections, and kept dashboard functionality.
+---------------------------------------------------------
 */
 
-(function () {
-  // AI Prompt: Explain the Helpers section in clear, simple terms.
-  // -----------------------------
-  // Helpers
-  // -----------------------------
-  const getById = (id) => document.getElementById(id);
-  const clearChildren = (node) => { if (node) node.replaceChildren(); };
-  const makeEl = (tag, className, text) => {
-    const el = document.createElement(tag);
-    if (className) el.className = className;
-    if (typeof text !== "undefined") el.textContent = text;
-    return el;
-  };
-  const makeIcon = (className) => {
-    const icon = document.createElement("i");
-    icon.className = className;
-    return icon;
-  };
-  const makeStatusChip = (status) => {
-    const chip = document.createElement("span");
-    const icon = document.createElement("i");
-    let label = "Active";
-    let cls = "net-status-chip net-status-chip--active";
-    let iconCls = "bi bi-play-circle";
-    if (status === "completed") {
-      label = "Completed";
-      cls = "net-status-chip net-status-chip--completed";
-      iconCls = "bi bi-check2-circle";
-    } else if (status === "progress") {
-      label = "In progress";
-      cls = "net-status-chip net-status-chip--progress";
-      iconCls = "bi bi-arrow-repeat";
-    }
-    chip.className = cls;
-    icon.className = iconCls;
-    icon.setAttribute("aria-hidden", "true");
-    chip.append(icon, document.createTextNode(label));
-    return chip;
-  };
+(() => {
+  "use strict";
+
   const BASE_XP = 100;
-  const ACHIEVEMENT_ICON_MAP = {
-    first_lesson: "bi-journal-check",
-    five_day_streak: "bi-fire",
-    novice_master: "bi-mortarboard-fill",
-    sandbox_builder: "bi-diagram-3-fill",
-    speed_learner: "bi-lightning-charge-fill"
-  };
-  const apiGet = window.apiGet || (async (path, params = {}) => {
-    const base = String(window.API_BASE || "").trim();
-    const url = base
-      ? new URL(base.replace(/\/$/, "") + path)
-      : new URL(path, window.location.origin);
-    Object.entries(params || {}).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
-    });
-    const res = await fetch(url.toString(), { cache: "no-store" });
-    return res.json();
-  });
-  const listFrom = window.API_HELPERS?.list || ((data, ...keys) => {
-    if (Array.isArray(data)) return data;
-    for (const key of keys) {
-      if (Array.isArray(data?.[key])) return data[key];
-    }
-    return [];
-  });
   const ENDPOINTS = window.ENDPOINTS || {};
+  const CHALLENGE_CACHE_MS = 60000;
+  const REFRESH_DEBOUNCE_MS = 180;
 
   const DAILY_TIPS = [
     "CompTIA Network+ covers the physical, data link, network, transport, and application layers.",
-    "A MAC address is 48 bits long and burnt into the NIC.",
+    "A MAC address is 48 bits long and is burned into the network card.",
     "OSPF is a link-state routing protocol using Dijkstra's algorithm.",
     "TCP is connection-oriented, while UDP is connectionless.",
     "DNS translates human-readable domain names into IP addresses.",
@@ -97,243 +28,158 @@ Works with:
     "A firewall filters traffic based on security rules."
   ];
 
-  function setDailyTip() {
-    const tipEl = getById("dailyTip");
-    if (!tipEl) return;
-    const controls = getById("dailyTipControls");
-    const courseCarousel = getById("courseCarousel");
-    const courseNameEl = getById("courseName");
-    const prevBtn = getById("coursePrev");
-    const nextBtn = getById("courseNext");
-
-    const courseIndex = getCourseIndex();
-    const courseList = Object.keys(courseIndex || {}).map((k) => courseIndex[k]).filter(Boolean);
-    const fadeDuration = 820; // ms to match CSS
-
-    const updateTipTooltip = (text) => {
-      try {
-        tipEl.setAttribute('title', text);
-        if (window.bootstrap && window.bootstrap.Tooltip) {
-          const existing = bootstrap.Tooltip.getInstance(tipEl);
-          if (existing) existing.dispose();
-          new bootstrap.Tooltip(tipEl);
-        }
-      } catch (e) { }
-    };
-
-    if (courseList.length > 0) {
-      // show carousel area and indicators
-      if (controls) { controls.innerHTML = ""; controls.setAttribute('aria-hidden', 'false'); }
-      if (courseCarousel) courseCarousel.setAttribute('aria-hidden', 'false');
-
-      const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
-      let idx = dayOfYear % courseList.length;
-
-      const showByIndex = (i) => {
-        const entry = courseList[i];
-        if (!entry) return;
-        const title = entry.title || entry.name || "Course";
-        const desc = (entry.description || "").split("\n")[0] || "Click to view course details.";
-        // update visible course name and tip description with fade
-        if (courseNameEl) {
-          courseNameEl.classList.add('is-hidden');
-          window.setTimeout(() => {
-            courseNameEl.textContent = title;
-            courseNameEl.classList.remove('is-hidden');
-          }, fadeDuration - 10);
-        }
-        tipEl.classList.add('is-hidden');
-        window.setTimeout(() => {
-          tipEl.textContent = desc;
-          updateTipTooltip(desc);
-          tipEl.classList.remove('is-hidden');
-        }, fadeDuration - 10);
-        // update indicators
-        if (controls) {
-          const dots = controls.querySelectorAll('.daily-indicator');
-          dots.forEach((d, j) => d.classList.toggle('active', j === i));
-        }
-      };
-
-      // build indicators and prev/next handlers
-      if (controls) {
-        controls.innerHTML = "";
-        courseList.forEach((c, i) => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'daily-indicator' + (i === idx ? ' active' : '');
-          btn.setAttribute('aria-label', `Show ${c.title || c.name || 'course'}`);
-          btn.dataset.index = String(i);
-          btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            idx = Number(btn.dataset.index || 0);
-            showByIndex(idx);
-            if (window.__dashCourseTicker) clearInterval(window.__dashCourseTicker);
-            window.__dashCourseTicker = setInterval(() => { idx = (idx + 1) % courseList.length; showByIndex(idx); }, 8000);
-          });
-          controls.appendChild(btn);
-        });
-      }
-
-      if (prevBtn) {
-        prevBtn.onclick = (e) => { e.stopPropagation(); idx = (idx - 1 + courseList.length) % courseList.length; showByIndex(idx); if (window.__dashCourseTicker) { clearInterval(window.__dashCourseTicker); window.__dashCourseTicker = setInterval(() => { idx = (idx + 1) % courseList.length; showByIndex(idx); }, 8000); } };
-      }
-      if (nextBtn) {
-        nextBtn.onclick = (e) => { e.stopPropagation(); idx = (idx + 1) % courseList.length; showByIndex(idx); if (window.__dashCourseTicker) { clearInterval(window.__dashCourseTicker); window.__dashCourseTicker = setInterval(() => { idx = (idx + 1) % courseList.length; showByIndex(idx); }, 8000); } };
-      }
-
-      // show initial
-      showByIndex(idx);
-
-      // start auto-rotate
-      if (window.__dashCourseTicker) clearInterval(window.__dashCourseTicker);
-      window.__dashCourseTicker = setInterval(() => { idx = (idx + 1) % courseList.length; showByIndex(idx); }, 8000);
-      return;
-    }
-
-    // fallback: hide carousel area and indicators, show static daily tip
-    if (controls) { controls.innerHTML = ''; controls.setAttribute('aria-hidden', 'true'); }
-    if (courseCarousel) courseCarousel.setAttribute('aria-hidden', 'true');
-    const dayOfYear2 = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
-    const tip = DAILY_TIPS[dayOfYear2 % DAILY_TIPS.length];
-    tipEl.textContent = tip;
-    try { updateTipTooltip(tip); } catch (e) {}
-  }
-
-  const animateCount = (el, target) => {
-    if (!el) return;
-    const to = Number(target || 0);
-    const from = Number(el.dataset.count || el.textContent || 0);
-    if (!Number.isFinite(to) || !Number.isFinite(from) || from === to) {
-      el.textContent = String(to);
-      el.dataset.count = String(to);
-      return;
-    }
-    const start = performance.now();
-    const duration = 450;
-    const tick = (now) => {
-      const pct = Math.min(1, (now - start) / duration);
-      const value = Math.round(from + (to - from) * pct);
-      el.textContent = String(value);
-      if (pct < 1) requestAnimationFrame(tick);
-      else el.dataset.count = String(to);
-    };
-    requestAnimationFrame(tick);
+  const ACHIEVEMENT_ICON_BY_ID = {
+    first_lesson: "bi-journal-check",
+    five_day_streak: "bi-fire",
+    novice_master: "bi-mortarboard-fill",
+    sandbox_builder: "bi-diagram-3-fill",
+    speed_learner: "bi-lightning-charge-fill"
   };
 
-  function parseJsonSafe(str, fallback) {
-    if (!str) return fallback;
-    try { return JSON.parse(str); } catch { return fallback; }
+  const dashboardState = {
+    refreshTimer: null,
+    dailyTipTimer: null,
+    statsCarouselTimer: null,
+    progressSummary: null,
+    achievementCatalog: { all: [], unlocked: [], locked: [] },
+    achievementsFetchedAt: 0,
+    challenges: { daily: [], weekly: [] },
+    challengesFetchedAt: 0,
+    autoRefreshBound: false
+  };
+
+  // Use shared API helper if it exists.
+  const apiGet = typeof window.apiGet === "function"
+    ? window.apiGet
+    : async function apiGetFallback(path, params = {}) {
+      const base = String(window.API_BASE || "").trim();
+      const url = base
+        ? new URL(base.replace(/\/$/, "") + path)
+        : new URL(path, window.location.origin);
+
+      Object.entries(params).forEach(([paramName, paramValue]) => {
+        if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
+          url.searchParams.set(paramName, String(paramValue));
+        }
+      });
+
+      const response = await fetch(url.toString(), { cache: "no-store" });
+      return response.json();
+    };
+
+  // Read array values safely from API responses.
+  const listFrom = window.API_HELPERS?.list || function listFromFallback(data, ...keys) {
+    if (Array.isArray(data)) return data;
+    for (const keyName of keys) {
+      if (Array.isArray(data?.[keyName])) return data[keyName];
+    }
+    return [];
+  };
+
+  function getById(elementId) {
+    return document.getElementById(elementId);
   }
 
-  function onReady(fn) {
+  function onReady(callback) {
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", fn);
-    } else {
-      fn();
+      document.addEventListener("DOMContentLoaded", callback);
+      return;
+    }
+    callback();
+  }
+
+  function parseJson(rawValue, fallback = null) {
+    try {
+      return rawValue ? JSON.parse(rawValue) : fallback;
+    } catch {
+      return fallback;
     }
   }
 
-  const __dashErrors = [];
-  function reportError(label, err) {
-    __dashErrors.push({ label, err });
-    console.error(`[dashboard] ${label}`, err);
+  function escapeHtml(value) {
+    const element = document.createElement("div");
+    element.textContent = String(value ?? "");
+    return element.innerHTML;
   }
 
-  function safeStep(label, fn) {
-    try { return fn(); }
-    catch (e) { reportError(label, e); return null; }
+  function clearChildren(element) {
+    if (element) element.replaceChildren();
   }
 
-  async function safeStepAsync(label, fn) {
-    try { return await fn(); }
-    catch (e) { reportError(label, e); return null; }
+  function createElement(tagName, className, text) {
+    const element = document.createElement(tagName);
+    if (className) element.className = className;
+    if (text !== undefined) element.textContent = text;
+    return element;
   }
 
-  async function fetchJson(url) {
-    // Simple JSON fetch helper with no-store to avoid stale results.
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+  function animateCount(element, targetValue) {
+    if (!element) return;
+
+    const target = Number(targetValue || 0);
+    const startValue = Number(element.dataset.count || element.textContent || 0);
+
+    if (!Number.isFinite(target) || !Number.isFinite(startValue) || target === startValue) {
+      element.textContent = String(target);
+      element.dataset.count = String(target);
+      return;
+    }
+
+    const startTime = performance.now();
+    const durationMs = 450;
+
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startTime) / durationMs);
+      const nextValue = Math.round(startValue + (target - startValue) * progress);
+      element.textContent = String(nextValue);
+
+      if (progress < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        element.dataset.count = String(target);
+      }
+    };
+
+    requestAnimationFrame(tick);
   }
+
+  function toArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  // -----------------------------
+  // User + XP
+  // -----------------------------
 
   function getCurrentUser() {
     return (
-      parseJsonSafe(localStorage.getItem("netology_user"), null) ||
-      parseJsonSafe(localStorage.getItem("user"), null) ||
-      null
+      parseJson(localStorage.getItem("netology_user"), null)
+      || parseJson(localStorage.getItem("user"), null)
+      || null
     );
   }
 
-  function isLoggedIn() {
-    const u = getCurrentUser();
-    return !!(u && (u.email || u.username || u.name));
+  function saveCurrentUser(user) {
+    if (!user) return;
+    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("netology_user", JSON.stringify(user));
   }
 
   function totalXpForLevel(level) {
-    const lvl = Math.max(1, Number(level) || 1);
-    return BASE_XP * (lvl - 1) * lvl / 2;
+    const safeLevel = Math.max(1, Number(level) || 1);
+    return BASE_XP * (safeLevel - 1) * safeLevel / 2;
   }
 
-  function levelFromXP(totalXP) {
-    const xp = Math.max(0, Number(totalXP) || 0);
-    const t = xp / BASE_XP;
-    const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
-    return Math.max(1, lvl);
+  function levelFromXP(totalXp) {
+    const xp = Math.max(0, Number(totalXp) || 0);
+    const factor = xp / BASE_XP;
+    const computedLevel = Math.floor((1 + Math.sqrt(1 + 8 * factor)) / 2);
+    return Math.max(1, computedLevel);
   }
 
   function xpForNextLevel(level) {
-    const lvl = Math.max(1, Number(level) || 1);
-    return BASE_XP * lvl;
-  }
-
-  function userNumericLevel(user) {
-    const serverLevel = Number(user?.numeric_level);
-    if (Number.isFinite(serverLevel) && serverLevel > 0) return serverLevel;
-    const totalXP = Number(user?.xp) || 0;
-    return levelFromXP(totalXP);
-  }
-
-  function getUserRank(user) {
-    const lvl = userNumericLevel(user);
-    if (Number.isFinite(lvl)) return rankForLevel(lvl);
-    const raw = String(user?.unlock_tier || user?.rank || user?.level_name || user?.level || "novice").toLowerCase();
-    if (raw.includes("advanced")) return "Advanced";
-    if (raw.includes("intermediate")) return "Intermediate";
-    return "Novice";
-  }
-
-  function computeXP(user) {
-    // Converts total XP into level + progress for UI display.
-    const totalXP = Number(user?.xp) || 0;
-    const serverLevel = Number(user?.numeric_level);
-    const xpInto = Number(user?.xp_into_level);
-    const nextXp = Number(user?.next_level_xp);
-    const fallbackLevel = levelFromXP(totalXP);
-    const level = Number.isFinite(serverLevel) && serverLevel > 0 ? serverLevel : fallbackLevel;
-    const levelStart = totalXpForLevel(level);
-    const fallbackCurrent = Math.max(0, totalXP - levelStart);
-    const fallbackNext = xpForNextLevel(level);
-    const fallbackPct = Math.max(0, Math.min(100, (fallbackCurrent / Math.max(fallbackNext, 1)) * 100));
-    const fallbackToNext = Math.max(0, fallbackNext - fallbackCurrent);
-    const fallback = {
-      totalXP,
-      currentLevelXP: fallbackCurrent,
-      xpNext: fallbackNext,
-      progressPct: fallbackPct,
-      toNext: fallbackToNext,
-      level
-    };
-
-    if (Number.isFinite(xpInto) && Number.isFinite(nextXp) && nextXp > 0) {
-      const matchesTotal = Math.abs((levelStart + xpInto) - totalXP) <= 1;
-      if (matchesTotal) {
-        const progressPct = Math.max(0, Math.min(100, (xpInto / nextXp) * 100));
-        const toNext = Math.max(0, nextXp - xpInto);
-        return { totalXP, currentLevelXP: xpInto, xpNext: nextXp, progressPct, toNext, level };
-      }
-    }
-    return fallback;
+    const safeLevel = Math.max(1, Number(level) || 1);
+    return BASE_XP * safeLevel;
   }
 
   function rankForLevel(level) {
@@ -342,753 +188,387 @@ Works with:
     return "Novice";
   }
 
-  function applyXpToUser(user, addXP) {
-    const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
-    const level = levelFromXP(nextTotal);
-    const levelStart = totalXpForLevel(level);
-    const currentLevelXP = Math.max(0, nextTotal - levelStart);
+  function readUserLevel(user) {
+    const numericLevel = Number(user?.numeric_level);
+    if (Number.isFinite(numericLevel) && numericLevel > 0) return numericLevel;
+    return levelFromXP(Number(user?.xp || 0));
+  }
+
+  function readUserRank(user, fallbackLevel) {
+    const rawRank = String(user?.rank || user?.level || user?.level_name || "").trim();
+    if (rawRank) {
+      const lowerRank = rawRank.toLowerCase();
+      if (lowerRank.includes("advanced")) return "Advanced";
+      if (lowerRank.includes("intermediate")) return "Intermediate";
+      if (lowerRank.includes("novice")) return "Novice";
+    }
+    return rankForLevel(fallbackLevel);
+  }
+
+  function computeXpDisplay(user) {
+    const totalXp = Math.max(0, Number(user?.xp || 0));
+    const level = readUserLevel(user);
+
+    const serverXpInto = Number(user?.xp_into_level);
+    const serverNextXp = Number(user?.next_level_xp);
+
+    if (Number.isFinite(serverXpInto) && Number.isFinite(serverNextXp) && serverNextXp > 0) {
+      const expectedTotal = totalXpForLevel(level) + serverXpInto;
+      if (Math.abs(expectedTotal - totalXp) <= 1) {
+        const progressPercent = Math.max(0, Math.min(100, (serverXpInto / serverNextXp) * 100));
+        return {
+          totalXp,
+          level,
+          rank: readUserRank(user, level),
+          xpIntoLevel: serverXpInto,
+          xpNext: serverNextXp,
+          progressPercent,
+          toNext: Math.max(0, serverNextXp - serverXpInto)
+        };
+      }
+    }
+
+    const levelStartXp = totalXpForLevel(level);
+    const xpIntoLevel = Math.max(0, totalXp - levelStartXp);
     const xpNext = xpForNextLevel(level);
-    const rank = rankForLevel(level);
+    const progressPercent = Math.max(0, Math.min(100, (xpIntoLevel / Math.max(xpNext, 1)) * 100));
+
     return {
-      ...user,
-      xp: nextTotal,
-      numeric_level: level,
-      xp_into_level: currentLevelXP,
-      next_level_xp: xpNext,
-      rank,
-      level: rank
+      totalXp,
+      level,
+      rank: readUserRank(user, level),
+      xpIntoLevel,
+      xpNext,
+      progressPercent,
+      toNext: Math.max(0, xpNext - xpIntoLevel)
     };
   }
 
-  function prettyDiff(diff) {
-    if (!diff) return "Novice";
-    return diff.charAt(0).toUpperCase() + diff.slice(1);
+  function fillUserChrome(user) {
+    const displayName = user?.first_name
+      ? `${user.first_name} ${user.last_name || ""}`.trim()
+      : (user?.name || user?.username || "Student");
+
+    const email = user?.email || "Not logged in";
+    const avatarInitial = (displayName || "S").trim().charAt(0).toUpperCase() || "S";
+    const xp = computeXpDisplay(user || {});
+
+    if (getById("welcomeName")) getById("welcomeName").textContent = displayName;
+
+    if (getById("topAvatar")) getById("topAvatar").textContent = avatarInitial;
+
+    if (getById("ddAvatar")) getById("ddAvatar").textContent = avatarInitial;
+    if (getById("ddName")) getById("ddName").textContent = displayName;
+    if (getById("ddEmail")) getById("ddEmail").textContent = email;
+    if (getById("ddLevel")) getById("ddLevel").textContent = `Level ${xp.level}`;
+    if (getById("ddRank")) getById("ddRank").textContent = xp.rank;
+
+    if (getById("sideAvatar")) getById("sideAvatar").textContent = avatarInitial;
+    if (getById("sideUserName")) getById("sideUserName").textContent = displayName;
+    if (getById("sideUserEmail")) getById("sideUserEmail").textContent = email;
+    if (getById("sideLevelBadge")) getById("sideLevelBadge").textContent = `Lv ${xp.level}`;
+    if (getById("sideXpText")) getById("sideXpText").textContent = `${xp.xpIntoLevel}/${xp.xpNext}`;
+    if (getById("sideXpBar")) getById("sideXpBar").style.width = `${xp.progressPercent}%`;
+    if (getById("sideXpHint")) getById("sideXpHint").textContent = `${xp.toNext} XP to next level`;
+
+    if (getById("heroRank")) getById("heroRank").textContent = xp.rank;
+    if (getById("heroLevel")) getById("heroLevel").textContent = `Level ${xp.level}`;
+
+    const heroXpElement = getById("heroXP");
+    if (heroXpElement) heroXpElement.textContent = xp.totalXp.toLocaleString();
+
+    renderHeroXpGauge(xp.level, xp.progressPercent);
   }
 
-  // AI Prompt: Explain the Login streak + badges section in clear, simple terms.
-  // -----------------------------
-  // Login streak + badges
-  // -----------------------------
-  function dateKey(date = new Date()) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
+  function renderHeroXpGauge(level, progressPercent) {
+    const heroXpElement = getById("heroXP");
+    if (!heroXpElement || !heroXpElement.parentElement) return;
 
-  function weekKey(date = new Date()) {
-    const tmp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const day = tmp.getUTCDay() || 7;
-    tmp.setUTCDate(tmp.getUTCDate() + 4 - day);
-    const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
-    return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
-  }
-
-  function getLoginLog(email) {
-    const raw = localStorage.getItem(`netology_login_log:${email}`);
-    return parseJsonSafe(raw, []);
-  }
-
-  function saveLoginLog(email, log) {
-    localStorage.setItem(`netology_login_log:${email}`, JSON.stringify(log));
-  }
-
-  function recordLoginDay(email) {
-    if (!email) return { log: [], isNew: false };
-    const log = getLoginLog(email);
-    const today = dateKey();
-    let isNew = false;
-    if (!log.includes(today)) {
-      log.push(today);
-      log.sort();
-      saveLoginLog(email, log);
-      isNew = true;
-    }
-    return { log, isNew };
-  }
-
-  async function syncLoginLog(email) {
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (!email || !base) return null;
-    try {
-      const res = await fetch(`${base}/record-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
-      const data = await res.json();
-      if (!data || !data.success || !Array.isArray(data.log)) return null;
-      saveLoginLog(email, data.log);
-      return { log: data.log, isNew: !!data.is_new };
-    } catch {
-      return null;
-    }
-  }
-
-  function computeLoginStreak(log) {
-    if (!Array.isArray(log) || !log.length) return 0;
-    const set = new Set(log);
-    let streak = 0;
-    const cursor = new Date();
-    while (set.has(dateKey(cursor))) {
-      streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-    return streak;
-  }
-
-  function getBadges(email) {
-    if (Array.isArray(window.__dashAchievements)) return window.__dashAchievements;
-    const raw = parseJsonSafe(localStorage.getItem(`netology_badges:${email}`), []);
-    return Array.isArray(raw) ? raw : [];
-  }
-
-  function setBadgesCache(list) {
-    window.__dashAchievements = Array.isArray(list) ? list : [];
-  }
-
-  async function fetchAchievements(email) {
-    try {
-      const data = await apiGet("/user-achievements", { email });
-      const achievements = listFrom(data, "achievements");
-      if (!data || !data.success) return getBadges(email);
-      setBadgesCache(achievements);
-      return getBadges(email);
-    } catch {
-      return getBadges(email);
-    }
-  }
-
-  function getAchievementCatalog() {
-    return window.__dashAchievementCatalog || { all: [], unlocked: [], locked: [] };
-  }
-
-  function setAchievementCatalog(payload) {
-    window.__dashAchievementCatalog = payload || { all: [], unlocked: [], locked: [] };
-    window.__dashAchievementCatalogAt = Date.now();
-  }
-
-  function getAchievementIconClass(ach) {
-    const raw = String(ach?.icon || "").replace(/<[^>]*>/g, "").trim();
-    if (raw.startsWith("bi-")) return raw;
-    return ACHIEVEMENT_ICON_MAP[ach?.id] || "bi-star-fill";
-  }
-
-  async function fetchAchievementCatalog(email, { force = false } = {}) {
-    if (!email) return getAchievementCatalog();
-    if (!force && window.__dashAchievementCatalog && Date.now() - (window.__dashAchievementCatalogAt || 0) < 60000) {
-      return getAchievementCatalog();
-    }
-    try {
-      const data = await apiGet(ENDPOINTS.achievements?.list || "/api/user/achievements", { user_email: email });
-      if (!data || !data.success) return getAchievementCatalog();
-      const unlocked = listFrom(data, "unlocked").map((a) => ({ ...a, unlocked: true }));
-      const locked = listFrom(data, "locked").map((a) => ({ ...a, unlocked: false }));
-      const all = [...unlocked, ...locked];
-      setAchievementCatalog({
-        all,
-        unlocked,
-        locked,
-        total_unlocked: Number.isFinite(Number(data.total_unlocked)) ? Number(data.total_unlocked) : unlocked.length
-      });
-      return getAchievementCatalog();
-    } catch {
-      return getAchievementCatalog();
-    }
-  }
-
-  async function awardAchievementRemote(email, def) {
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (!email || !base) return { awarded: false };
-    try {
-      const res = await fetch(`${base}/award-achievement`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          achievement_id: def.id,
-          name: def.title,
-          description: def.desc,
-          tier: def.tier || "bronze",
-          xp: def.xp || 0
-        })
-      });
-      const data = await res.json();
-      if (data && data.success && data.awarded) {
-        const updated = getBadges(email).slice();
-        updated.push({
-          id: def.id,
-          name: def.title,
-          description: def.desc,
-          tier: def.tier || "bronze",
-          xp: def.xp || 0,
-          earned_at: new Date().toISOString()
-        });
-        setBadgesCache(updated);
-      }
-      return data || { awarded: false };
-    } catch {
-      return { awarded: false };
-    }
-  }
-
-  async function awardXpOnce(email, action, xp) {
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (!email || !base || !action || !xp) return { awarded: false, xp_added: 0 };
-    try {
-      const res = await fetch(`${base}/award-xp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, action, xp: Number(xp || 0) })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (data && typeof data.success !== "undefined") return data;
-      return { success: false, awarded: false, xp_added: 0 };
-    } catch {
-      return { success: false, awarded: false, xp_added: 0 };
-    }
-  }
-
-  function bumpUserXP(email, delta) {
-    if (!delta) return;
-    const rawUser = parseJsonSafe(localStorage.getItem("user"), null);
-    if (rawUser && rawUser.email === email) {
-      const updated = applyXpToUser(rawUser, delta);
-      localStorage.setItem("user", JSON.stringify(updated));
-    }
-    const rawNet = parseJsonSafe(localStorage.getItem("netology_user"), null);
-    if (rawNet && rawNet.email === email) {
-      const updated = applyXpToUser(rawNet, delta);
-      localStorage.setItem("netology_user", JSON.stringify(updated));
-    }
-  }
-
-  function renderChallengeList(container, challenges, email, type) {
-    if (!container) return;
-    clearChildren(container);
-
-    if (!Array.isArray(challenges) || challenges.length === 0) {
-      container.innerHTML = `<div class="small text-muted">No ${type} challenges available.</div>`;
-      return;
+    let arcContainer = heroXpElement.parentElement.querySelector(".net-xp-arc");
+    if (!arcContainer) {
+      arcContainer = document.createElement("div");
+      arcContainer.className = "net-xp-arc position-relative mt-2 d-flex justify-content-center";
+      heroXpElement.parentElement.appendChild(arcContainer);
     }
 
-    challenges.forEach((c) => {
-      const isDone = Number(c.progress || 0) >= 100;
-      const item = makeEl("div", `dash-task${isDone ? " is-done" : ""}`);
-      item.dataset.challengeId = c.id;
-      item.dataset.challengeType = type;
-      item.dataset.xp = c.xp;
-      if (c.description) item.dataset.tip = c.description;
+    const radius = 45;
+    const circumference = 2 * Math.PI * radius;
+    const arcLength = circumference / 2;
+    const arcOffset = arcLength - (Math.max(0, Math.min(100, Number(progressPercent) || 0)) / 100) * arcLength;
 
-      const left = makeEl("div", "flex-grow-1");
-      left.append(
-        makeEl("div", "fw-semibold small", c.title || "Challenge"),
-        makeEl("div", "text-muted small", c.description || "")
-      );
-
-      const xpBadge = makeEl("div", `dash-task-xp${isDone ? " is-done" : ""}`);
-      if (isDone) {
-        xpBadge.innerHTML = '<i class="bi bi-check2-circle"></i>';
-      } else {
-        xpBadge.textContent = `+${c.xp} XP`;
-      }
-
-      item.append(left, xpBadge);
-
-      if (!isDone) {
-        // Challenges can only be completed by finishing the real linked task —
-        // not by clicking. Show a non-interactive hint instead.
-        item.style.cursor = "default";
-        const hint = makeEl("div", "small text-muted mt-1");
-        hint.style.fontSize = "0.72rem";
-        hint.textContent = "Complete the linked task to earn this reward.";
-        left.appendChild(hint);
-      }
-
-      container.appendChild(item);
-    });
-  }
-
-  function setChallengesRetryVisible(show) {
-    const btn = getById("challengesRetryBtn");
-    if (!btn) return;
-    btn.classList.toggle("d-none", !show);
-  }
-
-  function maybeShowChallengesToastOnce() {
-    try {
-      if (sessionStorage.getItem("netology_challenges_toast") === "1") return;
-      sessionStorage.setItem("netology_challenges_toast", "1");
-    } catch {}
-    if (typeof window.showPopup === "function") {
-      window.showPopup("Challenges are temporarily unavailable. We’ll keep trying in the background.", "warning");
-    }
-  }
-
-  function clearChallengesToastFlag() {
-    try {
-      sessionStorage.removeItem("netology_challenges_toast");
-    } catch {}
-  }
-
-  function challengeFallbackHtml() {
-    const timeLabel = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    return `
-      <div class="small text-muted">Challenges are temporarily unavailable.</div>
-      <div class="small text-muted">Try again later • ${timeLabel}</div>
+    arcContainer.innerHTML = `
+      <svg width="170" height="95" viewBox="0 0 110 65" style="display:block; margin:0 auto; overflow:visible;">
+        <defs>
+          <linearGradient id="xpGradHero" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#0d9488" />
+            <stop offset="100%" stop-color="#06b6d4" />
+          </linearGradient>
+        </defs>
+        <path d="M 10,55 A 45,45 0 0 1 100,55" fill="none" stroke="#f1f5f9" stroke-width="12" stroke-linecap="round" />
+        <path d="M 10,55 A 45,45 0 0 1 100,55" fill="none" stroke="url(#xpGradHero)" stroke-width="12" stroke-linecap="round"
+          stroke-dasharray="${arcLength}" stroke-dashoffset="${arcOffset}"
+          style="transition: stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1);" />
+      </svg>
+      <div class="net-xp-gauge-lbl">
+        <div class="net-xp-level-big">Lvl ${level}</div>
+        <div class="net-xp-percent-sm">${Math.round(progressPercent)}%</div>
+      </div>
     `;
   }
 
-  async function loadChallenges(email, { force = false } = {}) {
-    if (!email) return;
-    if (!force && window.__dashChallengesCache && Date.now() - (window.__dashChallengesAt || 0) < 60000) {
-      renderChallengeList(getById("dailyTasks"), window.__dashChallengesCache.daily, email, "daily");
-      renderChallengeList(getById("weeklyTasks"), window.__dashChallengesCache.weekly, email, "weekly");
-      setChallengesRetryVisible(false);
-      return;
-    }
-
-    const dailyTarget = getById("dailyTasks");
-    const weeklyTarget = getById("weeklyTasks");
-    if (dailyTarget) dailyTarget.innerHTML = '<div class="small text-muted">Loading daily focus…</div>';
-    if (weeklyTarget) weeklyTarget.innerHTML = '<div class="small text-muted">Loading weekly challenges…</div>';
-
-    const fetchChallengesByType = async (type) => {
-      const base = String(window.API_BASE || "").trim();
-      const endpoint = ENDPOINTS.challenges?.list || "/api/user/challenges";
-      const url = base ? new URL(base.replace(/\/$/, "") + endpoint) : new URL(endpoint, window.location.origin);
-      url.searchParams.set("type", type);
-      url.searchParams.set("user_email", email);
-
-      try {
-        const res = await fetch(url.toString());
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const contentType = String(res.headers.get("content-type") || "");
-        if (!contentType.includes("application/json")) throw new Error("Non-JSON response");
-        const data = await res.json();
-        return { ok: true, data };
-      } catch (err) {
-        return { ok: false, error: err };
-      }
-    };
-
-    const [dailyRes, weeklyRes] = await Promise.all([
-      fetchChallengesByType("daily"),
-      fetchChallengesByType("weekly")
-    ]);
-
-    const daily = dailyRes.ok ? listFrom(dailyRes.data, "challenges") : [];
-    const weekly = weeklyRes.ok ? listFrom(weeklyRes.data, "challenges") : [];
-    const hasError = !dailyRes.ok || !weeklyRes.ok;
-
-    if (dailyRes.ok && weeklyRes.ok) {
-      window.__dashChallengesCache = { daily, weekly };
-      window.__dashChallengesAt = Date.now();
-    }
-
-    if (!dailyRes.ok) {
-      console.warn("Daily challenges unavailable:", dailyRes.error);
-      if (dailyTarget) dailyTarget.innerHTML = challengeFallbackHtml();
-    } else {
-      renderChallengeList(dailyTarget, daily, email, "daily");
-    }
-
-    if (!weeklyRes.ok) {
-      console.warn("Weekly challenges unavailable:", weeklyRes.error);
-      if (weeklyTarget) weeklyTarget.innerHTML = challengeFallbackHtml();
-    } else {
-      renderChallengeList(weeklyTarget, weekly, email, "weekly");
-    }
-
-    setChallengesRetryVisible(hasError);
-    if (hasError) {
-      maybeShowChallengesToastOnce();
-    } else {
-      clearChallengesToastFlag();
-    }
-  }
-
-  function loginBadgeDefs() {
-    return [
-      { id: "login-streak-3", title: "3-Day Streak", desc: "Log in 3 days in a row", icon: "bi-fire", type: "login", target: 3, xp: 50, tier: "bronze" },
-      { id: "login-streak-5", title: "5-Day Streak", desc: "Log in 5 days in a row", icon: "bi-fire", type: "login", target: 5, xp: 75, tier: "silver" },
-      { id: "login-streak-7", title: "7-Day Streak", desc: "Log in 7 days in a row", icon: "bi-fire", type: "login", target: 7, xp: 100, tier: "gold" },
-      { id: "login-streak-10", title: "10-Day Streak", desc: "Log in 10 days in a row", icon: "bi-fire", type: "login", target: 10, xp: 150, tier: "gold" }
-    ];
-  }
-
-  async function awardLoginStreakBadges(email, streak) {
-    if (!email) return;
-    const defs = loginBadgeDefs();
-    const badges = getBadges(email);
-    const earned = new Set(badges.map((b) => b.id));
-    let didAward = false;
-
-    for (const def of defs) {
-      if (streak >= def.target && !earned.has(def.id)) {
-        const result = await awardAchievementRemote(email, {
-          id: def.id,
-          title: def.title,
-          desc: def.desc,
-          tier: def.tier || "bronze",
-          xp: def.xp
-        });
-        if (result?.awarded) {
-          earned.add(def.id);
-          const xpAdded = Number(result.xp_added || def.xp || 0);
-          if (xpAdded > 0) bumpUserXP(email, xpAdded);
-          didAward = true;
-          if (typeof window.showCelebrateToast === "function") {
-            window.showCelebrateToast({
-              title: "Streak badge unlocked",
-              message: def.title,
-              sub: def.desc,
-              xp: xpAdded || def.xp,
-              icon: "bi-award",
-              mini: true
-            });
-          }
-        }
-      }
-    }
-
-    if (didAward) {
-      safeStep("fillUserUI", fillUserUI);
-      scheduleDashboardRefresh();
-    }
-  }
-
-  async function awardWeeklyTaskXp(email, task) {
-    if (!email || !task || task.progress < task.target) return;
-    const wk = weekKey();
-    const localKey = `netology_weekly_award:${email}:${wk}:${task.id}`;
-    if (localStorage.getItem(localKey) === "1") return;
-
-    const action = `weekly:${wk}:${task.id}`;
-    const result = await awardXpOnce(email, action, task.xp);
-    if (result?.success && result?.awarded) {
-      const xpAdded = Number(result.xp_added || task.xp || 0);
-      if (xpAdded > 0) bumpUserXP(email, xpAdded);
-      localStorage.setItem(localKey, "1");
-      safeStep("fillUserUI", fillUserUI);
-      if (typeof window.showCelebrateToast === "function") {
-        window.showCelebrateToast({
-          title: "Weekly goal complete",
-          message: task.title,
-          sub: "Keep the momentum going.",
-          xp: xpAdded || task.xp,
-          icon: "bi-calendar-check",
-          mini: true
-        });
-      }
-      scheduleDashboardRefresh();
-    } else if (result?.success && result?.awarded === false) {
-      localStorage.setItem(localKey, "1");
-    }
-  }
-
-  // Welcome ring
-  // Match the course ring (full circle, r=58)
-  function setWelcomeRing(progressPct) {
-    const ring = getById("welcomeRing");
-    if (!ring) return;
-    const track = ring.parentElement?.querySelector(".net-ring-track");
-
-    const r = 58;
-    const CIRC = 2 * Math.PI * r;
-    const pct = Math.max(0, Math.min(100, Number(progressPct) || 0));
-    const offset = CIRC * (1 - (pct / 100));
-    const dashArray = `${CIRC.toFixed(2)}`;
-    ring.style.strokeDasharray = dashArray;
-    ring.style.strokeDashoffset = `${offset.toFixed(2)}`;
-
-    if (track) {
-      track.style.strokeDasharray = dashArray;
-      track.style.strokeDashoffset = "0";
-    }
-  }
-
-  // AI Prompt: Explain the Brand routing (dashboard vs index) section in clear, simple terms.
   // -----------------------------
-  // Brand routing (dashboard vs index)
+  // Sidebar + Dropdown + Logout
   // -----------------------------
+
   function wireBrandRouting() {
+    const target = getCurrentUser()?.email ? "dashboard.html" : "index.html";
     const topBrand = getById("topBrand");
     const sideBrand = getById("sideBrand");
-    const target = isLoggedIn() ? "dashboard.html" : "index.html";
 
     if (topBrand) topBrand.setAttribute("href", target);
     if (sideBrand) sideBrand.setAttribute("href", target);
   }
 
-  // AI Prompt: Explain the Sidebar section in clear, simple terms.
-  // -----------------------------
-  // Sidebar
-  // -----------------------------
-  function setupSidebar() {
-    // Slide-in sidebar (backdrop + ESC to close).
-    const openBtn = getById("openSidebarBtn");
-    const closeBtn = getById("closeSidebarBtn");
+  function wireSidebar() {
+    const openButton = getById("openSidebarBtn");
+    const closeButton = getById("closeSidebarBtn");
     const sidebar = getById("slideSidebar");
     const backdrop = getById("sideBackdrop");
 
-    function open() {
+    const openSidebar = () => {
       if (!sidebar || !backdrop) return;
       sidebar.classList.add("is-open");
       backdrop.classList.add("is-open");
       document.body.classList.add("net-noscroll");
       sidebar.setAttribute("aria-hidden", "false");
       backdrop.setAttribute("aria-hidden", "false");
-    }
+    };
 
-    function close() {
+    const closeSidebar = () => {
       if (!sidebar || !backdrop) return;
       sidebar.classList.remove("is-open");
       backdrop.classList.remove("is-open");
       document.body.classList.remove("net-noscroll");
       sidebar.setAttribute("aria-hidden", "true");
       backdrop.setAttribute("aria-hidden", "true");
-    }
+    };
 
-    openBtn?.addEventListener("click", open);
-    closeBtn?.addEventListener("click", close);
-    backdrop?.addEventListener("click", close);
+    if (openButton) openButton.addEventListener("click", openSidebar);
+    if (closeButton) closeButton.addEventListener("click", closeSidebar);
+    if (backdrop) backdrop.addEventListener("click", closeSidebar);
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") close();
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && sidebar?.classList.contains("is-open")) {
+        closeSidebar();
+      }
     });
-
-    return { open, close };
   }
 
-  // AI Prompt: Explain the User dropdown section in clear, simple terms.
-  // -----------------------------
-  // User dropdown
-  // -----------------------------
-  function setupUserDropdown() {
-    // User dropdown toggle with outside-click + ESC close.
-    const btn = getById("userBtn");
-    const dd = getById("userDropdown");
+  function wireUserDropdown() {
+    const button = getById("userBtn");
+    const dropdown = getById("userDropdown");
+    if (!button || !dropdown) return;
 
-    function open() {
-      if (!btn || !dd) return;
-      dd.classList.add("is-open");
-      btn.setAttribute("aria-expanded", "true");
-    }
+    const closeDropdown = () => {
+      dropdown.classList.remove("is-open");
+      button.setAttribute("aria-expanded", "false");
+    };
 
-    function close() {
-      if (!btn || !dd) return;
-      dd.classList.remove("is-open");
-      btn.setAttribute("aria-expanded", "false");
-    }
-
-    btn?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (!dd) return;
-      dd.classList.contains("is-open") ? close() : open();
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const isOpen = dropdown.classList.toggle("is-open");
+      button.setAttribute("aria-expanded", String(isOpen));
     });
 
-    document.addEventListener("click", () => close());
-    dd?.addEventListener("click", (e) => e.stopPropagation());
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") close();
+    document.addEventListener("click", (event) => {
+      if (dropdown.contains(event.target) || button.contains(event.target)) return;
+      closeDropdown();
     });
 
-    return { open, close };
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeDropdown();
+    });
   }
 
-  // AI Prompt: Explain the Logout section in clear, simple terms.
-  // -----------------------------
-  // Logout
-  // -----------------------------
-  function setupLogout() {
-    const topLogout = getById("topLogoutBtn");
-    const sideLogout = getById("sideLogoutBtn");
+  function wireLogoutButtons() {
+    const topLogoutButton = getById("topLogoutBtn");
+    const sideLogoutButton = getById("sideLogoutBtn");
 
-    function doLogout() {
+    const logout = () => {
       localStorage.removeItem("netology_user");
       localStorage.removeItem("user");
       localStorage.removeItem("netology_token");
       window.location.href = "index.html";
-    }
+    };
 
-    topLogout?.addEventListener("click", doLogout);
-    sideLogout?.addEventListener("click", doLogout);
+    if (topLogoutButton) topLogoutButton.addEventListener("click", logout);
+    if (sideLogoutButton) sideLogoutButton.addEventListener("click", logout);
   }
 
-  // AI Prompt: Explain the Courses data (from course content) section in clear, simple terms.
   // -----------------------------
-  // Courses data (from course content)
+  // Course + progress helpers
   // -----------------------------
-  function getCourseIndex() {
-    if (window.__dashCourseIndex && Object.keys(window.__dashCourseIndex).length) {
-      return window.__dashCourseIndex;
-    }
-    const content = (window.COURSE_CONTENT && typeof window.COURSE_CONTENT === "object")
-      ? window.COURSE_CONTENT
-      : (typeof COURSE_CONTENT !== "undefined" ? COURSE_CONTENT : null);
-    if (content && typeof content === "object") {
-      const index = {};
-      Object.keys(content).forEach((id) => {
-        const course = content[id] || {};
-        index[id] = {
-          id: String(id),
-          key: String(id),
-          ...course
-        };
-      });
-      window.__dashCourseIndex = index;
-      return index;
-    }
+
+  function getCourseContentObject() {
+    if (window.COURSE_CONTENT && typeof window.COURSE_CONTENT === "object") return window.COURSE_CONTENT;
+    if (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) return COURSE_CONTENT;
     return {};
   }
 
-  async function fetchContinueCourses(email) {
-    try {
-      const data = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email });
-      const courses = listFrom(data, "courses");
-      if (!courses.length) return null;
-      return courses.filter((c) => c.status === "in-progress");
-    } catch {
-      return null;
-    }
-  }
+  function getCourseIndex() {
+    const content = getCourseContentObject();
+    const index = {};
 
-  async function fetchProgressSummary(email) {
-    try {
-      const data = await apiGet("/user-progress-summary", { email });
-      if (!data || !data.success) return null;
-      const summary = {
-        email,
-        lessonsDone: Number(data.lessons_done || 0),
-        quizzesDone: Number(data.quizzes_done || 0),
-        challengesDone: Number(data.challenges_done || 0),
-        coursesDone: Number(data.courses_done || 0),
-        inProgress: Number(data.in_progress || 0),
-        totalCourses: Number(data.total_courses || 0)
+    Object.keys(content).forEach((courseId) => {
+      const course = content[courseId] || {};
+      index[courseId] = {
+        id: String(course.id || courseId),
+        ...course
       };
-      window.__dashProgressSummary = summary;
-      return summary;
-    } catch {
-      return null;
-    }
+    });
+
+    return index;
   }
 
-  /* AI Prompt: Explain the Progress + Completions (local) section in clear, simple terms. */
-  /* -----------------------------
-     Progress + Completions (local)
-  ----------------------------- */
   function mapItemType(sectionType, item) {
-    const st = String(sectionType || "").toLowerCase();
-    if (st.includes("quiz")) return "quiz";
-    if (st.includes("challenge")) return "challenge";
-    if (st.includes("practice") || st.includes("sandbox") || st.includes("hands-on")) return "sandbox";
+    const sectionText = String(sectionType || "").toLowerCase();
+    if (sectionText.includes("quiz")) return "quiz";
+    if (sectionText.includes("challenge")) return "challenge";
+    if (sectionText.includes("practice") || sectionText.includes("sandbox") || sectionText.includes("hands-on")) return "sandbox";
 
-    const t = String(item?.type || "").toLowerCase();
-    if (t === "quiz") return "quiz";
-    if (t === "challenge") return "challenge";
-    if (t === "sandbox" || t === "practice") return "sandbox";
+    const itemType = String(item?.type || "").toLowerCase();
+    if (itemType === "quiz") return "quiz";
+    if (itemType === "challenge") return "challenge";
+    if (itemType === "sandbox" || itemType === "practice") return "sandbox";
+
     return "learn";
   }
 
   function countRequiredItems(course) {
     if (!course) return 0;
-    const total = Number(course.total_lessons || course.totalLessons || course.items || 0) || 0;
-    if (total > 0) return total;
-    const units = course.units || course.modules || [];
-    let required = 0;
 
-    units.forEach((u) => {
-      if (Array.isArray(u?.sections)) {
-        u.sections.forEach((s) => {
-          const st = String(s?.type || s?.kind || s?.title || "").toLowerCase();
-          const items = s?.items || s?.lessons || [];
-          if (!Array.isArray(items)) return;
-          items.forEach((it) => {
-            const t = mapItemType(st, it);
-            if (t === "learn" || t === "quiz" || t === "challenge") required += 1;
+    const directTotal = Number(course.total_lessons || course.totalLessons || course.items || 0);
+    if (Number.isFinite(directTotal) && directTotal > 0) return directTotal;
+
+    const units = toArray(course.units || course.modules);
+    let requiredCount = 0;
+
+    units.forEach((unit) => {
+      if (Array.isArray(unit?.sections)) {
+        unit.sections.forEach((section) => {
+          const sectionType = String(section?.type || section?.kind || section?.title || "").toLowerCase();
+          const sectionItems = toArray(section?.items || section?.lessons);
+
+          sectionItems.forEach((item) => {
+            const itemType = mapItemType(sectionType, item);
+            if (itemType === "learn" || itemType === "quiz" || itemType === "challenge") {
+              requiredCount += 1;
+            }
           });
         });
-      } else if (u?.sections && typeof u.sections === "object") {
-        const obj = u.sections;
-        const learnArr = obj.learn || obj.lesson || obj.lessons || [];
-        const quizArr = obj.quiz || obj.quizzes || [];
-        const challengeArr = obj.challenge || obj.challenges || [];
-        required += (learnArr.length || 0);
-        required += (quizArr.length || 0);
-        required += (challengeArr.length || 0);
-      } else if (Array.isArray(u?.lessons)) {
-        u.lessons.forEach((it) => {
-          const t = mapItemType("", it);
-          if (t === "learn" || t === "quiz" || t === "challenge") required += 1;
-        });
+        return;
       }
+
+      if (unit?.sections && typeof unit.sections === "object") {
+        const sectionGroups = unit.sections;
+        requiredCount += toArray(sectionGroups.learn || sectionGroups.lesson || sectionGroups.lessons).length;
+        requiredCount += toArray(sectionGroups.quiz || sectionGroups.quizzes).length;
+        requiredCount += toArray(sectionGroups.challenge || sectionGroups.challenges).length;
+        return;
+      }
+
+      const lessonItems = toArray(unit?.lessons);
+      lessonItems.forEach((item) => {
+        const itemType = mapItemType("", item);
+        if (itemType === "learn" || itemType === "quiz" || itemType === "challenge") {
+          requiredCount += 1;
+        }
+      });
     });
 
-    return required;
+    return requiredCount;
   }
 
-  function mergeSoftLessonCompletions(set, email, courseId) {
-    if (!set || !courseId) return;
-    const who = email || "guest";
-    const prefix = `netology_lesson_progress:${who}:${courseId}:`;
-    for (let i = 0; i < localStorage.length; i += 1) {
-      const key = localStorage.key(i);
-      if (!key || !key.startsWith(prefix)) continue;
-      const record = parseJsonSafe(localStorage.getItem(key), null) || {};
-      const total = Math.max(1, Number(record.total_steps || 0) || 1);
-      const completed = Math.max(0, Number(record.completed_steps || 0) || 0);
-      const pctFromSteps = Math.round((completed / total) * 100);
-      const pct = Math.max(pctFromSteps, Number(record.progress_pct || 0));
-      if (pct < 40) continue;
-      const parts = key.split(":");
-      const lessonNum = Number(parts[parts.length - 1] || 0);
-      if (lessonNum) set.add(lessonNum);
+  function getStartedCourses(email) {
+    if (!email) return [];
+    const key = `netology_started_courses:${email}`;
+    const started = parseJson(localStorage.getItem(key), []);
+    return Array.isArray(started) ? started : [];
+  }
+
+  function getProgressLog(email) {
+    if (!email) return [];
+    const key = `netology_progress_log:${email}`;
+    const log = parseJson(localStorage.getItem(key), []);
+    return Array.isArray(log) ? log : [];
+  }
+
+  function mergeSoftLessonCompletions(lessonSet, email, courseId) {
+    if (!lessonSet || !courseId) return;
+
+    const userKey = email || "guest";
+    const keyPrefix = `netology_lesson_progress:${userKey}:${courseId}:`;
+
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith(keyPrefix)) continue;
+
+      const record = parseJson(localStorage.getItem(key), {}) || {};
+      const totalSteps = Math.max(1, Number(record.total_steps || 0));
+      const completedSteps = Math.max(0, Number(record.completed_steps || 0));
+      const percentFromSteps = Math.round((completedSteps / totalSteps) * 100);
+      const percent = Math.max(percentFromSteps, Number(record.progress_pct || 0));
+
+      if (percent < 40) continue;
+
+      const keyParts = key.split(":");
+      const lessonNumber = Number(keyParts[keyParts.length - 1] || 0);
+      if (lessonNumber) lessonSet.add(lessonNumber);
     }
   }
 
   function getCourseCompletionsLocal(email, courseId) {
     if (!email || !courseId) {
-      return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
+      return {
+        lesson: new Set(),
+        quiz: new Set(),
+        challenge: new Set()
+      };
     }
-    const raw = localStorage.getItem(`netology_completions:${email}:${courseId}`);
-    const payload = parseJsonSafe(raw, {}) || {};
-    const lessonArr = payload.lesson || payload.lessons || payload.learn || [];
-    const quizArr = payload.quiz || payload.quizzes || [];
-    const chArr = payload.challenge || payload.challenges || [];
 
-    const base = {
-      lesson: new Set((lessonArr || []).map(Number)),
-      quiz: new Set((quizArr || []).map(Number)),
-      challenge: new Set((chArr || []).map(Number))
+    const key = `netology_completions:${email}:${courseId}`;
+    const payload = parseJson(localStorage.getItem(key), {}) || {};
+
+    const lessonSet = new Set(toArray(payload.lesson || payload.lessons || payload.learn).map(Number));
+    const quizSet = new Set(toArray(payload.quiz || payload.quizzes).map(Number));
+    const challengeSet = new Set(toArray(payload.challenge || payload.challenges).map(Number));
+
+    const progressLog = getProgressLog(email);
+    progressLog.forEach((entry) => {
+      if (String(entry?.course_id) !== String(courseId)) return;
+
+      const type = String(entry?.type || "").toLowerCase();
+      const lessonNumber = Number(entry?.lesson_number);
+      if (!Number.isFinite(lessonNumber)) return;
+
+      if (type === "learn" || type === "lesson") lessonSet.add(lessonNumber);
+      if (type === "quiz") quizSet.add(lessonNumber);
+      if (type === "challenge") challengeSet.add(lessonNumber);
+    });
+
+    mergeSoftLessonCompletions(lessonSet, email, courseId);
+
+    return {
+      lesson: lessonSet,
+      quiz: quizSet,
+      challenge: challengeSet
     };
-
-    // Fallback: merge from progress log if completion sets are empty
-    const log = getProgressLog(email);
-    if (Array.isArray(log) && log.length) {
-      log.forEach((e) => {
-        if (String(e?.course_id) !== String(courseId)) return;
-        const t = String(e?.type || "").toLowerCase();
-        const n = Number(e?.lesson_number);
-        if (!Number.isFinite(n)) return;
-        if (t === "learn" || t === "lesson") base.lesson.add(n);
-        else if (t === "quiz") base.quiz.add(n);
-        else if (t === "challenge") base.challenge.add(n);
-      });
-    }
-
-    mergeSoftLessonCompletions(base.lesson, email, courseId);
-
-    return base;
   }
 
   function getLocalProgressSummary(email) {
-    const content = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
+    const content = getCourseContentObject();
     const courseIds = Object.keys(content);
-    const started = getStartedCourses(email);
-    const startedIds = new Set((started || []).map((c) => String(c.id)));
+    const startedIds = new Set(getStartedCourses(email).map((entry) => String(entry.id)));
 
     let lessonsDone = 0;
     let quizzesDone = 0;
@@ -1096,19 +576,19 @@ Works with:
     let coursesDone = 0;
     let inProgress = 0;
 
-    courseIds.forEach((id) => {
-      const course = content[id] || {};
-      const comps = getCourseCompletionsLocal(email, id);
-      const done = comps.lesson.size + comps.quiz.size + comps.challenge.size;
-      const required = countRequiredItems(course);
+    courseIds.forEach((courseId) => {
+      const course = content[courseId] || {};
+      const completions = getCourseCompletionsLocal(email, courseId);
+      const doneCount = completions.lesson.size + completions.quiz.size + completions.challenge.size;
+      const requiredCount = countRequiredItems(course);
 
-      lessonsDone += comps.lesson.size;
-      quizzesDone += comps.quiz.size;
-      challengesDone += comps.challenge.size;
+      lessonsDone += completions.lesson.size;
+      quizzesDone += completions.quiz.size;
+      challengesDone += completions.challenge.size;
 
-      if (required > 0 && done >= required) {
+      if (requiredCount > 0 && doneCount >= requiredCount) {
         coursesDone += 1;
-      } else if (startedIds.has(String(id)) || done > 0) {
+      } else if (startedIds.has(String(courseId)) || doneCount > 0) {
         inProgress += 1;
       }
     });
@@ -1123,273 +603,664 @@ Works with:
     };
   }
 
-  function getCourseCompletions(email, courseId) {
-    if (!email || !courseId) {
-      return { lesson: new Set(), quiz: new Set(), challenge: new Set() };
-    }
-    const raw = localStorage.getItem(`netology_completions:${email}:${courseId}`);
-    const payload = parseJsonSafe(raw, {}) || {};
-    const lessonArr = payload.lesson || payload.lessons || payload.learn || [];
-    const quizArr = payload.quiz || payload.quizzes || [];
-    const chArr = payload.challenge || payload.challenges || [];
-
-    const base = {
-      lesson: new Set((lessonArr || []).map(Number)),
-      quiz: new Set((quizArr || []).map(Number)),
-      challenge: new Set((chArr || []).map(Number))
-    };
-
-    // Fallback: merge from progress log if completion sets are empty
-    const log = getProgressLog(email);
-    if (Array.isArray(log) && log.length) {
-      log.forEach((e) => {
-        if (String(e?.course_id) !== String(courseId)) return;
-        const t = String(e?.type || "").toLowerCase();
-        const n = Number(e?.lesson_number);
-        if (!Number.isFinite(n)) return;
-        if (t === "learn" || t === "lesson") base.lesson.add(n);
-        else if (t === "quiz") base.quiz.add(n);
-        else if (t === "challenge") base.challenge.add(n);
-      });
+  async function fetchProgressSummary(email) {
+    if (!email) {
+      dashboardState.progressSummary = null;
+      return null;
     }
 
-    mergeSoftLessonCompletions(base.lesson, email, courseId);
-
-    return base;
-  }
-
-  function getProgressLog(email) {
-    if (!email) return [];
-    return parseJsonSafe(localStorage.getItem(`netology_progress_log:${email}`), []) || [];
-  }
-
-  function getStartedCourses(email) {
-    if (!email) return [];
-    const raw = localStorage.getItem(`netology_started_courses:${email}`);
-    const list = parseJsonSafe(raw, []) || [];
-    return Array.isArray(list) ? list : [];
-  }
-
-  function computeStreak(log) {
-    if (!log.length) return 0;
-    const days = new Set(log.map(e => e.date).filter(Boolean));
-    let streak = 0;
-    const d = new Date();
-    for (; ;) {
-      const key = d.toISOString().slice(0, 10);
-      if (!days.has(key)) break;
-      streak += 1;
-      d.setDate(d.getDate() - 1);
-    }
-    return streak;
-  }
-
-  function countInLastDays(log, days, type) {
-    if (!log.length) return 0;
-    const now = Date.now();
-    const windowMs = days * 24 * 60 * 60 * 1000;
-    return log.filter(e => e?.type === type && (now - Number(e.ts || 0)) <= windowMs).length;
-  }
-
-  function formatRelative(ts) {
-    const diff = Date.now() - Number(ts || 0);
-    if (!Number.isFinite(diff) || diff < 0) return "";
-    const min = Math.floor(diff / 60000);
-    if (min < 1) return "Just now";
-    if (min < 60) return `${min} min ago`;
-    const hrs = Math.floor(min / 60);
-    if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days} day${days === 1 ? "" : "s"} ago`;
-  }
-
-  async function fetchRecentActivity(email) {
     try {
-      const data = await apiGet("/recent-activity", { email, limit: 8 });
-      const activity = listFrom(data, "activity");
-      if (!data || !data.success) return null;
-      return activity;
+      const endpoint = ENDPOINTS.courses?.userProgressSummary || "/user-progress-summary";
+      const data = await apiGet(endpoint, { email });
+
+      if (!data?.success) {
+        dashboardState.progressSummary = null;
+        return null;
+      }
+
+      const summary = {
+        email,
+        lessonsDone: Number(data.lessons_done || 0),
+        quizzesDone: Number(data.quizzes_done || 0),
+        challengesDone: Number(data.challenges_done || 0),
+        coursesDone: Number(data.courses_done || 0),
+        inProgress: Number(data.in_progress || 0),
+        totalCourses: Number(data.total_courses || 0)
+      };
+
+      dashboardState.progressSummary = summary;
+      return summary;
     } catch {
+      dashboardState.progressSummary = null;
       return null;
     }
   }
 
-  function getCourseTitleById(courseId) {
-    const fromIndex = getCourseIndex();
-    const fromContent = (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) ? COURSE_CONTENT : {};
-    const match = fromIndex[String(courseId)] || fromContent[String(courseId)] || {};
-    return match.title || "Course";
+  async function fetchContinueCourses(email) {
+    if (!email) return [];
+
+    try {
+      const data = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email });
+      const userCourses = listFrom(data, "courses");
+      return userCourses.filter((course) => String(course?.status || "").toLowerCase() === "in-progress");
+    } catch {
+      return [];
+    }
   }
 
-  async function renderRecentActivity() {
-    const list = getById("recentActivityList");
-    if (!list) return;
-    const user = getCurrentUser();
-    const email = user?.email;
+  // -----------------------------
+  // Daily tip
+  // -----------------------------
 
-    if (!email) {
-      clearChildren(list);
-      list.appendChild(makeEl("div", "p-3 text-center text-muted small", "Sign in to track your recent activity."));
+  function getDayOfYearIndex() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diffMs = now - start;
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  function buildCourseTips() {
+    const courseIndex = getCourseIndex();
+    return Object.keys(courseIndex).map((courseId) => {
+      const course = courseIndex[courseId] || {};
+      return {
+        title: course.title || "Course",
+        description: String(course.description || "").split("\n")[0] || "Open a course to continue learning."
+      };
+    });
+  }
+
+  function updateTooltip(element, text) {
+    if (!element) return;
+
+    try {
+      element.setAttribute("title", text);
+      if (window.bootstrap?.Tooltip) {
+        const existing = window.bootstrap.Tooltip.getInstance(element);
+        if (existing) existing.dispose();
+        new window.bootstrap.Tooltip(element);
+      }
+    } catch {
+      // Ignore tooltip setup errors.
+    }
+  }
+
+  function initDailyTipRotation() {
+    const tipElement = getById("dailyTip");
+    const controlsElement = getById("dailyTipControls");
+    if (!tipElement) return;
+
+    if (dashboardState.dailyTipTimer) {
+      clearInterval(dashboardState.dailyTipTimer);
+      dashboardState.dailyTipTimer = null;
+    }
+
+    const courseTips = buildCourseTips();
+
+    if (courseTips.length === 0) {
+      const fallbackTip = DAILY_TIPS[getDayOfYearIndex() % DAILY_TIPS.length];
+      tipElement.textContent = fallbackTip;
+      updateTooltip(tipElement, fallbackTip);
+      if (controlsElement) {
+        controlsElement.innerHTML = "";
+        controlsElement.setAttribute("aria-hidden", "true");
+      }
       return;
     }
 
-    // Get recent login streak for the mini-header
-    const log = getLoginLog(email);
-    const streak = computeLoginStreak(log);
+    let tipIndex = getDayOfYearIndex() % courseTips.length;
 
-    // Get activity items from API or local logs
-    let activityItems = [];
-    const apiRecent = await fetchRecentActivity(email);
+    const showTip = (index) => {
+      const tip = courseTips[index];
+      if (!tip) return;
 
-    if (Array.isArray(apiRecent) && apiRecent.length) {
-      apiRecent.forEach((e) => {
-        const type = String(e?.type || "").toLowerCase();
-        let label = "Activity";
-        let icon = "bi-journal-check";
-        let colorClass = "text-primary";
-        let bgClass = "bg-primary-subtle";
+      tipElement.classList.add("is-hidden");
+      window.setTimeout(() => {
+        tipElement.textContent = tip.description;
+        updateTooltip(tipElement, tip.description);
+        tipElement.classList.remove("is-hidden");
+      }, 760);
 
-        if (type === "quiz") {
-          label = "Quiz Passed";
-          icon = "bi-patch-check-fill";
-          colorClass = "text-success";
-          bgClass = "bg-success-subtle";
-        } else if (type === "challenge") {
-          label = "Challenge Completed";
-          icon = "bi-trophy-fill";
-          colorClass = "text-warning";
-          bgClass = "bg-warning-subtle";
-        } else if (type === "lesson") {
-          label = "Lesson Completed";
-          icon = "bi-check-circle-fill";
-          colorClass = "text-teal";
-          bgClass = "bg-teal-sub";
-        }
-
-        const time = e.completed_at ? formatRelative(new Date(e.completed_at).getTime()) : "";
-        activityItems.push({
-          label,
-          courseTitle: e.course_title || "Course",
-          lessonNumber: e.lesson_number,
-          time,
-          xp: Number(e.xp || 0),
-          icon,
-          colorClass,
-          bgClass
+      if (controlsElement) {
+        const dots = controlsElement.querySelectorAll(".daily-indicator");
+        dots.forEach((dot, dotIndex) => {
+          dot.classList.toggle("active", dotIndex === index);
         });
-      });
-    } else {
-      const progressLog = getProgressLog(email);
-      const now = Date.now();
-      const windowMs = 7 * 24 * 60 * 60 * 1000;
-      const recent = progressLog
-        .filter((e) => (now - Number(e.ts || 0)) <= windowMs)
-        .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
-        .slice(0, 6);
+      }
+    };
 
-      recent.forEach((e) => {
-        const type = String(e?.type || "").toLowerCase();
-        let label = "Activity";
-        let icon = "bi-journal-check";
-        let colorClass = "text-primary";
-        let bgClass = "bg-primary-subtle"; // Bootstrap 5.3 or custom
+    if (controlsElement) {
+      controlsElement.innerHTML = "";
+      controlsElement.setAttribute("aria-hidden", "false");
 
-        if (type === "quiz") {
-          label = "Quiz Passed";
-          icon = "bi-patch-check-fill";
-          colorClass = "text-success";
-          bgClass = "bg-success-subtle"; // assumes css class exists
-        } else if (type === "challenge") {
-          label = "Challenge Completed";
-          icon = "bi-trophy-fill";
-          colorClass = "text-warning";
-          bgClass = "bg-warning-subtle";
-        } else if (type === "sandbox") {
-          label = "Sandbox Build";
-          icon = "bi-diagram-3-fill";
-          colorClass = "text-purple";
-          bgClass = "bg-purple-sub";
-        } else {
-          label = "Lesson Completed";
-          icon = "bi-check-circle-fill";
-          colorClass = "text-teal";
-          bgClass = "bg-teal-sub";
-        }
+      courseTips.forEach((tip, index) => {
+        const dot = document.createElement("button");
+        dot.type = "button";
+        dot.className = `daily-indicator${index === tipIndex ? " active" : ""}`;
+        dot.dataset.index = String(index);
+        dot.setAttribute("aria-label", `Show ${tip.title}`);
 
-        activityItems.push({
-          label,
-          courseTitle: getCourseTitleById(e.course_id),
-          lessonNumber: e.lesson_number,
-          time: formatRelative(e.ts),
-          xp: Number(e.xp || 0),
-          icon,
-          colorClass,
-          bgClass
+        dot.addEventListener("click", (event) => {
+          event.stopPropagation();
+          tipIndex = Number(dot.dataset.index || 0);
+          showTip(tipIndex);
+
+          if (dashboardState.dailyTipTimer) {
+            clearInterval(dashboardState.dailyTipTimer);
+          }
+          dashboardState.dailyTipTimer = setInterval(() => {
+            tipIndex = (tipIndex + 1) % courseTips.length;
+            showTip(tipIndex);
+          }, 8000);
         });
+
+        controlsElement.appendChild(dot);
       });
     }
 
-    clearChildren(list);
+    showTip(tipIndex);
 
-    // 1. Login Streak Row
-    if (streak > 0) {
-      const streakRow = makeEl("div", "d-flex align-items-center gap-3 p-3 border-bottom net-activity-item");
-      const iconBox = makeEl("div", "net-icon-box rounded-circle bg-orange-sub text-orange");
-      iconBox.style.width = "36px";
-      iconBox.style.height = "36px";
-      iconBox.innerHTML = '<i class="bi bi-fire"></i>';
+    dashboardState.dailyTipTimer = setInterval(() => {
+      tipIndex = (tipIndex + 1) % courseTips.length;
+      showTip(tipIndex);
+    }, 8000);
+  }
 
-      const content = makeEl("div", "flex-grow-1");
-      content.innerHTML = `<div class="fw-semibold text-dark">Login Streak</div><div class="small text-muted">${streak} day${streak === 1 ? "" : "s"} so far</div>`;
+  // -----------------------------
+  // Continue learning
+  // -----------------------------
 
-      streakRow.append(iconBox, content);
-      list.appendChild(streakRow);
+  async function renderContinueLearning(user) {
+    const container = getById("continueBox");
+    const subtitle = getById("continueSubtitle");
+    if (!container) return;
+
+    container.classList.remove("net-continue-skel");
+
+    const setSubtitle = (text) => {
+      if (subtitle) subtitle.textContent = text;
+    };
+
+    const email = user?.email || "";
+    if (!email) {
+      clearChildren(container);
+      container.className = "dash-continue-list";
+      setSubtitle("Sign in to track your course progress.");
+      container.appendChild(createElement("div", "text-muted small", "Sign in and start a course to see your progress here."));
+      return;
     }
 
-    // 2. Activity Items
-    if (!activityItems.length) {
-      list.appendChild(makeEl("div", "p-4 text-center text-muted small", "No recent activity recorded this week."));
-    } else {
-      activityItems.forEach((item) => {
-        const row = makeEl("div", "d-flex align-items-center gap-3 p-3 border-bottom net-activity-item");
+    const courseIndex = getCourseIndex();
+    const apiCourses = await fetchContinueCourses(email);
 
-        const iconBox = makeEl("div", `net-icon-box rounded-circle ${item.bgClass} ${item.colorClass}`);
-        iconBox.style.width = "36px";
-        iconBox.style.height = "36px";
-        iconBox.innerHTML = `<i class="bi ${item.icon}"></i>`;
+    if (apiCourses.length > 0) {
+      clearChildren(container);
+      container.className = "dash-continue-list";
+      setSubtitle("Pick up where you left off.");
 
-        const content = makeEl("div", "flex-grow-1");
-        const sub = item.courseTitle ? `${item.courseTitle} • ${item.time}` : item.time;
-        content.innerHTML = `<div class="fw-semibold text-dark">${item.label}</div><div class="small text-muted">${sub}</div>`;
+      apiCourses.forEach((entry) => {
+        const course = courseIndex[String(entry.id)] || {};
 
-        const right = makeEl("div", "text-end");
-        if (item.xp > 0) {
-          right.innerHTML = `<span class="badge bg-light text-success border border-success-subtle">+${item.xp} XP</span>`;
-        }
+        const title = entry.title || course.title || "Course";
+        const description = entry.description || course.description || "";
+        const difficulty = String(entry.difficulty || course.difficulty || "novice").toLowerCase();
+        const category = entry.category || course.category || "Core";
+        const xpReward = Number(entry.xp_reward || course.xpReward || course.totalXP || 0);
+        const estimatedTime = entry.estimatedTime || course.estimatedTime || "";
 
-        row.append(iconBox, content, right);
-        list.appendChild(row);
+        const requiredFromApi = Number(entry.total_lessons || course.total_lessons || 0);
+        const percentFromApi = Math.max(0, Math.min(100, Number(entry.progress_pct || 0)));
+        const doneFromApi = requiredFromApi > 0 ? Math.round((percentFromApi / 100) * requiredFromApi) : 0;
+
+        const localCompletions = getCourseCompletionsLocal(email, entry.id);
+        const requiredFromLocal = countRequiredItems(course);
+        const doneFromLocal = localCompletions.lesson.size + localCompletions.quiz.size + localCompletions.challenge.size;
+
+        const requiredCount = requiredFromApi || requiredFromLocal;
+        const doneCount = Math.max(doneFromApi, doneFromLocal);
+        const percent = requiredCount > 0
+          ? Math.round((doneCount / requiredCount) * 100)
+          : percentFromApi;
+
+        container.appendChild(
+          buildContinueCard({
+            id: entry.id,
+            title,
+            description,
+            difficulty,
+            category,
+            percent,
+            doneCount,
+            requiredCount,
+            xpReward,
+            estimatedTime
+          })
+        );
       });
+
+      return;
+    }
+
+    const startedCourses = getStartedCourses(email)
+      .filter((entry) => entry && entry.id && Number(entry.lastViewed || 0) > 0)
+      .sort((first, second) => Number(second.lastViewed || 0) - Number(first.lastViewed || 0))
+      .slice(0, 3);
+
+    if (startedCourses.length > 0) {
+      clearChildren(container);
+      container.className = "dash-continue-list";
+      setSubtitle("Pick up where you left off.");
+
+      startedCourses.forEach((entry) => {
+        const course = courseIndex[String(entry.id)] || {};
+
+        const title = course.title || "Course";
+        const description = course.description || "";
+        const difficulty = String(course.difficulty || "novice").toLowerCase();
+        const category = course.category || "Core";
+        const xpReward = Number(course.xpReward || course.totalXP || course.xp_reward || 0);
+        const estimatedTime = course.estimatedTime || "";
+
+        const localCompletions = getCourseCompletionsLocal(email, entry.id);
+        const doneCount = localCompletions.lesson.size + localCompletions.quiz.size + localCompletions.challenge.size;
+        const requiredCount = countRequiredItems(course);
+        const percent = requiredCount > 0 ? Math.round((doneCount / requiredCount) * 100) : 0;
+
+        container.appendChild(
+          buildContinueCard({
+            id: entry.id,
+            title,
+            description,
+            difficulty,
+            category,
+            percent,
+            doneCount,
+            requiredCount,
+            xpReward,
+            estimatedTime
+          })
+        );
+      });
+
+      return;
+    }
+
+    clearChildren(container);
+    container.className = "dash-continue-list";
+    setSubtitle("Start a course to track your progress here.");
+    container.appendChild(createElement("div", "text-muted small", "No started courses yet. Head to the Courses page to begin."));
+  }
+
+  function prettyDifficulty(difficulty) {
+    if (!difficulty) return "Novice";
+    return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+  }
+
+  function buildContinueCard({
+    id,
+    title,
+    description,
+    difficulty,
+    category,
+    percent,
+    doneCount,
+    requiredCount,
+    xpReward,
+    estimatedTime
+  }) {
+    const card = document.createElement("div");
+    card.className = "net-coursecard-enhanced net-card net-pop position-relative overflow-hidden p-0";
+    card.setAttribute("data-course-id", String(id));
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+
+    const cardBody = createElement("div", "p-4 position-relative z-1 h-100 d-flex flex-column");
+    card.appendChild(cardBody);
+
+    const topRow = createElement("div", "d-flex align-items-center justify-content-between mb-3");
+
+    const badgeGroup = createElement("div", "d-flex align-items-center gap-2");
+    const difficultyClass = difficulty === "intermediate"
+      ? "net-diff-intermediate"
+      : difficulty === "advanced"
+        ? "net-diff-advanced"
+        : "net-diff-novice";
+
+    const difficultyBadge = createElement("span", `badge net-pill-badge border ${difficultyClass}`);
+    difficultyBadge.textContent = prettyDifficulty(difficulty);
+
+    const categoryBadge = createElement("span", "text-muted small fw-bold text-uppercase ls-1", category || "Course");
+    badgeGroup.append(difficultyBadge, categoryBadge);
+
+    const xpBadge = createElement("span", "badge bg-light text-dark border net-pill-badge");
+    xpBadge.innerHTML = `<i class="bi bi-lightning-charge-fill text-warning me-1"></i>${Number(xpReward || 0)} XP`;
+
+    topRow.append(badgeGroup, xpBadge);
+    cardBody.appendChild(topRow);
+
+    cardBody.appendChild(createElement("h3", "h5 fw-bold mb-2", title));
+
+    if (description) {
+      const shortDescription = description.length > 85 ? `${description.slice(0, 82)}…` : description;
+      cardBody.appendChild(createElement("p", "text-muted small mb-4 flex-grow-1", shortDescription));
+    } else {
+      cardBody.appendChild(createElement("div", "flex-grow-1"));
+    }
+
+    if (estimatedTime) {
+      const estimated = createElement("div", "small text-muted mb-2");
+      estimated.innerHTML = `<i class="bi bi-clock me-1"></i>${escapeHtml(estimatedTime)}`;
+      cardBody.appendChild(estimated);
+    }
+
+    const footer = createElement("div", "mt-auto");
+
+    const progressMeta = createElement("div", "d-flex justify-content-between small mb-1 fw-bold");
+    progressMeta.append(
+      createElement("span", "text-teal", `${percent}% Complete`),
+      createElement("span", "text-muted", `${doneCount}/${requiredCount || 0} items`)
+    );
+
+    const progressTrack = createElement("div", "progress");
+    progressTrack.style.height = "6px";
+
+    const progressBar = createElement("div", "progress-bar net-progress-fill");
+    progressBar.style.width = `${Math.max(0, Math.min(100, Number(percent) || 0))}%`;
+
+    progressTrack.appendChild(progressBar);
+    footer.append(progressMeta, progressTrack);
+    cardBody.appendChild(footer);
+
+    const decoration = createElement("div", "position-absolute top-0 end-0 p-5 pe-0 pt-0");
+    decoration.style.zIndex = "0";
+    decoration.style.opacity = "0.03";
+    decoration.style.transform = "translate(20%, -20%) scale(1.5)";
+    decoration.style.pointerEvents = "none";
+    decoration.innerHTML = "<svg width=\"200\" height=\"200\" viewBox=\"0 0 200 200\" fill=\"currentColor\"><circle cx=\"100\" cy=\"100\" r=\"80\"/></svg>";
+    card.appendChild(decoration);
+
+    const navigate = () => {
+      window.location.href = `course.html?id=${encodeURIComponent(String(id || ""))}`;
+    };
+
+    card.addEventListener("click", navigate);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        navigate();
+      }
+    });
+
+    return card;
+  }
+
+  // -----------------------------
+  // Streak + stats widgets
+  // -----------------------------
+
+  function dateKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function readLoginLog(email) {
+    if (!email) return [];
+
+    if (typeof window.getLoginLog === "function") {
+      const sharedLog = window.getLoginLog(email);
+      return Array.isArray(sharedLog) ? sharedLog : [];
+    }
+
+    return parseJson(localStorage.getItem(`netology_login_log:${email}`), []) || [];
+  }
+
+  function computeLoginStreak(log) {
+    if (typeof window.computeLoginStreak === "function") {
+      return Number(window.computeLoginStreak(log) || 0);
+    }
+
+    if (!Array.isArray(log) || !log.length) return 0;
+
+    const daySet = new Set(log);
+    let streak = 0;
+    const cursor = new Date();
+
+    while (daySet.has(dateKey(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return streak;
+  }
+
+  function renderStreakCalendar(log) {
+    const calendar = getById("streakCalendar");
+    if (!calendar) return;
+
+    clearChildren(calendar);
+
+    const currentDate = new Date();
+    const currentWeekday = currentDate.getDay();
+    const mondayOffset = currentWeekday === 0 ? -6 : 1 - currentWeekday;
+
+    const monday = new Date(currentDate);
+    monday.setDate(currentDate.getDate() + mondayOffset);
+
+    const labels = ["M", "T", "W", "T", "F", "S", "S"];
+    const activeDays = new Set(Array.isArray(log) ? log : []);
+
+    labels.forEach((label, index) => {
+      const dayDate = new Date(monday);
+      dayDate.setDate(monday.getDate() + index);
+
+      const key = dateKey(dayDate);
+      const isActive = activeDays.has(key);
+      const isToday = key === dateKey(new Date());
+
+      const dayColumn = createElement("div", `net-cal-day${isActive ? " is-active" : ""}`);
+      if (isToday) dayColumn.classList.add("fw-bold");
+
+      const dayPill = createElement("div", "net-cal-pill");
+      const dayLabel = createElement("div", "net-cal-label", label);
+
+      dayColumn.append(dayPill, dayLabel);
+      dayColumn.title = dayDate.toLocaleDateString();
+      calendar.appendChild(dayColumn);
+    });
+  }
+
+  function renderProgressWidgets(user) {
+    const email = user?.email || "";
+
+    const apiSummary = dashboardState.progressSummary && dashboardState.progressSummary.email === email
+      ? dashboardState.progressSummary
+      : null;
+
+    const localSummary = email ? getLocalProgressSummary(email) : null;
+
+    const inProgress = Math.max(apiSummary?.inProgress || 0, localSummary?.inProgress || 0);
+    const lessonsDone = Math.max(apiSummary?.lessonsDone || 0, localSummary?.lessonsDone || 0);
+    const quizzesDone = Math.max(apiSummary?.quizzesDone || 0, localSummary?.quizzesDone || 0);
+    const challengesDone = Math.max(apiSummary?.challengesDone || 0, localSummary?.challengesDone || 0);
+
+    animateCount(getById("heroActive"), inProgress);
+    animateCount(getById("statLessons"), lessonsDone);
+    animateCount(getById("statQuizzes"), quizzesDone);
+    animateCount(getById("statChallenges"), challengesDone);
+
+    const loginLog = email ? readLoginLog(email) : [];
+    const streak = computeLoginStreak(loginLog);
+
+    animateCount(getById("heroStreak"), streak);
+    renderStreakCalendar(loginLog);
+  }
+
+  function initStatsCarousel() {
+    const card = getById("statsCarouselCard");
+    const track = getById("statsTrack");
+    const indicators = getById("statsIndicators");
+    if (!track || !indicators) return;
+
+    const slides = Array.from(track.querySelectorAll(".net-carousel-slide"));
+    const dots = Array.from(indicators.querySelectorAll(".net-indicator"));
+
+    if (!slides.length || dots.length !== slides.length) return;
+
+    if (card) {
+      card.style.cursor = "pointer";
+      card.addEventListener("click", (event) => {
+        if (event.target.closest(".net-indicator")) return;
+        window.location.href = "progress.html";
+      });
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          window.location.href = "progress.html";
+        }
+      });
+    }
+
+    let slideIndex = 0;
+
+    const setSlide = (nextIndex) => {
+      slideIndex = (nextIndex + slides.length) % slides.length;
+      slides.forEach((slide, index) => {
+        slide.classList.toggle("is-active", index === slideIndex);
+      });
+      dots.forEach((dot, index) => {
+        dot.classList.toggle("active", index === slideIndex);
+      });
+    };
+
+    dots.forEach((dot, index) => {
+      dot.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setSlide(index);
+        restartStatsTimer();
+      });
+    });
+
+    const restartStatsTimer = () => {
+      if (dashboardState.statsCarouselTimer) {
+        clearInterval(dashboardState.statsCarouselTimer);
+      }
+      dashboardState.statsCarouselTimer = setInterval(() => {
+        setSlide(slideIndex + 1);
+      }, 8000);
+    };
+
+    setSlide(0);
+    restartStatsTimer();
+  }
+
+  // -----------------------------
+  // Achievements
+  // -----------------------------
+
+  function getAchievementIconClass(achievement) {
+    const rawIcon = String(achievement?.icon || "").replace(/<[^>]*>/g, "").trim();
+    if (rawIcon.startsWith("bi-")) return rawIcon;
+    return ACHIEVEMENT_ICON_BY_ID[achievement?.id] || "bi-star-fill";
+  }
+
+  async function fetchAchievementCatalog(email, { force = false } = {}) {
+    if (!email) {
+      dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
+      dashboardState.achievementsFetchedAt = 0;
+      return dashboardState.achievementCatalog;
+    }
+
+    if (!force && dashboardState.achievementCatalog.all.length > 0) {
+      const ageMs = Date.now() - Number(dashboardState.achievementsFetchedAt || 0);
+      if (ageMs < 60000) return dashboardState.achievementCatalog;
+    }
+
+    try {
+      const endpoint = ENDPOINTS.achievements?.list || "/api/user/achievements";
+      const data = await apiGet(endpoint, { user_email: email });
+
+      if (!data?.success) {
+        dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
+        return dashboardState.achievementCatalog;
+      }
+
+      const unlocked = listFrom(data, "unlocked").map((achievement) => ({ ...achievement, unlocked: true }));
+      const locked = listFrom(data, "locked").map((achievement) => ({ ...achievement, unlocked: false }));
+
+      dashboardState.achievementCatalog = {
+        all: [...unlocked, ...locked],
+        unlocked,
+        locked
+      };
+      dashboardState.achievementsFetchedAt = Date.now();
+
+      return dashboardState.achievementCatalog;
+    } catch {
+      dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
+      dashboardState.achievementsFetchedAt = 0;
+      return dashboardState.achievementCatalog;
     }
   }
 
-  function setupGoalToggle() {
-    const btns = Array.from(document.querySelectorAll(".dash-toggle-btn[data-panel]"));
-    if (!btns.length) return;
+  function renderAchievements() {
+    const scroller = getById("achieveScroller");
+    if (!scroller) return;
 
-    btns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        btns.forEach((b) => b.classList.remove("is-active"));
-        btn.classList.add("is-active");
+    clearChildren(scroller);
 
-        const panelId = btn.getAttribute("data-panel");
-        btns.forEach((b) => {
-          const id = b.getAttribute("data-panel");
-          if (!id) return;
-          const panel = document.getElementById(id);
+    const achievements = Array.isArray(dashboardState.achievementCatalog?.all)
+      ? dashboardState.achievementCatalog.all
+      : [];
+
+    if (!achievements.length) {
+      scroller.innerHTML = '<div class="small text-muted">Complete goals to earn badges!</div>';
+      return;
+    }
+
+    achievements.forEach((achievement) => {
+      const item = createElement("div", `net-achieve-item${achievement.unlocked ? " is-earned" : ""}`);
+
+      const iconBox = createElement("div", "net-achieve-icon-box");
+      iconBox.innerHTML = `<i class="bi ${getAchievementIconClass(achievement)}"></i>`;
+
+      const name = createElement("div", "net-achieve-name", achievement.name || "Achievement");
+
+      item.append(iconBox, name);
+      item.setAttribute("data-bs-toggle", "tooltip");
+      item.setAttribute("data-bs-placement", "top");
+      item.title = `${achievement.description || achievement.name || "Achievement"}${achievement.unlocked ? " (Unlocked!)" : " (Locked)"}`;
+
+      scroller.appendChild(item);
+    });
+
+    initBootstrapTooltips(scroller);
+  }
+
+  // -----------------------------
+  // Challenges
+  // -----------------------------
+
+  function setupChallengeToggle() {
+    const buttons = Array.from(document.querySelectorAll(".dash-toggle-btn[data-panel]"));
+    if (!buttons.length) return;
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        buttons.forEach((otherButton) => otherButton.classList.remove("is-active"));
+        button.classList.add("is-active");
+
+        const activePanelId = button.getAttribute("data-panel");
+
+        buttons.forEach((panelButton) => {
+          const panelId = panelButton.getAttribute("data-panel");
+          if (!panelId) return;
+
+          const panel = getById(panelId);
           if (!panel) return;
 
-          if (id === panelId) {
+          if (panelId === activePanelId) {
             panel.hidden = false;
             requestAnimationFrame(() => panel.classList.add("is-active"));
           } else {
@@ -1403,795 +1274,227 @@ Works with:
     });
   }
 
-  function setupKpiCarousel() {
-    const carousel = getById("kpiCarousel");
-    const track = getById("kpiTrack");
-    const dotsWrap = getById("kpiDots");
-    if (!carousel || !track || !dotsWrap) return;
+  function renderChallengeList(container, challenges, type) {
+    if (!container) return;
 
-    const slides = Array.from(track.querySelectorAll(".dash-kpi-slide"));
-    const dots = Array.from(dotsWrap.querySelectorAll(".dash-kpi-dot[data-kpi-dot]"));
-    if (!slides.length || dots.length !== slides.length) return;
+    clearChildren(container);
 
-    let activeIndex = 0;
-    let timer = null;
-    const intervalMs = 8000;
-
-    function setActive(nextIndex) {
-      const max = slides.length;
-      activeIndex = ((Number(nextIndex) || 0) % max + max) % max;
-      track.style.transform = `translateX(-${activeIndex * 100}%)`;
-      dots.forEach((dot, idx) => {
-        dot.classList.toggle("is-active", idx === activeIndex);
-        dot.setAttribute("aria-current", idx === activeIndex ? "true" : "false");
-      });
-      slides.forEach((slide, idx) => {
-        slide.setAttribute("aria-hidden", idx === activeIndex ? "false" : "true");
-        slide.tabIndex = idx === activeIndex ? 0 : -1;
-      });
-    }
-
-    function startAuto() {
-      if (timer) clearInterval(timer);
-      timer = window.setInterval(() => setActive(activeIndex + 1), intervalMs);
-    }
-
-    function stopAuto() {
-      if (!timer) return;
-      clearInterval(timer);
-      timer = null;
-    }
-
-    dots.forEach((dot) => {
-      dot.addEventListener("click", () => {
-        const idx = Number(dot.getAttribute("data-kpi-dot") || 0);
-        setActive(idx);
-        startAuto();
-      });
-    });
-
-    carousel.addEventListener("mouseenter", stopAuto);
-    carousel.addEventListener("mouseleave", startAuto);
-    carousel.addEventListener("focusin", stopAuto);
-    carousel.addEventListener("focusout", () => {
-      if (!carousel.contains(document.activeElement)) startAuto();
-    });
-    carousel.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        setActive(activeIndex + 1);
-        startAuto();
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        setActive(activeIndex - 1);
-        startAuto();
-      }
-    });
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) stopAuto();
-      else startAuto();
-    });
-
-    setActive(0);
-    startAuto();
-  }
-
-  // AI Prompt: Explain the Continue learning section in clear, simple terms.
-  // -----------------------------
-  // Continue learning
-  // -----------------------------
-  async function renderContinueLearning() {
-    const box = getById("continueBox");
-    if (!box) return;
-
-    // Remove skeleton loading state
-    box.classList.remove("net-continue-skel");
-
-    const subtitle = getById("continueSubtitle");
-    const setSubtitle = (text) => { if (subtitle) subtitle.textContent = text; };
-
-    const user = getCurrentUser();
-    const email = user?.email;
-
-    if (!email) {
-      box.className = "dash-continue-list";
-      clearChildren(box);
-      setSubtitle("Sign in to track your course progress.");
-      box.appendChild(makeEl("div", "text-muted small", "Sign in and start a course to see your progress here."));
+    if (!Array.isArray(challenges) || challenges.length === 0) {
+      container.innerHTML = `<div class="small text-muted">No ${type} challenges available.</div>`;
       return;
     }
 
-    const content = getCourseIndex();
-    const apiCourses = await fetchContinueCourses(email);
-    const startedList = getStartedCourses(email)
-      .filter((c) => c && c.id)
-      .sort((a, b) => Number(b.lastViewed || 0) - Number(a.lastViewed || 0));
-    const startedMap = new Map(startedList.map((entry) => [String(entry.id), Number(entry.lastLesson || 0)]));
+    challenges.forEach((challenge) => {
+      const isDone = Number(challenge.progress || 0) >= 100;
 
-    // Only show API courses the user has genuinely started (progress > 0)
-    if (Array.isArray(apiCourses) && apiCourses.length) {
-      box.className = "dash-continue-list";
-      clearChildren(box);
-      setSubtitle("Pick up where you left off.");
-      apiCourses.forEach((entry) => {
-        const course = content[String(entry.id)] || {};
-        const title = entry.title || course.title || "Course";
-        const description = entry.description || course.description || "";
-        const diff = String(entry.difficulty || course.difficulty || "novice");
-        const category = entry.category || course.category || "Core";
-        const xpReward = Number(entry.xp_reward || course.xpReward || course.totalXP || 0);
-        const estimatedTime = entry.estimatedTime || course.estimatedTime || "";
+      const item = createElement("div", `dash-task${isDone ? " is-done" : ""}`);
+      item.dataset.challengeId = String(challenge.id || "");
+      item.dataset.challengeType = type;
+      item.dataset.xp = String(challenge.xp || 0);
+      if (challenge.description) item.dataset.tip = challenge.description;
 
-        const requiredApi = Number(entry.total_lessons || course.total_lessons || course.items || 0);
-        const pctApi = Math.max(0, Math.min(100, Number(entry.progress_pct || 0)));
-        const doneApi = requiredApi ? Math.round((pctApi / 100) * requiredApi) : 0;
+      const textColumn = createElement("div", "flex-grow-1");
+      textColumn.append(
+        createElement("div", "fw-semibold small", challenge.title || "Challenge"),
+        createElement("div", "text-muted small", challenge.description || "")
+      );
 
-        const comps = getCourseCompletionsLocal(email, entry.id);
-        const requiredLocal = countRequiredItems(course);
-        const doneLocal = comps.lesson.size + comps.quiz.size + comps.challenge.size;
-
-        const required = requiredApi || requiredLocal;
-        const done = Math.max(doneApi, doneLocal);
-        const pct = required ? Math.round((done / required) * 100) : Math.max(pctApi, 0);
-
-        const item = buildContinueItem({
-          id: entry.id,
-          title,
-          description,
-          category,
-          diff,
-          pct,
-          done,
-          required,
-          xpReward,
-          estimatedTime
-        });
-        box.appendChild(item);
-      });
-      return;
-    }
-
-    // Fallback: use local started courses (only those with a lastViewed timestamp — genuine visits)
-    const started = startedList.filter((e) => Number(e.lastViewed || 0) > 0).slice(0, 3);
-
-    if (started.length) {
-      box.className = "dash-continue-list";
-      clearChildren(box);
-      setSubtitle("Pick up where you left off.");
-      started.forEach((entry) => {
-        const course = content[String(entry.id)] || (COURSE_CONTENT?.[String(entry.id)] || {});
-        const title = course.title || "Course";
-        const description = course.description || "";
-        const diff = String(course.difficulty || "novice");
-        const category = course.category || "Core";
-        const xpReward = Number(course.xpReward || course.totalXP || course.xp_reward || 0);
-        const estimatedTime = course.estimatedTime || "";
-
-        const comps = getCourseCompletionsLocal(email, entry.id);
-        const done = comps.lesson.size + comps.quiz.size + comps.challenge.size;
-        const required = countRequiredItems(course);
-        const pct = required ? Math.round((done / required) * 100) : 0;
-
-        const item = buildContinueItem({
-          id: entry.id,
-          title,
-          description,
-          category,
-          diff,
-          pct,
-          done,
-          required,
-          xpReward,
-          estimatedTime
-        });
-        box.appendChild(item);
-      });
-      return;
-    }
-
-    box.className = "dash-continue-list";
-    clearChildren(box);
-    setSubtitle("Start a course to track your progress here.");
-    box.appendChild(makeEl("div", "text-muted small", "No started courses yet. Head to the Courses page to begin."));
-  }
-
-  function buildContinueItem({ id, title, description, category, diff, pct, done, required, xpReward, estimatedTime }) {
-    const item = document.createElement("div");
-    item.className = "net-coursecard-enhanced net-card net-pop position-relative overflow-hidden p-0";
-    item.setAttribute("data-course-id", String(id));
-    item.tabIndex = 0;
-    item.setAttribute("role", "button");
-
-    const body = makeEl("div", "p-4 position-relative z-1 h-100 d-flex flex-column");
-    item.appendChild(body);
-
-    // Top: Badge + Category
-    const topRow = makeEl("div", "d-flex align-items-center justify-content-between mb-3");
-
-    const badgeGroup = makeEl("div", "d-flex align-items-center gap-2");
-    const diffCls = diff === "intermediate" ? "net-diff-intermediate" : diff === "advanced" ? "net-diff-advanced" : "net-diff-novice";
-    const diffBadge = makeEl("span", `badge net-pill-badge border ${diffCls}`);
-    diffBadge.textContent = prettyDiff(diff);
-
-    const catBadge = makeEl("span", "text-muted small fw-bold text-uppercase ls-1");
-    catBadge.textContent = category || "Course";
-
-    badgeGroup.append(diffBadge, catBadge);
-
-    // XP pill
-    const xpPill = makeEl("span", "badge bg-light text-dark border net-pill-badge");
-    xpPill.innerHTML = `<i class="bi bi-lightning-charge-fill text-warning me-1"></i>${xpReward || 0} XP`;
-
-    topRow.append(badgeGroup, xpPill);
-    body.appendChild(topRow);
-
-    // Title
-    const titleEl = makeEl("h3", "h5 fw-bold mb-2", title);
-    body.appendChild(titleEl);
-
-    // Description
-    if (description) {
-      const snippet = description.length > 85 ? description.slice(0, 82) + "…" : description;
-      body.appendChild(makeEl("p", "text-muted small mb-4 flex-grow-1", snippet));
-    } else {
-      body.appendChild(makeEl("div", "flex-grow-1"));
-    }
-
-    // Progress
-    const footer = makeEl("div", "mt-auto");
-    const progressMeta = makeEl("div", "d-flex justify-content-between small mb-1 fw-bold");
-    progressMeta.append(
-      makeEl("span", "text-teal", `${pct}% Complete`),
-      makeEl("span", "text-muted", `${done}/${required || 0} items`)
-    );
-
-    const progressTrack = makeEl("div", "progress");
-    progressTrack.style.height = "6px";
-    const progressBar = makeEl("div", "progress-bar net-progress-fill");
-    progressBar.style.width = `${pct}%`;
-    progressTrack.appendChild(progressBar);
-
-    footer.append(progressMeta, progressTrack);
-    body.appendChild(footer);
-
-    // Background decoration
-    const bgDeco = makeEl("div", "position-absolute top-0 end-0 p-5 pe-0 pt-0");
-    bgDeco.style.zIndex = "0";
-    bgDeco.style.opacity = "0.03";
-    bgDeco.style.transform = "translate(20%, -20%) scale(1.5)";
-    bgDeco.style.pointerEvents = "none";
-    bgDeco.innerHTML = '<svg width="200" height="200" viewBox="0 0 200 200" fill="currentColor"><circle cx="100" cy="100" r="80"/></svg>';
-    item.appendChild(bgDeco);
-
-    // Navigation — always go to the course overview page so the user
-    // can see their full progress before resuming.
-    const nav = () => {
-      window.location.href = `course.html?id=${encodeURIComponent(id)}`;
-    };
-    item.addEventListener("click", nav);
-    item.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        nav();
+      if (!isDone) {
+        const hint = createElement("div", "small text-muted mt-1", "Complete the linked task to earn this reward.");
+        hint.style.fontSize = "0.72rem";
+        textColumn.appendChild(hint);
       }
+
+      const xpBadge = createElement("div", `dash-task-xp${isDone ? " is-done" : ""}`);
+      if (isDone) {
+        xpBadge.innerHTML = '<i class="bi bi-check2-circle"></i>';
+      } else {
+        xpBadge.textContent = `+${challenge.xp || 0} XP`;
+      }
+
+      item.append(textColumn, xpBadge);
+      container.appendChild(item);
     });
-
-    return item;
   }
 
-  // AI Prompt: Explain the Progress widgets (streak, goals, achievements) section in clear, simple terms.
-  // -----------------------------
-  // Progress widgets (streak, goals, achievements)
-  // -----------------------------
-  function renderProgressWidgets() {
-    const user = getCurrentUser();
-    const email = user?.email || "";
-
-    let inProgress = 0;
-    const localSummary = email ? getLocalProgressSummary(email) : null;
-    const apiSummary = (window.__dashProgressSummary && window.__dashProgressSummary.email === email)
-      ? window.__dashProgressSummary
-      : null;
-
-    if (apiSummary || localSummary) {
-      inProgress = Math.max(apiSummary?.inProgress || 0, localSummary?.inProgress || 0);
-    }
-
-    animateCount(getById("heroActive"), inProgress);
-
-    // Login streak
-    const loginLog = email ? getLoginLog(email) : [];
-    const loginStreak = computeLoginStreak(loginLog);
-    animateCount(getById("heroStreak"), loginStreak);
-
-    // Render Weekly Calendar
-    renderStreakCalendar(loginLog);
-
-    // Legacy top streak pill (if used)
-    const topStreakPill = getById("topStreakPill");
-    if (topStreakPill) topStreakPill.style.display = loginStreak > 0 ? "" : "none";
-
-    let lessonsDone = 0, quizzesDone = 0, challengesDone = 0;
-    if (apiSummary || localSummary) {
-      lessonsDone = Math.max(apiSummary?.lessonsDone || 0, localSummary?.lessonsDone || 0);
-      quizzesDone = Math.max(apiSummary?.quizzesDone || 0, localSummary?.quizzesDone || 0);
-      challengesDone = Math.max(apiSummary?.challengesDone || 0, localSummary?.challengesDone || 0);
-    }
-
-    animateCount(getById("statLessons"), lessonsDone);
-    animateCount(getById("statQuizzes"), quizzesDone);
-    animateCount(getById("statChallenges"), challengesDone);
-    // Render Recent Activity (assuming helper exists)
-    if (typeof renderRecentActivity === "function") renderRecentActivity();
+  function setChallengesRetryVisible(show) {
+    const retryButton = getById("challengesRetryBtn");
+    if (!retryButton) return;
+    retryButton.classList.toggle("d-none", !show);
   }
 
-  // AI Prompt: Explain the User UI fill section in clear, simple terms.
-  // -----------------------------
-  // User UI fill
-  // -----------------------------
-  function fillUserUI() {
-    const user = getCurrentUser();
+  function challengeFallbackHtml() {
+    const timeLabel = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return `
+      <div class="small text-muted">Challenges are temporarily unavailable.</div>
+      <div class="small text-muted">Try again later • ${timeLabel}</div>
+    `;
+  }
 
-    const name = user?.first_name
-      ? `${user.first_name} ${user.last_name || ""}`.trim()
-      : (user?.name || user?.username || "Student");
-
-    const email = user?.email || "Not logged in";
-    const rank = getUserRank(user);
-
-    // avatar = first letter of name/username
-    const initial = (name || "S").trim().charAt(0).toUpperCase();
-    const streakPill = getById("topStreakPill");
-    if (streakPill) streakPill.style.display = user?.email ? "" : "none";
-
-    const lvl = userNumericLevel(user);
-    const { totalXP, currentLevelXP, xpNext, progressPct } = computeXP(user);
-
-    // Welcome & Top Nav
-    if (getById("welcomeName")) getById("welcomeName").textContent = name;
-    if (getById("topUserName")) getById("topUserName").textContent = name;
-    if (getById("topAvatar")) getById("topAvatar").textContent = initial;
-
-    // Dropdown
-    if (getById("ddName")) getById("ddName").textContent = name;
-    if (getById("ddEmail")) getById("ddEmail").textContent = email;
-    if (getById("ddAvatar")) getById("ddAvatar").textContent = initial;
-    if (getById("ddLevel")) getById("ddLevel").textContent = `Level ${lvl}`;
-    if (getById("ddRank")) getById("ddRank").textContent = rank;
-
-    // Sidebar
-    if (getById("sideUserName")) getById("sideUserName").textContent = name;
-    if (getById("sideUserEmail")) getById("sideUserEmail").textContent = email;
-    if (getById("sideAvatar")) getById("sideAvatar").textContent = initial;
-    if (getById("sideLevelBadge")) getById("sideLevelBadge").textContent = `Lv ${lvl}`;
-    if (getById("sideXpText")) getById("sideXpText").textContent = `${currentLevelXP}/${xpNext}`;
-    if (getById("sideXpBar")) getById("sideXpBar").style.width = `${progressPct}%`;
-
-    // NEW HERO STATS
-    if (getById("heroRank")) getById("heroRank").textContent = rank;
-    if (getById("heroLevel")) getById("heroLevel").textContent = `Level ${lvl}`;
-    if (getById("heroXP")) {
-      const xpVal = Number(totalXP || 0);
-      getById("heroXP").textContent = xpVal.toLocaleString();
+  function showChallengesToastOnce() {
+    try {
+      if (sessionStorage.getItem("netology_challenges_toast") === "1") return;
+      sessionStorage.setItem("netology_challenges_toast", "1");
+    } catch {
+      // Ignore storage errors.
     }
 
-    // Replace Linear Bar with Arc Gauge (Round 7: Larger Semi-circle)
-    const cardXP = getById("heroXP")?.closest(".net-stat-card");
-    if (cardXP) {
-      const oldProg = cardXP.querySelector(".progress");
-      if (oldProg) oldProg.remove();
+    if (typeof window.showPopup === "function") {
+      window.showPopup("Challenges are temporarily unavailable. We’ll keep trying in the background.", "warning");
+      return;
+    }
 
-      let arcContainer = cardXP.querySelector(".net-xp-arc");
-      if (!arcContainer) {
-        arcContainer = document.createElement("div");
-        arcContainer.className = "net-xp-arc position-relative mt-2 d-flex justify-content-center";
-        const containerDiv = getById("heroXP")?.parentElement;
-        if (containerDiv) containerDiv.appendChild(arcContainer);
-      }
-
-      const radius = 45;
-      const circumference = 2 * Math.PI * radius;
-      const arcLength = (180 / 360) * circumference;
-      const offset = arcLength - (progressPct / 100) * arcLength;
-
-      arcContainer.innerHTML = `
-        <svg width="170" height="95" viewBox="0 0 110 65" style="display:block; margin:0 auto; overflow:visible;">
-          <defs>
-            <linearGradient id="xpGradHero7" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#0d9488" />
-              <stop offset="100%" stop-color="#06b6d4" />
-            </linearGradient>
-          </defs>
-          <path d="M 10,55 A 45,45 0 0 1 100,55" fill="none" stroke="#f1f5f9" stroke-width="12" stroke-linecap="round" />
-          <path d="M 10,55 A 45,45 0 0 1 100,55" fill="none" stroke="url(#xpGradHero7)" stroke-width="12" stroke-linecap="round"
-            stroke-dasharray="${arcLength}" stroke-dashoffset="${offset}" 
-            style="transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);" />
-        </svg>
-        <div class="net-xp-gauge-lbl">
-           <div class="net-xp-level-big">Lvl ${lvl}</div>
-           <div class="net-xp-percent-sm">${Math.round(progressPct)}%</div>
-        </div>
-      `;
+    if (window.NetologyToast?.showMessageToast) {
+      window.NetologyToast.showMessageToast(
+        "Challenges are temporarily unavailable. We’ll keep trying in the background.",
+        "warning",
+        4200
+      );
     }
   }
 
-  async function refreshUserFromApi() {
-    const user = getCurrentUser();
-    const email = user?.email || localStorage.getItem("netology_last_email") || "";
-    if (!email) return user;
+  function clearChallengesToastFlag() {
+    try {
+      sessionStorage.removeItem("netology_challenges_toast");
+    } catch {
+      // Ignore storage errors.
+    }
+  }
+
+  async function fetchChallengesByType(email, type) {
+    const base = String(window.API_BASE || "").trim();
+    const endpoint = ENDPOINTS.challenges?.list || "/api/user/challenges";
+
+    const url = base
+      ? new URL(base.replace(/\/$/, "") + endpoint)
+      : new URL(endpoint, window.location.origin);
+
+    url.searchParams.set("type", type);
+    url.searchParams.set("user_email", email);
 
     try {
-      const data = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", { email });
-      if (!data || !data.success) return user;
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      const unlockTier = String(data.start_level || user?.unlock_tier || user?.unlock_level || user?.unlockTier || "novice")
-        .trim()
-        .toLowerCase();
+      const contentType = String(response.headers.get("content-type") || "");
+      if (!contentType.includes("application/json")) throw new Error("Non-JSON response");
 
-      const serverXP = Number(data.xp ?? data.total_xp);
-      const xp = Number.isFinite(serverXP) ? serverXP : Number(user?.xp || 0);
-
-      const merged = {
-        ...(user || {}),
-        email,
-        first_name: data.first_name || user?.first_name,
-        last_name: data.last_name || user?.last_name,
-        username: data.username || user?.username,
-        xp,
-        numeric_level: Number.isFinite(Number(data.numeric_level)) ? Number(data.numeric_level) : user?.numeric_level,
-        xp_into_level: Number.isFinite(Number(data.xp_into_level)) ? Number(data.xp_into_level) : user?.xp_into_level,
-        next_level_xp: Number.isFinite(Number(data.next_level_xp)) ? Number(data.next_level_xp) : user?.next_level_xp,
-        rank: data.rank || data.level || user?.rank,
-        level: data.level || data.rank || user?.level,
-        unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
-      };
-
-      localStorage.setItem("user", JSON.stringify(merged));
-      localStorage.setItem("netology_user", JSON.stringify(merged));
-      return merged;
-    } catch {
-      return user;
+      const data = await response.json();
+      return { ok: true, data };
+    } catch (error) {
+      return { ok: false, error };
     }
   }
 
-  // AI Prompt: Explain the Lightweight refresh (focus/visibility/storage) section in clear, simple terms.
-  // -----------------------------
-  // Lightweight refresh (focus/visibility/storage)
-  // -----------------------------
-  let __dashRefreshTimer = null;
-
-  function scheduleDashboardRefresh() {
-    if (document.hidden) return;
-    if (__dashRefreshTimer) clearTimeout(__dashRefreshTimer);
-    __dashRefreshTimer = window.setTimeout(() => {
-      refreshDashboard();
-    }, 150);
-  }
-
-  async function refreshDashboard() {
-    // Re-fetch latest XP from the server so the display is accurate after
-    // returning from a lesson (where XP was earned and saved server-side).
-    const freshUser = await safeStepAsync("refreshUserFromApi", refreshUserFromApi);
-    const user = freshUser || getCurrentUser();
-
-    safeStep("fillUserUI", fillUserUI);
-    await safeStepAsync("renderContinueLearning", renderContinueLearning);
-
-    if (user?.email) {
-      await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
-      await safeStepAsync("loadChallenges", () => loadChallenges(user.email));
-      await safeStepAsync("fetchAchievementCatalog", () => fetchAchievementCatalog(user.email));
-    }
-
-    safeStep("renderProgressWidgets", renderProgressWidgets);
-    safeStep("renderAchievements", renderAchievements);
-  }
-
-  function renderAchievements() {
-    const scroller = getById("achieveScroller");
-    if (!scroller) return;
-    clearChildren(scroller);
-
-    const catalog = getAchievementCatalog();
-    const list = Array.isArray(catalog?.all) ? catalog.all : [];
-
-    if (!list.length) {
-      scroller.innerHTML = '<div class="small text-muted">Complete goals to earn badges!</div>';
+  async function loadChallenges(email, { force = false } = {}) {
+    if (!email) {
+      renderChallengeList(getById("dailyTasks"), [], "daily");
+      renderChallengeList(getById("weeklyTasks"), [], "weekly");
+      setChallengesRetryVisible(false);
       return;
     }
 
-    list.forEach((a) => {
-      const item = makeEl("div", "net-achieve-item");
-      const isEarned = !!a.unlocked;
-      if (isEarned) item.classList.add("is-earned");
-
-      const iconBox = makeEl("div", "net-achieve-icon-box");
-      iconBox.innerHTML = `<i class="bi ${getAchievementIconClass(a)}"></i>`;
-
-      const name = makeEl("div", "net-achieve-name", a.name || "Achievement");
-      item.append(iconBox, name);
-
-      item.setAttribute("data-bs-toggle", "tooltip");
-      item.setAttribute("data-bs-placement", "top");
-      item.title = `${a.description || a.name || "Achievement"}${isEarned ? " (Unlocked!)" : " (Locked)"}`;
-
-      scroller.appendChild(item);
-    });
-
-    if (window.bootstrap && window.bootstrap.Tooltip) {
-      scroller.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
-        new bootstrap.Tooltip(el);
-      });
-    }
-  }
-
-  // AI Prompt: Explain the Init section in clear, simple terms.
-  // -----------------------------
-  // -----------------------------
-  // New Stats Helpers
-  // -----------------------------
-  function renderStreakCalendar(log) {
-    const cal = getById("streakCalendar");
-    if (!cal) return;
-    clearChildren(cal);
-
-    // Get current week (Mon-Sun)
-    const now = new Date();
-    const day = now.getDay(); // 0=Sun, 1=Mon...
-    const diff = day === 0 ? -6 : 1 - day; // Adjust to get Monday
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + diff);
-
-    const days = ["M", "T", "W", "T", "F", "S", "S"];
-    days.forEach((label, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const key = dateKey(d);
-      const isActive = log.includes(key);
-      const isToday = key === dateKey(new Date());
-
-      const col = makeEl("div", `net-cal-day ${isActive ? "is-active" : ""}`);
-      if (isToday) col.classList.add("fw-bold");
-
-      const pill = makeEl("div", "net-cal-pill");
-      const lbl = makeEl("div", "net-cal-label", label);
-
-      col.append(pill, lbl);
-      col.title = d.toLocaleDateString();
-      cal.appendChild(col);
-    });
-  }
-
-  function initStatsCarousel() {
-    const card = getById("statsCarouselCard");
-    const track = getById("statsTrack");
-    const indicators = getById("statsIndicators");
-    if (!track || !indicators) return;
-
-    // Make entire card navigate to progress.html on click
-    if (card) {
-      card.style.cursor = "pointer";
-      card.addEventListener("click", (e) => {
-        // Don't navigate if clicking on indicator dots
-        if (e.target.closest(".net-indicator")) return;
-        window.location.href = "progress.html";
-      });
-      card.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          window.location.href = "progress.html";
-        }
-      });
-    }
-
-    // 1. Calculate Stats
-    const progressRaw = localStorage.getItem("netology_progress");
-    const progress = progressRaw ? JSON.parse(progressRaw) : {};
-
-    const activeCourses = Object.keys(progress).length;
-    const completedCourses = 0;
-
-    let completedLessons = 0;
-    Object.values(progress).forEach(course => {
-      Object.values(course).forEach(module => {
-        if (typeof module === 'object') {
-          completedLessons += Object.values(module).filter(v => v === true).length;
-        }
-      });
-    });
-    const activeLessons = activeCourses > 0 ? 1 : 0;
-
-    let activeLabs = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-      if (localStorage.key(i).startsWith("netology_topology_")) activeLabs++;
-    }
-    const completedLabs = 0;
-    const activeQuizzes = 0;
-    const completedQuizzes = 0;
-
-    // 2. Define Slides Data
-    const slidesData = [
-      { title: "Courses", icon: "bi-journal-album", colorCls: "teal", active: activeCourses, completed: completedCourses },
-      { title: "Lessons", icon: "bi-book-half", colorCls: "blue", active: activeLessons, completed: completedLessons },
-      { title: "Quizzes", icon: "bi-puzzle-fill", colorCls: "purple", active: activeQuizzes, completed: completedQuizzes },
-      { title: "Sandbox", icon: "bi-box-seam", colorCls: "orange", active: activeLabs, completed: completedLabs }
-    ];
-
-    // 3. Render Slides
-    track.innerHTML = "";
-    slidesData.forEach((s, i) => {
-      const slide = document.createElement("div");
-      slide.className = `net-carousel-slide ${i === 0 ? "is-active" : ""}`;
-
-      slide.innerHTML = `
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <span class="small text-muted fw-bold text-uppercase ls-1">${s.title}</span>
-          <div class="net-icon-box bg-${s.colorCls}-sub text-${s.colorCls} rounded-circle p-2">
-            <i class="bi ${s.icon}"></i>
-          </div>
-        </div>
-        <div class="row g-0 mt-2">
-          <div class="col-6 border-end pe-2">
-            <div class="h4 fw-bolder mb-0 text-dark">${s.active}</div>
-            <div class="small text-muted">Active</div>
-          </div>
-          <div class="col-6 ps-3">
-             <div class="h4 fw-bolder mb-0 text-dark opacity-75">${s.completed}</div>
-             <div class="small text-muted">Done</div>
-          </div>
-        </div>
-      `;
-      track.appendChild(slide);
-    });
-
-    // 4. Carousel Logic
-    let currentSlide = 0;
-    const slides = Array.from(track.querySelectorAll(".net-carousel-slide"));
-    const dots = Array.from(indicators.querySelectorAll(".net-indicator"));
-    const total = slides.length;
-    let timer = null;
-
-    const showSlide = (index) => {
-      currentSlide = (index + total) % total;
-      slides.forEach((s, i) => {
-        s.classList.toggle("is-active", i === currentSlide);
-      });
-      dots.forEach((d, i) => {
-        d.classList.toggle("active", i === currentSlide);
-      });
-    };
-
-    const next = () => showSlide(currentSlide + 1);
-
-    const startTimer = () => {
-      if (timer) clearInterval(timer);
-      timer = setInterval(next, 8000);
-    };
-
-    dots.forEach((dot, i) => {
-      dot.addEventListener("click", (e) => {
-        e.stopPropagation();
-        showSlide(i);
-        startTimer();
-      });
-    });
-
-    startTimer();
-  }
-
-  // -----------------------------
-  // Init
-  // -----------------------------
-  async function init() {
-    safeStep("wireBrandRouting", wireBrandRouting);
-    safeStep("setupSidebar", setupSidebar);
-    safeStep("setupUserDropdown", setupUserDropdown);
-    safeStep("setupLogout", setupLogout);
-    safeStep("setupGoalToggle", setupGoalToggle);
-    safeStep("setDailyTip", setDailyTip);
-    safeStep("initStatsCarousel", initStatsCarousel);
-    safeStep("wireChallengesRetry", wireChallengesRetry);
-
-    // Init Bootstrap Tooltips
-    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
-
-    // Fast first paint using cached user data
-    const cachedUser = getCurrentUser();
-    safeStep("fillUserUI", fillUserUI);
-    await safeStepAsync("renderContinueLearning", renderContinueLearning);
-    safeStep("renderProgressWidgets", renderProgressWidgets);
-
-    const user = await safeStepAsync("refreshUserFromApi", refreshUserFromApi) || cachedUser;
-    if (user?.email) {
-      await safeStepAsync("fetchAchievements", () => fetchAchievements(user.email));
-      let loginInfo = safeStep("recordLoginDay", () => recordLoginDay(user.email)) || { log: [] };
-      const remoteLogin = await safeStepAsync("syncLoginLog", () => syncLoginLog(user.email));
-      if (remoteLogin && Array.isArray(remoteLogin.log)) loginInfo = remoteLogin;
-      const streak = safeStep("computeLoginStreak", () => computeLoginStreak(loginInfo.log)) || 0;
-      await safeStepAsync("awardLoginStreakBadges", () => awardLoginStreakBadges(user.email, streak));
-
-      await safeStepAsync("fetchAchievementCatalog", () => fetchAchievementCatalog(user.email, { force: true }));
-      safeStep("renderAchievements", renderAchievements);
-      await safeStepAsync("loadChallenges", () => loadChallenges(user.email, { force: true }));
-
-      if (typeof window.maybeStartOnboardingTour === "function") {
-        // Reliability fix: if the user is a first-timer (is_first_login) who hasn't
-        // completed onboarding, always ensure the session flags are set so the tour
-        // triggers even when sessionStorage was cleared (page refresh, new tab, etc.)
-        const normalizedOnboardingEmail = String(user.email || "").trim().toLowerCase();
-        const existingOnboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
-        const alreadyOnboarded = Boolean(user.onboarding_completed)
-          || localStorage.getItem("netology_onboarding_completed") === "true"
-          || localStorage.getItem(`netology_onboarding_completed_${normalizedOnboardingEmail}`) === "true"
-          || localStorage.getItem("netology_onboarding_skipped") === "true";
-
-        if (!alreadyOnboarded && user.is_first_login) {
-          if (!existingOnboardingUser || existingOnboardingUser !== normalizedOnboardingEmail) {
-            localStorage.setItem("netology_onboarding_stage", "dashboard");
-            localStorage.setItem("netology_onboarding_user", normalizedOnboardingEmail);
-          } else if (!localStorage.getItem("netology_onboarding_stage")) {
-            localStorage.setItem("netology_onboarding_stage", "dashboard");
-          }
-          try { sessionStorage.setItem("netology_onboarding_session", "true"); } catch {}
-        }
-
-        setTimeout(() => {
-          const welcomeShown = maybeShowDashboardWelcome(user);
-          if (welcomeShown) return;
-          const started = window.maybeStartOnboardingTour("dashboard", user.email);
-          if (!started) {
-            window.maybeStartOnboardingTour("wrapup", user.email);
-          }
-        }, 600);
-      }
-
-      if (loginInfo.isNew) {
-        const pill = getById("topStreakPill");
-        if (pill) {
-          pill.classList.remove("is-animate");
-          requestAnimationFrame(() => {
-            pill.classList.add("is-animate");
-            window.setTimeout(() => pill.classList.remove("is-animate"), 1200);
-          });
-        }
+    if (!force && dashboardState.challengesFetchedAt > 0) {
+      const ageMs = Date.now() - dashboardState.challengesFetchedAt;
+      if (ageMs < CHALLENGE_CACHE_MS) {
+        renderChallengeList(getById("dailyTasks"), dashboardState.challenges.daily, "daily");
+        renderChallengeList(getById("weeklyTasks"), dashboardState.challenges.weekly, "weekly");
+        setChallengesRetryVisible(false);
+        return;
       }
     }
 
-    safeStep("fillUserUI", fillUserUI);
-    await safeStepAsync("renderContinueLearning", renderContinueLearning);
-    if (user?.email) {
-      await safeStepAsync("fetchProgressSummary", () => fetchProgressSummary(user.email));
-    }
-    safeStep("renderProgressWidgets", renderProgressWidgets);
+    const dailyTarget = getById("dailyTasks");
+    const weeklyTarget = getById("weeklyTasks");
 
-    // Auto-refresh when the tab regains focus or storage changes.
-    window.addEventListener("focus", scheduleDashboardRefresh);
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) scheduleDashboardRefresh();
-    });
-    window.addEventListener("storage", (e) => {
-      if (!e.key) return;
-      if (e.key === "user" || e.key.startsWith("netology_")) scheduleDashboardRefresh();
-    });
+    if (dailyTarget) dailyTarget.innerHTML = '<div class="small text-muted">Loading daily focus…</div>';
+    if (weeklyTarget) weeklyTarget.innerHTML = '<div class="small text-muted">Loading weekly challenges…</div>';
+
+    const [dailyResult, weeklyResult] = await Promise.all([
+      fetchChallengesByType(email, "daily"),
+      fetchChallengesByType(email, "weekly")
+    ]);
+
+    const hasError = !dailyResult.ok || !weeklyResult.ok;
+
+    if (dailyResult.ok) {
+      const dailyChallenges = listFrom(dailyResult.data, "challenges");
+      dashboardState.challenges.daily = dailyChallenges;
+      renderChallengeList(dailyTarget, dailyChallenges, "daily");
+    } else {
+      console.warn("Daily challenges unavailable:", dailyResult.error);
+      if (dailyTarget) dailyTarget.innerHTML = challengeFallbackHtml();
+    }
+
+    if (weeklyResult.ok) {
+      const weeklyChallenges = listFrom(weeklyResult.data, "challenges");
+      dashboardState.challenges.weekly = weeklyChallenges;
+      renderChallengeList(weeklyTarget, weeklyChallenges, "weekly");
+    } else {
+      console.warn("Weekly challenges unavailable:", weeklyResult.error);
+      if (weeklyTarget) weeklyTarget.innerHTML = challengeFallbackHtml();
+    }
+
+    if (!hasError) {
+      dashboardState.challengesFetchedAt = Date.now();
+      setChallengesRetryVisible(false);
+      clearChallengesToastFlag();
+    } else {
+      setChallengesRetryVisible(true);
+      showChallengesToastOnce();
+    }
   }
 
   function wireChallengesRetry() {
-    const btn = getById("challengesRetryBtn");
-    if (!btn || btn._netBound) return;
-    btn._netBound = true;
-    const originalHtml = btn.innerHTML;
+    const retryButton = getById("challengesRetryBtn");
+    if (!retryButton || retryButton.dataset.bound === "true") return;
 
-    btn.addEventListener("click", async () => {
+    retryButton.dataset.bound = "true";
+    const originalHtml = retryButton.innerHTML;
+
+    retryButton.addEventListener("click", async () => {
       const user = getCurrentUser();
       if (!user?.email) return;
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Retrying';
+
+      retryButton.disabled = true;
+      retryButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Retrying';
+
       await loadChallenges(user.email, { force: true });
-      btn.disabled = false;
-      btn.innerHTML = originalHtml;
+
+      retryButton.disabled = false;
+      retryButton.innerHTML = originalHtml;
     });
+  }
+
+  // -----------------------------
+  // Onboarding + welcome overlay
+  // -----------------------------
+
+  function prepareOnboardingSessionForFirstLogin(user) {
+    if (!user?.email || !user?.is_first_login) return;
+
+    const email = String(user.email || "").trim().toLowerCase();
+    const existingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
+
+    const alreadyOnboarded = Boolean(user.onboarding_completed)
+      || localStorage.getItem("netology_onboarding_completed") === "true"
+      || localStorage.getItem(`netology_onboarding_completed_${email}`) === "true"
+      || localStorage.getItem("netology_onboarding_skipped") === "true";
+
+    if (alreadyOnboarded) return;
+
+    if (!existingUser || existingUser !== email) {
+      localStorage.setItem("netology_onboarding_user", email);
+      localStorage.setItem("netology_onboarding_stage", "dashboard");
+    } else if (!localStorage.getItem("netology_onboarding_stage")) {
+      localStorage.setItem("netology_onboarding_stage", "dashboard");
+    }
+
+    try {
+      sessionStorage.setItem("netology_onboarding_session", "true");
+    } catch {
+      // Ignore storage errors.
+    }
   }
 
   function maybeShowDashboardWelcome(user) {
@@ -2199,41 +1502,50 @@ Works with:
     if (!overlay || !user?.email) return false;
 
     const normalizedEmail = String(user.email || "").trim().toLowerCase();
-    const onboardingUser = String(localStorage.getItem("netology_onboarding_user") || "")
-      .trim()
-      .toLowerCase();
+    const onboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
     const stage = String(localStorage.getItem("netology_onboarding_stage") || "").trim().toLowerCase();
 
     let sessionAllowed = false;
     let alreadyShown = false;
+
     try {
       sessionAllowed = sessionStorage.getItem("netology_onboarding_session") === "true";
       alreadyShown = sessionStorage.getItem("netology_welcome_shown") === "true";
-    } catch {}
+    } catch {
+      // Ignore storage errors.
+    }
 
-    if (!sessionAllowed || alreadyShown || stage !== "dashboard" || onboardingUser !== normalizedEmail) {
+    if (!sessionAllowed || alreadyShown || onboardingUser !== normalizedEmail || stage !== "dashboard") {
       return false;
     }
 
-    const nameEl = getById("dashboardWelcomeName");
-    if (nameEl) nameEl.textContent = user.first_name || "there";
+    const nameElement = getById("dashboardWelcomeName");
+    if (nameElement) nameElement.textContent = user.first_name || "there";
 
     overlay.classList.remove("d-none");
     overlay.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
-    const startBtn = getById("dashboardWelcomeStart");
-    const skipBtn = getById("dashboardWelcomeSkip");
-    let closing = false;
 
-    const dismissOverlay = (startTour) => {
-      if (closing) return;
-      closing = true;
-      if (startBtn) startBtn.disabled = true;
-      if (skipBtn) skipBtn.disabled = true;
+    const startButton = getById("dashboardWelcomeStart");
+    const skipButton = getById("dashboardWelcomeSkip");
+
+    let isClosing = false;
+
+    const dismiss = (startTour) => {
+      if (isClosing) return;
+      isClosing = true;
+
+      if (startButton) startButton.disabled = true;
+      if (skipButton) skipButton.disabled = true;
+
       try {
         sessionStorage.setItem("netology_welcome_shown", "true");
-      } catch {}
+      } catch {
+        // Ignore storage errors.
+      }
+
       overlay.classList.add("is-exiting");
+
       window.setTimeout(() => {
         overlay.classList.add("d-none");
         overlay.classList.remove("is-exiting");
@@ -2243,34 +1555,232 @@ Works with:
         if (startTour && typeof window.maybeStartOnboardingTour === "function") {
           const started = window.maybeStartOnboardingTour("dashboard", user.email);
           if (!started) window.maybeStartOnboardingTour("wrapup", user.email);
-        } else {
-          if (typeof markOnboardingSkipped === "function") markOnboardingSkipped();
+        } else if (typeof window.markOnboardingSkipped === "function") {
+          window.markOnboardingSkipped();
         }
       }, 420);
     };
 
-    if (startBtn && !startBtn._netBound) {
-      startBtn._netBound = true;
-      startBtn.addEventListener("click", () => dismissOverlay(true));
+    if (startButton && startButton.dataset.bound !== "true") {
+      startButton.dataset.bound = "true";
+      startButton.addEventListener("click", () => dismiss(true));
     }
-    if (skipBtn && !skipBtn._netBound) {
-      skipBtn._netBound = true;
-      skipBtn.addEventListener("click", () => dismissOverlay(false));
+
+    if (skipButton && skipButton.dataset.bound !== "true") {
+      skipButton.dataset.bound = "true";
+      skipButton.addEventListener("click", () => dismiss(false));
     }
-    if (startBtn && typeof startBtn.focus === "function") {
-      startBtn.focus({ preventScroll: true });
+
+    if (startButton && typeof startButton.focus === "function") {
+      startButton.focus({ preventScroll: true });
     }
 
     return true;
   }
 
-  // Expose helpers needed by inline scripts on dashboard.html
-  window.onReady = onReady;
-  window.escapeHtml = window.escapeHtml || function (str) {
-    const div = document.createElement("div");
-    div.textContent = String(str ?? "");
-    return div.innerHTML;
-  };
+  function maybeStartDashboardTour(user) {
+    if (!user?.email || typeof window.maybeStartOnboardingTour !== "function") return;
 
-  onReady(init);
+    const shownWelcome = maybeShowDashboardWelcome(user);
+    if (shownWelcome) return;
+
+    const started = window.maybeStartOnboardingTour("dashboard", user.email);
+    if (!started) {
+      window.maybeStartOnboardingTour("wrapup", user.email);
+    }
+  }
+
+  // -----------------------------
+  // Shared UI helpers
+  // -----------------------------
+
+  function initBootstrapTooltips(scope = document) {
+    if (!window.bootstrap?.Tooltip) return;
+
+    const triggerElements = scope.querySelectorAll('[data-bs-toggle="tooltip"]');
+    triggerElements.forEach((element) => {
+      const existing = window.bootstrap.Tooltip.getInstance(element);
+      if (existing) existing.dispose();
+      new window.bootstrap.Tooltip(element);
+    });
+  }
+
+  async function refreshUserFromApi() {
+    const localUser = getCurrentUser();
+    const email = localUser?.email || localStorage.getItem("netology_last_email") || "";
+    if (!email) return localUser;
+
+    try {
+      const endpoint = ENDPOINTS.auth?.userInfo || "/user-info";
+      const data = await apiGet(endpoint, { email });
+      if (!data?.success) return localUser;
+
+      const unlockTier = String(
+        data.start_level
+        || localUser?.unlock_tier
+        || localUser?.unlock_level
+        || localUser?.unlockTier
+        || "novice"
+      ).trim().toLowerCase();
+
+      const mergedUser = {
+        ...(localUser || {}),
+        email,
+        first_name: data.first_name || localUser?.first_name,
+        last_name: data.last_name || localUser?.last_name,
+        username: data.username || localUser?.username,
+        xp: Number.isFinite(Number(data.xp ?? data.total_xp)) ? Number(data.xp ?? data.total_xp) : Number(localUser?.xp || 0),
+        numeric_level: Number.isFinite(Number(data.numeric_level)) ? Number(data.numeric_level) : localUser?.numeric_level,
+        xp_into_level: Number.isFinite(Number(data.xp_into_level)) ? Number(data.xp_into_level) : localUser?.xp_into_level,
+        next_level_xp: Number.isFinite(Number(data.next_level_xp)) ? Number(data.next_level_xp) : localUser?.next_level_xp,
+        rank: data.rank || data.level || localUser?.rank,
+        level: data.level || data.rank || localUser?.level,
+        unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice",
+        is_first_login: typeof data.is_first_login !== "undefined" ? Boolean(data.is_first_login) : localUser?.is_first_login,
+        onboarding_completed: typeof data.onboarding_completed !== "undefined"
+          ? Boolean(data.onboarding_completed)
+          : localUser?.onboarding_completed
+      };
+
+      saveCurrentUser(mergedUser);
+      return mergedUser;
+    } catch {
+      return localUser;
+    }
+  }
+
+  async function handleLoginStreakAndBadges(user) {
+    if (!user?.email) return;
+
+    const email = user.email;
+    let loginLog = [];
+
+    if (typeof window.recordLoginDay === "function") {
+      const sharedResult = window.recordLoginDay(email);
+      if (Array.isArray(sharedResult)) {
+        loginLog = sharedResult;
+      } else if (sharedResult && Array.isArray(sharedResult.log)) {
+        loginLog = sharedResult.log;
+      }
+    }
+
+    if (!loginLog.length) {
+      loginLog = readLoginLog(email);
+    }
+
+    const streak = computeLoginStreak(loginLog);
+
+    if (typeof window.awardLoginStreakBadges === "function") {
+      await window.awardLoginStreakBadges(email, streak);
+    }
+  }
+
+  function scheduleDashboardRefresh() {
+    if (document.hidden) return;
+
+    if (dashboardState.refreshTimer) {
+      clearTimeout(dashboardState.refreshTimer);
+    }
+
+    dashboardState.refreshTimer = window.setTimeout(() => {
+      refreshDashboard();
+    }, REFRESH_DEBOUNCE_MS);
+  }
+
+  async function refreshDashboard() {
+    const user = await refreshUserFromApi();
+
+    fillUserChrome(user);
+
+    if (user?.email) {
+      await Promise.all([
+        fetchProgressSummary(user.email),
+        fetchAchievementCatalog(user.email),
+        loadChallenges(user.email)
+      ]);
+    } else {
+      dashboardState.progressSummary = null;
+      dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
+      dashboardState.challenges = { daily: [], weekly: [] };
+    }
+
+    await renderContinueLearning(user);
+    renderProgressWidgets(user);
+    renderAchievements();
+  }
+
+  function wireAutoRefreshEvents() {
+    if (dashboardState.autoRefreshBound) return;
+    dashboardState.autoRefreshBound = true;
+
+    window.addEventListener("focus", scheduleDashboardRefresh);
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) scheduleDashboardRefresh();
+    });
+
+    window.addEventListener("storage", (event) => {
+      if (!event.key) return;
+      if (event.key === "user" || event.key.startsWith("netology_")) {
+        scheduleDashboardRefresh();
+      }
+    });
+  }
+
+  // -----------------------------
+  // Main init
+  // -----------------------------
+
+  async function initDashboard() {
+    wireBrandRouting();
+    wireSidebar();
+    wireUserDropdown();
+    wireLogoutButtons();
+
+    setupChallengeToggle();
+    initStatsCarousel();
+    wireChallengesRetry();
+
+    initBootstrapTooltips();
+    initDailyTipRotation();
+
+    const cachedUser = getCurrentUser();
+    fillUserChrome(cachedUser);
+    renderProgressWidgets(cachedUser);
+    await renderContinueLearning(cachedUser);
+
+    const user = await refreshUserFromApi();
+    fillUserChrome(user);
+
+    if (user?.email) {
+      await handleLoginStreakAndBadges(user);
+
+      await Promise.all([
+        fetchProgressSummary(user.email),
+        fetchAchievementCatalog(user.email, { force: true }),
+        loadChallenges(user.email, { force: true })
+      ]);
+    } else {
+      dashboardState.progressSummary = null;
+      dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
+      dashboardState.achievementsFetchedAt = 0;
+      dashboardState.challenges = { daily: [], weekly: [] };
+      setChallengesRetryVisible(false);
+    }
+
+    await renderContinueLearning(user);
+    renderProgressWidgets(user);
+    renderAchievements();
+
+    if (user?.email) {
+      prepareOnboardingSessionForFirstLogin(user);
+      window.setTimeout(() => {
+        maybeStartDashboardTour(user);
+      }, 600);
+    }
+
+    wireAutoRefreshEvents();
+  }
+
+  onReady(initDashboard);
 })();

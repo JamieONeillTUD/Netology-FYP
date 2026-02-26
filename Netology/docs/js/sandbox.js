@@ -37,7 +37,6 @@ Reworked to match the Figma AI version:
   const packetsEl = getById("sbxPacketLogs");
   const zoomLabel = getById("zoomLabel");
   const connTypeGroup = getById("connTypeGroup");
-  const toastStack = getById("sbxToastStack");
 
   const saveModalEl = getById("saveTopologyModal");
   const saveNameInput = getById("saveTopologyName");
@@ -417,37 +416,20 @@ Reworked to match the Figma AI version:
   // Well-Done Toast (tutorial complete)
   // ----------------------------------------
   function showWellDoneToast(title, message) {
-    const stack = toastStack || document.body;
-    const toast = document.createElement("div");
-    toast.className = "sbx-toast is-welldone";
-    toast.setAttribute("role", "status");
-    toast.setAttribute("aria-live", "polite");
+    if (window.NetologyToast?.showSandboxToast) {
+      window.NetologyToast.showSandboxToast({
+        title: title || "Well done!",
+        message: message || "",
+        type: "success",
+        duration: 5000,
+        wellDone: true
+      });
+      return;
+    }
 
-    const iconWrap = makeEl("div", "sbx-toast-icon");
-    iconWrap.appendChild(makeIcon("bi bi-trophy-fill"));
-
-    const body = document.createElement("div");
-    body.append(
-      makeEl("div", "sbx-toast-title", title || "Well done!"),
-      makeEl("div", "sbx-toast-message", message || "")
-    );
-
-    const closeBtn = makeEl("button", "sbx-toast-close", "×");
-    closeBtn.type = "button";
-    closeBtn.setAttribute("aria-label", "Close");
-
-    toast.append(iconWrap, body, closeBtn);
-    stack.appendChild(toast);
-
-    requestAnimationFrame(() => toast.classList.add("is-show"));
-    closeBtn.addEventListener("click", () => {
-      toast.classList.remove("is-show");
-      setTimeout(() => toast.remove(), 400);
-    });
-    setTimeout(() => {
-      toast.classList.remove("is-show");
-      setTimeout(() => toast.remove(), 400);
-    }, 5000);
+    if (window.NetologyToast?.showMessageToast) {
+      window.NetologyToast.showMessageToast(message || title || "Well done!", "success", 5000);
+    }
   }
 
   // ----------------------------------------
@@ -1105,34 +1087,19 @@ Reworked to match the Figma AI version:
   }
 
   function showToast({ title, message, variant = "info", timeout = 3200 }) {
-    const stack = toastStack || document.body;
-    const toast = document.createElement("div");
-    toast.className = `sbx-toast ${variant}`;
-    const iconWrap = makeEl("div", "sbx-toast-icon");
-    const iconClass = variant === "success" ? "bi-check-lg" : variant === "error" ? "bi-x-lg" : "bi-info-lg";
-    iconWrap.appendChild(makeIcon(`bi ${iconClass}`));
+    if (window.NetologyToast?.showSandboxToast) {
+      window.NetologyToast.showSandboxToast({
+        title: title || "Update",
+        message: message || "",
+        variant,
+        timeout
+      });
+      return;
+    }
 
-    const body = makeEl("div");
-    body.append(
-      makeEl("div", "sbx-toast-title", title || "Update"),
-      makeEl("div", "sbx-toast-message", message || "")
-    );
-
-    const closeBtn = makeEl("button", "sbx-toast-close", "×");
-    closeBtn.type = "button";
-    closeBtn.setAttribute("aria-label", "Close");
-
-    toast.append(iconWrap, body, closeBtn);
-    stack.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add("is-show"));
-
-    const removeToast = () => {
-      toast.classList.add("is-leaving");
-      setTimeout(() => toast.remove(), 220);
-    };
-
-    closeBtn.addEventListener("click", removeToast);
-    if (timeout) setTimeout(removeToast, timeout);
+    if (window.NetologyToast?.showMessageToast) {
+      window.NetologyToast.showMessageToast(message || title || "Update", variant || "info", timeout || 3200);
+    }
   }
 
   function getTypeColor(type) {
@@ -4595,7 +4562,7 @@ Reworked to match the Figma AI version:
     pushHistory();
     renderAll();
     addActionLog("Auto-layout applied");
-    showSbxToast("Auto-layout", "Devices arranged in a grid", "success");
+    showToast({ title: "Auto-layout", message: "Devices arranged in a grid", variant: "success", timeout: 3500 });
   }
 
   // --- Minimap ---
@@ -4709,35 +4676,6 @@ Reworked to match the Figma AI version:
   // renderAllEnhanced simply calls renderAll (enhanced features are already integrated)
   function renderAllEnhanced() {
     renderAll();
-  }
-
-  // --- Show sandbox toast helper (wraps existing logic) ---
-  function showSbxToast(title, message, variant = "info") {
-    if (!toastStack) return;
-    const toast = makeEl("div", `sbx-toast ${variant}`);
-    const icon = makeEl("div", "sbx-toast-icon");
-    icon.innerHTML = variant === "success" ? '<i class="bi bi-check-lg"></i>'
-      : variant === "error" ? '<i class="bi bi-x-lg"></i>'
-        : '<i class="bi bi-info-circle"></i>';
-    const titleEl = makeEl("div", "sbx-toast-title", title);
-    const msgEl = makeEl("div", "sbx-toast-message", message);
-    const close = makeEl("button", "sbx-toast-close");
-    close.innerHTML = "&times;";
-    const body = makeEl("div");
-    body.appendChild(titleEl);
-    if (message) body.appendChild(msgEl);
-    toast.appendChild(icon);
-    toast.appendChild(body);
-    toast.appendChild(close);
-    toastStack.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add("is-show"));
-    const dismiss = () => {
-      toast.classList.remove("is-show");
-      toast.classList.add("is-leaving");
-      setTimeout(() => toast.remove(), 300);
-    };
-    close.addEventListener("click", dismiss);
-    setTimeout(dismiss, 3500);
   }
 
   // --- Patch right-click on devices in stage ---

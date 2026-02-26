@@ -1,425 +1,100 @@
-/* AI Prompt: Explain the API base configuration section in clear, simple terms. */
-/* =========================================================
-   API base configuration
-========================================================= */
-// docs/js/config.js
-// Local dev:
+/*
+---------------------------------------------------------
+Student: C22320301 - Jamie O’Neill
+File: config.js
+Purpose: Stores the core backend URL and API endpoint map used across the site.
+Notes: Removed theme, toast, preview, and onboarding helpers from this file.
+---------------------------------------------------------
+*/
+
+// Local development option:
 // window.API_BASE = "http://localhost:5001";
 
-// Production:
+// Production default:
 window.API_BASE = window.API_BASE || "https://netology-fyp.onrender.com";
 
-/* =========================================================
-   API ENDPOINTS MAPPING (Step 15)
-   =========================================================
-   Central configuration for all API endpoints.
-   Use these constants throughout the frontend instead of hardcoding URLs.
-   
-   Example usage:
-   - fetch(`${window.API_BASE}${ENDPOINTS.auth.login}`, { method: 'POST', ... })
-   - fetch(`${window.API_BASE}${ENDPOINTS.courses.list}`, { ... })
-========================================================= */
+// Central API route map.
 window.ENDPOINTS = {
-  // ================================================
-  // AUTHENTICATION (Auth Routes)
-  // ================================================
   auth: {
-    register: '/register',                      // POST - Create new account
-    login: '/login',                            // POST - Sign in user
-    logout: '/logout',                          // GET - Sign out user
-    userInfo: '/user-info',                     // GET - Get user profile
-    userPreferences: '/user-preferences',       // GET/POST - User settings
-    userAchievements: '/user-achievements',     // GET - User earned achievements
-    awardAchievement: '/award-achievement',     // POST - Award achievement badge
-    awardXp: '/award-xp',                       // POST - Award XP to user
-    recordLogin: '/record-login',               // POST - Track login for streaks
-    forgotPassword: '/forgot-password'          // POST - Reset password
+    register: "/register",
+    login: "/login",
+    logout: "/logout",
+    userInfo: "/user-info",
+    userPreferences: "/user-preferences",
+    userAchievements: "/user-achievements",
+    awardAchievement: "/award-achievement",
+    awardXp: "/award-xp",
+    recordLogin: "/record-login",
+    forgotPassword: "/forgot-password"
   },
 
-  // ================================================
-  // ONBOARDING (Onboarding Tour)
-  // ================================================
   onboarding: {
-    status: '/api/onboarding/status',           // POST - Check if first login
-    steps: '/api/onboarding/steps',             // GET - Fetch all tour steps (7 total)
-    start: '/api/onboarding/start',             // POST - Begin onboarding tour
-    stepComplete: '/api/onboarding/step/:id',   // POST - Mark step complete (use :id)
-    complete: '/api/onboarding/complete',       // POST - Finish entire tour
-    skip: '/api/onboarding/skip'                // POST - Skip tour
+    status: "/api/onboarding/status",
+    steps: "/api/onboarding/steps",
+    start: "/api/onboarding/start",
+    stepComplete: "/api/onboarding/step/:id",
+    complete: "/api/onboarding/complete",
+    skip: "/api/onboarding/skip"
   },
 
-  // ================================================
-  // LESSON SLIDES (Interactive Lessons)
-  // ================================================
   slides: {
-    list: '/api/lessons/:lessonId/slides',           // GET - List all slides for lesson
-    content: '/api/lessons/:lessonId/slides/:slideId', // GET - Get slide full content
-    complete: '/api/lessons/:lessonId/slides/:slideId/complete', // POST - Mark slide complete
-    progress: '/api/lessons/:lessonId/progress',    // GET - Get lesson progress
-    bookmark: '/api/slides/:slideId/bookmark',      // POST - Toggle bookmark
-    bookmarks: '/api/user/bookmarks',               // GET - List all user bookmarks
-    notes: '/api/slides/:slideId/notes'             // POST - Save slide notes
+    list: "/api/lessons/:lessonId/slides",
+    content: "/api/lessons/:lessonId/slides/:slideId",
+    complete: "/api/lessons/:lessonId/slides/:slideId/complete",
+    progress: "/api/lessons/:lessonId/progress",
+    bookmark: "/api/slides/:slideId/bookmark",
+    bookmarks: "/api/user/bookmarks",
+    notes: "/api/slides/:slideId/notes"
   },
 
-  // ================================================
-  // COURSES
-  // ================================================
   courses: {
-    list: '/courses',                           // GET - List all 9 courses
-    courseDetails: '/course',                   // GET ?course_id= - Get single course details
-    userCourses: '/user-courses',               // GET - Get user's courses with progress
-    userCourseStatus: '/user-course-status',    // GET ?email=&course_id= - Lesson/quiz/challenge status
-    userProgressSummary: '/user-progress-summary', // GET ?email= - Total counts overview
-    start: '/start-course',                     // POST - Start a course
-    completeLesson: '/complete-lesson',         // POST - Complete single lesson & award XP
-    completeQuiz: '/complete-quiz',             // POST - Complete quiz & award XP
-    completeChallenge: '/complete-challenge',   // POST - Complete challenge & award XP
-    completeCourse: '/complete-course',         // POST - Complete entire course & award XP
-    recentActivity: '/recent-activity',         // GET ?email= - Recent completions
-    quizHistory: '/quiz-history'                // GET ?email= - Recent quiz results
+    list: "/courses",
+    courseDetails: "/course",
+    userCourses: "/user-courses",
+    userCourseStatus: "/user-course-status",
+    userProgressSummary: "/user-progress-summary",
+    start: "/start-course",
+    completeLesson: "/complete-lesson",
+    completeQuiz: "/complete-quiz",
+    completeChallenge: "/complete-challenge",
+    completeCourse: "/complete-course",
+    recentActivity: "/recent-activity",
+    quizHistory: "/quiz-history"
   },
 
-  // ================================================
-  // PROGRESS & ANALYTICS
-  // ================================================
   progress: {
-    userProgress: '/api/user/progress',         // GET - Get all course progress (filters available)
-    progressStats: '/api/user/progress/stats',  // GET - Progress statistics
-    userActivity: '/api/user/activity',         // GET - Daily activity for heatmap
-    userStreaks: '/api/user/streaks'            // GET - Current and longest streak
+    userProgress: "/api/user/progress",
+    progressStats: "/api/user/progress/stats",
+    userActivity: "/api/user/activity",
+    userStreaks: "/api/user/streaks"
   },
 
-  // ================================================
-  // CHALLENGES & ACHIEVEMENTS
-  // ================================================
   challenges: {
-    list: '/api/user/challenges'                // GET ?user_email=&type=daily|weekly - Get challenges
+    list: "/api/user/challenges"
   },
 
   achievements: {
-    list: '/api/user/achievements',             // GET - Get all achievements (earned + locked)
-    award: '/award-achievement'                 // POST - Award achievement (internal use)
+    list: "/api/user/achievements",
+    award: "/award-achievement"
   },
 
-  // ================================================
-  // SANDBOX / NETWORK TOPOLOGY
-  // ================================================
   sandbox: {
-    executeCommand: '/api/sandbox/execute-command', // POST - Run whitelisted commands
-    allowedCommands: '/api/sandbox/allowed-commands', // GET - List allowed commands
-    lessonSessionSave: '/lesson-session/save',     // POST - Save lesson sandbox state
-    lessonSessionLoad: '/lesson-session/load',     // GET - Load lesson sandbox state
-    saveTopology: '/save-topology',                // POST - Save topology
-    loadTopologies: '/load-topologies',            // GET - Load all user topologies
-    loadTopology: '/load-topology/:topologyId',    // GET - Load single topology
-    deleteTopology: '/delete-topology/:topologyId' // DELETE - Delete topology
+    executeCommand: "/api/sandbox/execute-command",
+    allowedCommands: "/api/sandbox/allowed-commands",
+    lessonSessionSave: "/lesson-session/save",
+    lessonSessionLoad: "/lesson-session/load",
+    saveTopology: "/save-topology",
+    loadTopologies: "/load-topologies",
+    loadTopology: "/load-topology/:topologyId",
+    deleteTopology: "/delete-topology/:topologyId"
   },
 
-  // ================================================
-  // USER PREFERENCES
-  // ================================================
   preferences: {
-    get: '/api/user/preferences',               // GET - Get user settings
-    update: '/api/user/preferences'             // POST - Update user settings
+    get: "/api/user/preferences",
+    update: "/api/user/preferences"
   },
 
-  // ================================================
-  // HEALTH CHECK
-  // ================================================
   health: {
-    check: '/healthz'                           // GET - Server health check
+    check: "/healthz"
   }
 };
-
-/* =========================================================
-   ONBOARDING FLOW + LOCAL STEPS
-========================================================= */
-window.ONBOARDING_FLOW = [
-  "dashboard",
-  "courses",
-  "course",
-  "sandbox",
-  "progress",
-  "account",
-  "wrapup"
-];
-
-window.ONBOARDING_STAGE_URLS = {
-  dashboard: "dashboard.html",
-  courses: "courses.html",
-  course: "course.html?id=1",
-  sandbox: "sandbox.html?mode=practice",
-  progress: "progress.html",
-  account: "account.html",
-  wrapup: "dashboard.html"
-};
-
-window.ONBOARDING_STEPS = {
-  dashboard: [
-    { target: "dashboard-header", title: "Welcome to Netology", description: "An interactive, gamified way to learn computer networking by doing." },
-    { target: "dashboard-stats", title: "Quick Stats", description: "XP, streaks, challenges, and sandbox activity in one place." },
-    { target: "progress-widget", title: "Streaks & Progress", description: "Keep your learning momentum visible every day." },
-    { target: "courses-section", title: "Continue Learning", description: "Pick up your courses with clear, step-by-step modules." },
-    { target: "achievements-section", title: "Achievements", description: "Earn badges as you master new skills." },
-    { target: "challenges-section", title: "Daily & Weekly Focus", description: "Short challenges help you learn by doing." },
-    { target: "sandbox-link", title: "Network Sandbox", description: "Build and test real network topologies in a safe lab." }
-  ],
-  courses: [
-    { target: "courses-hero", title: "Course Library", description: "Explore every course and unlock new skills." },
-    { target: "courses-filter-all", title: "All Tracks", description: "See everything in one view." },
-    { target: "courses-filter-novice", title: "Novice Track", description: "Start with core networking fundamentals." },
-    { target: "courses-filter-intermediate", title: "Intermediate Track", description: "Build practical networking skills." },
-    { target: "courses-filter-advanced", title: "Advanced Track", description: "Tackle complex topologies and challenges." },
-    { target: "courses-my-progress", title: "My Progress", description: "See what you started, finished, or paused." }
-  ],
-  course: [
-    { target: "course-hero", title: "Course Overview", description: "Your course title, difficulty, and progress ring — everything at a glance." },
-    { target: "course-continue", title: "Up Next", description: "See what is coming up and jump straight in. Your stats are here too." },
-    { target: "course-modules", title: "Modules", description: "Expand any module to see learning items, quizzes, and challenges." }
-  ],
-  sandbox: [
-    { target: "sandbox-toolbar", title: "Sandbox Tools", description: "Select, connect, undo, and save your work." },
-    { target: "sandbox-library", title: "Device Library", description: "Drag routers, switches, and hosts to the canvas." },
-    { target: "sandbox-canvas", title: "Topology Canvas", description: "Build networks by hand and learn by doing." },
-    { target: "sandbox-stats", title: "Live Stats", description: "Track devices and connections as you build." },
-    { target: "sandbox-inspector", title: "Inspector", description: "Check status, pings, and diagnostics." },
-    { target: "sandbox-console", title: "Console", description: "Run commands and view results instantly." }
-  ],
-  progress: [
-    { target: "progress-categories", title: "Progress Views", description: "Switch between courses, modules, quizzes, and sandbox." },
-    { target: "progress-split", title: "Split View", description: "See what’s in progress vs. completed." }
-  ],
-  account: [
-    { target: "account-profile-hero", title: "Profile Snapshot", description: "Your stats, badges, and streaks live here." },
-    { target: "account-tab-preferences", title: "Preferences", description: "Customize themes, accessibility, and privacy." },
-    { target: "account-appearance", title: "Themes", description: "Choose a look that works for you.", tab: "preferences" },
-    { target: "account-accessibility", title: "Dyslexic Font", description: "Accessibility options for better readability.", tab: "preferences" },
-    { target: "account-tab-activity", title: "Activity", description: "See your learning activity over time." },
-    { target: "account-activity-heatmap", title: "Activity Map", description: "A GitHub-style view of your learning streak.", tab: "activity" }
-  ],
-  wrapup: [
-    { target: "dashboard-header", title: "You’re Ready", description: "Netology makes networking simple, visual, and hands-on." },
-    { target: "courses-section", title: "Start Learning", description: "Continue your next course anytime." }
-  ]
-};
-
-/* =========================================================
-   API HELPERS (small + consistent)
-========================================================= */
-window.API_HELPERS = window.API_HELPERS || {};
-
-window.API_HELPERS.list = function (data, ...keys) {
-  if (Array.isArray(data)) return data;
-  for (const key of keys) {
-    if (Array.isArray(data?.[key])) return data[key];
-  }
-  return [];
-};
-
-window.apiGet = async function (path, params = {}) {
-  const base = (window.API_BASE || "").trim();
-  const url = base
-    ? new URL(base.replace(/\/$/, "") + path)
-    : new URL(path, window.location.origin);
-
-  Object.entries(params || {}).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") {
-      url.searchParams.set(k, String(v));
-    }
-  });
-
-  const res = await fetch(url.toString());
-  return res.json();
-};
-
-/* =========================================================
-   THEME + ACCESSIBILITY (global)
-========================================================= */
-(() => {
-  const applyTheme = () => {
-    const theme = localStorage.getItem("netology_theme") || "light";
-    const dyslexic = localStorage.getItem("netology_dyslexic") === "true";
-
-    const target = document.body || document.documentElement;
-    if (target) {
-      target.setAttribute("data-theme", theme);
-      target.classList.toggle("net-dyslexic", dyslexic);
-    }
-  };
-
-  const setTheme = (theme) => {
-    localStorage.setItem("netology_theme", String(theme || "light"));
-    applyTheme();
-  };
-
-  const setDyslexic = (enabled) => {
-    localStorage.setItem("netology_dyslexic", enabled ? "true" : "false");
-    applyTheme();
-  };
-
-  const toggleDyslexic = () => {
-    const enabled = localStorage.getItem("netology_dyslexic") === "true";
-    setDyslexic(!enabled);
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", applyTheme);
-  } else {
-    applyTheme();
-  }
-
-  window.NetologyTheme = {
-    apply: applyTheme,
-    setTheme,
-    setDyslexic,
-    toggleDyslexic
-  };
-})();
-
-/* AI Prompt: Explain the Preview mode seeding (demo user) section in clear, simple terms. */
-/* =========================================================
-   Preview mode seeding (demo user)
-========================================================= */
-// Preview mode (for Live Server + direct link testing)
-// - Only activates on localhost — never on the live GitHub Pages site
-// - Activate by adding ?preview=1 to the URL when running locally
-(() => {
-  try {
-    const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-    if (!isLocalhost) return;  // safety: never run in production
-
-    const params = new URLSearchParams(window.location.search);
-    const wantsPreview = params.has("preview");
-
-    if (wantsPreview) {
-      const existing = localStorage.getItem("user") || localStorage.getItem("netology_user");
-      if (!existing) {
-        const demoUser = {
-          email: "demo@netology.local",
-          first_name: "Demo",
-          last_name: "User",
-          username: "demo_user",
-          xp: 40,
-          unlock_tier: "novice"
-        };
-        localStorage.setItem("user", JSON.stringify(demoUser));
-        localStorage.setItem("netology_user", JSON.stringify(demoUser));
-      }
-    }
-  } catch {}
-})();
-
-/* AI Prompt: Explain the Celebration toast helper section in clear, simple terms. */
-/* =========================================================
-   Celebration toast helper
-========================================================= */
-(() => {
-  if (window.showCelebrateToast) return;
-
-  const makeEl = (tag, className, text) => {
-    const el = document.createElement(tag);
-    if (className) el.className = className;
-    if (typeof text !== "undefined") el.textContent = text;
-    return el;
-  };
-
-  const ensureStack = () => {
-    let stack = document.getElementById("netToastStack");
-    if (!stack) {
-      stack = document.createElement("div");
-      stack.id = "netToastStack";
-      stack.className = "net-toast-stack";
-      document.body.appendChild(stack);
-    }
-    return stack;
-  };
-
-  window.showCelebrateToast = (opts = {}) => {
-    const {
-      title = "Nice work!",
-      message = "",
-      sub = "",
-      xp = null,
-      type = "success",
-      icon = "",
-      mini = false,
-      confetti = false,
-      duration = 4200
-    } = opts;
-
-    if (!document.body) return;
-    const stack = ensureStack();
-
-    const toast = document.createElement("div");
-    toast.className = `net-toast net-toast-enter net-toast--celebrate in-stack${mini ? " net-toast--mini" : ""}`;
-    toast.setAttribute("role", "status");
-    toast.setAttribute("aria-live", "polite");
-    toast.dataset.type = type;
-
-    const iconMap = {
-      success: "bi-check2-circle",
-      error: "bi-x-circle",
-      info: "bi-info-circle"
-    };
-    const resolvedIcon = iconMap[type] || icon || "bi-info-circle";
-
-    const inner = makeEl("div", "net-toast-inner");
-    const iconWrap = makeEl("div", "net-toast-icon");
-    const iconEl = document.createElement("i");
-    iconEl.className = `bi ${resolvedIcon}`;
-    iconEl.setAttribute("aria-hidden", "true");
-    iconWrap.appendChild(iconEl);
-
-    const body = makeEl("div", "net-toast-body");
-    const titleEl = makeEl("div", "net-toast-title", title);
-    body.appendChild(titleEl);
-
-    if (message) body.appendChild(makeEl("div", "net-toast-sub", message));
-    if (sub) body.appendChild(makeEl("div", "net-toast-sub", sub));
-    if (xp !== null && !Number.isNaN(Number(xp))) {
-      const xpRow = makeEl("div", "net-toast-sub net-toast-xp-row");
-      const xpIcon = document.createElement("i");
-      xpIcon.className = "bi bi-lightning-charge-fill";
-      xpIcon.setAttribute("aria-hidden", "true");
-      const xpText = document.createElement("span");
-      xpText.textContent = `+${Number(xp)} XP`;
-      xpRow.append(xpIcon, xpText);
-      body.appendChild(xpRow);
-    }
-
-    const closeBtn = makeEl("button", "net-toast-close");
-    closeBtn.type = "button";
-    closeBtn.setAttribute("aria-label", "Dismiss message");
-    closeBtn.appendChild(makeEl("span", "", "×"));
-
-    inner.append(iconWrap, body, closeBtn);
-    toast.appendChild(inner);
-
-    if (confetti && !mini) {
-      const confettiWrap = makeEl("div", "net-toast-confetti");
-      const colors = ["teal", "cyan", "amber", "violet"];
-      for (let i = 0; i < 14; i += 1) {
-        const piece = makeEl("span", `net-toast-confetti-piece is-${colors[i % colors.length]}`);
-        piece.style.left = `${Math.random() * 100}%`;
-        piece.style.animationDelay = `${Math.random() * 0.3}s`;
-        confettiWrap.appendChild(piece);
-      }
-      toast.appendChild(confettiWrap);
-    }
-    stack.appendChild(toast);
-
-    const dismiss = () => {
-      toast.classList.remove("net-toast-enter");
-      toast.classList.add("net-toast-exit");
-      setTimeout(() => toast.remove(), 220);
-    };
-
-    closeBtn.addEventListener("click", dismiss);
-    toast.addEventListener("click", (e) => {
-      if (e.target && e.target.closest(".net-toast-close")) return;
-      dismiss();
-    });
-
-    setTimeout(dismiss, duration);
-  };
-})();

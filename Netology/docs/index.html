@@ -1,24 +1,26 @@
 <!doctype html>
 <!--
 Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 09/02/2026
+Student Name:   Jamie O’Neill
+Course Code:    TU857/4
+Date:           09/02/2026
 
 HTML
 ---------------------------------------
-index.html – Netology Landing Page (Figma AI layout)
+index.html – Netology Landing Page
 
 Purpose:
-- First page users see (marketing + entry point)
-- Routes users to Sign Up / Login
+- Public landing/marketing page — the first thing all visitors see, no login required
+- Animated background with gradient blobs and floating networking icons
+- Sticky navbar with Sign In and Get Started links
+- Hero section: platform headline, stats strip, and ‘Start Learning Free’ CTA
+- ‘How It Works’ section: three step cards (Learn / Practice / Master)
+- ‘Why Choose Netology?’ feature card with four platform benefits
+- Bottom CTA card linking to signup
 
-Key Features:
-- Animated background blobs + floating icons
-- Clean hero with centered copy + CTA
-- How it works (3 steps)
-- Feature highlights
-- CTA + footer
+Notes:
+- index.js auto-redirects already-logged-in users to dashboard.html
+- Scripts: config.js → index.js → Bootstrap JS
 -->
 
 <html lang="en">
@@ -189,6 +191,9 @@ Key Features:
     </div>
 
     <script src="js/config.js"></script>
+    <script src="js/onboarding-config.js"></script>
+    <script src="js/ui-theme.js"></script>
+    <script src="js/ui-toasts.js"></script>
     <script src="js/index.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   </body>

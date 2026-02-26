@@ -1,474 +1,522 @@
 /*
-Student Number: C22320301
-Student Name: Jamie O'Neill
-Course Code: TU857/4
-Date: 16/02/2026
-
-account.js – Account settings, preferences, security, and activity tracking.
-Features:
-- Profile information display
-- Learning statistics
-- Preferences management (notifications, privacy)
-- Security settings (password, sessions, account deletion)
-- Activity heatmap and session history
+---------------------------------------------------------
+Student: C22320301 - Jamie O’Neill
+File: account.js
+Purpose: Loads the account page profile, settings, stats, and activity heatmap.
+Notes: Rewritten with simple functions, clearer names, and same page behavior.
+---------------------------------------------------------
 */
 
 (() => {
   "use strict";
 
-  const getApiBase = () => window.API_BASE || "";
   const BASE_XP = 100;
-  const apiGet = window.apiGet || (async (path, params = {}) => {
-    const base = getApiBase().trim();
-    const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
-    Object.entries(params || {}).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
-    });
-    const res = await fetch(url.toString());
-    return res.json();
-  });
-  const listFrom = window.API_HELPERS?.list || ((data, ...keys) => {
-    if (Array.isArray(data)) return data;
-    for (const key of keys) {
-      if (Array.isArray(data?.[key])) return data[key];
-    }
-    return [];
-  });
   const ENDPOINTS = window.ENDPOINTS || {};
 
-  /* Initialization */
+  // Use shared API helper when available.
+  const apiGet = typeof window.apiGet === "function"
+    ? window.apiGet
+    : async function apiGetFallback(path, params = {}) {
+      const base = String(window.API_BASE || "").trim();
+      const url = base
+        ? new URL(base.replace(/\/$/, "") + path)
+        : new URL(path, window.location.origin);
+
+      Object.entries(params).forEach(([paramName, paramValue]) => {
+        if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
+          url.searchParams.set(paramName, String(paramValue));
+        }
+      });
+
+      const response = await fetch(url.toString());
+      return response.json();
+    };
+
+  // Read arrays safely from variable API response shapes.
+  const listFrom = window.API_HELPERS?.list || function listFromFallback(data, ...keys) {
+    if (Array.isArray(data)) return data;
+    for (const keyName of keys) {
+      if (Array.isArray(data?.[keyName])) return data[keyName];
+    }
+    return [];
+  };
+
   document.addEventListener("DOMContentLoaded", () => {
     initAccountPage();
   });
 
+  // Main page startup.
   async function initAccountPage() {
-    const user = getCurrentUser();
-    if (!user?.email) {
+    const currentUser = getCurrentUser();
+    if (!currentUser?.email) {
       window.location.href = "login.html";
       return;
     }
 
-    wireChrome(user);
+    wirePageChrome(currentUser);
     wireTabNavigation();
     initAppearanceControls();
-    wireRestartOnboarding(user);
+    wireRestartOnboarding(currentUser);
 
-    await loadProfileData(user);
-    await loadLearningStats(user);
-    await loadActivityData(user);
+    await loadProfileData(currentUser);
+    await loadLearningStats(currentUser);
+    await loadActivityData(currentUser);
 
     document.body.classList.remove("net-loading");
     document.body.classList.add("net-loaded");
 
     if (typeof window.maybeStartOnboardingTour === "function") {
-      window.maybeStartOnboardingTour("account", user.email);
+      window.maybeStartOnboardingTour("account", currentUser.email);
     }
   }
 
-  /* Appearance (theme + dyslexic font) */
+  // Theme and accessibility controls.
   function initAppearanceControls() {
-    const themeSelect = document.getElementById('themeSelect');
-    const dyslexicToggle = document.getElementById('dyslexicToggle');
+    const themeSelect = document.getElementById("themeSelect");
+    const dyslexicToggle = document.getElementById("dyslexicToggle");
 
     if (themeSelect) {
-      const savedTheme = localStorage.getItem('netology_theme') || 'light';
+      const savedTheme = localStorage.getItem("netology_theme") || "light";
       themeSelect.value = savedTheme;
-      themeSelect.addEventListener('change', (e) => {
-        const theme = e.target.value || 'light';
+
+      themeSelect.addEventListener("change", (event) => {
+        const selectedTheme = String(event.target.value || "light");
+
         if (window.NetologyTheme?.setTheme) {
-          window.NetologyTheme.setTheme(theme);
-        } else {
-          localStorage.setItem('netology_theme', theme);
-          document.body?.setAttribute('data-theme', theme);
+          window.NetologyTheme.setTheme(selectedTheme);
+          return;
         }
+
+        localStorage.setItem("netology_theme", selectedTheme);
+        document.body?.setAttribute("data-theme", selectedTheme);
       });
     }
 
     if (dyslexicToggle) {
-      const enabled = localStorage.getItem('netology_dyslexic') === 'true';
-      dyslexicToggle.checked = enabled;
-      dyslexicToggle.addEventListener('change', (e) => {
-        const on = e.target.checked;
+      const isDyslexic = localStorage.getItem("netology_dyslexic") === "true";
+      dyslexicToggle.checked = isDyslexic;
+
+      dyslexicToggle.addEventListener("change", (event) => {
+        const enabled = Boolean(event.target.checked);
+
         if (window.NetologyTheme?.setDyslexic) {
-          window.NetologyTheme.setDyslexic(on);
-        } else {
-          localStorage.setItem('netology_dyslexic', on ? 'true' : 'false');
-          document.body?.classList.toggle('net-dyslexic', on);
+          window.NetologyTheme.setDyslexic(enabled);
+          return;
         }
+
+        localStorage.setItem("netology_dyslexic", enabled ? "true" : "false");
+        document.body?.classList.toggle("net-dyslexic", enabled);
       });
     }
   }
 
-  /* Restart Onboarding Tour */
-  function wireRestartOnboarding(user) {
-    const btn = document.getElementById('restartOnboardingBtn');
-    if (!btn || !user?.email) return;
+  // Restart onboarding and send user back to dashboard.
+  function wireRestartOnboarding(currentUser) {
+    const button = document.getElementById("restartOnboardingBtn");
+    if (!button || !currentUser?.email) return;
 
-    btn.addEventListener('click', () => {
-      const normalizedEmail = String(user.email || "").trim().toLowerCase();
-      
-      // Clear all onboarding flags
-      localStorage.removeItem('netology_onboarding_completed');
-      localStorage.removeItem('netology_onboarding_skipped');
-      localStorage.removeItem(`netology_onboarding_completed_${normalizedEmail}`);
-      localStorage.removeItem(`netology_onboarding_skipped_${normalizedEmail}`);
-      
-      // Set up onboarding for this user starting from dashboard
-      localStorage.setItem('netology_onboarding_user', normalizedEmail);
-      localStorage.setItem('netology_onboarding_stage', 'dashboard');
+    button.addEventListener("click", () => {
+      const email = String(currentUser.email || "").trim().toLowerCase();
+
+      localStorage.removeItem("netology_onboarding_completed");
+      localStorage.removeItem("netology_onboarding_skipped");
+      localStorage.removeItem(`netology_onboarding_completed_${email}`);
+      localStorage.removeItem(`netology_onboarding_skipped_${email}`);
+
+      localStorage.setItem("netology_onboarding_user", email);
+      localStorage.setItem("netology_onboarding_stage", "dashboard");
+
       try {
-        sessionStorage.setItem('netology_onboarding_session', 'true');
-        sessionStorage.removeItem('netology_welcome_shown');
-      } catch {}
-      
-      // Redirect to dashboard to start the tour
-      window.location.href = 'dashboard.html';
+        sessionStorage.setItem("netology_onboarding_session", "true");
+        sessionStorage.removeItem("netology_welcome_shown");
+      } catch {
+        // Ignore session storage errors.
+      }
+
+      window.location.href = "dashboard.html";
     });
   }
 
-  /* ── Chrome: sidebar, dropdown, identity ── */
-  function wireChrome(user) {
+  // Sidebar, dropdown, identity, and logout.
+  function wirePageChrome(currentUser) {
     wireSidebar();
     wireUserDropdown();
-    fillIdentity(user);
+    fillIdentity(currentUser);
+    wireLogoutButtons();
+  }
 
-    const doLogout = () => {
-      localStorage.removeItem('netology_user');
-      localStorage.removeItem('user');
-      localStorage.removeItem('netology_token');
-      window.location.href = 'index.html';
+  function wireLogoutButtons() {
+    const topLogoutButton = document.getElementById("topLogoutBtn");
+    const sideLogoutButton = document.getElementById("sideLogoutBtn");
+
+    const logout = () => {
+      localStorage.removeItem("netology_user");
+      localStorage.removeItem("user");
+      localStorage.removeItem("netology_token");
+      window.location.href = "index.html";
     };
-    const topLogout = document.getElementById('topLogoutBtn');
-    const sideLogout = document.getElementById('sideLogoutBtn');
-    if (topLogout) topLogout.addEventListener('click', doLogout);
-    if (sideLogout) sideLogout.addEventListener('click', doLogout);
+
+    if (topLogoutButton) topLogoutButton.addEventListener("click", logout);
+    if (sideLogoutButton) sideLogoutButton.addEventListener("click", logout);
   }
 
   function wireSidebar() {
-    const openBtn = document.getElementById('openSidebarBtn');
-    const closeBtn = document.getElementById('closeSidebarBtn');
-    const sidebar = document.getElementById('slideSidebar');
-    const backdrop = document.getElementById('sideBackdrop');
+    const openButton = document.getElementById("openSidebarBtn");
+    const closeButton = document.getElementById("closeSidebarBtn");
+    const sidebar = document.getElementById("slideSidebar");
+    const backdrop = document.getElementById("sideBackdrop");
 
-    const open = () => {
+    const openSidebar = () => {
       if (!sidebar || !backdrop) return;
-      sidebar.classList.add('is-open');
-      backdrop.classList.add('is-open');
-      document.body.classList.add('net-noscroll');
-      sidebar.setAttribute('aria-hidden', 'false');
-      backdrop.setAttribute('aria-hidden', 'false');
-    };
-    const close = () => {
-      if (!sidebar || !backdrop) return;
-      sidebar.classList.remove('is-open');
-      backdrop.classList.remove('is-open');
-      document.body.classList.remove('net-noscroll');
-      sidebar.setAttribute('aria-hidden', 'true');
-      backdrop.setAttribute('aria-hidden', 'true');
+      sidebar.classList.add("is-open");
+      backdrop.classList.add("is-open");
+      document.body.classList.add("net-noscroll");
+      sidebar.setAttribute("aria-hidden", "false");
+      backdrop.setAttribute("aria-hidden", "false");
     };
 
-    if (openBtn) openBtn.addEventListener('click', open);
-    if (closeBtn) closeBtn.addEventListener('click', close);
-    if (backdrop) backdrop.addEventListener('click', close);
+    const closeSidebar = () => {
+      if (!sidebar || !backdrop) return;
+      sidebar.classList.remove("is-open");
+      backdrop.classList.remove("is-open");
+      document.body.classList.remove("net-noscroll");
+      sidebar.setAttribute("aria-hidden", "true");
+      backdrop.setAttribute("aria-hidden", "true");
+    };
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && sidebar?.classList.contains('is-open')) close();
+    if (openButton) openButton.addEventListener("click", openSidebar);
+    if (closeButton) closeButton.addEventListener("click", closeSidebar);
+    if (backdrop) backdrop.addEventListener("click", closeSidebar);
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && sidebar?.classList.contains("is-open")) {
+        closeSidebar();
+      }
     });
   }
 
   function wireUserDropdown() {
-    const btn = document.getElementById('userBtn');
-    const dd = document.getElementById('userDropdown');
-    if (!btn || !dd) return;
+    const button = document.getElementById("userBtn");
+    const dropdown = document.getElementById("userDropdown");
+    if (!button || !dropdown) return;
 
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const open = dd.classList.toggle('is-open');
-      btn.setAttribute('aria-expanded', String(open));
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const isOpen = dropdown.classList.toggle("is-open");
+      button.setAttribute("aria-expanded", String(isOpen));
     });
 
-    document.addEventListener('click', (e) => {
-      if (!dd.contains(e.target) && !btn.contains(e.target)) {
-        dd.classList.remove('is-open');
-        btn.setAttribute('aria-expanded', 'false');
-      }
+    document.addEventListener("click", (event) => {
+      if (dropdown.contains(event.target) || button.contains(event.target)) return;
+      dropdown.classList.remove("is-open");
+      button.setAttribute("aria-expanded", "false");
     });
   }
 
-  function fillIdentity(user) {
-    const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Student';
-    const email = user.email || '';
-    const initial = (name.charAt(0) || 'S').toUpperCase();
-    const xp = Number(user.xp || 0);
-    const level = levelFromXP(xp);
+  function fillIdentity(currentUser) {
+    const fullName = [currentUser.first_name, currentUser.last_name].filter(Boolean).join(" ")
+      || currentUser.username
+      || "Student";
+    const email = String(currentUser.email || "");
+    const avatarInitial = (fullName.charAt(0) || "S").toUpperCase();
+    const level = levelFromXP(Number(currentUser.xp || 0));
     const rank = rankForLevel(level);
 
-    // Top nav
-    updateElement('topAvatar', initial);
-    updateElement('ddAvatar', initial);
-    updateElement('ddName', name);
-    updateElement('ddEmail', email);
-    updateElement('ddLevel', `Level ${level}`);
-    updateElement('ddRank', rank);
+    setElementValue("topAvatar", avatarInitial);
+    setElementValue("ddAvatar", avatarInitial);
+    setElementValue("ddName", fullName);
+    setElementValue("ddEmail", email);
+    setElementValue("ddLevel", `Level ${level}`);
+    setElementValue("ddRank", rank);
 
-    // Sidebar
-    updateElement('sideAvatar', initial);
-    updateElement('sideUserName', name);
-    updateElement('sideUserEmail', email);
-    updateElement('sideLevelBadge', `Lv ${level}`);
+    setElementValue("sideAvatar", avatarInitial);
+    setElementValue("sideUserName", fullName);
+    setElementValue("sideUserEmail", email);
+    setElementValue("sideLevelBadge", `Lv ${level}`);
 
-    // Profile hero
-    updateElement('profileAvatar', initial);
+    setElementValue("profileAvatar", avatarInitial);
   }
 
-  /* ── Tab Navigation ── */
+  // Simple account tabs with URL hash support.
   function wireTabNavigation() {
-    const tabButtons = document.querySelectorAll('[role="tab"]');
-    const tabPanes = document.querySelectorAll('.account-tab');
+    const tabButtons = document.querySelectorAll("[role='tab']");
+    const tabPanels = document.querySelectorAll(".account-tab");
+    const validTabs = ["profile", "preferences", "security", "activity"];
 
     const switchTo = (tabName) => {
-      tabButtons.forEach(b => {
-        const isActive = b.dataset.tab === tabName;
-        b.classList.toggle('btn-teal', isActive);
-        b.classList.toggle('btn-outline-teal', !isActive);
-        b.setAttribute('aria-selected', String(isActive));
+      tabButtons.forEach((button) => {
+        const isActive = button.dataset.tab === tabName;
+        button.classList.toggle("btn-teal", isActive);
+        button.classList.toggle("btn-outline-teal", !isActive);
+        button.setAttribute("aria-selected", String(isActive));
       });
-      tabPanes.forEach(pane => {
-        if (pane.dataset.tab === tabName) {
-          pane.classList.remove('d-none');
-          pane.style.animation = 'none';
-          pane.offsetHeight; // reflow
-          pane.style.animation = '';
+
+      tabPanels.forEach((panel) => {
+        if (panel.dataset.tab === tabName) {
+          panel.classList.remove("d-none");
+          panel.style.animation = "none";
+          panel.offsetHeight;
+          panel.style.animation = "";
         } else {
-          pane.classList.add('d-none');
+          panel.classList.add("d-none");
         }
       });
-      // Update URL hash without scrolling
-      history.replaceState(null, '', `#${tabName}`);
+
+      history.replaceState(null, "", `#${tabName}`);
     };
 
-    tabButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchTo(btn.dataset.tab);
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        switchTo(button.dataset.tab);
       });
     });
 
-    // Handle initial hash (e.g. account.html#preferences)
-    const hash = window.location.hash.replace('#', '');
-    const validTabs = ['profile', 'preferences', 'security', 'activity'];
-    if (hash && validTabs.includes(hash)) {
-      switchTo(hash);
+    const initialHash = window.location.hash.replace("#", "");
+    if (initialHash && validTabs.includes(initialHash)) {
+      switchTo(initialHash);
     }
 
-    // Handle hash changes (browser back/forward)
-    window.addEventListener('hashchange', () => {
-      const h = window.location.hash.replace('#', '');
-      if (h && validTabs.includes(h)) switchTo(h);
+    window.addEventListener("hashchange", () => {
+      const currentHash = window.location.hash.replace("#", "");
+      if (currentHash && validTabs.includes(currentHash)) {
+        switchTo(currentHash);
+      }
     });
   }
 
-  /* Load Profile Data */
-  async function loadProfileData(user) {
+  // Load profile and level section.
+  async function loadProfileData(currentUser) {
     try {
-      // Fetch user details
-      const userData = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", { email: user.email });
+      const userData = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", {
+        email: currentUser.email
+      });
 
-      // Calculate level and rank from XP
-      const totalXp = Number(userData.xp || 0);
-      const level = Number.isFinite(Number(userData.numeric_level))
+      const totalXp = Number(userData?.xp || 0);
+      const level = Number.isFinite(Number(userData?.numeric_level))
         ? Number(userData.numeric_level)
         : levelFromXP(totalXp);
-      const rank = userData.rank || rankForLevel(level);
-      const currentLevelXp = Number.isFinite(Number(userData.xp_into_level))
+      const rank = String(userData?.rank || rankForLevel(level));
+
+      const currentLevelXp = Number.isFinite(Number(userData?.xp_into_level))
         ? Number(userData.xp_into_level)
-        : totalXp - totalXpForLevel(level);
-      const nextLevelXp = Number.isFinite(Number(userData.next_level_xp))
+        : Math.max(0, totalXp - totalXpForLevel(level));
+      const nextLevelXp = Number.isFinite(Number(userData?.next_level_xp))
         ? Number(userData.next_level_xp)
         : xpForNextLevel(level);
-      const progressPct = Math.round((currentLevelXp / nextLevelXp) * 100);
-      const displayName = [userData.first_name, userData.last_name].filter(Boolean).join(" ") || "Student";
 
-      // Update profile section
-      updateElement('profileName', escapeHtml(displayName));
-      updateElement('profileEmail', escapeHtml(user.email));
-      updateElement('fullNameInput', escapeHtml(displayName));
-      updateElement('emailInput', user.email);
-      updateElement('currentLevelInput', level);
-      updateElement('currentRankInput', rank);
-      updateElement('rankBadge', rank);
-      updateElement('levelBadge', `Level ${level}`);
+      const progressPercent = Math.round((currentLevelXp / Math.max(nextLevelXp, 1)) * 100);
 
-      // Format joined date
-      const joinedDate = userData.created_at ? new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Recently';
-      updateElement('joinedDate', joinedDate);
-      updateElement('memberSinceInput', joinedDate);
+      const displayName = [userData?.first_name, userData?.last_name].filter(Boolean).join(" ") || "Student";
+      const joinedDate = userData?.created_at
+        ? new Date(userData.created_at).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        })
+        : "Recently";
 
-      // Update rank display
-      updateElement('rankDisplayLarge', level);
-      updateElement('rankNameDisplay', rank);
-      updateElement('levelProgressBar', progressPct);
-      updateElement('levelProgressText', `${currentLevelXp} / ${nextLevelXp} XP`);
+      setElementValue("profileName", displayName);
+      setElementValue("profileEmail", currentUser.email);
+      setElementValue("fullNameInput", displayName);
+      setElementValue("emailInput", currentUser.email);
+      setElementValue("currentLevelInput", level);
+      setElementValue("currentRankInput", rank);
+      setElementValue("rankBadge", rank);
+      setElementValue("levelBadge", `Level ${level}`);
+      setElementValue("joinedDate", joinedDate);
+      setElementValue("memberSinceInput", joinedDate);
 
-      // Update learning stats
-      updateElement('totalXpDisplay', totalXp.toLocaleString());
-      updateElement('totalXpStat', totalXp.toLocaleString());
-      
-    } catch (err) {
-      console.error('Error loading profile:', err);
+      setElementValue("rankDisplayLarge", level);
+      setElementValue("rankNameDisplay", rank);
+      setElementValue("levelProgressBar", progressPercent);
+      setElementValue("levelProgressText", `${currentLevelXp} / ${nextLevelXp} XP`);
+
+      setElementValue("totalXpDisplay", totalXp.toLocaleString());
+      setElementValue("totalXpStat", totalXp.toLocaleString());
+    } catch (error) {
+      console.error("Error loading profile:", error);
     }
   }
 
-  /* Load Learning Statistics */
-  async function loadLearningStats(user) {
+  // Load sidebar/profile learning stats.
+  async function loadLearningStats(currentUser) {
     try {
-      // Fetch progress
-      const coursesData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: user.email });
-      const courses = listFrom(coursesData, "courses");
-
-      const completedCourses = courses.filter(c => {
-        const status = (c.status || '').toLowerCase();
-        const pct = Number.isFinite(Number(c.progress_pct)) ? Number(c.progress_pct) : 0;
-        return status === 'completed' || pct >= 100;
-      }).length;
-      updateElement('coursesCompletedDisplay', completedCourses);
-      updateElement('coursesCompletedStat', completedCourses);
-
-      // Fetch achievements
-      const achievementsData = await apiGet(ENDPOINTS.achievements?.list || "/api/user/achievements", { user_email: user.email });
-      const unlocked = listFrom(achievementsData, "unlocked");
-      const unlockedCount = unlocked.length;
-      updateElement('achievementsDisplay', unlockedCount);
-      updateElement('achievementsStat', unlockedCount);
-
-      // Fetch streaks
-      const streakData = await apiGet(ENDPOINTS.progress?.userStreaks || "/api/user/streaks", { user_email: user.email });
-      updateElement('streakDisplay', `${streakData.current_streak || 0} days`);
-      updateElement('streakStat', streakData.current_streak || 0);
-
-      // Recent badges for profile sidebar
-      if (unlocked.length > 0) {
-        const recentBadges = unlocked.slice(0, 3);
-        const badgesHtml = recentBadges.map(b => `<span title="${escapeHtml(b.name)}" style="font-size: 1.2rem; cursor: help;">${b.icon || '⭐'}</span>`).join('');
-        document.getElementById('recentBadgesSmall').innerHTML = badgesHtml || '<span class="text-muted small">No badges yet</span>';
-      }
-
-    } catch (err) {
-      console.error('Error loading stats:', err);
-    }
-  }
-
-  /* Load Activity Data */
-  async function loadActivityData(user) {
-    try {
-      // Fetch activity for heatmap
-      const activityPayload = await apiGet(ENDPOINTS.progress?.userActivity || "/api/user/activity", {
-        user_email: user.email,
-        range: 90
+      const coursesData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", {
+        email: currentUser.email
       });
-      const activityData = listFrom(activityPayload, "activity");
+      const userCourses = listFrom(coursesData, "courses");
 
-      if (activityData && Array.isArray(activityData)) {
-        renderActivityHeatmap(activityData);
-      }
+      const completedCount = userCourses.filter((course) => {
+        const status = String(course?.status || "").toLowerCase();
+        const percent = Number.isFinite(Number(course?.progress_pct)) ? Number(course.progress_pct) : 0;
+        return status === "completed" || percent >= 100;
+      }).length;
 
-      // Update last active
-      const lastActive = activityData && activityData.length > 0 ? activityData[activityData.length - 1].date : null;
-      if (lastActive) {
-        updateElement('lastActiveText', new Date(lastActive).toLocaleDateString());
-      }
+      setElementValue("coursesCompletedDisplay", completedCount);
+      setElementValue("coursesCompletedStat", completedCount);
 
-    } catch (err) {
-      console.error('Error loading activity:', err);
+      const achievementsData = await apiGet(ENDPOINTS.achievements?.list || "/api/user/achievements", {
+        user_email: currentUser.email
+      });
+      const unlockedAchievements = listFrom(achievementsData, "unlocked");
+      const unlockedCount = unlockedAchievements.length;
+
+      setElementValue("achievementsDisplay", unlockedCount);
+      setElementValue("achievementsStat", unlockedCount);
+
+      const streakData = await apiGet(ENDPOINTS.progress?.userStreaks || "/api/user/streaks", {
+        user_email: currentUser.email
+      });
+      const streakDays = Number(streakData?.current_streak || 0);
+      setElementValue("streakDisplay", `${streakDays} days`);
+      setElementValue("streakStat", streakDays);
+
+      renderRecentBadges(unlockedAchievements);
+    } catch (error) {
+      console.error("Error loading stats:", error);
     }
   }
 
-  /* Render Activity Heatmap */
-  function renderActivityHeatmap(activityData) {
-    const container = document.getElementById('activityHeatmapContainer');
+  function renderRecentBadges(unlockedAchievements) {
+    const container = document.getElementById("recentBadgesSmall");
     if (!container) return;
 
-    container.innerHTML = '';
+    if (!Array.isArray(unlockedAchievements) || unlockedAchievements.length === 0) {
+      container.innerHTML = '<span class="text-muted small">No badges yet</span>';
+      return;
+    }
 
-    const dataMap = {};
-    activityData.forEach(item => {
-      const date = item.date || item.activity_date;
-      const count = item.count || item.activity_count || item.logins || item.lessons || 0;
-      if (date) dataMap[date] = Math.min(count, 4);
+    const recentBadges = unlockedAchievements.slice(0, 3);
+    const badgesHtml = recentBadges.map((badge) => {
+      const title = escapeHtml(badge?.name || "Badge");
+      const icon = badge?.icon || "⭐";
+      return `<span title="${title}" style="font-size: 1.2rem; cursor: help;">${icon}</span>`;
+    }).join("");
+
+    container.innerHTML = badgesHtml || '<span class="text-muted small">No badges yet</span>';
+  }
+
+  // Load activity heatmap + last active date.
+  async function loadActivityData(currentUser) {
+    try {
+      const responseData = await apiGet(ENDPOINTS.progress?.userActivity || "/api/user/activity", {
+        user_email: currentUser.email,
+        range: 90
+      });
+      const activityList = listFrom(responseData, "activity");
+
+      if (Array.isArray(activityList)) {
+        renderActivityHeatmap(activityList);
+      }
+
+      const lastItem = Array.isArray(activityList) && activityList.length
+        ? activityList[activityList.length - 1]
+        : null;
+      const lastDate = lastItem?.date || lastItem?.activity_date;
+      if (lastDate) {
+        setElementValue("lastActiveText", new Date(lastDate).toLocaleDateString());
+      }
+    } catch (error) {
+      console.error("Error loading activity:", error);
+    }
+  }
+
+  function renderActivityHeatmap(activityList) {
+    const container = document.getElementById("activityHeatmapContainer");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const countByDate = {};
+    activityList.forEach((activityEntry) => {
+      const date = activityEntry?.date || activityEntry?.activity_date;
+      const count = activityEntry?.count
+        || activityEntry?.activity_count
+        || activityEntry?.logins
+        || activityEntry?.lessons
+        || 0;
+      if (!date) return;
+      countByDate[date] = Math.min(Number(count) || 0, 4);
     });
 
     const today = new Date();
-    for (let i = 89; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().slice(0, 10);
-      const level = dataMap[dateStr] || 0;
 
-      const cell = document.createElement('div');
+    for (let dayOffset = 89; dayOffset >= 0; dayOffset -= 1) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - dayOffset);
+      const dateKey = date.toISOString().slice(0, 10);
+      const level = countByDate[dateKey] || 0;
+
+      const cell = document.createElement("div");
       cell.className = `activity-cell level-${level}`;
-      cell.title = `${dateStr}: ${level} activities`;
+      cell.title = `${dateKey}: ${level} activities`;
       container.appendChild(cell);
     }
   }
 
-  /* XP & Level Helpers */
+  // XP helper functions.
   function totalXpForLevel(level) {
-    const lvl = Math.max(1, Number(level) || 1);
-    return BASE_XP * (lvl - 1) * lvl / 2;
+    const safeLevel = Math.max(1, Number(level) || 1);
+    return BASE_XP * (safeLevel - 1) * safeLevel / 2;
   }
 
-  function levelFromXP(totalXP) {
-    const xp = Math.max(0, Number(totalXP) || 0);
-    const t = xp / BASE_XP;
-    const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
-    return Math.max(1, lvl);
+  function levelFromXP(totalXp) {
+    const xp = Math.max(0, Number(totalXp) || 0);
+    const factor = xp / BASE_XP;
+    const computedLevel = Math.floor((1 + Math.sqrt(1 + 8 * factor)) / 2);
+    return Math.max(1, computedLevel);
   }
 
   function xpForNextLevel(level) {
-    const lvl = Math.max(1, Number(level) || 1);
-    return BASE_XP * lvl;
+    const safeLevel = Math.max(1, Number(level) || 1);
+    return BASE_XP * safeLevel;
   }
 
   function rankForLevel(level) {
-    const lvl = Number(level) || 1;
-    if (lvl >= 5) return 'Advanced';
-    if (lvl >= 3) return 'Intermediate';
-    return 'Novice';
+    const safeLevel = Number(level) || 1;
+    if (safeLevel >= 5) return "Advanced";
+    if (safeLevel >= 3) return "Intermediate";
+    return "Novice";
   }
 
-  /* Utility: Get current user */
   function getCurrentUser() {
+    return parseJson(localStorage.getItem("netology_user"))
+      || parseJson(localStorage.getItem("user"))
+      || null;
+  }
+
+  function parseJson(rawValue) {
     try {
-      const stored = localStorage.getItem('netology_user');
-      return stored ? JSON.parse(stored) : null;
-    } catch (e) {
-      console.error('Error getting user:', e);
+      return rawValue ? JSON.parse(rawValue) : null;
+    } catch {
       return null;
     }
   }
 
-  /* Utility: HTML escape */
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
+  // Escape text before inserting it into an HTML string.
+  function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = String(value || "");
     return div.innerHTML;
   }
 
-  /* Utility: Update element */
-  function updateElement(id, value) {
-    const el = document.getElementById(id);
-    if (!el) return;
+  // Update normal text, form fields, and progress bars safely.
+  function setElementValue(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
 
-    // Progress bars need style.width
-    if (el.classList.contains('progress-bar')) {
-      el.style.width = `${Math.min(100, Math.max(0, Number(value) || 0))}%`;
+    if (element.classList.contains("progress-bar")) {
+      const percent = Math.min(100, Math.max(0, Number(value) || 0));
+      element.style.width = `${percent}%`;
       return;
     }
-    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-      el.value = value;
-    } else {
-      el.textContent = value;
-    }
-  }
 
+    if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
+      element.value = value;
+      return;
+    }
+
+    element.textContent = value;
+  }
 })();
