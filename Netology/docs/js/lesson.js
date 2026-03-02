@@ -421,18 +421,7 @@ function buildStepsFromLesson(lesson, course) {
       }
 
       if (block.type === "activity") {
-        if (block.mode === "drag" && Array.isArray(block.targets) && Array.isArray(block.items)) {
-          steps.push({
-            type: "matching",
-            title: block.title || "Match the pairs",
-            prompt: block.prompt || "Match each item to the correct category.",
-            pairs: block.items.map(item => ({
-              term: item.label,
-              match: (block.targets.find(t => t.id === item.targetId) || {}).label || item.targetId
-            })),
-            xp: 15
-          });
-        } else if (block.mode === "select") {
+        if (block.mode === "select") {
           steps.push({
             type: "mcq",
             question: block.prompt || block.title || "Choose the correct answer",
@@ -483,41 +472,8 @@ function buildStepsFromLesson(lesson, course) {
     }
   }
 
-  // 3. Tap-the-word exercise from objectives
-  if (Array.isArray(lesson.objectives) && lesson.objectives.length >= 2) {
-    const obj = lesson.objectives[Math.floor(Math.random() * lesson.objectives.length)];
-    const words = obj.split(/\s+/);
-    if (words.length >= 3) {
-      const keyWord = words.filter(w => w.length > 3)[0] || words[1];
-      const cleanKey = keyWord.replace(/[.,;:!?()]/g, "");
-      const allContent = (lesson.content || []).join(" ").split(/\s+/);
-      const others = [...new Set(allContent.map(w => w.replace(/[.,;:!?()]/g, "")).filter(w => w.length > 3 && w.toLowerCase() !== cleanKey.toLowerCase()))];
-      if (others.length >= 5) {
-        steps.push({
-          type: "tap_word",
-          question: `Which word relates to: "${obj}"?`,
-          words: shuffleArray([cleanKey, ...shuffleArray(others).slice(0, 7)]),
-          correctWord: cleanKey,
-          xp: 10
-        });
-      }
-    }
-  }
-
-  // 4. Drag-and-drop word order if we have a summary
-  if (lesson.summary && lesson.summary.split(/\s+/).length >= 4 && lesson.summary.split(/\s+/).length <= 14) {
-    const words = lesson.summary.split(/\s+/);
-    steps.push({
-      type: "drag_order",
-      instruction: "Arrange these words to form the correct statement:",
-      words: words,
-      correctOrder: words,
-      xp: 15
-    });
-  }
-
-  // If no interactive steps were generated, ensure at least a quiz from the lesson quiz
-  if (steps.filter(s => s.type !== "learn" && s.type !== "flashcard").length === 0) {
+  // If no interactive steps were generated, ensure at least one MCQ.
+  if (steps.filter((step) => step.type !== "learn" && step.type !== "flashcard").length === 0) {
     steps.push({
       type: "mcq",
       question: `What is the main topic of "${lesson.title}"?`,
@@ -528,7 +484,7 @@ function buildStepsFromLesson(lesson, course) {
     });
   }
 
-  // 5. Flashcard recap as the final lesson step
+  // 3. Flashcard recap as the final lesson step.
   if (flashcardStep) {
     steps.push(flashcardStep);
   }
@@ -948,57 +904,43 @@ function renderTapWord(step) {
 }
 
 /**
- * Renders Flashcard step – redesigned with self-rating and progress bar
+ * Renders Flashcard step in a simplified review format.
  */
 function renderFlashcard(step) {
   const el = document.createElement("div");
   el.className = "les-step les-step-flashcard";
 
-  const cards = step.cards || [];
+  const cards = Array.isArray(step.cards) ? step.cards : [];
   let currentCard = 0;
-  let hasFlipped = false;
-  const ratings = new Array(cards.length).fill(null); // null | "got" | "learning"
+  let revealed = false;
+  const ratings = new Array(cards.length).fill(null); // null | "know" | "practice"
 
   el.innerHTML = `
     <div class="les-step-header">
       <div class="les-step-icon les-step-icon--flash"><i class="bi bi-layers-fill"></i></div>
       <h2 class="les-step-prompt">Flashcard Review</h2>
     </div>
-    <div class="les-flash-progress-bar">
-      <div class="les-flash-progress-fill" id="flashProgressFill" style="width:0%"></div>
-    </div>
     <div class="les-flash-counter-row">
       <span class="les-flash-counter-text"><span id="flashCurrent">1</span> of ${cards.length}</span>
-      <span class="les-flash-rating-summary" id="flashRatingSummary"></span>
     </div>
     <div class="les-flash-card-wrap">
       <div class="les-flash-card" id="lesFlashCard" tabindex="0" role="button" aria-label="Tap to reveal answer">
         <div class="les-flash-front">
-          <div class="les-flash-category">Question</div>
           <div class="les-flash-text" id="lesFlashFront"></div>
-          <div class="les-flash-flip-hint"><i class="bi bi-arrow-repeat"></i> Tap to flip</div>
+          <div class="les-flash-flip-hint">Tap to reveal answer</div>
         </div>
         <div class="les-flash-back">
-          <div class="les-flash-category">Answer</div>
           <div class="les-flash-text" id="lesFlashBack"></div>
         </div>
       </div>
     </div>
     <div class="les-flash-rate-row" id="flashRateRow" style="display:none">
-      <button class="les-flash-rate-btn les-flash-rate-learning" id="flashRateLearning">
-        <i class="bi bi-arrow-repeat"></i> Still learning
-      </button>
-      <button class="les-flash-rate-btn les-flash-rate-got" id="flashRateGot">
-        <i class="bi bi-check-circle-fill"></i> Got it!
-      </button>
+      <button class="les-flash-rate-btn les-flash-rate-got" id="flashRateKnow">I know this</button>
+      <button class="les-flash-rate-btn les-flash-rate-learning" id="flashRatePractice">Practice again</button>
     </div>
     <div class="les-flash-nav">
-      <button class="les-btn les-btn-ghost les-btn-sm" id="flashPrev" disabled>
-        <i class="bi bi-chevron-left"></i> Back
-      </button>
-      <button class="les-btn les-btn-primary les-btn-sm" id="flashNext" style="display:none">
-        ${cards.length > 1 ? "Next <i class='bi bi-chevron-right'></i>" : "Done <i class='bi bi-check-lg'></i>"}
-      </button>
+      <button class="les-btn les-btn-ghost les-btn-sm" id="flashPrev" disabled>Back</button>
+      <button class="les-btn les-btn-primary les-btn-sm" id="flashNext" disabled>Next</button>
     </div>
   `;
 
@@ -1009,110 +951,90 @@ function renderFlashcard(step) {
   const prevBtn = el.querySelector("#flashPrev");
   const nextBtn = el.querySelector("#flashNext");
   const rateRow = el.querySelector("#flashRateRow");
-  const rateGot = el.querySelector("#flashRateGot");
-  const rateLearning = el.querySelector("#flashRateLearning");
-  const progressFill = el.querySelector("#flashProgressFill");
-  const ratingSummary = el.querySelector("#flashRatingSummary");
+  const rateKnow = el.querySelector("#flashRateKnow");
+  const ratePractice = el.querySelector("#flashRatePractice");
   const flipHint = el.querySelector(".les-flash-flip-hint");
 
-  function updateProgress() {
-    const done = ratings.filter(r => r !== null).length;
-    const pct = cards.length ? (done / cards.length) * 100 : 0;
-    if (progressFill) progressFill.style.width = `${pct}%`;
-    const got = ratings.filter(r => r === "got").length;
-    if (ratingSummary && done > 0) {
-      ratingSummary.innerHTML = `<i class="bi bi-check-circle-fill" style="color:#22c55e"></i> ${got} &nbsp;<i class="bi bi-arrow-repeat" style="color:#f59e0b"></i> ${done - got}`;
-    }
+  function updateContinueState() {
+    const reviewedCount = ratings.filter((rating) => rating !== null).length;
+    const allReviewed = cards.length > 0 && reviewedCount === cards.length;
+    const checkBtn = document.getElementById("lesCheckBtn");
+    if (!checkBtn) return;
+    checkBtn.disabled = !allReviewed;
+    if (allReviewed) checkBtn.textContent = "Continue";
   }
 
-  function showCard(idx) {
-    currentCard = idx;
-    cardEl.classList.remove("is-flipped");
-    hasFlipped = false;
-    frontEl.textContent = cards[idx].front;
-    backEl.textContent = cards[idx].back;
-    counterEl.textContent = String(idx + 1);
-    prevBtn.disabled = idx === 0;
-    nextBtn.style.display = "none";
+  function showCard(index) {
+    if (!cards.length) return;
+
+    currentCard = index;
+    revealed = false;
+    cardEl.classList.remove("is-flipped", "is-rated-got", "is-rated-learning");
+    frontEl.textContent = cards[index].front || "";
+    backEl.textContent = cards[index].back || "";
+    counterEl.textContent = String(index + 1);
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = ratings[index] === null;
     rateRow.style.display = "none";
     if (flipHint) flipHint.style.display = "";
 
-    // Highlight card if already rated
-    cardEl.classList.remove("is-rated-got", "is-rated-learning");
-    if (ratings[idx] === "got") cardEl.classList.add("is-rated-got");
-    else if (ratings[idx] === "learning") cardEl.classList.add("is-rated-learning");
-
-    if (idx === cards.length - 1) {
-      nextBtn.innerHTML = "Finish <i class='bi bi-check-lg'></i>";
-    } else {
-      nextBtn.innerHTML = "Next <i class='bi bi-chevron-right'></i>";
-    }
+    if (ratings[index] === "know") cardEl.classList.add("is-rated-got");
+    if (ratings[index] === "practice") cardEl.classList.add("is-rated-learning");
   }
 
-  function flipCard() {
-    cardEl.classList.toggle("is-flipped");
-    if (!hasFlipped && cardEl.classList.contains("is-flipped")) {
-      hasFlipped = true;
-      if (flipHint) flipHint.style.display = "none";
-      rateRow.style.display = "flex";
-      nextBtn.style.display = "";
-    }
+  function revealCard() {
+    if (revealed || !cards.length) return;
+    revealed = true;
+    cardEl.classList.add("is-flipped");
+    rateRow.style.display = "flex";
+    if (flipHint) flipHint.style.display = "none";
   }
 
-  function rateCard(rating) {
+  function rateCurrentCard(rating) {
+    if (!cards.length) return;
     ratings[currentCard] = rating;
     cardEl.classList.remove("is-rated-got", "is-rated-learning");
-    cardEl.classList.add(rating === "got" ? "is-rated-got" : "is-rated-learning");
-    updateProgress();
-
-    // Auto-advance after rating
-    setTimeout(() => {
-      if (currentCard < cards.length - 1) {
-        showCard(currentCard + 1);
-      } else {
-        // All done — show "Continue" on check button
-        const checkBtn = document.getElementById("lesCheckBtn");
-        if (checkBtn) {
-          checkBtn.disabled = false;
-          checkBtn.textContent = "Continue";
-        }
-      }
-    }, 400);
+    cardEl.classList.add(rating === "know" ? "is-rated-got" : "is-rated-learning");
+    nextBtn.disabled = false;
+    updateContinueState();
   }
 
-  cardEl.addEventListener("click", flipCard);
-  cardEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flipCard(); }
-  });
-
-  rateGot.addEventListener("click", () => rateCard("got"));
-  rateLearning.addEventListener("click", () => rateCard("learning"));
-
-  prevBtn.addEventListener("click", () => { if (currentCard > 0) showCard(currentCard - 1); });
-  nextBtn.addEventListener("click", () => {
-    if (currentCard < cards.length - 1) {
-      showCard(currentCard + 1);
-    } else {
-      const checkBtn = document.getElementById("lesCheckBtn");
-      if (checkBtn) { checkBtn.disabled = false; checkBtn.textContent = "Continue"; }
+  cardEl.addEventListener("click", revealCard);
+  cardEl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      revealCard();
     }
   });
 
-  if (cards.length) showCard(0);
+  rateKnow.addEventListener("click", () => rateCurrentCard("know"));
+  ratePractice.addEventListener("click", () => rateCurrentCard("practice"));
+  prevBtn.addEventListener("click", () => {
+    if (currentCard > 0) showCard(currentCard - 1);
+  });
+  nextBtn.addEventListener("click", () => {
+    if (currentCard < cards.length - 1) showCard(currentCard + 1);
+  });
+
+  if (cards.length) {
+    showCard(0);
+    updateContinueState();
+  }
 
   return {
     el,
     type: "flashcard",
     check() {
-      const got = ratings.filter(r => r === "got").length;
+      const known = ratings.filter((rating) => rating === "know").length;
+      const reviewed = ratings.filter((rating) => rating !== null).length;
       const total = cards.length;
-      const allReviewed = ratings.filter(r => r !== null).length === total;
+      const allReviewed = total > 0 && reviewed === total;
       return {
         correct: true,
         explanation: allReviewed
-          ? `You reviewed all ${total} cards — ${got} marked as known!`
-          : `Keep practising — flip and rate each card to track what you know.`,
-        xp: Math.max(5, Math.round((got / Math.max(total, 1)) * (step.xp || 10)))
+          ? `Reviewed ${total} cards. ${known} marked as "I know this".`
+          : 'Review each card and choose either "I know this" or "Practice again".',
+        xp: allReviewed ? Math.max(5, Math.round((known / Math.max(total, 1)) * (step.xp || 10))) : 0
       };
     }
   };
@@ -1198,144 +1120,6 @@ function renderSentenceComplete(step) {
     }
   };
 }
-
-/**
- * Renders Drag-and-Drop Word Order exercise
- */
-function renderDragOrder(step) {
-  const el = document.createElement("div");
-  el.className = "les-step les-step-dragorder";
-
-  const shuffled = shuffleArray(step.words);
-  const placed = [];
-
-  el.innerHTML = `
-    <div class="les-step-header">
-      <div class="les-step-icon les-step-icon--drag"><i class="bi bi-arrows-move"></i></div>
-      <h2 class="les-step-prompt">${escHtml(step.instruction)}</h2>
-    </div>
-    <div class="les-drag-dropzone" id="lesDragDropzone" aria-label="Drop words here in order"></div>
-    <div class="les-drag-wordbank" id="lesDragWordbank"></div>
-  `;
-
-  const dropzone = el.querySelector("#lesDragDropzone");
-  const wordbank = el.querySelector("#lesDragWordbank");
-
-  function updateCheckBtn() {
-    const allPlaced = wordbank.querySelectorAll(".les-drag-chip").length === 0;
-    document.getElementById("lesCheckBtn").disabled = !allPlaced;
-  }
-
-  function createChip(word, inDropzone) {
-    const chip = document.createElement("button");
-    chip.className = "les-drag-chip";
-    chip.textContent = word;
-    chip.draggable = true;
-    chip.dataset.word = word;
-
-    // Click to move between zones
-    chip.addEventListener("click", () => {
-      if (inDropzone) {
-        chip.remove();
-        wordbank.appendChild(createChip(word, false));
-      } else {
-        chip.remove();
-        dropzone.appendChild(createChip(word, true));
-      }
-      updateCheckBtn();
-    });
-
-    // Drag support
-    chip.addEventListener("dragstart", (e) => {
-      e.dataTransfer.setData("text/plain", word);
-      e.dataTransfer.effectAllowed = "move";
-      chip.classList.add("is-dragging");
-      setTimeout(() => chip.style.opacity = "0.4", 0);
-    });
-
-    chip.addEventListener("dragend", () => {
-      chip.style.opacity = "";
-      chip.classList.remove("is-dragging");
-    });
-
-    return chip;
-  }
-
-  // Drop zone handlers
-  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; dropzone.classList.add("is-dragover"); });
-  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("is-dragover"));
-  dropzone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropzone.classList.remove("is-dragover");
-    const word = e.dataTransfer.getData("text/plain");
-    // Remove from wordbank
-    const existing = wordbank.querySelector(`[data-word="${CSS.escape(word)}"]`);
-    if (existing) existing.remove();
-    // Check if already in dropzone
-    const alreadyThere = dropzone.querySelector(`[data-word="${CSS.escape(word)}"]`);
-    if (!alreadyThere) dropzone.appendChild(createChip(word, true));
-    updateCheckBtn();
-  });
-
-  wordbank.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
-  wordbank.addEventListener("drop", (e) => {
-    e.preventDefault();
-    const word = e.dataTransfer.getData("text/plain");
-    const existing = dropzone.querySelector(`[data-word="${CSS.escape(word)}"]`);
-    if (existing) existing.remove();
-    const alreadyThere = wordbank.querySelector(`[data-word="${CSS.escape(word)}"]`);
-    if (!alreadyThere) wordbank.appendChild(createChip(word, false));
-    updateCheckBtn();
-  });
-
-  // Populate word bank
-  shuffled.forEach(word => wordbank.appendChild(createChip(word, false)));
-
-  // Placeholder text
-  const placeholder = document.createElement("div");
-  placeholder.className = "les-drag-placeholder";
-  placeholder.textContent = "Tap or drag words here in order";
-  dropzone.appendChild(placeholder);
-
-  // Remove placeholder when first word is added
-  const observer = new MutationObserver(() => {
-    const chips = dropzone.querySelectorAll(".les-drag-chip");
-    if (chips.length > 0) {
-      const ph = dropzone.querySelector(".les-drag-placeholder");
-      if (ph) ph.remove();
-    } else if (!dropzone.querySelector(".les-drag-placeholder")) {
-      dropzone.appendChild(placeholder);
-    }
-  });
-  observer.observe(dropzone, { childList: true });
-
-  return {
-    el,
-    type: "drag_order",
-    check() {
-      const chips = dropzone.querySelectorAll(".les-drag-chip");
-      const userOrder = Array.from(chips).map(c => c.dataset.word);
-      const correctOrder = step.correctOrder;
-      const correct = JSON.stringify(userOrder) === JSON.stringify(correctOrder);
-
-      chips.forEach((c, i) => {
-        if (i < correctOrder.length && c.dataset.word === correctOrder[i]) {
-          c.classList.add("is-correct");
-        } else {
-          c.classList.add("is-wrong");
-        }
-        c.style.pointerEvents = "none";
-      });
-
-      return {
-        correct,
-        explanation: correct ? "Perfect order!" : `The correct order is: "${correctOrder.join(" ")}"`,
-        xp: correct ? (step.xp || 15) : 0
-      };
-    }
-  };
-}
-
 
 // Lesson engine controller.
 class LessonEngine {
@@ -1806,11 +1590,6 @@ class LessonEngine {
           // Keep disabled until flashcards are viewed.
           checkButton.disabled = true;
         }
-        this.setSkipButtonVisible(true);
-        return renderer;
-
-      case "drag_order":
-        renderer = renderDragOrder(step);
         this.setSkipButtonVisible(true);
         return renderer;
 

@@ -181,22 +181,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "A network requires two or more devices communicating over a shared medium."
               },
-              {
-                type: "activity",
-                title: "Mini activity: Match device roles",
-                mode: "drag",
-                prompt: "Drag each item to the correct role.",
-                targets: [
-                  { id: "endpoint", label: "Endpoint" },
-                  { id: "network", label: "Network device" },
-                  { id: "service", label: "Service" }
-                ],
-                items: [
-                  { id: "laptop", label: "Laptop", targetId: "endpoint" },
-                  { id: "switch", label: "Switch", targetId: "network" },
-                  { id: "dns", label: "DNS Server", targetId: "service" }
-                ]
-              }
             ],
             content: [
               "A network is any group of devices that exchange data using shared rules called protocols.",
@@ -252,22 +236,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "WANs connect LANs over long distances."
               },
-              {
-                type: "activity",
-                title: "Mini activity: Match the scope",
-                mode: "drag",
-                prompt: "Drag each scenario to the correct scope.",
-                targets: [
-                  { id: "lan", label: "LAN" },
-                  { id: "wan", label: "WAN" },
-                  { id: "internet", label: "Internet" }
-                ],
-                items: [
-                  { id: "school", label: "School computer lab", targetId: "lan" },
-                  { id: "hq-branch", label: "HQ linked to a branch office", targetId: "wan" },
-                  { id: "public", label: "Public websites and cloud apps", targetId: "internet" }
-                ]
-              }
             ],
             content: [
               "A LAN (Local Area Network) covers a small area like a home, office, or school building.",
@@ -381,22 +349,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "Broadcasts are sent to all devices in the broadcast domain."
               },
-              {
-                type: "activity",
-                title: "Mini activity: Match traffic types",
-                mode: "drag",
-                prompt: "Match each traffic type to the correct description.",
-                targets: [
-                  { id: "unicast", label: "Unicast" },
-                  { id: "broadcast", label: "Broadcast" },
-                  { id: "multicast", label: "Multicast" }
-                ],
-                items: [
-                  { id: "one", label: "One sender to one receiver", targetId: "unicast" },
-                  { id: "all", label: "One sender to everyone", targetId: "broadcast" },
-                  { id: "group", label: "One sender to a group", targetId: "multicast" }
-                ]
-              }
             ],
             content: [
               "Topology describes how devices are arranged: star, tree, mesh, ring, or bus.",
@@ -690,22 +642,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "The source MAC identifies the sender."
               },
-              {
-                type: "activity",
-                title: "Mini activity: Match frame fields",
-                mode: "drag",
-                prompt: "Match each frame field to its purpose.",
-                targets: [
-                  { id: "dest", label: "Destination MAC" },
-                  { id: "src", label: "Source MAC" },
-                  { id: "fcs", label: "FCS" }
-                ],
-                items: [
-                  { id: "where", label: "Where the frame should go", targetId: "dest" },
-                  { id: "who", label: "Who sent the frame", targetId: "src" },
-                  { id: "error", label: "Error detection", targetId: "fcs" }
-                ]
-              }
             ],
             content: [
               "An Ethernet frame includes destination MAC, source MAC, a type field, a payload, and an FCS (Frame Check Sequence) for error detection.",
@@ -819,22 +755,6 @@ const COURSE_CONTENT = {
                 correctIndex: 0,
                 explanation: "STP prevents Layer 2 loops and broadcast storms."
               },
-              {
-                type: "activity",
-                title: "Mini activity: Match STP terms",
-                mode: "drag",
-                prompt: "Match the STP term to the description.",
-                targets: [
-                  { id: "root", label: "Root Bridge" },
-                  { id: "block", label: "Blocking Port" },
-                  { id: "portfast", label: "PortFast" }
-                ],
-                items: [
-                  { id: "rootdef", label: "Main switch for path decisions", targetId: "root" },
-                  { id: "blockdef", label: "Stops loops by not forwarding", targetId: "block" },
-                  { id: "pfdef", label: "Speeds up access ports for end devices", targetId: "portfast" }
-                ]
-              }
             ],
             content: [
               "Redundant links improve resilience, but unmanaged loops can bring down a LAN in seconds.",
@@ -1066,21 +986,6 @@ const COURSE_CONTENT = {
                 correctIndex: 0,
                 explanation: "10.0.0.0/8 is a private IPv4 range."
               },
-              {
-                type: "activity",
-                title: "Mini activity: Match address types",
-                mode: "drag",
-                prompt: "Drag each address to the correct type.",
-                targets: [
-                  { id: "private", label: "Private" },
-                  { id: "public", label: "Public" }
-                ],
-                items: [
-                  { id: "addr1", label: "192.168.1.20", targetId: "private" },
-                  { id: "addr2", label: "8.8.8.8", targetId: "public" },
-                  { id: "addr3", label: "10.20.5.10", targetId: "private" }
-                ]
-              }
             ],
             content: [
               "An IPv4 address is a 32-bit value written in dotted decimal, like 192.168.1.20.",
@@ -1194,22 +1099,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "Tracking static IPs prevents two devices from using the same address."
               },
-              {
-                type: "activity",
-                title: "Mini activity: Match practice to benefit",
-                mode: "drag",
-                prompt: "Match each planning practice to its main benefit.",
-                targets: [
-                  { id: "conflict", label: "Avoid conflicts" },
-                  { id: "security", label: "Improve security" },
-                  { id: "clarity", label: "Improve clarity" }
-                ],
-                items: [
-                  { id: "static", label: "Document static IPs", targetId: "conflict" },
-                  { id: "guest", label: "Separate guest network", targetId: "security" },
-                  { id: "pattern", label: "Consistent subnet pattern", targetId: "clarity" }
-                ]
-              }
             ],
             content: [
               "Start with a simple plan that separates users, servers, printers, and guests into different subnets.",
@@ -1488,22 +1377,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "Unknown unicast frames are flooded until the switch learns the destination."
               },
-              {
-                type: "activity",
-                title: "Match device behaviour",
-                mode: "drag",
-                prompt: "Match each behaviour to the correct device.",
-                targets: [
-                  { id: "hub", label: "Hub" },
-                  { id: "switch", label: "Switch" }
-                ],
-                items: [
-                  { id: "flood", label: "Repeats every frame to all ports", targetId: "hub" },
-                  { id: "learn", label: "Builds a MAC address table", targetId: "switch" },
-                  { id: "collision", label: "One shared collision domain", targetId: "hub" },
-                  { id: "unicast", label: "Forwards known unicast to one port", targetId: "switch" }
-                ]
-              }
             ],
             content: [
               "A hub repeats every incoming frame out every port, creating unnecessary traffic and collisions.",
@@ -1588,22 +1461,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "All STP path costs are calculated relative to the root bridge."
               },
-              {
-                type: "activity",
-                title: "Order the STP process",
-                mode: "drag",
-                prompt: "Match each STP concept to the correct description.",
-                targets: [
-                  { id: "root", label: "Root Bridge" },
-                  { id: "blocking", label: "Blocking state" },
-                  { id: "convergence", label: "Convergence" }
-                ],
-                items: [
-                  { id: "lowest", label: "Switch with the lowest Bridge ID", targetId: "root" },
-                  { id: "noforward", label: "Port that does not forward frames to prevent a loop", targetId: "blocking" },
-                  { id: "recalc", label: "Recalculating paths after a link failure", targetId: "convergence" }
-                ]
-              }
             ],
             content: [
               "Redundant links between switches improve availability but create a risk of switching loops.",
@@ -1792,22 +1649,6 @@ const COURSE_CONTENT = {
                 correctIndex: 2,
                 explanation: "Class C addresses range from 192 to 223 in the first octet."
               },
-              {
-                type: "activity",
-                title: "Match IP ranges",
-                mode: "drag",
-                prompt: "Match each private range to the correct class.",
-                targets: [
-                  { id: "a", label: "Class A" },
-                  { id: "b", label: "Class B" },
-                  { id: "c", label: "Class C" }
-                ],
-                items: [
-                  { id: "ten", label: "10.0.0.0/8", targetId: "a" },
-                  { id: "oneseventwo", label: "172.16.0.0/12", targetId: "b" },
-                  { id: "oneninety", label: "192.168.0.0/16", targetId: "c" }
-                ]
-              }
             ],
             content: [
               "IPv4 addresses are 32 bits long, written as four numbers separated by dots.",
@@ -1890,21 +1731,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "NAT (Network Address Translation) translates private IPs to a public IP for Internet access."
               },
-              {
-                type: "activity",
-                title: "Private or public?",
-                mode: "drag",
-                prompt: "Drag each address to the correct category.",
-                targets: [
-                  { id: "private", label: "Private" },
-                  { id: "public", label: "Public" }
-                ],
-                items: [
-                  { id: "a1", label: "10.0.5.1", targetId: "private" },
-                  { id: "a2", label: "172.20.1.50", targetId: "private" },
-                  { id: "a3", label: "203.0.113.5", targetId: "public" }
-                ]
-              }
             ],
             content: [
               "Public IPs are globally unique and routable on the Internet.",
@@ -2810,22 +2636,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "Static routes must be manually updated if the network changes."
               },
-              {
-                type: "activity",
-                title: "Match routing types",
-                mode: "drag",
-                prompt: "Match each trait to the correct routing type.",
-                targets: [
-                  { id: "static", label: "Static" },
-                  { id: "dynamic", label: "Dynamic" }
-                ],
-                items: [
-                  { id: "manual", label: "Configured manually", targetId: "static" },
-                  { id: "auto", label: "Discovers routes automatically", targetId: "dynamic" },
-                  { id: "failover", label: "Adjusts to link failures", targetId: "dynamic" },
-                  { id: "stub", label: "Best for single-exit networks", targetId: "static" }
-                ]
-              }
             ],
             content: [
               "A static route is a manually configured path telling the router where to send traffic.",
@@ -2981,22 +2791,6 @@ const COURSE_CONTENT = {
                 correctIndex: 2,
                 explanation: "Wi‑Fi 6 (802.11ax) introduced OFDMA for more efficient airtime usage."
               },
-              {
-                type: "activity",
-                title: "Match the standards",
-                mode: "drag",
-                prompt: "Match each feature to the correct Wi‑Fi generation.",
-                targets: [
-                  { id: "wifi4", label: "Wi‑Fi 4" },
-                  { id: "wifi5", label: "Wi‑Fi 5" },
-                  { id: "wifi6", label: "Wi‑Fi 6" }
-                ],
-                items: [
-                  { id: "mimo", label: "Introduced MIMO", targetId: "wifi4" },
-                  { id: "beam", label: "Beamforming on 5 GHz", targetId: "wifi5" },
-                  { id: "ofdma", label: "OFDMA for dense environments", targetId: "wifi6" }
-                ]
-              }
             ],
             content: [
               "Wi‑Fi is defined by the IEEE 802.11 family of standards.",
@@ -3046,22 +2840,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "The first step of DHCP is Discover — the client broadcasts looking for a server."
               },
-              {
-                type: "activity",
-                title: "Match the services",
-                mode: "drag",
-                prompt: "Match each function to the correct service.",
-                targets: [
-                  { id: "dhcp", label: "DHCP" },
-                  { id: "dns", label: "DNS" }
-                ],
-                items: [
-                  { id: "ip", label: "Assigns IP addresses automatically", targetId: "dhcp" },
-                  { id: "name", label: "Translates names to IP addresses", targetId: "dns" },
-                  { id: "dora", label: "Uses Discover, Offer, Request, Acknowledge", targetId: "dhcp" },
-                  { id: "hierarchy", label: "Uses root, TLD, and authoritative servers", targetId: "dns" }
-                ]
-              }
             ],
             content: [
               "DHCP assigns IP addresses, subnet masks, gateways, and DNS servers automatically.",
@@ -3835,22 +3613,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "SD-WAN uses software-defined policies for intelligent path selection."
               },
-              {
-                type: "activity",
-                title: "Match WAN technologies",
-                mode: "drag",
-                prompt: "Match each trait to the correct WAN technology.",
-                targets: [
-                  { id: "mpls", label: "MPLS" },
-                  { id: "sdwan", label: "SD-WAN" },
-                  { id: "vpn", label: "IPsec VPN" }
-                ],
-                items: [
-                  { id: "private", label: "Private paths through a provider", targetId: "mpls" },
-                  { id: "policy", label: "Software-defined policy routing", targetId: "sdwan" },
-                  { id: "encrypt", label: "Encrypts traffic over the Internet", targetId: "vpn" }
-                ]
-              }
             ],
             content: [
               "WAN technologies connect offices and cloud services over long distances.",
@@ -4006,22 +3768,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "Automation reduces errors and makes changes faster and more consistent."
               },
-              {
-                type: "activity",
-                title: "Match automation concepts",
-                mode: "drag",
-                prompt: "Match each concept to its description.",
-                targets: [
-                  { id: "iac", label: "Infrastructure as Code" },
-                  { id: "ansible", label: "Ansible" },
-                  { id: "api", label: "REST API" }
-                ],
-                items: [
-                  { id: "version", label: "Network state in version-controlled files", targetId: "iac" },
-                  { id: "playbook", label: "Agentless tool using YAML playbooks", targetId: "ansible" },
-                  { id: "http", label: "HTTP-based interface for device config", targetId: "api" }
-                ]
-              }
             ],
             content: [
               "Network automation replaces manual tasks with repeatable tested workflows.",
@@ -4070,22 +3816,6 @@ const COURSE_CONTENT = {
                 correctIndex: 1,
                 explanation: "SNMP traps are alerts sent proactively by devices when something changes."
               },
-              {
-                type: "activity",
-                title: "Match monitoring concepts",
-                mode: "drag",
-                prompt: "Match each concept to the correct protocol or tool.",
-                targets: [
-                  { id: "snmp", label: "SNMP" },
-                  { id: "syslog", label: "Syslog" }
-                ],
-                items: [
-                  { id: "metrics", label: "Polls device metrics like CPU and bandwidth", targetId: "snmp" },
-                  { id: "logs", label: "Collects log messages centrally", targetId: "syslog" },
-                  { id: "trap", label: "Sends unsolicited alerts", targetId: "snmp" },
-                  { id: "events", label: "Records events with severity levels", targetId: "syslog" }
-                ]
-              }
             ],
             content: [
               "SNMP exposes device metrics like CPU, memory, and interface utilisation.",

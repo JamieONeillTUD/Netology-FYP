@@ -8309,71 +8309,6 @@ body.net-course-page.net-landing::after {
   font-weight: 500;
 }
 
-.net-lesson-drag-area {
-  display: grid;
-  gap: 12px;
-}
-
-.net-lesson-drag-pool {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.net-lesson-drag-item {
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(14, 165, 233, .35);
-  background: rgba(56, 189, 248, .12);
-  color: #0f766e;
-  font-weight: 600;
-  cursor: grab;
-}
-
-.net-lesson-drag-item.is-dragging {
-  opacity: .5;
-}
-
-.net-lesson-drag-item.is-correct {
-  border-color: rgba(16, 185, 129, .6);
-  background: rgba(16, 185, 129, .12);
-  color: #047857;
-}
-
-.net-lesson-drag-item.is-wrong {
-  border-color: rgba(239, 68, 68, .6);
-  background: rgba(239, 68, 68, .12);
-  color: #b91c1c;
-}
-
-.net-lesson-dropzone {
-  border-radius: 14px;
-  border: 1px dashed rgba(14, 165, 233, .35);
-  background: rgba(248, 250, 252, .8);
-  padding: 10px 12px;
-  min-height: 82px;
-  transition: border-color .15s ease, background .15s ease;
-}
-
-.net-lesson-dropzone.is-hover {
-  border-color: rgba(13, 148, 136, .6);
-  background: rgba(13, 148, 136, .08);
-}
-
-.net-lesson-dropzone-title {
-  font-size: .82rem;
-  font-weight: 700;
-  color: rgba(15, 23, 42, .7);
-  margin-bottom: .45rem;
-}
-
-.net-lesson-dropzone-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-height: 30px;
-}
-
 .net-lesson-objectives {
   margin: 0;
   padding-left: 1.2rem;
@@ -13610,7 +13545,6 @@ body.net-onboarding-lock .onboarding-tooltip * {
 .les-step-icon--matching { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
 .les-step-icon--tap { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
 .les-step-icon--flash { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.les-step-icon--drag { background: rgba(249, 115, 22, 0.1); color: #f97316; }
 
 .les-step-title,
 .les-step-prompt {
@@ -14321,84 +14255,6 @@ body.net-onboarding-lock .onboarding-tooltip * {
   margin-top: 12px;
 }
 
-/* ── Drag-and-Drop Order ───────────────────────────────── */
-.les-drag-dropzone {
-  min-height: 80px;
-  padding: 16px;
-  border: 2px dashed rgba(13, 148, 136, 0.3);
-  border-radius: var(--net-radius);
-  background: rgba(13, 148, 136, 0.03);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20px;
-  transition: all 0.2s ease;
-}
-
-.les-drag-dropzone.is-dragover {
-  border-color: var(--net-teal);
-  background: rgba(13, 148, 136, 0.08);
-}
-
-.les-drag-placeholder {
-  font-size: 0.9rem;
-  color: var(--net-muted);
-  font-weight: 500;
-}
-
-.les-drag-wordbank {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: var(--net-radius);
-  min-height: 60px;
-}
-
-.les-drag-chip {
-  padding: 10px 18px;
-  border: 2px solid rgba(0, 0, 0, 0.1);
-  border-radius: 99px;
-  background: #fff;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--net-ink-2);
-  cursor: grab;
-  transition: all 0.2s ease;
-  font-family: inherit;
-  user-select: none;
-}
-
-.les-drag-chip:hover {
-  border-color: rgba(249, 115, 22, 0.3);
-  transform: translateY(-1px);
-}
-
-.les-drag-chip:active {
-  cursor: grabbing;
-}
-
-.les-drag-chip.is-dragging {
-  opacity: 0.5;
-}
-
-.les-drag-chip.is-correct {
-  border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-}
-
-.les-drag-chip.is-wrong {
-  border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.06);
-  color: #ef4444;
-  animation: les-shake 0.4s ease;
-}
-
 /* ── Sentence Complete ──────────────────────────────────── */
 .les-sc-sentence {
   font-size: 1.15rem;
@@ -14847,7 +14703,6 @@ body.net-onboarding-lock .onboarding-tooltip * {
   .les-fill-blank,
   .les-matching-btn,
   .les-tap-chip,
-  .les-drag-chip,
   .les-sc-chip,
   .les-confetti-piece {
     animation: none !important;
@@ -14932,7 +14787,6 @@ body[data-theme="dark"] .les-mcq-option,
 body[data-theme="dark"] .les-fill-chip,
 body[data-theme="dark"] .les-tap-chip,
 body[data-theme="dark"] .les-matching-btn,
-body[data-theme="dark"] .les-drag-chip,
 body[data-theme="dark"] .les-sc-chip {
   background: rgba(30, 41, 59, 0.8);
   border-color: rgba(255, 255, 255, 0.08);
@@ -14969,15 +14823,6 @@ body[data-theme="dark"] .les-feedback-card.is-wrong {
 
 body[data-theme="dark"] .les-complete-stat {
   background: rgba(30, 41, 59, 0.8);
-}
-
-body[data-theme="dark"] .les-drag-dropzone {
-  background: rgba(13, 148, 136, 0.06);
-  border-color: rgba(13, 148, 136, 0.25);
-}
-
-body[data-theme="dark"] .les-drag-wordbank {
-  background: rgba(255, 255, 255, 0.03);
 }
 
 body[data-theme="dark"] .les-mcq-letter {
