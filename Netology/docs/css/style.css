@@ -14402,17 +14402,18 @@ body.net-onboarding-lock .onboarding-tooltip * {
   gap: 16px;
   flex-wrap: wrap;
   border-radius: 18px;
+  opacity: 1;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
 }
 
 .les-feedback-card.is-correct {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
-  border-top: 3px solid #22c55e;
+  background: #ecfdf5;
+  border: 2px solid #16a34a;
 }
 
 .les-feedback-card.is-wrong {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.03));
-  border-top: 3px solid #ef4444;
+  background: #fef2f2;
+  border: 2px solid #dc2626;
 }
 
 .les-feedback-icon {
@@ -14814,11 +14815,13 @@ body[data-theme="dark"] .les-step-footer {
 }
 
 body[data-theme="dark"] .les-feedback-card.is-correct {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(30, 41, 59, 0.95));
+  background: #14532d;
+  border: 2px solid #22c55e;
 }
 
 body[data-theme="dark"] .les-feedback-card.is-wrong {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(30, 41, 59, 0.95));
+  background: #7f1d1d;
+  border: 2px solid #f87171;
 }
 
 body[data-theme="dark"] .les-complete-stat {

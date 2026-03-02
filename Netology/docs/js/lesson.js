@@ -1726,7 +1726,7 @@ class LessonEngine {
       ? '<i class="bi bi-check-circle-fill"></i>'
       : '<i class="bi bi-x-circle-fill"></i>';
 
-    title.textContent = correct ? this.getCorrectPhrase() : this.getWrongPhrase();
+    title.textContent = correct ? "Correct!" : "Incorrect";
     text.textContent = explanation || "";
 
     if (xp && xp > 0) {
@@ -1803,16 +1803,6 @@ class LessonEngine {
       popup.classList.remove("is-show");
       popup.setAttribute("aria-hidden", "true");
     }, 2000);
-  }
-
-  getCorrectPhrase() {
-    const phrases = ["Correct!", "Nice work!", "That's right!", "You got it!", "Excellent!", "Well done!", "Perfect!"];
-    return phrases[Math.floor(Math.random() * phrases.length)];
-  }
-
-  getWrongPhrase() {
-    const phrases = ["Not quite!", "Almost!", "Try to remember this one.", "Good try!", "Keep going!"];
-    return phrases[Math.floor(Math.random() * phrases.length)];
   }
 
   showCompletion() {
