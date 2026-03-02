@@ -912,7 +912,7 @@ function renderFlashcard(step) {
 
   const cards = Array.isArray(step.cards) ? step.cards : [];
   let currentCard = 0;
-  let revealed = false;
+  let answerVisible = false;
   const ratings = new Array(cards.length).fill(null); // null | "know" | "practice"
 
   el.innerHTML = `
@@ -921,18 +921,24 @@ function renderFlashcard(step) {
       <h2 class="les-step-prompt">Flashcard Review</h2>
     </div>
     <div class="les-flash-counter-row">
-      <span class="les-flash-counter-text"><span id="flashCurrent">1</span> of ${cards.length}</span>
+      <span class="les-flash-counter-text">Card <span id="flashCurrent">1</span> of ${cards.length}</span>
+      <span class="les-flash-rating-summary"><span id="flashReviewedCount">0</span> reviewed</span>
     </div>
+    <p class="les-flash-hint">Show answer, then choose either "I know this" or "Practice again".</p>
     <div class="les-flash-card-wrap">
-      <div class="les-flash-card" id="lesFlashCard" tabindex="0" role="button" aria-label="Tap to reveal answer">
+      <div class="les-flash-card" id="lesFlashCard">
         <div class="les-flash-front">
+          <div class="les-flash-category">Question</div>
           <div class="les-flash-text" id="lesFlashFront"></div>
-          <div class="les-flash-flip-hint">Tap to reveal answer</div>
         </div>
-        <div class="les-flash-back">
+        <div class="les-flash-back" id="lesFlashBackWrap" style="display:none">
+          <div class="les-flash-category">Answer</div>
           <div class="les-flash-text" id="lesFlashBack"></div>
         </div>
       </div>
+    </div>
+    <div class="les-flash-reveal-row">
+      <button class="les-btn les-btn-ghost les-btn-sm" id="flashRevealBtn">Show answer</button>
     </div>
     <div class="les-flash-rate-row" id="flashRateRow" style="display:none">
       <button class="les-flash-rate-btn les-flash-rate-got" id="flashRateKnow">I know this</button>
@@ -947,17 +953,20 @@ function renderFlashcard(step) {
   const cardEl = el.querySelector("#lesFlashCard");
   const frontEl = el.querySelector("#lesFlashFront");
   const backEl = el.querySelector("#lesFlashBack");
+  const backWrapEl = el.querySelector("#lesFlashBackWrap");
+  const revealBtn = el.querySelector("#flashRevealBtn");
   const counterEl = el.querySelector("#flashCurrent");
+  const reviewedCountEl = el.querySelector("#flashReviewedCount");
   const prevBtn = el.querySelector("#flashPrev");
   const nextBtn = el.querySelector("#flashNext");
   const rateRow = el.querySelector("#flashRateRow");
   const rateKnow = el.querySelector("#flashRateKnow");
   const ratePractice = el.querySelector("#flashRatePractice");
-  const flipHint = el.querySelector(".les-flash-flip-hint");
 
   function updateContinueState() {
     const reviewedCount = ratings.filter((rating) => rating !== null).length;
     const allReviewed = cards.length > 0 && reviewedCount === cards.length;
+    if (reviewedCountEl) reviewedCountEl.textContent = String(reviewedCount);
     const checkBtn = document.getElementById("lesCheckBtn");
     if (!checkBtn) return;
     checkBtn.disabled = !allReviewed;
@@ -968,26 +977,31 @@ function renderFlashcard(step) {
     if (!cards.length) return;
 
     currentCard = index;
-    revealed = false;
-    cardEl.classList.remove("is-flipped", "is-rated-got", "is-rated-learning");
+    answerVisible = false;
+    cardEl.classList.remove("is-rated-got", "is-rated-learning");
     frontEl.textContent = cards[index].front || "";
     backEl.textContent = cards[index].back || "";
     counterEl.textContent = String(index + 1);
     prevBtn.disabled = index === 0;
-    nextBtn.disabled = ratings[index] === null;
+    nextBtn.disabled = index >= cards.length - 1 || ratings[index] === null;
+    nextBtn.textContent = index >= cards.length - 1 ? "Last card" : "Next";
     rateRow.style.display = "none";
-    if (flipHint) flipHint.style.display = "";
+    revealBtn.disabled = false;
+    backWrapEl.style.display = "none";
+
+    rateKnow.classList.toggle("is-selected", ratings[index] === "know");
+    ratePractice.classList.toggle("is-selected", ratings[index] === "practice");
 
     if (ratings[index] === "know") cardEl.classList.add("is-rated-got");
     if (ratings[index] === "practice") cardEl.classList.add("is-rated-learning");
   }
 
-  function revealCard() {
-    if (revealed || !cards.length) return;
-    revealed = true;
-    cardEl.classList.add("is-flipped");
+  function revealAnswer() {
+    if (answerVisible || !cards.length) return;
+    answerVisible = true;
+    backWrapEl.style.display = "";
     rateRow.style.display = "flex";
-    if (flipHint) flipHint.style.display = "none";
+    revealBtn.disabled = true;
   }
 
   function rateCurrentCard(rating) {
@@ -995,18 +1009,13 @@ function renderFlashcard(step) {
     ratings[currentCard] = rating;
     cardEl.classList.remove("is-rated-got", "is-rated-learning");
     cardEl.classList.add(rating === "know" ? "is-rated-got" : "is-rated-learning");
-    nextBtn.disabled = false;
+    nextBtn.disabled = currentCard >= cards.length - 1;
+    rateKnow.classList.toggle("is-selected", rating === "know");
+    ratePractice.classList.toggle("is-selected", rating === "practice");
     updateContinueState();
   }
 
-  cardEl.addEventListener("click", revealCard);
-  cardEl.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      revealCard();
-    }
-  });
-
+  revealBtn.addEventListener("click", revealAnswer);
   rateKnow.addEventListener("click", () => rateCurrentCard("know"));
   ratePractice.addEventListener("click", () => rateCurrentCard("practice"));
   prevBtn.addEventListener("click", () => {
@@ -1019,6 +1028,12 @@ function renderFlashcard(step) {
   if (cards.length) {
     showCard(0);
     updateContinueState();
+  } else {
+    const checkBtn = document.getElementById("lesCheckBtn");
+    if (checkBtn) {
+      checkBtn.disabled = false;
+      checkBtn.textContent = "Continue";
+    }
   }
 
   return {
