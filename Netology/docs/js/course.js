@@ -1,48 +1,26 @@
 /*
-Student Number: C22320301
-Student Name: Jamie O'Neill
-Course Code: TU857/4
-Date: 09/02/2026
-
-course.js – Netology Course Detail (Figma-inspired behaviour)
-
-What this file does:
-- Uses dashboard chrome (slide sidebar + user dropdown + brand routing)
-- Reads courseId from URL (?id=)
-- Loads course structure from COURSE_CONTENT[courseId]
-- Loads completion state (best-effort):
-    1) tries backend endpoints (if they exist)
-    2) falls back to localStorage cache so page still works offline
-- Renders:
-    - hero (title/desc/difficulty/meta)
-    - modules accordion (Khan style)
-    - lesson modal for "Learn" items
-    - progress ring + progress bar + sidebar stats
-- Click actions:
-    - Learn -> opens modal
-    - Quiz -> go to quiz.html with course/lesson info
-    - Sandbox / Challenge -> go to sandbox.html with context
-- Completion logic:
-    Course completes ONLY when all required items are complete:
-      Learn + Quiz + Challenge
-    (Sandbox Practice is optional; Sandbox Challenge counts as Challenge.)
+---------------------------------------------------------
+Student: C22320301 - Jamie O'Neill
+File: course.js
+Purpose: Runs the course details page, module list, completion state, and course actions.
+Notes: Cleaned comments, simplified naming, and kept full page behavior.
+---------------------------------------------------------
 */
 
 (function () {
   "use strict";
 
-  /* AI Prompt: Explain the CONFIG / FALLBACKS section in clear, simple terms. */
-  /* =========================================================
-     CONFIG / FALLBACKS
-  ========================================================= */
+  // API and storage keys.
 
-  const API = () => (window.API_BASE || "").replace(/\/$/, "");
+  const getApiBase = () => (window.API_BASE || "").replace(/\/$/, "");
   const BASE_XP = 100;
   const apiGet = window.apiGet || (async (path, params = {}) => {
-    const base = API();
+    const base = getApiBase();
     const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
-    Object.entries(params || {}).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+    Object.entries(params || {}).forEach(([paramName, paramValue]) => {
+      if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
+        url.searchParams.set(paramName, String(paramValue));
+      }
     });
     const res = await fetch(url.toString());
     return res.json();
@@ -63,10 +41,7 @@ What this file does:
   const STARTED_KEY = (email) => `netology_started_courses:${email}`;
   const LOG_KEY = (email) => `netology_progress_log:${email}`;
 
-  /* AI Prompt: Explain the HELPERS section in clear, simple terms. */
-  /* =========================================================
-     HELPERS
-  ========================================================= */
+  // Small shared helpers.
 
   const getById = (id) => document.getElementById(id);
   const clearChildren = (node) => { if (node) node.replaceChildren(); };
@@ -197,9 +172,13 @@ What this file does:
     };
   }
 
-  function parseJsonSafe(str) {
-    // Avoid crashing if localStorage contains invalid JSON.
-    try { return JSON.parse(str); } catch { return null; }
+  function parseJsonSafe(rawValue, fallbackValue = null) {
+    // Avoid crashes if a localStorage value is missing or invalid JSON.
+    try {
+      return rawValue ? JSON.parse(rawValue) : fallbackValue;
+    } catch {
+      return fallbackValue;
+    }
   }
 
   function getQuizScore(email, courseId, lessonNumber) {
@@ -238,7 +217,7 @@ What this file does:
   }
 
   async function fetchCourseMeta(courseId) {
-    const base = API();
+    const base = getApiBase();
     if (!base || !courseId) return null;
     try {
       const res = await fetch(`${base}/course?id=${encodeURIComponent(courseId)}`);
@@ -316,7 +295,7 @@ What this file does:
   async function startCourseBackend(email, courseId) {
     if (!email || !courseId) return;
     try {
-      await fetch(`${API()}/start-course`, {
+      await fetch(`${getApiBase()}/start-course`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, course_id: Number(courseId) })
@@ -353,10 +332,7 @@ What this file does:
     return !!(user && (user.email || user.username));
   }
 
-  /* AI Prompt: Explain the STATE section in clear, simple terms. */
-  /* =========================================================
-     STATE
-  ========================================================= */
+  // Page state.
 
   const state = {
     user: null,
@@ -404,10 +380,7 @@ What this file does:
     courseCompleted: false,
   };
 
-  /* AI Prompt: Explain the BOOT section in clear, simple terms. */
-  /* =========================================================
-     BOOT
-  ========================================================= */
+  // Page boot.
 
   document.addEventListener("DOMContentLoaded", async () => {
     // user (can be null -> guest)
@@ -565,10 +538,7 @@ What this file does:
     }
   });
 
-  /* AI Prompt: Explain the CHROME (sidebar + dropdown)  (matches dashboard behaviour) section in clear, simple terms. */
-  /* =========================================================
-     CHROME (sidebar + dropdown)  (matches dashboard behaviour)
-  ========================================================= */
+  // Shared chrome: sidebar, dropdown, and identity.
 
   function wireBrandRouting() {
     const brand = getById("brandHome");
@@ -715,15 +685,12 @@ What this file does:
     window.location.href = "index.html";
   }
 
-  /* AI Prompt: Explain the LOADERS (user stats + completions) section in clear, simple terms. */
-  /* =========================================================
-     LOADERS (user stats + completions)
-  ========================================================= */
+  // Load user stats and completion state.
 
   async function loadUserStats(email) {
     try {
       // If no API base, just fallback
-      if (!API()) throw new Error("no api");
+      if (!getApiBase()) throw new Error("no api");
 
       const data = await apiGet(PATHS.userInfo, { email });
       if (!data || data.success === false) throw new Error("user-info failed");
@@ -790,7 +757,7 @@ What this file does:
   async function loadCompletions(email, courseId) {
     // 1) Try backend (source of truth if available).
     try {
-      if (API()) {
+      if (getApiBase()) {
         const data = await apiGet(PATHS.getCompletions, { email, course_id: courseId });
         if (data && data.success !== false) {
           if (data.completions) {
@@ -854,10 +821,7 @@ What this file does:
     chArr.forEach((n) => state.completed.challenge.add(Number(n)));
   }
 
-  /* AI Prompt: Explain the COURSE CONTENT NORMALIZATION section in clear, simple terms. */
-  /* =========================================================
-     COURSE CONTENT NORMALIZATION
-  ========================================================= */
+  // Normalize course content into one consistent shape.
 
   function difficultyRequiredLevel(diff) {
     if (diff === "novice") return 1;
@@ -1087,10 +1051,7 @@ What this file does:
     return "learn";
   }
 
-  /* AI Prompt: Explain the LOCK / COMPLETION / PROGRESS section in clear, simple terms. */
-  /* =========================================================
-     LOCK / COMPLETION / PROGRESS
-  ========================================================= */
+  // Locking, completion checks, and progress totals.
 
   function computeLockState() {
     const userLevel = state.user ? Number(state.stats.accessLevel || state.stats.level || 1) : 0;
@@ -1255,7 +1216,7 @@ What this file does:
 
   function persistLastModule(id) {
     if (!id) return;
-    localStorage.setItem(lastModuleKey(), id);
+    localStorage.setItem(lastModuleKey(), String(id));
   }
 
   function showCompletionToast({ title, message, mini = true, duration = 4200 }) {
@@ -1292,10 +1253,7 @@ What this file does:
     state.activeLearn = state.activeLearnIndex >= 0 ? list[state.activeLearnIndex] : null;
   }
 
-  /* AI Prompt: Explain the RENDER section in clear, simple terms. */
-  /* =========================================================
-     RENDER
-  ========================================================= */
+  // Render functions.
 
   function renderAll() {
     renderHero();
@@ -1438,6 +1396,122 @@ What this file does:
     }
   }
 
+  function getSelectedModuleId() {
+    const toModuleId = (value) => String(value ?? "");
+
+    if (!state.expandedModules.size && state.course.modules[0]) {
+      state.expandedModules.add(toModuleId(state.course.modules[0].id));
+    }
+    const selected = Array.from(state.expandedModules)[state.expandedModules.size - 1];
+    return selected ? toModuleId(selected) : null;
+  }
+
+  function buildModuleTab(module, index, selectedId) {
+    const moduleProgress = computeModuleCompletion(module);
+    const moduleId = String(module.id);
+    const isSelected = selectedId === moduleId;
+
+    const tabButton = document.createElement("button");
+    tabButton.className = `net-module-tab ${isSelected ? "is-active" : ""}`;
+    tabButton.type = "button";
+    tabButton.dataset.action = "toggle-module";
+    tabButton.dataset.module = moduleId;
+    tabButton.setAttribute("aria-expanded", isSelected ? "true" : "false");
+    tabButton.title = module.title || `Module ${index + 1}`;
+
+    const number = makeEl("div", "net-module-tab-num", String(index + 1));
+    const title = makeEl("div", "net-module-tab-title", module.title || `Module ${index + 1}`);
+    const progress = makeEl("div", "net-module-tab-prog");
+
+    if (moduleProgress.completed) {
+      progress.className = "net-module-tab-prog net-module-tab-prog--done";
+      progress.append(makeIcon("bi bi-check-circle-fill"));
+    } else {
+      progress.textContent = `${moduleProgress.done}/${moduleProgress.total}`;
+    }
+
+    tabButton.append(number, title, progress);
+    return tabButton;
+  }
+
+  function buildModuleDetailHeader(module, moduleIndex) {
+    const header = makeEl("div", "net-module-detail-head");
+    const moduleProgress = computeModuleCompletion(module);
+    const tutorialStatus = getModuleTutorialStatus(module);
+
+    const left = document.createElement("div");
+    const label = makeEl("span", "small text-teal fw-semibold text-uppercase", `Module ${moduleIndex + 1}`);
+    label.style.letterSpacing = ".04em";
+    const title = makeEl("div", "fw-semibold fs-5", module.title || "");
+    left.append(label, title);
+
+    if (module.description) {
+      left.appendChild(makeEl("div", "text-muted small mt-1", module.description));
+    }
+
+    const right = document.createElement("div");
+    right.className = "d-flex align-items-center gap-2";
+    right.appendChild(buildModuleStatusBadge(moduleProgress));
+
+    if (tutorialStatus.completed) {
+      const tutorialBadge = document.createElement("span");
+      tutorialBadge.className = "net-status-chip net-status-chip--completed net-status-chip--mini";
+      tutorialBadge.append(makeIcon("bi bi-diagram-3"), document.createTextNode(" Tutorial done"));
+      right.appendChild(tutorialBadge);
+    }
+
+    header.append(left, right);
+    return header;
+  }
+
+  function buildModuleStatusBadge(moduleProgress) {
+    const statusBadge = document.createElement("span");
+
+    if (moduleProgress.completed) {
+      statusBadge.className = "net-status-chip net-status-chip--completed";
+      statusBadge.append(makeIcon("bi bi-check2-circle"), document.createTextNode(" Completed"));
+      return statusBadge;
+    }
+
+    if (moduleProgress.done > 0) {
+      statusBadge.className = "net-status-chip net-status-chip--progress";
+      statusBadge.append(
+        makeIcon("bi bi-arrow-repeat"),
+        document.createTextNode(` ${moduleProgress.done}/${moduleProgress.total}`)
+      );
+      return statusBadge;
+    }
+
+    statusBadge.className = "net-status-chip net-status-chip--active";
+    statusBadge.append(makeIcon("bi bi-grid-1x2"), document.createTextNode(` ${moduleProgress.total} items`));
+    return statusBadge;
+  }
+
+  function buildModuleDetail(module, moduleIndex) {
+    const moduleId = String(module.id);
+    const detail = document.createElement("div");
+    detail.className = "net-module-detail";
+    detail.dataset.moduleBody = moduleId;
+    detail.dataset.moduleId = moduleId;
+
+    detail.appendChild(buildModuleDetailHeader(module, moduleIndex));
+
+    const body = makeEl("div", "net-module-detail-body");
+    body.appendChild(renderModuleItems(module));
+    detail.appendChild(body);
+
+    return detail;
+  }
+
+  function scrollToPendingModule(wrap) {
+    if (!state.scrollToModuleId) return;
+    const target = wrap.querySelector(`[data-module-id="${cssEscapeAttr(state.scrollToModuleId)}"]`);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    state.scrollToModuleId = null;
+  }
+
   function renderModules() {
     const wrap = getById("modulesWrap");
     const empty = getById("modulesEmpty");
@@ -1452,219 +1526,144 @@ What this file does:
 
     clearChildren(wrap);
 
-    // Module count label
     const countLabel = getById("moduleCountLabel");
     if (countLabel) countLabel.textContent = `(${state.course.modules.length})`;
 
-    // --- Horizontal module selector strip ---
+    const selectedId = getSelectedModuleId();
     const strip = makeEl("div", "net-module-strip");
-
-    // Auto-expand first module if none selected
-    if (!state.expandedModules.size && state.course.modules[0]) {
-      state.expandedModules.add(state.course.modules[0].id);
-    }
-    const selectedId = Array.from(state.expandedModules)[state.expandedModules.size - 1] || null;
-
-    state.course.modules.forEach((m, idx) => {
-      const modProg = computeModuleCompletion(m);
-      const isSelected = selectedId === m.id;
-
-      const card = document.createElement("button");
-      card.className = `net-module-tab ${isSelected ? "is-active" : ""}`;
-      card.type = "button";
-      card.dataset.action = "toggle-module";
-      card.dataset.module = String(m.id);
-      card.setAttribute("aria-expanded", isSelected ? "true" : "false");
-      card.title = m.title || `Module ${idx + 1}`;
-
-      // Module number
-      const num = makeEl("div", "net-module-tab-num", String(idx + 1));
-
-      // Title
-      const title = makeEl("div", "net-module-tab-title", m.title || `Module ${idx + 1}`);
-
-      // Progress indicator
-      const prog = makeEl("div", "net-module-tab-prog");
-      if (modProg.completed) {
-        prog.className = "net-module-tab-prog net-module-tab-prog--done";
-        prog.append(makeIcon("bi bi-check-circle-fill"));
-      } else {
-        prog.textContent = `${modProg.done}/${modProg.total}`;
-      }
-
-      card.append(num, title, prog);
-      strip.appendChild(card);
+    state.course.modules.forEach((module, index) => {
+      strip.appendChild(buildModuleTab(module, index, selectedId));
     });
 
     wrap.appendChild(strip);
 
-    // --- Detail panel for selected module ---
-    const selectedModule = state.course.modules.find((m) => m.id === selectedId);
+    const selectedModule = state.course.modules.find((module) => String(module.id) === selectedId);
     if (selectedModule) {
-      const detail = document.createElement("div");
-      detail.className = "net-module-detail";
-      detail.dataset.moduleBody = String(selectedModule.id);
-
-      // Module detail header
-      const detailHead = makeEl("div", "net-module-detail-head");
-      const modProg = computeModuleCompletion(selectedModule);
-      const modIdx = state.course.modules.indexOf(selectedModule);
-
-      const headLeft = document.createElement("div");
-      const headLabel = makeEl("span", "small text-teal fw-semibold text-uppercase", `Module ${modIdx + 1}`);
-      headLabel.style.letterSpacing = ".04em";
-      const headTitle = makeEl("div", "fw-semibold fs-5", selectedModule.title || "");
-      headLeft.append(headLabel, headTitle);
-      if (selectedModule.description) {
-        headLeft.appendChild(makeEl("div", "text-muted small mt-1", selectedModule.description));
-      }
-
-      const headRight = document.createElement("div");
-      headRight.className = "d-flex align-items-center gap-2";
-
-      const tutorialStatus = getModuleTutorialStatus(selectedModule);
-
-      const statusBadge = document.createElement("span");
-      if (modProg.completed) {
-        statusBadge.className = "net-status-chip net-status-chip--completed";
-        statusBadge.append(makeIcon("bi bi-check2-circle"), document.createTextNode(" Completed"));
-      } else if (modProg.done > 0) {
-        statusBadge.className = "net-status-chip net-status-chip--progress";
-        statusBadge.append(makeIcon("bi bi-arrow-repeat"), document.createTextNode(` ${modProg.done}/${modProg.total}`));
-      } else {
-        statusBadge.className = "net-status-chip net-status-chip--active";
-        statusBadge.append(makeIcon("bi bi-grid-1x2"), document.createTextNode(` ${modProg.total} items`));
-      }
-      headRight.appendChild(statusBadge);
-
-      if (tutorialStatus.completed) {
-        const tutBadge = document.createElement("span");
-        tutBadge.className = "net-status-chip net-status-chip--completed net-status-chip--mini";
-        tutBadge.append(makeIcon("bi bi-diagram-3"), document.createTextNode(" Tutorial done"));
-        headRight.appendChild(tutBadge);
-      }
-
-      detailHead.append(headLeft, headRight);
-      detail.appendChild(detailHead);
-
-      // Module items
-      const bodyInner = makeEl("div", "net-module-detail-body");
-      bodyInner.appendChild(renderModuleItems(selectedModule));
-      detail.appendChild(bodyInner);
-
-      wrap.appendChild(detail);
+      const selectedModuleIndex = state.course.modules.indexOf(selectedModule);
+      wrap.appendChild(buildModuleDetail(selectedModule, selectedModuleIndex));
     }
 
-    if (state.scrollToModuleId) {
-      const target = wrap.querySelector(`[data-module-id="${cssEscapeAttr(state.scrollToModuleId)}"]`);
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-      state.scrollToModuleId = null;
+    scrollToPendingModule(wrap);
+  }
+
+  function groupModuleItemsByLesson(module) {
+    const grouped = new Map();
+    module.items.forEach((item) => {
+      const lessonNumber = Number(item.lesson_number || 0) || 0;
+      if (!grouped.has(lessonNumber)) grouped.set(lessonNumber, []);
+      grouped.get(lessonNumber).push(item);
+    });
+    return grouped;
+  }
+
+  function getCourseItemTypeLabel(itemType) {
+    if (itemType === "quiz") return "Quiz";
+    if (itemType === "challenge") return "Challenge";
+    if (itemType === "sandbox" || itemType === "practice") return "Tutorial";
+    return "Lesson";
+  }
+
+  function buildCourseItemMeta(item) {
+    const meta = makeEl("div", "small text-muted d-flex flex-wrap gap-2 align-items-center mt-1");
+
+    const typeTag = makeEl("span", `net-type-tag net-type-tag--${item.type}`, getCourseItemTypeLabel(item.type));
+    meta.appendChild(typeTag);
+
+    const xp = makeEl("span", "d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold");
+    xp.append(makeIcon("bi bi-lightning-charge-fill"), document.createTextNode(` ${Number(item.xp)} XP`));
+    meta.appendChild(xp);
+
+    if (item.duration) {
+      const time = makeEl("span", "d-inline-flex align-items-center gap-1");
+      time.append(makeIcon("bi bi-clock"), document.createTextNode(` ${item.duration}`));
+      meta.appendChild(time);
     }
+
+    if (item.type === "quiz" && state.user?.email) {
+      const score = getQuizScore(state.user.email, state.courseId, item.lesson_number);
+      if (score) {
+        const scoreBadge = makeEl("span", "badge text-bg-light border net-quiz-score");
+        scoreBadge.append(
+          makeIcon("bi bi-clipboard-check me-1"),
+          document.createTextNode(`${score.correct}/${score.total}`)
+        );
+        meta.appendChild(scoreBadge);
+      }
+    }
+
+    return meta;
+  }
+
+  function buildCourseItemRightActions(item, completed) {
+    const right = makeEl("div", "d-flex align-items-center gap-2");
+
+    if (item.type === "learn") {
+      const preview = makeEl("span", "net-preview-btn");
+      preview.setAttribute("role", "button");
+      preview.setAttribute("tabindex", "0");
+      preview.dataset.action = "preview-lesson";
+      preview.dataset.lesson = String(Number(item.lesson_number));
+      preview.title = "Quick preview";
+      preview.appendChild(makeIcon("bi bi-eye"));
+      right.appendChild(preview);
+    }
+
+    if (completed) {
+      const done = makeEl("span", "badge bg-success");
+      done.append(makeIcon("bi bi-check2-circle me-1"), document.createTextNode("Done"));
+      right.appendChild(done);
+      return right;
+    }
+
+    const play = makeIcon("bi bi-play-fill text-teal");
+    play.setAttribute("aria-hidden", "true");
+    right.appendChild(play);
+    return right;
+  }
+
+  function buildCourseItemRow(item) {
+    const completed = isItemCompleted(item);
+    const locked = state.courseLocked;
+
+    const row = document.createElement("button");
+    row.className = `net-lesson-row net-lesson-row--clean px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${locked ? "is-locked" : ""} ${completed ? "is-complete" : ""}`.trim();
+    row.type = "button";
+    row.dataset.action = "open-item";
+    row.dataset.type = item.type;
+    row.dataset.lesson = String(Number(item.lesson_number));
+    row.dataset.title = String(item.title || "");
+
+    if (locked) {
+      row.disabled = true;
+      row.setAttribute("aria-disabled", "true");
+    }
+
+    const left = makeEl("div", "d-flex align-items-center gap-3");
+    const iconWrap = makeEl("div", "net-lesson-ico");
+    iconWrap.appendChild(lessonIcon(item, completed, locked));
+
+    const textWrap = document.createElement("div");
+    const title = makeEl("div", "fw-semibold text-dark", item.title || "");
+    const meta = buildCourseItemMeta(item);
+    textWrap.append(title, meta);
+    left.append(iconWrap, textWrap);
+
+    const right = buildCourseItemRightActions(item, completed);
+    row.append(left, right);
+    return row;
   }
 
   function renderModuleItems(module) {
-    // group by lesson_number
-    const groups = new Map();
-    module.items.forEach((it) => {
-      const k = Number(it.lesson_number || 0) || 0;
-      if (!groups.has(k)) groups.set(k, []);
-      groups.get(k).push(it);
-    });
-
-    const keys = Array.from(groups.keys()).sort((a, b) => a - b);
+    const groupedItems = groupModuleItemsByLesson(module);
+    const lessonNumbers = Array.from(groupedItems.keys()).sort((firstLesson, secondLesson) => firstLesson - secondLesson);
     const grid = makeEl("div", "d-grid gap-2");
 
-    keys.forEach((lessonNum) => {
-      const items = groups.get(lessonNum) || [];
-      items.forEach((it) => {
-        const completed = isItemCompleted(it);
-        const locked = state.courseLocked;
-
-        const row = document.createElement("button");
-        row.className = `net-lesson-row net-lesson-row--clean px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${locked ? "is-locked" : ""} ${completed ? "is-complete" : ""}`.trim();
-        row.type = "button";
-        row.dataset.action = "open-item";
-        row.dataset.type = it.type;
-        row.dataset.lesson = String(Number(it.lesson_number));
-        row.dataset.title = String(it.title || "");
-        if (locked) {
-          row.disabled = true;
-          row.setAttribute("aria-disabled", "true");
-        }
-
-        const left = makeEl("div", "d-flex align-items-center gap-3");
-        const iconWrap = makeEl("div", "net-lesson-ico");
-        iconWrap.appendChild(lessonIcon(it, completed, locked));
-
-        const textWrap = document.createElement("div");
-        const title = makeEl("div", "fw-semibold text-dark", it.title || "");
-
-        // Simplified meta: just type tag + XP
-        const meta = makeEl("div", "small text-muted d-flex flex-wrap gap-2 align-items-center mt-1");
-
-        const typeName =
-          it.type === "quiz" ? "Quiz" :
-            it.type === "challenge" ? "Challenge" :
-              (it.type === "sandbox" || it.type === "practice") ? "Tutorial" :
-                "Lesson";
-
-        const typeTag = makeEl("span", `net-type-tag net-type-tag--${it.type}`, typeName);
-        meta.appendChild(typeTag);
-
-        const xp = makeEl("span", "d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold");
-        xp.append(makeIcon("bi bi-lightning-charge-fill"), document.createTextNode(` ${Number(it.xp)} XP`));
-        meta.appendChild(xp);
-
-        if (it.duration) {
-          const time = makeEl("span", "d-inline-flex align-items-center gap-1");
-          time.append(makeIcon("bi bi-clock"), document.createTextNode(` ${it.duration}`));
-          meta.appendChild(time);
-        }
-
-        if (it.type === "quiz" && state.user?.email) {
-          const score = getQuizScore(state.user.email, state.courseId, it.lesson_number);
-          if (score) {
-            const scoreBadge = makeEl("span", "badge text-bg-light border net-quiz-score");
-            scoreBadge.append(
-              makeIcon("bi bi-clipboard-check me-1"),
-              document.createTextNode(`${score.correct}/${score.total}`)
-            );
-            meta.appendChild(scoreBadge);
-          }
-        }
-        textWrap.append(title, meta);
-        left.append(iconWrap, textWrap);
-
-        const right = makeEl("div", "d-flex align-items-center gap-2");
-
-        if (it.type === "learn") {
-          const preview = makeEl("span", "net-preview-btn");
-          preview.setAttribute("role", "button");
-          preview.setAttribute("tabindex", "0");
-          preview.dataset.action = "preview-lesson";
-          preview.dataset.lesson = String(Number(it.lesson_number));
-          preview.title = "Quick preview";
-          preview.appendChild(makeIcon("bi bi-eye"));
-          right.appendChild(preview);
-        }
-
-        if (completed) {
-          const done = makeEl("span", "badge bg-success");
-          done.append(makeIcon("bi bi-check2-circle me-1"), document.createTextNode("Done"));
-          right.appendChild(done);
-        } else {
-          const play = makeIcon("bi bi-play-fill text-teal");
-          play.setAttribute("aria-hidden", "true");
-          right.appendChild(play);
-        }
-
-        row.append(left, right);
-        grid.appendChild(row);
+    lessonNumbers.forEach((lessonNumber) => {
+      const itemsForLesson = groupedItems.get(lessonNumber) || [];
+      itemsForLesson.forEach((item) => {
+        grid.appendChild(buildCourseItemRow(item));
       });
     });
-
     return grid;
   }
 
@@ -1709,10 +1708,7 @@ What this file does:
     if (jumpBtn) jumpBtn.disabled = !next || state.courseLocked;
   }
 
-  /* AI Prompt: Explain the ACTIONS / EVENTS section in clear, simple terms. */
-  /* =========================================================
-     ACTIONS / EVENTS
-  ========================================================= */
+  // Buttons and interaction handlers.
 
   function wireCourseActions() {
     // expand / collapse
@@ -1720,7 +1716,7 @@ What this file does:
     const collapseAllBtn = getById("collapseAllBtn");
 
     expandAllBtn?.addEventListener("click", () => {
-      state.course.modules.forEach((m) => state.expandedModules.add(m.id));
+      state.course.modules.forEach((module) => state.expandedModules.add(String(module.id)));
       renderModules();
       wireDynamicHandlers();
     });
@@ -1777,7 +1773,7 @@ What this file does:
 
         // Select this module (single-select for horizontal tabs)
         state.expandedModules.clear();
-        state.expandedModules.add(id);
+        state.expandedModules.add(String(id));
         persistLastModule(id);
 
         // Re-render modules to show selected detail panel
@@ -1900,10 +1896,7 @@ What this file does:
     return null;
   }
 
-  /* AI Prompt: Explain the LESSON MODAL section in clear, simple terms. */
-  /* =========================================================
-     LESSON MODAL
-  ========================================================= */
+  // Lesson preview modal.
 
   function wireLessonModalControls() {
     const prevBtn = getById("lessonPrevBtn");
@@ -2079,10 +2072,7 @@ What this file does:
     });
   }
 
-  /* AI Prompt: Explain the Preview tooltip (1s delay) section in clear, simple terms. */
-  /* =========================================================
-     Preview tooltip (1s delay)
-  ========================================================= */
+  // Delayed tooltip for preview buttons.
 
   let __previewTooltip = null;
 
@@ -2161,10 +2151,7 @@ What this file does:
     }
   }
 
-  /* AI Prompt: Explain the COMPLETION WRITES (backend best-effort + local fallback) section in clear, simple terms. */
-  /* =========================================================
-     COMPLETION WRITES (backend best-effort + local fallback)
-  ========================================================= */
+  // Save completion to backend (best effort) and local state.
 
   async function completeItem(type, lessonNumber, xp) {
     const t = String(type).toLowerCase();
@@ -2263,7 +2250,7 @@ What this file does:
   }
 
   async function tryBackendComplete(type, lessonNumber, xp) {
-    if (!API()) return false;
+    if (!getApiBase()) return false;
 
     const payload = {
       email: state.user.email,
@@ -2278,7 +2265,7 @@ What this file does:
     if (type === "challenge") path = PATHS.completeChallenge;
     if (!path) return false;
 
-    const res = await fetch(`${API()}${path}`, {
+    const res = await fetch(`${getApiBase()}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -2292,10 +2279,7 @@ What this file does:
     return { success: true, ...data };
   }
 
-  /* AI Prompt: Explain the RETURN TOAST section in clear, simple terms. */
-  /* =========================================================
-     RETURN TOAST
-  ========================================================= */
+  // Show toast when returning from another page.
 
   function maybeShowReturnToast() {
     const params = new URLSearchParams(window.location.search);
@@ -2340,10 +2324,7 @@ What this file does:
     showAria(progressMessage);
   }
 
-  /* AI Prompt: Explain the ICON HELPERS (Bootstrap Icons) section in clear, simple terms. */
-  /* =========================================================
-     ICON HELPERS (Bootstrap Icons)
-  ========================================================= */
+  // Icon builders for module and lesson rows.
 
   function moduleIcon(modProg, locked) {
     let cls = "bi bi-book text-white";

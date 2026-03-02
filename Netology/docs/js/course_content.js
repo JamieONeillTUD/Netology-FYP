@@ -1,17 +1,10 @@
 /*
-Student Number: C22320301
-Student Name: Jamie O'Neill
-Course Code: TU857/4
-Date: 09/02/2026
-
-JavaScript
----------------------------------------
-course_content.js – Stores course lessons like Khan Academy.
-
-Now includes:
-- 9 courses (3 novice, 3 intermediate, 3 advanced)
-- Full depth content for one course in each difficulty
-- Quizzes + sandbox practice/challenges integrated
+---------------------------------------------------------
+Student: C22320301 - Jamie O'Neill
+File: course_content.js
+Purpose: Stores all course, unit, section, and lesson content used by course and lesson pages.
+Notes: Cleaned file comments and structure labels; content data is unchanged.
+---------------------------------------------------------
 */
 
 const COURSE_CONTENT = {
@@ -26,10 +19,7 @@ const COURSE_CONTENT = {
   //     }
   //   ]
   // }
-  // AI Prompt: Explain the NOVICE COURSES (Level 1+) section in clear, simple terms.
-  // ============================
-  // NOVICE COURSES (Level 1+)
-  // ============================
+  // Novice courses (level 1+).
   "1": {
     id: "1",
     title: "Networking Foundations",
@@ -1969,6 +1959,7 @@ const COURSE_CONTENT = {
       }
     ]
   },
+  // Intermediate courses (level 3+).
   "4": {
     id: "4",
     title: "Subnetting & VLANs",
@@ -3105,10 +3096,7 @@ const COURSE_CONTENT = {
     ]
   },
 
-  // AI Prompt: Explain the ADVANCED COURSES (Level 5+) section in clear, simple terms.
-  // ============================
-  // ADVANCED COURSES (Level 5+)
-  // ============================
+  // Advanced courses (level 5+).
   "7": {
     id: "7",
     title: "Network Security & Hardening",
@@ -4135,4 +4123,8 @@ const COURSE_CONTENT = {
 
 if (typeof window !== "undefined") {
   window.COURSE_CONTENT = COURSE_CONTENT;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = COURSE_CONTENT;
 }

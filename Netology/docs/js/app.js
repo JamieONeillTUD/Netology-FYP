@@ -1,1670 +1,1970 @@
 /*
-Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
-
-JavaScript
----------------------------------------
-app.js – Handles authentication on the frontend.
-
-Includes:
-- Signup wizard logic (signup.html)
-- Signup validation + POST /register
-- Login validation + POST /login + inline banner (login.html)
-- Modern toast popup feedback (showPopup) consistent with Netology theme
-
-UPDATED (Dashboard unlock tier support):
-- Stores the user’s selected unlock tier (novice/intermediate/advanced) in localStorage
-  so dashboard can lock/unlock courses by tier WITHOUT changing numeric level/XP.
-
-Notes:
-- Uses window.API_BASE injected into each page (Render deployment)
-- Respects prefers-reduced-motion for animations
+---------------------------------------------------------
+Student: C22320301 - Jamie O'Neill
+File: app.js
+Purpose: Handles auth pages, onboarding tour flow, login streak badges, and shared popups.
+Notes: Reorganized into clear sections, removed duplicate patterns, and kept existing behavior.
+---------------------------------------------------------
 */
 
-// Safety: ensure API base is never undefined
-const API_BASE = (window.API_BASE || "").replace(/\/$/, "");
-/* NOTE: ENDPOINTS is declared globally by config.js via window.ENDPOINTS.
-   Using var here prevents duplicate-declaration errors across scripts. */
-var ENDPOINTS = window.ENDPOINTS || {};
-const apiGet = window.apiGet || (async (path, params = {}) => {
-  const base = API_BASE.trim();
-  const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
-  Object.entries(params || {}).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
-  });
-  const res = await fetch(url.toString());
-  return res.json();
-});
-const apiPost = async (path, payload) => {
-  const base = API_BASE.trim();
-  const url = base ? `${base}${path}` : path;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload || {}),
-  });
-  return res.json();
-};
-
-const getById = (id) => document.getElementById(id);
-
-function onReady(fn) {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", fn);
-  } else {
-    fn();
-  }
-}
-
-function parseJsonSafe(raw, fallback = null) {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
-
-/* ── Random Topology SVG Generator ── */
-window.NET_TOPOLOGIES = [
-  { // Star topology
-    name: "star",
-    nodes: [{x:400,y:250,r:16},{x:200,y:100,r:10},{x:600,y:100,r:10},{x:150,y:300,r:10},{x:650,y:300,r:10},{x:250,y:420,r:10},{x:550,y:420,r:10}],
-    links: [[0,1],[0,2],[0,3],[0,4],[0,5],[0,6]]
-  },
-  { // Ring topology
-    name: "ring",
-    nodes: [{x:400,y:80,r:12},{x:580,y:170,r:12},{x:600,y:340,r:12},{x:400,y:430,r:12},{x:200,y:340,r:12},{x:220,y:170,r:12}],
-    links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]]
-  },
-  { // Mesh topology
-    name: "mesh",
-    nodes: [{x:200,y:120,r:11},{x:400,y:80,r:11},{x:600,y:120,r:11},{x:650,y:300,r:11},{x:500,y:420,r:11},{x:300,y:420,r:11},{x:150,y:300,r:11},{x:400,y:260,r:13}],
-    links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0],[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]]
-  },
-  { // Bus topology
-    name: "bus",
-    nodes: [{x:100,y:250,r:10},{x:230,y:250,r:10},{x:360,y:250,r:10},{x:490,y:250,r:10},{x:620,y:250,r:10},{x:230,y:140,r:9},{x:360,y:140,r:9},{x:490,y:140,r:9},{x:230,y:360,r:9},{x:490,y:360,r:9}],
-    links: [[0,1],[1,2],[2,3],[3,4],[1,5],[2,6],[3,7],[1,8],[3,9]]
-  },
-  { // Tree topology
-    name: "tree",
-    nodes: [{x:400,y:70,r:14},{x:250,y:190,r:12},{x:550,y:190,r:12},{x:160,y:310,r:10},{x:340,y:310,r:10},{x:460,y:310,r:10},{x:640,y:310,r:10},{x:160,y:420,r:9},{x:340,y:420,r:9},{x:460,y:420,r:9},{x:640,y:420,r:9}],
-    links: [[0,1],[0,2],[1,3],[1,4],[2,5],[2,6],[3,7],[4,8],[5,9],[6,10]]
-  },
-  { // Ireland shape topology
-    name: "ireland",
-    nodes: [{x:420,y:60,r:10},{x:380,y:120,r:10},{x:350,y:180,r:11},{x:320,y:240,r:10},{x:340,y:300,r:12},{x:370,y:360,r:10},{x:400,y:410,r:10},{x:430,y:450,r:10},{x:450,y:160,r:10},{x:470,y:220,r:10},{x:460,y:280,r:11},{x:440,y:340,r:10},{x:390,y:250,r:13}],
-    links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[0,8],[8,9],[9,10],[10,11],[11,7],[2,12],[3,12],[4,12],[9,12],[10,12]]
-  },
-  { // Hybrid (enterprise) topology
-    name: "enterprise",
-    nodes: [{x:400,y:80,r:14},{x:200,y:200,r:12},{x:600,y:200,r:12},{x:120,y:340,r:10},{x:280,y:340,r:10},{x:520,y:340,r:10},{x:680,y:340,r:10},{x:200,y:440,r:9},{x:600,y:440,r:9}],
-    links: [[0,1],[0,2],[1,3],[1,4],[2,5],[2,6],[3,7],[4,7],[5,8],[6,8],[1,2],[3,4],[5,6]]
-  }
-];
-
-function injectRandomTopology(svgElement) {
-  if (!svgElement) return;
-  var topologies = window.NET_TOPOLOGIES;
-  var topo = topologies[Math.floor(Math.random() * topologies.length)];
-
-  var linksG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  linksG.setAttribute("class", "net-network-links");
-
-  var nodesG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  nodesG.setAttribute("class", "net-network-nodes");
-
-  topo.links.forEach(function(link, i) {
-    var a = topo.nodes[link[0]], b = topo.nodes[link[1]];
-    var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("class", "net-network-link");
-    line.setAttribute("x1", a.x); line.setAttribute("y1", a.y);
-    line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
-    line.style.animationDelay = (i * 0.15) + "s";
-    linksG.appendChild(line);
-  });
-
-  topo.nodes.forEach(function(node, i) {
-    var circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("class", "net-network-node");
-    circle.setAttribute("cx", node.x); circle.setAttribute("cy", node.y);
-    circle.setAttribute("r", node.r);
-    circle.style.animationDelay = (i * 0.2) + "s";
-    nodesG.appendChild(circle);
-  });
-
-  svgElement.innerHTML = "";
-  svgElement.appendChild(linksG);
-  svgElement.appendChild(nodesG);
-}
-
-function spawnFloatingParticles(container, count) {
-  if (!container) return;
-  count = count || 20;
-  for (var i = 0; i < count; i++) {
-    var dot = document.createElement("span");
-    dot.className = "net-welcome-particle";
-    dot.style.left = Math.random() * 100 + "%";
-    dot.style.top = Math.random() * 100 + "%";
-    dot.style.animationDelay = (Math.random() * 4) + "s";
-    dot.style.animationDuration = (3 + Math.random() * 4) + "s";
-    container.appendChild(dot);
-  }
-}
-
-onReady(function() {
-  var welcomeSvg = getById("welcomeTopologySvg");
-  var loginSvg = getById("loginTopologySvg");
-  if (welcomeSvg) injectRandomTopology(welcomeSvg);
-  if (loginSvg) injectRandomTopology(loginSvg);
-  spawnFloatingParticles(getById("welcomeParticles"), 25);
-  spawnFloatingParticles(getById("loginParticles"), 25);
-});
-
-onReady(() => {
-  const signupForm = getById("signupForm");
-  if (signupForm) {
-    initSignupWizard(signupForm);
-    wireSignupSubmit(signupForm);
-  }
-
-  const loginForm = getById("loginForm");
-  if (loginForm) {
-    wireLoginSubmit(loginForm);
-  }
-
-  initForgotForm();
-  wirePasswordToggles();
-});
-
-/* AI Prompt: Explain the SIGNUP SUBMISSION (signup.html) section in clear, simple terms. */
-/* =========================================================
-   SIGNUP SUBMISSION (signup.html)
-========================================================= */
-
-function wireSignupSubmit(form) {
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const first = getById("first_name")?.value.trim();
-    const last = getById("last_name")?.value.trim();
-    const username = getById("username")?.value.trim();
-    const dob = getById("dob")?.value;
-    const email = getById("email")?.value.trim();
-    const password = getById("password")?.value.trim();
-    const confirm = getById("confirm_password")?.value.trim();
-
-    const level = document.querySelector('input[name="level"]:checked');
-    const reasons = document.querySelectorAll('input[name="reasons"]:checked');
-
-    // Strong barriers (final check)
-    if (!first || !last || !username || !dob || !email || !password || !confirm) {
-      showSignupBanner("Please complete all required fields before creating your account.", "warning");
-      return;
-    }
-
-    if (!isValidEmail(email)) {
-      showSignupBanner("That email format doesn’t look right. Please check and try again.", "warning");
-      return;
-    }
-
-    if (password.length < 8) {
-      showSignupBanner("Password must be at least 8 characters.", "warning");
-      return;
-    }
-
-    if (password !== confirm) {
-      showSignupBanner("Your passwords do not match. Please confirm your password.", "warning");
-      return;
-    }
-
-    if (!level) {
-      showSignupBanner("Please choose your starting level.", "warning");
-      return;
-    }
-
-    if (reasons.length === 0) {
-      showSignupBanner("Please select at least one reason (this helps personalise your learning).", "warning");
-      return;
-    }
-
-    // NEW: Save the chosen tier so dashboard can unlock by tier later.
-    // This does NOT affect numeric level or XP.
-    const selectedTier = String(level?.value || "novice").trim().toLowerCase();
-
-    try {
-      const res = await fetch(`${API_BASE}/register`, {
-        method: "POST",
-        body: new FormData(form),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        const normalizedEmail = String(email || "").trim().toLowerCase();
-
-        // Auto-login: call /login immediately so the user goes straight to dashboard
-        let autoLoginOk = false;
-        try {
-          const loginForm = new FormData();
-          loginForm.append("email", email);
-          loginForm.append("password", password);
-          const loginRes = await fetch(`${API_BASE}/login`, { method: "POST", body: loginForm });
-          const loginData = await loginRes.json();
-
-          if (loginData.success) {
-            const unlockTier = String(selectedTier || loginData.start_level || "novice").toLowerCase();
-            const loginPayload = {
-              email: normalizedEmail,
-              first_name: loginData.first_name,
-              last_name: loginData.last_name,
-              username: loginData.username,
-              level: loginData.level,
-              rank: loginData.rank || loginData.level,
-              numeric_level: Number.isFinite(Number(loginData.numeric_level)) ? Number(loginData.numeric_level) : 1,
-              xp: loginData.xp || 0,
-              xp_into_level: Number.isFinite(Number(loginData.xp_into_level)) ? Number(loginData.xp_into_level) : 0,
-              next_level_xp: Number.isFinite(Number(loginData.next_level_xp)) ? Number(loginData.next_level_xp) : 100,
-              unlock_tier: unlockTier,
-              is_first_login: true,
-              onboarding_completed: false,
-            };
-
-            localStorage.setItem("user", JSON.stringify(loginPayload));
-            localStorage.setItem("netology_user", JSON.stringify(loginPayload));
-            localStorage.setItem("netology_last_email", normalizedEmail);
-
-            // Set onboarding flags so the dashboard tour triggers automatically
-            localStorage.setItem("netology_onboarding_stage", "dashboard");
-            localStorage.setItem("netology_onboarding_user", normalizedEmail);
-            try { sessionStorage.setItem("netology_onboarding_session", "true"); } catch {}
-
-            recordLoginDay(normalizedEmail);
-            autoLoginOk = true;
-          }
-        } catch { /* fall through to overlay redirect */ }
-
-        // Show celebration overlay, then redirect to dashboard (not login)
-        const overlay = getById("signupSuccessOverlay");
-        if (overlay) {
-          overlay.classList.remove("d-none");
-          overlay.setAttribute("aria-hidden", "false");
-          document.body.style.overflow = "hidden";
-          const confettiContainer = overlay.querySelector(".net-signup-success-confetti");
-          if (confettiContainer) {
-            const colors = ["#06b6d4", "#14b8a6", "#38bdf8", "#67e8f9", "#a78bfa", "#0d9488", "#22d3ee"];
-            for (let i = 0; i < 55; i++) {
-              const piece = document.createElement("span");
-              const size = 4 + Math.random() * 8;
-              piece.style.left = Math.random() * 100 + "%";
-              piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-              piece.style.animationDelay = Math.random() * 2 + "s";
-              piece.style.animationDuration = (2.5 + Math.random() * 2.5) + "s";
-              piece.style.width = size + "px";
-              piece.style.height = size + "px";
-              piece.style.boxShadow = `0 0 ${size}px ${colors[Math.floor(Math.random() * colors.length)]}`;
-              confettiContainer.appendChild(piece);
-            }
-          }
-          setTimeout(() => {
-            window.location.href = autoLoginOk ? "dashboard.html" : "login.html";
-          }, 3800);
-        } else {
-          showPopup(autoLoginOk ? "Account created! Heading to your dashboard…" : "Account created! Please sign in.", "success");
-          setTimeout(() => {
-            window.location.href = autoLoginOk ? "dashboard.html" : "login.html";
-          }, 1200);
-        }
-      } else {
-        showPopup(data.message || "Signup failed. Try again.", "error");
-      }
-    } catch {
-      showPopup("Server error. Please try again.", "error");
-    }
-  });
-}
-
-/* AI Prompt: Explain the LOGIN (login.html) section in clear, simple terms. */
-/* =========================================================
-   LOGIN (login.html)
-========================================================= */
-
-function wireLoginSubmit(form) {
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const emailEl = getById("email");
-    const passwordEl = getById("password");
-
-    const email = (emailEl?.value || "").trim();
-    const password = (passwordEl?.value || "").trim();
-
-    setInvalid(emailEl, false);
-    setInvalid(passwordEl, false);
-
-    if (!email) {
-      setInvalid(emailEl, true);
-      showLoginBanner("Please enter your email address.", "warning");
-      emailEl?.focus();
-      return;
-    }
-
-    if (!isValidEmail(email)) {
-      setInvalid(emailEl, true);
-      showLoginBanner("That email format doesn’t look right. Please check and try again.", "warning");
-      emailEl?.focus();
-      return;
-    }
-
-    if (!password) {
-      setInvalid(passwordEl, true);
-      showLoginBanner("Please enter your password.", "warning");
-      passwordEl?.focus();
-      return;
-    }
-
-    if (password.length < 8) {
-      setInvalid(passwordEl, true);
-      showLoginBanner("Password must be at least 8 characters.", "warning");
-      passwordEl?.focus();
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/login`, {
-        method: "POST",
-        body: new FormData(form),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        // Prefer an existing tier if we already stored it, else use pending signup tier, else default.
-        const pendingTier = String(localStorage.getItem("unlock_tier_pending") || "").trim().toLowerCase();
-        const existingUser = parseJsonSafe(localStorage.getItem("user"), {}) || {};
-        const existingTier = String(existingUser.unlock_tier || existingUser.unlock_level || existingUser.unlockTier || "")
-          .trim()
-          .toLowerCase();
-
-        const serverTier = String(data.start_level || "").trim().toLowerCase();
-        let unlockTier = serverTier || existingTier || pendingTier || "novice";
-        if (!["novice", "intermediate", "advanced"].includes(unlockTier)) unlockTier = "novice";
-
-        const loginPayload = {
-          email: email,
-          first_name: data.first_name,
-          last_name: data.last_name,
-          username: data.username,
-          level: data.level,     // keep existing field (backwards compatible)
-          rank: data.rank || data.level,
-          numeric_level: Number.isFinite(Number(data.numeric_level)) ? Number(data.numeric_level) : undefined,
-          xp: data.xp,
-          xp_into_level: Number.isFinite(Number(data.xp_into_level)) ? Number(data.xp_into_level) : undefined,
-          next_level_xp: Number.isFinite(Number(data.next_level_xp)) ? Number(data.next_level_xp) : undefined,
-
-          // NEW: dashboard uses this to unlock content tiers
-          unlock_tier: unlockTier,
-
-          // Onboarding / guided tour flags
-          is_first_login: data.is_first_login,
-          onboarding_completed: data.onboarding_completed
-        };
-
-        localStorage.setItem("user", JSON.stringify(loginPayload));
-        localStorage.setItem("netology_user", JSON.stringify(loginPayload));
-        localStorage.setItem("netology_last_email", email);
-
-        const normalizedEmail = String(email || "").trim().toLowerCase();
-        const firstLoginFlag = String(localStorage.getItem("netology_onboarding_first_login") || "")
-          .trim()
-          .toLowerCase();
-        const alreadyCompletedOnboarding = Boolean(data.onboarding_completed)
-          || localStorage.getItem("netology_onboarding_completed") === "true"
-          || localStorage.getItem("netology_onboarding_skipped") === "true";
-        
-        // Check if this email has ever completed onboarding (based on backend flag OR stored completion flag)
-        const hasEverCompletedOnboarding = Boolean(data.onboarding_completed) 
-          || localStorage.getItem(`netology_onboarding_completed_${normalizedEmail}`) === "true";
-        
-        // Onboarding should trigger on first login OR if they just signed up (have first_login flag set)
-        const shouldStartOnboarding = !hasEverCompletedOnboarding
-          && (Boolean(data.is_first_login) || (firstLoginFlag && firstLoginFlag === normalizedEmail));
-
-        if (shouldStartOnboarding) {
-          localStorage.setItem("netology_onboarding_stage", "dashboard");
-          localStorage.setItem("netology_onboarding_user", normalizedEmail);
-          localStorage.removeItem("netology_onboarding_first_login");
-          try {
-            sessionStorage.setItem("netology_onboarding_session", "true");
-          } catch {}
-        }
-
-        // Login streak tracking + badge awards
-        recordLoginDay(email);
-        const streak = computeLoginStreak(getLoginLog(email));
-        await awardLoginStreakBadges(email, streak);
-
-        // Once used, clear the pending value
-        if (pendingTier) localStorage.removeItem("unlock_tier_pending");
-
-        const overlayShown = showLoginSuccessOverlay(data.first_name || loginPayload.first_name);
-        if (!overlayShown) {
-          showLoginBanner(`Welcome back, ${data.first_name}! Redirecting…`, "success");
-        }
-        const redirectDelay = overlayShown ? 2200 : 900;
-        setTimeout(() => {
-          window.location.href = "dashboard.html";
-        }, redirectDelay);
-
-      } else {
-        setInvalid(emailEl, true);
-        setInvalid(passwordEl, true);
-        showLoginBanner(data.message || "Incorrect email or password. Please try again.", "error");
-      }
-    } catch {
-      showLoginBanner("Can’t reach the server right now. Please check your connection and try again.", "error");
-    }
-  });
-}
-
-/* AI Prompt: Explain the PASSWORD TOGGLES (signup.html + login.html) section in clear, simple terms. */
-/* =========================================================
-   PASSWORD TOGGLES (signup.html + login.html)
-========================================================= */
-
-function wirePasswordToggles() {
-  const toggles = document.querySelectorAll('[data-toggle="password"]');
-  toggles.forEach((btn) => {
-    if (btn._netBound) return;
-    btn._netBound = true;
-
-    btn.addEventListener("click", () => {
-      const targetSel = btn.getAttribute("data-target");
-      const input = targetSel ? document.querySelector(targetSel) : null;
-      if (!input) return;
-
-      const isHidden = input.getAttribute("type") === "password";
-      input.setAttribute("type", isHidden ? "text" : "password");
-
-      btn.setAttribute("aria-pressed", String(isHidden));
-      btn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
-
-      const icon = btn.querySelector("i");
-      if (icon) icon.className = isHidden ? "bi bi-eye-slash" : "bi bi-eye";
-    });
-  });
-}
-
-/* AI Prompt: Explain the SIGNUP WIZARD IMPLEMENTATION section in clear, simple terms. */
-/* =========================================================
-   SIGNUP WIZARD IMPLEMENTATION
-========================================================= */
-
-function initSignupWizard(form) {
-  let step = 1;
-  const totalSteps = 4;
-
-  const stepLabel = getById("stepLabel");
-  const stepTitle = getById("stepTitle");
-  const stepProgress = getById("stepProgress");
-  const backBtn = getById("backBtn");
-  const nextBtn = getById("nextBtn");
-  const submitBtn = getById("submitBtn");
-
-  const pages = Array.from(document.querySelectorAll(".net-step-page"));
-  const titles = { 1: "Your details", 2: "Your level", 3: "Your reasons", 4: "Review" };
-
-  // If the wizard UI isn't present, don't break the page
-  if (!pages.length || !stepLabel || !stepTitle || !stepProgress || !backBtn || !nextBtn || !submitBtn) {
-    return;
-  }
-
-  // Live invalid clearing on input
-  const clearInvalidOnInput = (id) => {
-    const el = getById(id);
-    if (!el) return;
-    el.addEventListener("input", () => setInvalid(el, false));
+(() => {
+  "use strict";
+
+  // -------------------------------------------------------
+  // Core config and small helpers
+  // -------------------------------------------------------
+
+  const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
+  const ENDPOINTS = window.ENDPOINTS || {};
+  const ONBOARDING_STAGE_DEFAULT = "dashboard";
+  const ONBOARDING_KEYS = {
+    stage: "netology_onboarding_stage",
+    user: "netology_onboarding_user",
+    session: "netology_onboarding_session",
+    firstLogin: "netology_onboarding_first_login",
+    completed: "netology_onboarding_completed",
+    skipped: "netology_onboarding_skipped"
+  };
+  const ONBOARDING_PATHS = {
+    steps: "/api/onboarding/steps",
+    start: "/api/onboarding/start",
+    stepComplete: "/api/onboarding/step/:id",
+    complete: "/api/onboarding/complete",
+    skip: "/api/onboarding/skip"
   };
 
-  ["first_name", "last_name", "username", "dob", "email", "password", "confirm_password"].forEach(clearInvalidOnInput);
+  function getElementById(elementId) {
+    return document.getElementById(elementId);
+  }
 
-  backBtn.addEventListener("click", () => {
-    if (step > 1) showStep(step - 1);
-  });
+  function runWhenDomReady(callback) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", callback, { once: true });
+      return;
+    }
+    callback();
+  }
 
-  nextBtn.addEventListener("click", () => {
-    if (!validateStep(step)) return;
-    if (step < totalSteps) showStep(step + 1);
-  });
+  function parseJsonSafely(value, fallbackValue = null) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallbackValue;
+    }
+  }
 
-  // Show first step
-  showStep(1);
+  function normalizeEmail(value) {
+    return String(value || "").trim().toLowerCase();
+  }
 
-  function showStep(n) {
-    step = n;
+  function normalizeTier(value, fallback = "novice") {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (["novice", "intermediate", "advanced"].includes(normalized)) return normalized;
+    return fallback;
+  }
 
-    pages.forEach((p) => p.classList.add("d-none"));
-    const page = document.querySelector(`.net-step-page[data-step="${step}"]`);
-    if (page) page.classList.remove("d-none");
+  // Build per-user onboarding key names.
+  function onboardingCompletedKey(email) {
+    return `${ONBOARDING_KEYS.completed}_${normalizeEmail(email)}`;
+  }
 
-    stepLabel.textContent = `Step ${step} of ${totalSteps}`;
-    stepTitle.textContent = titles[step] || "";
-    stepProgress.style.width = `${(step / totalSteps) * 100}%`;
+  function onboardingSkippedKey(email) {
+    return `${ONBOARDING_KEYS.skipped}_${normalizeEmail(email)}`;
+  }
 
-    // Step pills (optional UI)
-    const pills = document.querySelectorAll(".net-step-pill");
-    pills.forEach((pill) => {
-      const s = Number(pill.getAttribute("data-pill"));
-      pill.classList.toggle("is-active", s === step);
-      pill.classList.toggle("is-done", s < step);
+  // Resolve onboarding API paths with local fallback values.
+  function getOnboardingPath(pathKey) {
+    return ENDPOINTS.onboarding?.[pathKey] || ONBOARDING_PATHS[pathKey] || "";
+  }
+
+  // Start onboarding for a specific user and stage.
+  function stageOnboardingForUser(email, stage = ONBOARDING_STAGE_DEFAULT) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return;
+
+    localStorage.setItem(ONBOARDING_KEYS.stage, stage);
+    localStorage.setItem(ONBOARDING_KEYS.user, normalizedEmail);
+  }
+
+  // Clear the current onboarding stage only.
+  function clearOnboardingStage() {
+    localStorage.removeItem(ONBOARDING_KEYS.stage);
+  }
+
+  // Save or clear the onboarding session marker.
+  function setOnboardingSessionActive(isActive) {
+    try {
+      if (isActive) {
+        sessionStorage.setItem(ONBOARDING_KEYS.session, "true");
+        return;
+      }
+      sessionStorage.removeItem(ONBOARDING_KEYS.session);
+    } catch {
+      // Ignore session storage failures.
+    }
+  }
+
+  function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || "").trim());
+  }
+
+  function setInvalidState(inputElement, isInvalid) {
+    if (!inputElement) return;
+    inputElement.classList.toggle("is-invalid", Boolean(isInvalid));
+  }
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  // -------------------------------------------------------
+  // Shared API helpers
+  // -------------------------------------------------------
+
+  async function defaultApiGet(path, queryParams = {}) {
+    const resolvedUrl = API_BASE
+      ? new URL(`${API_BASE}${path}`)
+      : new URL(path, window.location.origin);
+
+    Object.entries(queryParams || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      resolvedUrl.searchParams.set(key, String(value));
     });
 
-    backBtn.disabled = step === 1;
+    const response = await fetch(resolvedUrl.toString());
+    return response.json();
+  }
 
-    if (step === totalSteps) {
-      nextBtn.classList.add("d-none");
-      submitBtn.classList.remove("d-none");
-      fillReview();
-    } else {
-      nextBtn.classList.remove("d-none");
-      submitBtn.classList.add("d-none");
+  async function defaultApiPost(path, payload = {}) {
+    const resolvedUrl = API_BASE ? `${API_BASE}${path}` : path;
+    const response = await fetch(resolvedUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {})
+    });
+    return response.json();
+  }
+
+  const apiGet = typeof window.apiGet === "function" ? window.apiGet : defaultApiGet;
+  const apiPost = typeof window.apiPost === "function" ? window.apiPost : defaultApiPost;
+
+  if (typeof window.apiGet !== "function") window.apiGet = apiGet;
+  if (typeof window.apiPost !== "function") window.apiPost = apiPost;
+
+  // -------------------------------------------------------
+  // Shared popup + inline banners
+  // -------------------------------------------------------
+
+  function showPopup(message, type = "info") {
+    if (!message) return;
+
+    if (window.NetologyToast?.showMessageToast) {
+      window.NetologyToast.showMessageToast(String(message), type, 3200);
+      return;
     }
 
-    // Clear banner when moving steps
-    hideSignupBanner();
+    if (typeof window.showCelebrateToast === "function") {
+      window.showCelebrateToast({
+        title: "Info",
+        message: String(message),
+        type,
+        mini: true,
+        duration: 3200
+      });
+      return;
+    }
+
+    alert(String(message));
   }
 
-  function validateStep(currentStep) {
-    if (currentStep === 1) return validateStep1();
-    if (currentStep === 2) return validateStep2();
-    if (currentStep === 3) return validateStep3();
-    return true;
+  function createBannerIcon(type) {
+    const normalizedType = String(type || "").toLowerCase();
+    let iconClass = "bi-x-circle-fill";
+
+    if (normalizedType === "success") iconClass = "bi-check-circle-fill";
+    if (normalizedType === "warning") iconClass = "bi-exclamation-triangle-fill";
+
+    const iconWrap = document.createElement("span");
+    iconWrap.className = "net-banner-icon";
+    iconWrap.setAttribute("aria-hidden", "true");
+
+    const icon = document.createElement("i");
+    icon.className = `bi ${iconClass}`;
+    iconWrap.appendChild(icon);
+
+    return iconWrap;
   }
 
-  function validateStep1() {
-    const first = getById("first_name");
-    const last = getById("last_name");
-    const user = getById("username");
-    const dob = getById("dob");
-    const email = getById("email");
-    const pass = getById("password");
-    const conf = getById("confirm_password");
+  function renderInlineBanner(bannerElement, type, message) {
+    if (!bannerElement) return;
 
-    // Reset invalid
-    [first, last, user, dob, email, pass, conf].forEach((el) => setInvalid(el, false));
-
-    if (!first?.value.trim()) { setInvalid(first, true); showSignupBanner("Please enter your first name.", "warning"); first?.focus(); return false; }
-    if (!last?.value.trim())  { setInvalid(last, true);  showSignupBanner("Please enter your last name.", "warning"); last?.focus(); return false; }
-    if (!user?.value.trim())  { setInvalid(user, true);  showSignupBanner("Please choose a username.", "warning"); user?.focus(); return false; }
-    if (!dob?.value)          { setInvalid(dob, true);   showSignupBanner("Please select your date of birth.", "warning"); dob?.focus(); return false; }
-
-    const emailVal = email?.value.trim() || "";
-    if (!emailVal)            { setInvalid(email, true); showSignupBanner("Please enter your email address.", "warning"); email?.focus(); return false; }
-    if (!isValidEmail(emailVal)) { setInvalid(email, true); showSignupBanner("That email format doesn’t look right. Please check and try again.", "warning"); email?.focus(); return false; }
-
-    const passVal = pass?.value.trim() || "";
-    const confVal = conf?.value.trim() || "";
-    if (!passVal)             { setInvalid(pass, true);  showSignupBanner("Please enter a password.", "warning"); pass?.focus(); return false; }
-    if (passVal.length < 8)   { setInvalid(pass, true);  showSignupBanner("Password must be at least 8 characters.", "warning"); pass?.focus(); return false; }
-    if (!confVal)             { setInvalid(conf, true);  showSignupBanner("Please confirm your password.", "warning"); conf?.focus(); return false; }
-    if (passVal !== confVal)  { setInvalid(conf, true);  showSignupBanner("Passwords do not match. Please confirm again.", "warning"); conf?.focus(); return false; }
-
-    return true;
+    bannerElement.replaceChildren();
+    bannerElement.append(createBannerIcon(type), document.createTextNode(String(message || "")));
   }
 
-  function validateStep2() {
-    const lvl = document.querySelector('input[name="level"]:checked');
-    if (!lvl) {
+  function showInlineBanner(options) {
+    const {
+      bannerId,
+      message,
+      type = "error",
+      timeoutMs = 4500,
+      fallbackToPopupType = "error",
+      timerKey
+    } = options;
+
+    const bannerElement = getElementById(bannerId);
+    if (!bannerElement) {
+      showPopup(message, fallbackToPopupType);
+      return;
+    }
+
+    bannerElement.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
+    bannerElement.classList.add("alert");
+
+    if (type === "success") bannerElement.classList.add("alert-success");
+    else if (type === "warning") bannerElement.classList.add("alert-warning");
+    else bannerElement.classList.add("alert-danger");
+
+    renderInlineBanner(bannerElement, type, message);
+
+    if (timerKey) {
+      const existingTimer = bannerTimers.get(timerKey);
+      if (existingTimer) window.clearTimeout(existingTimer);
+
+      const nextTimer = window.setTimeout(() => {
+        bannerElement.classList.add("d-none");
+        bannerTimers.delete(timerKey);
+      }, timeoutMs);
+
+      bannerTimers.set(timerKey, nextTimer);
+    }
+  }
+
+  function hideInlineBanner(bannerId, timerKey) {
+    const bannerElement = getElementById(bannerId);
+    if (bannerElement) bannerElement.classList.add("d-none");
+
+    if (timerKey && bannerTimers.has(timerKey)) {
+      window.clearTimeout(bannerTimers.get(timerKey));
+      bannerTimers.delete(timerKey);
+    }
+  }
+
+  function showLoginBanner(message, type = "error") {
+    showInlineBanner({
+      bannerId: "loginBanner",
+      message,
+      type,
+      timeoutMs: 4000,
+      fallbackToPopupType: type === "success" ? "success" : "error",
+      timerKey: "login"
+    });
+  }
+
+  function showSignupBanner(message, type = "error") {
+    showInlineBanner({
+      bannerId: "signupBanner",
+      message,
+      type,
+      timeoutMs: 4500,
+      fallbackToPopupType: type === "success" ? "success" : "error",
+      timerKey: "signup"
+    });
+  }
+
+  function hideSignupBanner() {
+    hideInlineBanner("signupBanner", "signup");
+  }
+
+  function showForgotBanner(message, type = "error") {
+    showInlineBanner({
+      bannerId: "forgotBanner",
+      message,
+      type,
+      timeoutMs: 4500,
+      fallbackToPopupType: type === "success" ? "success" : "error",
+      timerKey: "forgot"
+    });
+  }
+
+  function hideForgotBanner() {
+    hideInlineBanner("forgotBanner", "forgot");
+  }
+
+  const bannerTimers = new Map();
+  window.showPopup = showPopup;
+
+  // -------------------------------------------------------
+  // Decorative network backgrounds
+  // -------------------------------------------------------
+
+  const TOPOLOGY_LIBRARY = [
+    {
+      name: "star",
+      nodes: [
+        { x: 400, y: 250, r: 16 },
+        { x: 200, y: 100, r: 10 },
+        { x: 600, y: 100, r: 10 },
+        { x: 150, y: 300, r: 10 },
+        { x: 650, y: 300, r: 10 },
+        { x: 250, y: 420, r: 10 },
+        { x: 550, y: 420, r: 10 }
+      ],
+      links: [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6]]
+    },
+    {
+      name: "ring",
+      nodes: [
+        { x: 400, y: 80, r: 12 },
+        { x: 580, y: 170, r: 12 },
+        { x: 600, y: 340, r: 12 },
+        { x: 400, y: 430, r: 12 },
+        { x: 200, y: 340, r: 12 },
+        { x: 220, y: 170, r: 12 }
+      ],
+      links: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0]]
+    },
+    {
+      name: "mesh",
+      nodes: [
+        { x: 200, y: 120, r: 11 },
+        { x: 400, y: 80, r: 11 },
+        { x: 600, y: 120, r: 11 },
+        { x: 650, y: 300, r: 11 },
+        { x: 500, y: 420, r: 11 },
+        { x: 300, y: 420, r: 11 },
+        { x: 150, y: 300, r: 11 },
+        { x: 400, y: 260, r: 13 }
+      ],
+      links: [
+        [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 0],
+        [0, 7], [1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]
+      ]
+    },
+    {
+      name: "bus",
+      nodes: [
+        { x: 100, y: 250, r: 10 },
+        { x: 230, y: 250, r: 10 },
+        { x: 360, y: 250, r: 10 },
+        { x: 490, y: 250, r: 10 },
+        { x: 620, y: 250, r: 10 },
+        { x: 230, y: 140, r: 9 },
+        { x: 360, y: 140, r: 9 },
+        { x: 490, y: 140, r: 9 },
+        { x: 230, y: 360, r: 9 },
+        { x: 490, y: 360, r: 9 }
+      ],
+      links: [[0, 1], [1, 2], [2, 3], [3, 4], [1, 5], [2, 6], [3, 7], [1, 8], [3, 9]]
+    },
+    {
+      name: "tree",
+      nodes: [
+        { x: 400, y: 70, r: 14 },
+        { x: 250, y: 190, r: 12 },
+        { x: 550, y: 190, r: 12 },
+        { x: 160, y: 310, r: 10 },
+        { x: 340, y: 310, r: 10 },
+        { x: 460, y: 310, r: 10 },
+        { x: 640, y: 310, r: 10 },
+        { x: 160, y: 420, r: 9 },
+        { x: 340, y: 420, r: 9 },
+        { x: 460, y: 420, r: 9 },
+        { x: 640, y: 420, r: 9 }
+      ],
+      links: [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5], [2, 6], [3, 7], [4, 8], [5, 9], [6, 10]]
+    },
+    {
+      name: "ireland",
+      nodes: [
+        { x: 420, y: 60, r: 10 },
+        { x: 380, y: 120, r: 10 },
+        { x: 350, y: 180, r: 11 },
+        { x: 320, y: 240, r: 10 },
+        { x: 340, y: 300, r: 12 },
+        { x: 370, y: 360, r: 10 },
+        { x: 400, y: 410, r: 10 },
+        { x: 430, y: 450, r: 10 },
+        { x: 450, y: 160, r: 10 },
+        { x: 470, y: 220, r: 10 },
+        { x: 460, y: 280, r: 11 },
+        { x: 440, y: 340, r: 10 },
+        { x: 390, y: 250, r: 13 }
+      ],
+      links: [
+        [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7],
+        [0, 8], [8, 9], [9, 10], [10, 11], [11, 7],
+        [2, 12], [3, 12], [4, 12], [9, 12], [10, 12]
+      ]
+    },
+    {
+      name: "enterprise",
+      nodes: [
+        { x: 400, y: 80, r: 14 },
+        { x: 200, y: 200, r: 12 },
+        { x: 600, y: 200, r: 12 },
+        { x: 120, y: 340, r: 10 },
+        { x: 280, y: 340, r: 10 },
+        { x: 520, y: 340, r: 10 },
+        { x: 680, y: 340, r: 10 },
+        { x: 200, y: 440, r: 9 },
+        { x: 600, y: 440, r: 9 }
+      ],
+      links: [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5], [2, 6], [3, 7], [4, 7], [5, 8], [6, 8], [1, 2], [3, 4], [5, 6]]
+    }
+  ];
+
+  function drawRandomTopology(svgElement) {
+    if (!svgElement) return;
+
+    const randomTopology = TOPOLOGY_LIBRARY[Math.floor(Math.random() * TOPOLOGY_LIBRARY.length)];
+
+    const linksGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    linksGroup.setAttribute("class", "net-network-links");
+
+    randomTopology.links.forEach((linkPair, linkIndex) => {
+      const startNode = randomTopology.nodes[linkPair[0]];
+      const endNode = randomTopology.nodes[linkPair[1]];
+
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("class", "net-network-link");
+      line.setAttribute("x1", startNode.x);
+      line.setAttribute("y1", startNode.y);
+      line.setAttribute("x2", endNode.x);
+      line.setAttribute("y2", endNode.y);
+      line.style.animationDelay = `${linkIndex * 0.15}s`;
+      linksGroup.appendChild(line);
+    });
+
+    const nodesGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    nodesGroup.setAttribute("class", "net-network-nodes");
+
+    randomTopology.nodes.forEach((node, nodeIndex) => {
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("class", "net-network-node");
+      circle.setAttribute("cx", node.x);
+      circle.setAttribute("cy", node.y);
+      circle.setAttribute("r", node.r);
+      circle.style.animationDelay = `${nodeIndex * 0.2}s`;
+      nodesGroup.appendChild(circle);
+    });
+
+    svgElement.innerHTML = "";
+    svgElement.append(linksGroup, nodesGroup);
+  }
+
+  function spawnFloatingParticles(containerElement, particleCount = 20) {
+    if (!containerElement) return;
+
+    for (let particleIndex = 0; particleIndex < particleCount; particleIndex += 1) {
+      const particle = document.createElement("span");
+      particle.className = "net-welcome-particle";
+      particle.style.left = `${Math.random() * 100}%`;
+      particle.style.top = `${Math.random() * 100}%`;
+      particle.style.animationDelay = `${Math.random() * 4}s`;
+      particle.style.animationDuration = `${3 + Math.random() * 4}s`;
+      containerElement.appendChild(particle);
+    }
+  }
+
+  function initDecorativeBackgrounds() {
+    drawRandomTopology(getElementById("welcomeTopologySvg"));
+    drawRandomTopology(getElementById("loginTopologySvg"));
+    spawnFloatingParticles(getElementById("welcomeParticles"), 25);
+    spawnFloatingParticles(getElementById("loginParticles"), 25);
+  }
+
+  window.NET_TOPOLOGIES = TOPOLOGY_LIBRARY;
+
+  // -------------------------------------------------------
+  // Signup wizard + shared auth form UI
+  // -------------------------------------------------------
+
+  function initPasswordToggles() {
+    const toggleButtons = document.querySelectorAll('[data-toggle="password"]');
+
+    toggleButtons.forEach((buttonElement) => {
+      if (buttonElement.dataset.bound === "true") return;
+      buttonElement.dataset.bound = "true";
+
+      buttonElement.addEventListener("click", () => {
+        const targetSelector = buttonElement.getAttribute("data-target");
+        const inputElement = targetSelector ? document.querySelector(targetSelector) : null;
+        if (!inputElement) return;
+
+        const isPasswordHidden = inputElement.getAttribute("type") === "password";
+        inputElement.setAttribute("type", isPasswordHidden ? "text" : "password");
+
+        buttonElement.setAttribute("aria-pressed", String(isPasswordHidden));
+        buttonElement.setAttribute("aria-label", isPasswordHidden ? "Hide password" : "Show password");
+
+        const iconElement = buttonElement.querySelector("i");
+        if (iconElement) {
+          iconElement.className = isPasswordHidden ? "bi bi-eye-slash" : "bi bi-eye";
+        }
+      });
+    });
+  }
+
+  function initSignupWizard(formElement) {
+    const signupPages = Array.from(document.querySelectorAll(".net-step-page"));
+    const stepLabelElement = getElementById("stepLabel");
+    const stepTitleElement = getElementById("stepTitle");
+    const stepProgressElement = getElementById("stepProgress");
+    const backButton = getElementById("backBtn");
+    const nextButton = getElementById("nextBtn");
+    const submitButton = getElementById("submitBtn");
+
+    const wizardStepTitles = {
+      1: "Your details",
+      2: "Your level",
+      3: "Your reasons",
+      4: "Review"
+    };
+
+    const totalSteps = 4;
+    let currentStep = 1;
+
+    if (
+      !formElement ||
+      !signupPages.length ||
+      !stepLabelElement ||
+      !stepTitleElement ||
+      !stepProgressElement ||
+      !backButton ||
+      !nextButton ||
+      !submitButton
+    ) {
+      return;
+    }
+
+    ["first_name", "last_name", "username", "dob", "email", "password", "confirm_password"].forEach((fieldId) => {
+      const inputElement = getElementById(fieldId);
+      if (!inputElement) return;
+      inputElement.addEventListener("input", () => setInvalidState(inputElement, false));
+    });
+
+    backButton.addEventListener("click", () => {
+      if (currentStep <= 1) return;
+      showStep(currentStep - 1);
+    });
+
+    nextButton.addEventListener("click", () => {
+      if (!validateStep(currentStep)) return;
+      if (currentStep >= totalSteps) return;
+      showStep(currentStep + 1);
+    });
+
+    showStep(1);
+
+    function showStep(stepNumber) {
+      currentStep = stepNumber;
+
+      signupPages.forEach((pageElement) => pageElement.classList.add("d-none"));
+      const currentPage = document.querySelector(`.net-step-page[data-step="${currentStep}"]`);
+      if (currentPage) currentPage.classList.remove("d-none");
+
+      stepLabelElement.textContent = `Step ${currentStep} of ${totalSteps}`;
+      stepTitleElement.textContent = wizardStepTitles[currentStep] || "";
+      stepProgressElement.style.width = `${(currentStep / totalSteps) * 100}%`;
+
+      const stepPills = document.querySelectorAll(".net-step-pill");
+      stepPills.forEach((pillElement) => {
+        const pillStep = Number(pillElement.getAttribute("data-pill") || "0");
+        pillElement.classList.toggle("is-active", pillStep === currentStep);
+        pillElement.classList.toggle("is-done", pillStep < currentStep);
+      });
+
+      backButton.disabled = currentStep === 1;
+
+      if (currentStep === totalSteps) {
+        nextButton.classList.add("d-none");
+        submitButton.classList.remove("d-none");
+        fillReviewValues();
+      } else {
+        nextButton.classList.remove("d-none");
+        submitButton.classList.add("d-none");
+      }
+
+      hideSignupBanner();
+    }
+
+    function validateStep(stepNumber) {
+      if (stepNumber === 1) return validateStepOne();
+      if (stepNumber === 2) return validateStepTwo();
+      if (stepNumber === 3) return validateStepThree();
+      return true;
+    }
+
+    function validateStepOne() {
+      const firstNameInput = getElementById("first_name");
+      const lastNameInput = getElementById("last_name");
+      const usernameInput = getElementById("username");
+      const dobInput = getElementById("dob");
+      const emailInput = getElementById("email");
+      const passwordInput = getElementById("password");
+      const confirmPasswordInput = getElementById("confirm_password");
+
+      [
+        firstNameInput,
+        lastNameInput,
+        usernameInput,
+        dobInput,
+        emailInput,
+        passwordInput,
+        confirmPasswordInput
+      ].forEach((inputElement) => setInvalidState(inputElement, false));
+
+      if (!firstNameInput?.value.trim()) {
+        setInvalidState(firstNameInput, true);
+        showSignupBanner("Please enter your first name.", "warning");
+        firstNameInput?.focus();
+        return false;
+      }
+
+      if (!lastNameInput?.value.trim()) {
+        setInvalidState(lastNameInput, true);
+        showSignupBanner("Please enter your last name.", "warning");
+        lastNameInput?.focus();
+        return false;
+      }
+
+      if (!usernameInput?.value.trim()) {
+        setInvalidState(usernameInput, true);
+        showSignupBanner("Please choose a username.", "warning");
+        usernameInput?.focus();
+        return false;
+      }
+
+      if (!dobInput?.value) {
+        setInvalidState(dobInput, true);
+        showSignupBanner("Please select your date of birth.", "warning");
+        dobInput?.focus();
+        return false;
+      }
+
+      const emailValue = String(emailInput?.value || "").trim();
+      if (!emailValue) {
+        setInvalidState(emailInput, true);
+        showSignupBanner("Please enter your email address.", "warning");
+        emailInput?.focus();
+        return false;
+      }
+
+      if (!isValidEmail(emailValue)) {
+        setInvalidState(emailInput, true);
+        showSignupBanner("That email format does not look right. Please check and try again.", "warning");
+        emailInput?.focus();
+        return false;
+      }
+
+      const passwordValue = String(passwordInput?.value || "").trim();
+      const confirmPasswordValue = String(confirmPasswordInput?.value || "").trim();
+
+      if (!passwordValue) {
+        setInvalidState(passwordInput, true);
+        showSignupBanner("Please enter a password.", "warning");
+        passwordInput?.focus();
+        return false;
+      }
+
+      if (passwordValue.length < 8) {
+        setInvalidState(passwordInput, true);
+        showSignupBanner("Password must be at least 8 characters.", "warning");
+        passwordInput?.focus();
+        return false;
+      }
+
+      if (!confirmPasswordValue) {
+        setInvalidState(confirmPasswordInput, true);
+        showSignupBanner("Please confirm your password.", "warning");
+        confirmPasswordInput?.focus();
+        return false;
+      }
+
+      if (passwordValue !== confirmPasswordValue) {
+        setInvalidState(confirmPasswordInput, true);
+        showSignupBanner("Passwords do not match. Please confirm again.", "warning");
+        confirmPasswordInput?.focus();
+        return false;
+      }
+
+      return true;
+    }
+
+    function validateStepTwo() {
+      const selectedLevel = document.querySelector('input[name="level"]:checked');
+      if (selectedLevel) return true;
       showSignupBanner("Please choose your starting level.", "warning");
       return false;
     }
-    return true;
-  }
 
-  function validateStep3() {
-    const reasons = document.querySelectorAll('input[name="reasons"]:checked');
-    if (!reasons || reasons.length === 0) {
+    function validateStepThree() {
+      const selectedReasons = document.querySelectorAll('input[name="reasons"]:checked');
+      if (selectedReasons.length > 0) return true;
       showSignupBanner("Please select at least one reason to continue.", "warning");
       return false;
     }
+
+    function setReviewText(elementId, value) {
+      const element = getElementById(elementId);
+      if (element) element.textContent = value;
+    }
+
+    function fillReviewValues() {
+      setReviewText("reviewFirst", getElementById("first_name")?.value || "-");
+      setReviewText("reviewLast", getElementById("last_name")?.value || "-");
+      setReviewText("reviewUser", getElementById("username")?.value || "-");
+      setReviewText("reviewEmail", getElementById("email")?.value || "-");
+      setReviewText("reviewDob", getElementById("dob")?.value || "-");
+
+      const selectedLevel = document.querySelector('input[name="level"]:checked');
+      setReviewText("reviewLevel", selectedLevel ? selectedLevel.value : "-");
+
+      const selectedReasons = Array.from(document.querySelectorAll('input[name="reasons"]:checked'))
+        .map((inputElement) => inputElement.value);
+
+      setReviewText("reviewReasons", selectedReasons.length ? selectedReasons.join(", ") : "None selected");
+    }
+  }
+
+  // -------------------------------------------------------
+  // Auth requests and session storage
+  // -------------------------------------------------------
+
+  function persistUserSession(userPayload) {
+    if (!userPayload) return;
+    localStorage.setItem("user", JSON.stringify(userPayload));
+    localStorage.setItem("netology_user", JSON.stringify(userPayload));
+    if (userPayload.email) {
+      localStorage.setItem("netology_last_email", String(userPayload.email));
+    }
+  }
+
+  function buildLoginPayload(loginData, email, unlockTier) {
+    return {
+      email,
+      first_name: loginData.first_name,
+      last_name: loginData.last_name,
+      username: loginData.username,
+      level: loginData.level,
+      rank: loginData.rank || loginData.level,
+      numeric_level: Number.isFinite(Number(loginData.numeric_level)) ? Number(loginData.numeric_level) : undefined,
+      xp: Number.isFinite(Number(loginData.xp)) ? Number(loginData.xp) : 0,
+      xp_into_level: Number.isFinite(Number(loginData.xp_into_level)) ? Number(loginData.xp_into_level) : undefined,
+      next_level_xp: Number.isFinite(Number(loginData.next_level_xp)) ? Number(loginData.next_level_xp) : undefined,
+      unlock_tier: normalizeTier(unlockTier),
+      is_first_login: Boolean(loginData.is_first_login),
+      onboarding_completed: Boolean(loginData.onboarding_completed)
+    };
+  }
+
+  function openOverlay(overlayId) {
+    const overlay = getElementById(overlayId);
+    if (!overlay) return null;
+
+    overlay.classList.remove("d-none");
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    return overlay;
+  }
+
+  function fillSignupConfetti(overlayElement) {
+    if (!overlayElement) return;
+
+    const confettiContainer = overlayElement.querySelector(".net-signup-success-confetti");
+    if (!confettiContainer || confettiContainer.childElementCount > 0) return;
+
+    const colors = ["#06b6d4", "#14b8a6", "#38bdf8", "#67e8f9", "#a78bfa", "#0d9488", "#22d3ee"];
+
+    for (let pieceIndex = 0; pieceIndex < 55; pieceIndex += 1) {
+      const confettiPiece = document.createElement("span");
+      const size = 4 + Math.random() * 8;
+
+      confettiPiece.style.left = `${Math.random() * 100}%`;
+      confettiPiece.style.width = `${size}px`;
+      confettiPiece.style.height = `${size}px`;
+      confettiPiece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      confettiPiece.style.animationDelay = `${Math.random() * 2}s`;
+      confettiPiece.style.animationDuration = `${2.5 + Math.random() * 2.5}s`;
+      confettiPiece.style.boxShadow = `0 0 ${size}px ${colors[Math.floor(Math.random() * colors.length)]}`;
+
+      confettiContainer.appendChild(confettiPiece);
+    }
+  }
+
+  async function tryAutoLoginAfterSignup(email, password, selectedTier) {
+    const loginFormData = new FormData();
+    loginFormData.append("email", email);
+    loginFormData.append("password", password);
+
+    const response = await fetch(`${API_BASE}/login`, {
+      method: "POST",
+      body: loginFormData
+    });
+
+    const loginData = await response.json();
+    if (!loginData?.success) return false;
+
+    const normalizedEmail = normalizeEmail(email);
+    const unlockTier = normalizeTier(selectedTier || loginData.start_level || "novice");
+
+    const sessionPayload = {
+      email: normalizedEmail,
+      first_name: loginData.first_name,
+      last_name: loginData.last_name,
+      username: loginData.username,
+      level: loginData.level,
+      rank: loginData.rank || loginData.level,
+      numeric_level: Number.isFinite(Number(loginData.numeric_level)) ? Number(loginData.numeric_level) : 1,
+      xp: Number.isFinite(Number(loginData.xp)) ? Number(loginData.xp) : 0,
+      xp_into_level: Number.isFinite(Number(loginData.xp_into_level)) ? Number(loginData.xp_into_level) : 0,
+      next_level_xp: Number.isFinite(Number(loginData.next_level_xp)) ? Number(loginData.next_level_xp) : 100,
+      unlock_tier: unlockTier,
+      is_first_login: true,
+      onboarding_completed: false
+    };
+
+    persistUserSession(sessionPayload);
+
+    stageOnboardingForUser(normalizedEmail, ONBOARDING_STAGE_DEFAULT);
+    setOnboardingSessionActive(true);
+
+    recordLoginDay(normalizedEmail);
     return true;
   }
 
-  function fillReview() {
-    setText("reviewFirst", getById("first_name")?.value || "-");
-    setText("reviewLast", getById("last_name")?.value || "-");
-    setText("reviewUser", getById("username")?.value || "-");
-    setText("reviewEmail", getById("email")?.value || "-");
-    setText("reviewDob", getById("dob")?.value || "-");
+  function showLoginSuccessOverlay(firstName) {
+    const overlayElement = openOverlay("loginSuccessOverlay");
+    if (!overlayElement) return false;
 
-    const lvl = document.querySelector('input[name="level"]:checked');
-    setText("reviewLevel", lvl ? lvl.value : "-");
-
-    const reasons = Array.from(document.querySelectorAll('input[name="reasons"]:checked')).map((x) => x.value);
-    setText("reviewReasons", reasons.length ? reasons.join(", ") : "None selected");
-  }
-
-  function setText(id, text) {
-    const el = getById(id);
-    if (el) el.textContent = text;
-  }
-}
-
-/* AI Prompt: Explain the FORGOT PASSWORD (forgot.html) – EMAIL ONLY section in clear, simple terms. */
-/* =========================================================
-   FORGOT PASSWORD (forgot.html) – EMAIL ONLY
-========================================================= */
-
-function initForgotForm() {
-  const form = getById("forgotForm");
-  if (!form) return;
-
-  const emailEl = getById("fp_email");
-  const passEl = getById("fp_password");
-  const confEl = getById("fp_confirm");
-
-  const formView = getById("forgotFormView");
-  const successView = getById("forgotSuccessView");
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    setInvalid(emailEl, false);
-    setInvalid(passEl, false);
-    setInvalid(confEl, false);
-
-    const email = (emailEl?.value || "").trim();
-    const password = (passEl?.value || "").trim();
-    const confirm = (confEl?.value || "").trim();
-
-    if (!isValidEmail(email)) {
-      setInvalid(emailEl, true);
-      showForgotBanner("Please enter a valid email address.", "warning");
-      return;
+    const nameElement = getElementById("loginSuccessName");
+    if (nameElement) {
+      const safeFirstName = String(firstName || "").trim();
+      nameElement.textContent = safeFirstName || "there";
     }
 
-    if (password.length < 8) {
-      setInvalid(passEl, true);
-      showForgotBanner("Password must be at least 8 characters.", "warning");
-      return;
+    return true;
+  }
+
+  function wireSignupSubmit(formElement) {
+    if (!formElement) return;
+
+    formElement.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const firstName = getElementById("first_name")?.value.trim();
+      const lastName = getElementById("last_name")?.value.trim();
+      const username = getElementById("username")?.value.trim();
+      const dateOfBirth = getElementById("dob")?.value;
+      const email = getElementById("email")?.value.trim();
+      const password = getElementById("password")?.value.trim();
+      const confirmPassword = getElementById("confirm_password")?.value.trim();
+      const selectedLevel = document.querySelector('input[name="level"]:checked');
+      const selectedReasons = document.querySelectorAll('input[name="reasons"]:checked');
+
+      if (!firstName || !lastName || !username || !dateOfBirth || !email || !password || !confirmPassword) {
+        showSignupBanner("Please complete all required fields before creating your account.", "warning");
+        return;
+      }
+
+      if (!isValidEmail(email)) {
+        showSignupBanner("That email format does not look right. Please check and try again.", "warning");
+        return;
+      }
+
+      if (password.length < 8) {
+        showSignupBanner("Password must be at least 8 characters.", "warning");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showSignupBanner("Your passwords do not match. Please confirm your password.", "warning");
+        return;
+      }
+
+      if (!selectedLevel) {
+        showSignupBanner("Please choose your starting level.", "warning");
+        return;
+      }
+
+      if (selectedReasons.length === 0) {
+        showSignupBanner("Please select at least one reason. This helps personalise your learning.", "warning");
+        return;
+      }
+
+      const selectedTier = normalizeTier(selectedLevel.value, "novice");
+      localStorage.setItem("unlock_tier_pending", selectedTier);
+
+      try {
+        const response = await fetch(`${API_BASE}/register`, {
+          method: "POST",
+          body: new FormData(formElement)
+        });
+
+        const responseData = await response.json();
+
+        if (!responseData?.success) {
+          showPopup(responseData?.message || "Signup failed. Try again.", "error");
+          return;
+        }
+
+        let autoLoginWorked = false;
+        try {
+          autoLoginWorked = await tryAutoLoginAfterSignup(email, password, selectedTier);
+        } catch {
+          autoLoginWorked = false;
+        }
+
+        const overlayElement = openOverlay("signupSuccessOverlay");
+        if (overlayElement) {
+          fillSignupConfetti(overlayElement);
+          setTimeout(() => {
+            window.location.href = autoLoginWorked ? "dashboard.html" : "login.html";
+          }, 3800);
+          return;
+        }
+
+        showPopup(
+          autoLoginWorked ? "Account created! Heading to your dashboard..." : "Account created! Please sign in.",
+          "success"
+        );
+
+        setTimeout(() => {
+          window.location.href = autoLoginWorked ? "dashboard.html" : "login.html";
+        }, 1200);
+      } catch {
+        showPopup("Server error. Please try again.", "error");
+      }
+    });
+  }
+
+  function wireLoginSubmit(formElement) {
+    if (!formElement) return;
+
+    formElement.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const emailInput = getElementById("email");
+      const passwordInput = getElementById("password");
+
+      const email = String(emailInput?.value || "").trim();
+      const password = String(passwordInput?.value || "").trim();
+
+      setInvalidState(emailInput, false);
+      setInvalidState(passwordInput, false);
+
+      if (!email) {
+        setInvalidState(emailInput, true);
+        showLoginBanner("Please enter your email address.", "warning");
+        emailInput?.focus();
+        return;
+      }
+
+      if (!isValidEmail(email)) {
+        setInvalidState(emailInput, true);
+        showLoginBanner("That email format does not look right. Please check and try again.", "warning");
+        emailInput?.focus();
+        return;
+      }
+
+      if (!password) {
+        setInvalidState(passwordInput, true);
+        showLoginBanner("Please enter your password.", "warning");
+        passwordInput?.focus();
+        return;
+      }
+
+      if (password.length < 8) {
+        setInvalidState(passwordInput, true);
+        showLoginBanner("Password must be at least 8 characters.", "warning");
+        passwordInput?.focus();
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/login`, {
+          method: "POST",
+          body: new FormData(formElement)
+        });
+
+        const responseData = await response.json();
+        if (!responseData?.success) {
+          setInvalidState(emailInput, true);
+          setInvalidState(passwordInput, true);
+          showLoginBanner(responseData?.message || "Incorrect email or password. Please try again.", "error");
+          return;
+        }
+
+        const pendingTier = normalizeTier(localStorage.getItem("unlock_tier_pending"), "");
+        const existingUser = parseJsonSafely(localStorage.getItem("user"), {}) || {};
+        const existingTier = normalizeTier(existingUser.unlock_tier || existingUser.unlock_level || existingUser.unlockTier, "");
+        const serverTier = normalizeTier(responseData.start_level, "");
+
+        const unlockTier = normalizeTier(serverTier || existingTier || pendingTier || "novice");
+        const normalizedEmail = normalizeEmail(email);
+
+        const loginPayload = buildLoginPayload(responseData, normalizedEmail, unlockTier);
+        persistUserSession(loginPayload);
+
+        const firstLoginFlag = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.firstLogin));
+        const hasGlobalCompletion =
+          localStorage.getItem(ONBOARDING_KEYS.completed) === "true" ||
+          localStorage.getItem(ONBOARDING_KEYS.skipped) === "true";
+
+        const hasEmailCompletion =
+          Boolean(responseData.onboarding_completed) ||
+          localStorage.getItem(onboardingCompletedKey(normalizedEmail)) === "true";
+
+        const shouldStartOnboarding =
+          !hasGlobalCompletion &&
+          !hasEmailCompletion &&
+          (Boolean(responseData.is_first_login) || firstLoginFlag === normalizedEmail);
+
+        if (shouldStartOnboarding) {
+          stageOnboardingForUser(normalizedEmail, ONBOARDING_STAGE_DEFAULT);
+          localStorage.removeItem(ONBOARDING_KEYS.firstLogin);
+          setOnboardingSessionActive(true);
+        }
+
+        const loginLog = recordLoginDay(normalizedEmail);
+        const streak = computeLoginStreak(loginLog);
+        await awardLoginStreakBadges(normalizedEmail, streak);
+
+        if (pendingTier) {
+          localStorage.removeItem("unlock_tier_pending");
+        }
+
+        const overlayShown = showLoginSuccessOverlay(responseData.first_name || loginPayload.first_name);
+        if (!overlayShown) {
+          showLoginBanner(`Welcome back, ${responseData.first_name}! Redirecting...`, "success");
+        }
+
+        setTimeout(() => {
+          window.location.href = "dashboard.html";
+        }, overlayShown ? 2200 : 900);
+      } catch {
+        showLoginBanner("Cannot reach the server right now. Please check your connection and try again.", "error");
+      }
+    });
+  }
+
+  function initForgotPasswordForm() {
+    const forgotFormElement = getElementById("forgotForm");
+    if (!forgotFormElement) return;
+
+    const emailInput = getElementById("fp_email");
+    const passwordInput = getElementById("fp_password");
+    const confirmPasswordInput = getElementById("fp_confirm");
+
+    const formViewElement = getElementById("forgotFormView");
+    const successViewElement = getElementById("forgotSuccessView");
+
+    forgotFormElement.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      hideForgotBanner();
+      setInvalidState(emailInput, false);
+      setInvalidState(passwordInput, false);
+      setInvalidState(confirmPasswordInput, false);
+
+      const email = String(emailInput?.value || "").trim();
+      const password = String(passwordInput?.value || "").trim();
+      const confirmPassword = String(confirmPasswordInput?.value || "").trim();
+
+      if (!isValidEmail(email)) {
+        setInvalidState(emailInput, true);
+        showForgotBanner("Please enter a valid email address.", "warning");
+        return;
+      }
+
+      if (password.length < 8) {
+        setInvalidState(passwordInput, true);
+        showForgotBanner("Password must be at least 8 characters.", "warning");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setInvalidState(confirmPasswordInput, true);
+        showForgotBanner("Passwords do not match.", "warning");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const responseData = await response.json();
+        if (!responseData?.success) {
+          showForgotBanner(responseData?.message || "Reset failed.", "error");
+          return;
+        }
+
+        showPopup("Password updated successfully.", "success");
+        formViewElement?.classList.add("d-none");
+        successViewElement?.classList.remove("d-none");
+      } catch {
+        showForgotBanner("Server error. Please try again.", "error");
+      }
+    });
+  }
+
+  function initAuthForms() {
+    const signupFormElement = getElementById("signupForm");
+    if (signupFormElement) {
+      initSignupWizard(signupFormElement);
+      wireSignupSubmit(signupFormElement);
     }
 
-    if (password !== confirm) {
-      setInvalid(confEl, true);
-      showForgotBanner("Passwords do not match.", "warning");
-      return;
+    const loginFormElement = getElementById("loginForm");
+    if (loginFormElement) {
+      wireLoginSubmit(loginFormElement);
+    }
+
+    initForgotPasswordForm();
+    initPasswordToggles();
+  }
+
+  // -------------------------------------------------------
+  // Login streak and login badge system
+  // -------------------------------------------------------
+
+  function getDateKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function getLoginLog(email) {
+    try {
+      return JSON.parse(localStorage.getItem(`netology_login_log:${email}`) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function saveLoginLog(email, logDays) {
+    localStorage.setItem(`netology_login_log:${email}`, JSON.stringify(logDays));
+  }
+
+  function recordLoginDay(email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return [];
+
+    const loginLog = getLoginLog(normalizedEmail);
+    const todayKey = getDateKey();
+
+    if (!loginLog.includes(todayKey)) {
+      loginLog.push(todayKey);
+      loginLog.sort();
+      saveLoginLog(normalizedEmail, loginLog);
     }
 
     try {
-      const res = await fetch(`${API_BASE}/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        showPopup("Password updated successfully.", "success");
-        formView?.classList.add("d-none");
-        successView?.classList.remove("d-none");
-      } else {
-        showForgotBanner(data.message || "Reset failed.", "error");
+      const recordLoginPath = ENDPOINTS.auth?.recordLogin || "/record-login";
+      if (API_BASE) {
+        fetch(`${API_BASE}${recordLoginPath}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail })
+        }).catch(() => {
+          // Ignore network errors for background sync.
+        });
       }
     } catch {
-      showForgotBanner("Server error. Please try again.", "error");
+      // Ignore unexpected fetch errors.
     }
-  });
-}
 
-/* AI Prompt: Explain the INLINE BANNERS (login.html + signup.html + forgot.html) section in clear, simple terms. */
-/* =========================================================
-   INLINE BANNERS (login.html + signup.html + forgot.html)
-========================================================= */
-
-function showLoginBanner(message, type) {
-  const banner = getById("loginBanner");
-  if (!banner) { showPopup(message, type === "success" ? "success" : "error"); return; }
-
-  banner.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
-  banner.classList.add("alert");
-
-  if (type === "success") banner.classList.add("alert-success");
-  else if (type === "warning") banner.classList.add("alert-warning");
-  else banner.classList.add("alert-danger");
-
-  setBannerContent(banner, type, message);
-
-  window.clearTimeout(showLoginBanner._t);
-  showLoginBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4000);
-}
-
-function showLoginSuccessOverlay(name) {
-  const overlay = getById("loginSuccessOverlay");
-  if (!overlay) return false;
-
-  const nameEl = getById("loginSuccessName");
-  if (nameEl) {
-    const safeName = String(name || "").trim();
-    nameEl.textContent = safeName ? safeName : "there";
+    return loginLog;
   }
 
-  overlay.classList.remove("d-none");
-  overlay.setAttribute("aria-hidden", "false");
-  document.body.style.overflow = "hidden";
+  function computeLoginStreak(logDays) {
+    if (!Array.isArray(logDays) || !logDays.length) return 0;
 
-  return true;
-}
+    const daySet = new Set(logDays);
+    const cursorDate = new Date();
+    let streakCount = 0;
 
-function showSignupBanner(message, type) {
-  const banner = getById("signupBanner");
-  if (!banner) { showPopup(message, type === "success" ? "success" : "error"); return; }
+    while (daySet.has(getDateKey(cursorDate))) {
+      streakCount += 1;
+      cursorDate.setDate(cursorDate.getDate() - 1);
+    }
 
-  banner.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
-  banner.classList.add("alert");
-
-  if (type === "success") banner.classList.add("alert-success");
-  else if (type === "warning") banner.classList.add("alert-warning");
-  else banner.classList.add("alert-danger");
-
-  setBannerContent(banner, type, message);
-
-  window.clearTimeout(showSignupBanner._t);
-  showSignupBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4500);
-}
-
-function hideSignupBanner() {
-  const banner = getById("signupBanner");
-  if (!banner) return;
-  banner.classList.add("d-none");
-}
-
-function showForgotBanner(message, type) {
-  const banner = getById("forgotBanner");
-  if (!banner) { showPopup(message, type === "success" ? "success" : "error"); return; }
-
-  banner.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
-  banner.classList.add("alert");
-
-  if (type === "success") banner.classList.add("alert-success");
-  else if (type === "warning") banner.classList.add("alert-warning");
-  else banner.classList.add("alert-danger");
-
-  setBannerContent(banner, type, message);
-
-  window.clearTimeout(showForgotBanner._t);
-  showForgotBanner._t = window.setTimeout(() => banner.classList.add("d-none"), 4500);
-}
-
-function hideForgotBanner() {
-  const banner = getById("forgotBanner");
-  if (!banner) return;
-  banner.classList.add("d-none");
-}
-
-function buildBannerIcon(type) {
-  const t = String(type || "").toLowerCase();
-  const cls = t === "success"
-    ? "bi-check-circle-fill"
-    : t === "warning"
-      ? "bi-exclamation-triangle-fill"
-      : "bi-x-circle-fill";
-
-  const wrap = document.createElement("span");
-  wrap.className = "net-banner-icon";
-  wrap.setAttribute("aria-hidden", "true");
-
-  const icon = document.createElement("i");
-  icon.className = `bi ${cls}`;
-  wrap.appendChild(icon);
-  return wrap;
-}
-
-function setBannerContent(banner, type, message) {
-  if (!banner) return;
-  banner.replaceChildren();
-  const icon = buildBannerIcon(type);
-  const text = document.createTextNode(String(message || ""));
-  banner.append(icon, text);
-}
-
-/* AI Prompt: Explain the LOGIN STREAKS + BADGES (localStorage) section in clear, simple terms. */
-/* =========================================================
-   LOGIN STREAKS + BADGES (localStorage)
-========================================================= */
-
-function dateKey(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function getLoginLog(email) {
-  try {
-    return JSON.parse(localStorage.getItem(`netology_login_log:${email}`) || "[]");
-  } catch {
-    return [];
+    return streakCount;
   }
-}
 
-function saveLoginLog(email, log) {
-  localStorage.setItem(`netology_login_log:${email}`, JSON.stringify(log));
-}
-
-function recordLoginDay(email) {
-  if (!email) return [];
-  const log = getLoginLog(email);
-  const today = dateKey();
-  if (!log.includes(today)) {
-    log.push(today);
-    log.sort();
-    saveLoginLog(email, log);
+  function getStoredBadges(email) {
+    try {
+      return JSON.parse(localStorage.getItem(`netology_badges:${email}`) || "[]");
+    } catch {
+      return [];
+    }
   }
-  try {
-    const base = String(window.API_BASE || "").replace(/\/$/, "");
-    if (base) {
-      fetch(`${base}/record-login`, {
+
+  function saveStoredBadges(email, badges) {
+    localStorage.setItem(`netology_badges:${email}`, JSON.stringify(badges));
+  }
+
+  function totalXpForLevel(level) {
+    const safeLevel = Math.max(1, Number(level) || 1);
+    return (100 * (safeLevel - 1) * safeLevel) / 2;
+  }
+
+  function levelFromTotalXp(totalXp) {
+    const safeXp = Math.max(0, Number(totalXp) || 0);
+    const value = safeXp / 100;
+    const level = Math.floor((1 + Math.sqrt(1 + 8 * value)) / 2);
+    return Math.max(1, level);
+  }
+
+  function xpForNextLevel(level) {
+    const safeLevel = Math.max(1, Number(level) || 1);
+    return 100 * safeLevel;
+  }
+
+  function rankForLevel(level) {
+    const numericLevel = Number(level);
+    if (numericLevel >= 5) return "Advanced";
+    if (numericLevel >= 3) return "Intermediate";
+    return "Novice";
+  }
+
+  function applyXpToUser(userData, additionalXp) {
+    const nextTotalXp = Math.max(0, Number(userData?.xp || 0) + Number(additionalXp || 0));
+    const level = levelFromTotalXp(nextTotalXp);
+    const levelStartXp = totalXpForLevel(level);
+
+    return {
+      ...userData,
+      xp: nextTotalXp,
+      numeric_level: level,
+      xp_into_level: Math.max(0, nextTotalXp - levelStartXp),
+      next_level_xp: xpForNextLevel(level),
+      level: rankForLevel(level),
+      rank: rankForLevel(level)
+    };
+  }
+
+  function bumpStoredUserXp(email, deltaXp) {
+    if (!deltaXp) return;
+
+    ["user", "netology_user"].forEach((storageKey) => {
+      const currentUser = parseJsonSafely(localStorage.getItem(storageKey), null);
+      if (!currentUser || normalizeEmail(currentUser.email) !== normalizeEmail(email)) return;
+
+      const updatedUser = applyXpToUser(currentUser, deltaXp);
+      localStorage.setItem(storageKey, JSON.stringify(updatedUser));
+    });
+  }
+
+  function getLoginBadgeDefinitions() {
+    return [
+      { id: "login-streak-3", name: "3-Day Streak", description: "Log in 3 days in a row", target: 3, xp: 50 },
+      { id: "login-streak-5", name: "5-Day Streak", description: "Log in 5 days in a row", target: 5, xp: 75 },
+      { id: "login-streak-7", name: "7-Day Streak", description: "Log in 7 days in a row", target: 7, xp: 100 },
+      { id: "login-streak-10", name: "10-Day Streak", description: "Log in 10 days in a row", target: 10, xp: 150 }
+    ];
+  }
+
+  async function awardAchievementRemote(email, badgeDefinition) {
+    if (!email || !API_BASE) return { awarded: false, xp_added: 0 };
+
+    try {
+      const response = await fetch(`${API_BASE}${ENDPOINTS.achievements?.award || "/award-achievement"}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      }).catch(() => {});
+        body: JSON.stringify({
+          email,
+          achievement_id: badgeDefinition.id,
+          name: badgeDefinition.name,
+          description: badgeDefinition.description,
+          tier: badgeDefinition.tier || "bronze",
+          xp: badgeDefinition.xp || 0
+        })
+      });
+
+      const responseData = await response.json().catch(() => ({}));
+      return responseData || { awarded: false, xp_added: 0 };
+    } catch {
+      return { awarded: false, xp_added: 0 };
     }
-  } catch {}
-  return log;
-}
-
-function computeLoginStreak(log) {
-  if (!Array.isArray(log) || !log.length) return 0;
-  const set = new Set(log);
-  let streak = 0;
-  const cursor = new Date();
-  while (set.has(dateKey(cursor))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
   }
-  return streak;
-}
 
-function getBadges(email) {
-  try {
-    return JSON.parse(localStorage.getItem(`netology_badges:${email}`) || "[]");
-  } catch {
-    return [];
-  }
-}
+  async function awardLoginStreakBadges(email, streak) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return;
 
-function saveBadges(email, badges) {
-  localStorage.setItem(`netology_badges:${email}`, JSON.stringify(badges));
-}
+    const badgeDefinitions = getLoginBadgeDefinitions();
+    const currentBadges = getStoredBadges(normalizedEmail);
+    const earnedIds = new Set(currentBadges.map((badge) => badge.id));
+    let changed = false;
 
-function totalXpForLevel(level) {
-  const lvl = Math.max(1, Number(level) || 1);
-  return 100 * (lvl - 1) * lvl / 2;
-}
+    for (const badgeDefinition of badgeDefinitions) {
+      if (streak < badgeDefinition.target) continue;
+      if (earnedIds.has(badgeDefinition.id)) continue;
 
-function levelFromTotalXp(totalXp) {
-  const xp = Math.max(0, Number(totalXp) || 0);
-  const t = xp / 100;
-  const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
-  return Math.max(1, lvl);
-}
+      const result = await awardAchievementRemote(normalizedEmail, badgeDefinition);
+      if (!result?.awarded) continue;
 
-function xpForNextLevel(level) {
-  const lvl = Math.max(1, Number(level) || 1);
-  return 100 * lvl;
-}
+      currentBadges.push({
+        id: badgeDefinition.id,
+        name: badgeDefinition.name,
+        description: badgeDefinition.description,
+        xp: badgeDefinition.xp,
+        earnedAt: getDateKey()
+      });
 
-function rankForLevel(level) {
-  if (Number(level) >= 5) return "Advanced";
-  if (Number(level) >= 3) return "Intermediate";
-  return "Novice";
-}
+      earnedIds.add(badgeDefinition.id);
+      changed = true;
 
-function applyXpToUser(user, addXP) {
-  const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
-  const level = levelFromTotalXp(nextTotal);
-  const levelStart = totalXpForLevel(level);
-  const currentLevelXP = Math.max(0, nextTotal - levelStart);
-  const xpNext = xpForNextLevel(level);
-  const rank = rankForLevel(level);
-  return {
-    ...user,
-    xp: nextTotal,
-    numeric_level: level,
-    xp_into_level: currentLevelXP,
-    next_level_xp: xpNext,
-    level: rank,
-    rank
-  };
-}
-
-function bumpUserXP(email, delta) {
-  if (!delta) return;
-  const rawUser = parseJsonSafe(localStorage.getItem("user"), null);
-  if (rawUser && rawUser.email === email) {
-    const updated = applyXpToUser(rawUser, delta);
-    localStorage.setItem("user", JSON.stringify(updated));
-  }
-  const rawNet = parseJsonSafe(localStorage.getItem("netology_user"), null);
-  if (rawNet && rawNet.email === email) {
-    const updated = applyXpToUser(rawNet, delta);
-    localStorage.setItem("netology_user", JSON.stringify(updated));
-  }
-}
-
-function loginBadgeDefs() {
-  return [
-    { id: "login-streak-3", name: "3-Day Streak", description: "Log in 3 days in a row", target: 3, xp: 50 },
-    { id: "login-streak-5", name: "5-Day Streak", description: "Log in 5 days in a row", target: 5, xp: 75 },
-    { id: "login-streak-7", name: "7-Day Streak", description: "Log in 7 days in a row", target: 7, xp: 100 },
-    { id: "login-streak-10", name: "10-Day Streak", description: "Log in 10 days in a row", target: 10, xp: 150 }
-  ];
-}
-
-async function awardAchievementRemote(email, def) {
-  if (!email || !API_BASE) return { awarded: false, xp_added: 0 };
-  try {
-    const res = await fetch(`${API_BASE}/award-achievement`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        achievement_id: def.id,
-        name: def.name,
-        description: def.description,
-        tier: def.tier || "bronze",
-        xp: def.xp || 0
-      })
-    });
-    const data = await res.json().catch(() => ({}));
-    return data || { awarded: false, xp_added: 0 };
-  } catch {
-    return { awarded: false, xp_added: 0 };
-  }
-}
-
-async function awardLoginStreakBadges(email, streak) {
-  if (!email) return;
-  const defs = loginBadgeDefs();
-  const badges = getBadges(email);
-  const earned = new Set(badges.map((b) => b.id));
-  let changed = false;
-
-  for (const def of defs) {
-    if (streak >= def.target && !earned.has(def.id)) {
-      const result = await awardAchievementRemote(email, def);
-      if (result?.awarded) {
-        badges.push({ id: def.id, name: def.name, description: def.description, xp: def.xp, earnedAt: dateKey() });
-        earned.add(def.id);
-        const xpAdded = Number(result.xp_added || def.xp || 0);
-        if (xpAdded > 0) bumpUserXP(email, xpAdded);
-        changed = true;
+      const xpToAdd = Number(result.xp_added || badgeDefinition.xp || 0);
+      if (xpToAdd > 0) {
+        bumpStoredUserXp(normalizedEmail, xpToAdd);
       }
     }
+
+    if (changed) {
+      saveStoredBadges(normalizedEmail, currentBadges);
+    }
   }
 
-  if (changed) saveBadges(email, badges);
-}
+  window.recordLoginDay = recordLoginDay;
+  window.awardLoginStreakBadges = awardLoginStreakBadges;
 
-/* AI Prompt: Explain the SHARED HELPERS section in clear, simple terms. */
-/* =========================================================
-   SHARED HELPERS
-========================================================= */
+  // -------------------------------------------------------
+  // Onboarding tour
+  // -------------------------------------------------------
 
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(email || "").trim());
-}
+  class OnboardingTour {
+    constructor(userEmail, options = {}) {
+      this.userEmail = userEmail;
+      this.options = options;
+      this.steps = Array.isArray(options.steps) ? options.steps : [];
+      this.allowApi = options.allowApi !== false;
+      this.onComplete = options.onComplete;
+      this.onSkip = options.onSkip;
 
-function setInvalid(el, isInvalid) {
-  if (!el) return;
-  if (isInvalid) el.classList.add("is-invalid");
-  else el.classList.remove("is-invalid");
-}
+      this.currentStepIndex = 0;
+      this.currentTarget = null;
+      this.stepToken = 0;
+      this.isActive = false;
+      this.isScreenLocked = false;
 
-/* AI Prompt: Explain the Modern Toast Popup (Netology themed) section in clear, simple terms. */
-/* =========================================================
-   Modern Toast Popup (Netology themed)
-========================================================= */
+      this.backdropElement = null;
+      this.spotlightElement = null;
+      this.tooltipElement = null;
+      this.lastSpotlitElement = null;
 
-function showPopup(message, type) {
-  // Prefer shared toast helper if available.
-  if (window.NetologyToast?.showMessageToast) {
-    window.NetologyToast.showMessageToast(message, type || "info", 3200);
-    return;
-  }
+      this.scrollBlocker = null;
+      this.keyBlocker = null;
+      this.resizeHandler = null;
+      this.escapeHandler = null;
+    }
 
-  // Safe fallback if helper is not loaded.
-  if (typeof window.showCelebrateToast === "function") {
-    window.showCelebrateToast({
-      title: "Info",
-      message: String(message || ""),
-      type: type || "info",
-      mini: true,
-      duration: 3200
-    });
-    return;
-  }
+    async init() {
+      try {
+        if (!this.steps.length && this.allowApi) {
+          const stepPath = getOnboardingPath("steps");
+          const responseData = await apiGet(stepPath);
+          this.steps = Array.isArray(responseData?.steps) ? responseData.steps : [];
+        }
 
-  // Last fallback: native alert.
-  if (message) {
-    alert(String(message));
-  }
-}
+        if (!this.steps.length) {
+          console.warn("Onboarding steps are missing. Tour was not started.");
+          return;
+        }
 
-function escapeHtml(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+        if (this.allowApi) {
+          const startPath = getOnboardingPath("start");
+          await apiPost(startPath, { user_email: this.userEmail });
+        }
 
-// =========================================================
-// ONBOARDING TOUR SYSTEM
-// =========================================================
+        this.isActive = true;
+        this.createBackdrop();
+        this.createSpotlight();
+        this.createTooltip();
+        this.lockScreen();
+        await this.showStep(0, 1);
+      } catch (error) {
+        console.error("Onboarding init failed:", error);
+      }
+    }
 
-class OnboardingTour {
-  constructor(userEmail, options = {}) {
-    this.userEmail = userEmail;
-    this.options = options || {};
-    this.steps = Array.isArray(this.options.steps) ? this.options.steps : [];
-    this.currentStepIndex = 0;
-    this.isActive = false;
-    this.isLocked = false;
-    this.scrollbarCompensation = 0;
-    this.stepToken = 0;
-    this.currentTarget = null;
-    this.spotlightElement = null;
-    this.backdropElement = null;
-    this.tooltipElement = null;
-    this.allowApi = this.options.allowApi !== false;
-    this.onComplete = this.options.onComplete;
-    this.onSkip = this.options.onSkip;
-    this._scrollBlocker = null;
-    this._keyBlocker = null;
-    this._resizeHandler = null;
-  }
+    createBackdrop() {
+      this.backdropElement = document.createElement("div");
+      this.backdropElement.className = "onboarding-backdrop";
+      document.body.appendChild(this.backdropElement);
+    }
 
-  async init() {
-    try {
-      if (!this.steps.length && this.allowApi) {
-        const data = await apiGet(ENDPOINTS.onboarding?.steps || "/api/onboarding/steps");
-        this.steps = Array.isArray(data?.steps) ? data.steps : [];
+    createSpotlight() {
+      this.spotlightElement = document.createElement("div");
+      this.spotlightElement.className = "onboarding-spotlight";
+      document.body.appendChild(this.spotlightElement);
+    }
+
+    createTooltip() {
+      this.tooltipElement = document.createElement("div");
+      this.tooltipElement.className = "onboarding-tooltip";
+      this.tooltipElement.setAttribute("role", "dialog");
+      this.tooltipElement.setAttribute("aria-live", "polite");
+      this.tooltipElement.setAttribute("aria-modal", "true");
+      this.tooltipElement.setAttribute("tabindex", "0");
+      document.body.appendChild(this.tooltipElement);
+    }
+
+    lockScreen() {
+      if (this.isScreenLocked) return;
+
+      this.isScreenLocked = true;
+      document.documentElement.classList.add("net-onboarding-lock");
+      document.body.classList.add("net-onboarding-lock");
+
+      const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
       }
 
-      if (!this.steps.length) {
-        console.warn("Onboarding steps missing - tour aborted.");
-        return;
-      }
-
-      if (this.allowApi) {
-        await apiPost(ENDPOINTS.onboarding?.start || "/api/onboarding/start", {
-          user_email: this.userEmail
-        });
-      }
-
-      this.isActive = true;
-      this.createBackdrop();
-      this.createSpotlight();
-      this.createTooltip();
-      this.lockScreen();
-      this.showStep(0);
-    } catch (error) {
-      console.error("Onboarding init failed:", error);
-    }
-  }
-
-  createBackdrop() {
-    this.backdropElement = document.createElement('div');
-    this.backdropElement.className = 'onboarding-backdrop';
-    document.body.appendChild(this.backdropElement);
-  }
-
-  createSpotlight() {
-    this.spotlightElement = document.createElement('div');
-    this.spotlightElement.className = 'onboarding-spotlight';
-    document.body.appendChild(this.spotlightElement);
-  }
-
-  createTooltip() {
-    this.tooltipElement = document.createElement('div');
-    this.tooltipElement.className = 'onboarding-tooltip';
-    this.tooltipElement.setAttribute('role', 'dialog');
-    this.tooltipElement.setAttribute('aria-live', 'polite');
-    this.tooltipElement.setAttribute('aria-modal', 'true');
-    this.tooltipElement.setAttribute('tabindex', '0');
-    document.body.appendChild(this.tooltipElement);
-  }
-
-  lockScreen() {
-    if (this.isLocked) return;
-    this.isLocked = true;
-
-    const html = document.documentElement;
-    const body = document.body;
-    if (!html || !body) return;
-
-    const scrollbarWidth = Math.max(0, window.innerWidth - html.clientWidth);
-    this.scrollbarCompensation = scrollbarWidth;
-
-    // Only lock pointer events — do NOT lock scroll here.
-    // Scroll is managed per-step via focusTarget so the page can
-    // programmatically scroll to bring elements into view.
-    html.classList.add('net-onboarding-lock');
-    body.classList.add('net-onboarding-lock');
-
-    if (scrollbarWidth > 0) {
-      body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    this.attachScrollBlockers();
-    this.attachResizeHandler();
-
-    // Escape-key safety hatch so the user is never permanently stuck
-    this._escHandler = (e) => {
-      if (e.key === 'Escape') this.skipTour();
-    };
-    window.addEventListener('keydown', this._escHandler);
-  }
-
-  unlockScreen() {
-    if (!this.isLocked) return;
-    this.isLocked = false;
-
-    const html = document.documentElement;
-    const body = document.body;
-    if (html) html.classList.remove('net-onboarding-lock');
-    if (body) {
-      body.classList.remove('net-onboarding-lock');
-      body.style.paddingRight = '';
-    }
-
-    this.detachScrollBlockers();
-    this.detachResizeHandler();
-
-    if (this._escHandler) {
-      window.removeEventListener('keydown', this._escHandler);
-      this._escHandler = null;
-    }
-  }
-
-  setScrollLock(enabled) {
-    // Scroll blocking is now handled entirely by JS event listeners.
-    // CSS overflow:hidden was removed because it reset scrollY position.
-    if (enabled) {
       this.attachScrollBlockers();
-    } else {
+      this.attachResizeHandler();
+
+      this.escapeHandler = (event) => {
+        if (event.key === "Escape") {
+          this.skipTour();
+        }
+      };
+      window.addEventListener("keydown", this.escapeHandler);
+    }
+
+    unlockScreen() {
+      if (!this.isScreenLocked) return;
+
+      this.isScreenLocked = false;
+      document.documentElement.classList.remove("net-onboarding-lock");
+      document.body.classList.remove("net-onboarding-lock");
+      document.body.style.paddingRight = "";
+
       this.detachScrollBlockers();
+      this.detachResizeHandler();
+
+      if (this.escapeHandler) {
+        window.removeEventListener("keydown", this.escapeHandler);
+        this.escapeHandler = null;
+      }
     }
-  }
 
-  attachScrollBlockers() {
-    if (this._scrollBlocker) return;
+    attachScrollBlockers() {
+      if (this.scrollBlocker || this.keyBlocker) return;
 
-    this._scrollBlocker = (event) => {
-      if (!this.isActive) return;
-      event.preventDefault();
-    };
-
-    this._keyBlocker = (event) => {
-      if (!this.isActive) return;
-      const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '];
-      if (keys.includes(event.key)) {
+      this.scrollBlocker = (event) => {
+        if (!this.isActive) return;
         event.preventDefault();
-      }
-    };
-
-    window.addEventListener('wheel', this._scrollBlocker, { passive: false });
-    window.addEventListener('touchmove', this._scrollBlocker, { passive: false });
-    window.addEventListener('keydown', this._keyBlocker, { passive: false });
-  }
-
-  detachScrollBlockers() {
-    if (this._scrollBlocker) {
-      window.removeEventListener('wheel', this._scrollBlocker);
-      window.removeEventListener('touchmove', this._scrollBlocker);
-      this._scrollBlocker = null;
-    }
-    if (this._keyBlocker) {
-      window.removeEventListener('keydown', this._keyBlocker);
-      this._keyBlocker = null;
-    }
-  }
-
-  attachResizeHandler() {
-    if (this._resizeHandler) return;
-    this._resizeHandler = () => this.refreshPositions();
-    window.addEventListener('resize', this._resizeHandler);
-  }
-
-  detachResizeHandler() {
-    if (!this._resizeHandler) return;
-    window.removeEventListener('resize', this._resizeHandler);
-    this._resizeHandler = null;
-  }
-
-  refreshPositions() {
-    const step = this.steps[this.currentStepIndex];
-    if (!step || !this.currentTarget) return;
-    this.updateSpotlight(this.currentTarget);
-    this.updateTooltip(step, this.currentTarget);
-  }
-
-  activateTab(tabName) {
-    if (!tabName) return;
-    const tabButton = document.querySelector(`[role="tab"][data-tab="${tabName}"]`);
-    if (tabButton && typeof tabButton.click === 'function') {
-      tabButton.click();
-    }
-  }
-
-  waitForFrames(count = 2) {
-    return new Promise((resolve) => {
-      let frames = 0;
-      const tick = () => {
-        frames += 1;
-        if (frames >= count) resolve();
-        else requestAnimationFrame(tick);
       };
-      requestAnimationFrame(tick);
-    });
-  }
 
-  waitForScrollRest(timeoutMs = 900) {
-    return new Promise((resolve) => {
-      let lastY = window.scrollY;
-      let stableFrames = 0;
-      const start = performance.now();
-
-      const tick = () => {
-        const nowY = window.scrollY;
-        if (Math.abs(nowY - lastY) < 1) {
-          stableFrames += 1;
-        } else {
-          stableFrames = 0;
-          lastY = nowY;
+      this.keyBlocker = (event) => {
+        if (!this.isActive) return;
+        const blockedKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "];
+        if (blockedKeys.includes(event.key)) {
+          event.preventDefault();
         }
+      };
 
-        if (stableFrames >= 2 || performance.now() - start > timeoutMs) {
-          resolve();
-        } else {
+      window.addEventListener("wheel", this.scrollBlocker, { passive: false });
+      window.addEventListener("touchmove", this.scrollBlocker, { passive: false });
+      window.addEventListener("keydown", this.keyBlocker, { passive: false });
+    }
+
+    detachScrollBlockers() {
+      if (this.scrollBlocker) {
+        window.removeEventListener("wheel", this.scrollBlocker);
+        window.removeEventListener("touchmove", this.scrollBlocker);
+        this.scrollBlocker = null;
+      }
+
+      if (this.keyBlocker) {
+        window.removeEventListener("keydown", this.keyBlocker);
+        this.keyBlocker = null;
+      }
+    }
+
+    attachResizeHandler() {
+      if (this.resizeHandler) return;
+      this.resizeHandler = () => this.refreshPositions();
+      window.addEventListener("resize", this.resizeHandler);
+    }
+
+    detachResizeHandler() {
+      if (!this.resizeHandler) return;
+      window.removeEventListener("resize", this.resizeHandler);
+      this.resizeHandler = null;
+    }
+
+    refreshPositions() {
+      const step = this.steps[this.currentStepIndex];
+      if (!step || !this.currentTarget) return;
+
+      this.updateSpotlight(this.currentTarget);
+      this.updateTooltip(step, this.currentTarget);
+    }
+
+    activateTab(tabName) {
+      if (!tabName) return;
+
+      const tabButton = document.querySelector(`[role="tab"][data-tab="${tabName}"]`);
+      if (tabButton && typeof tabButton.click === "function") {
+        tabButton.click();
+      }
+    }
+
+    waitForFrames(count = 2) {
+      return new Promise((resolve) => {
+        let frameCount = 0;
+
+        const tick = () => {
+          frameCount += 1;
+          if (frameCount >= count) {
+            resolve();
+            return;
+          }
           requestAnimationFrame(tick);
-        }
-      };
+        };
 
-      requestAnimationFrame(tick);
-    });
-  }
-
-  async focusTarget(element) {
-    if (!element) return;
-
-    // Temporarily allow programmatic scrolling by detaching event blockers.
-    // We no longer toggle CSS overflow:hidden — that was resetting scrollY
-    // and causing the page to jump back to the top.
-    this.detachScrollBlockers();
-
-    await this.waitForFrames(1);
-    const rect = element.getBoundingClientRect();
-    const targetTop = Math.max(
-      0,
-      window.scrollY + rect.top - (window.innerHeight / 2 - rect.height / 2)
-    );
-    const distance = Math.abs(window.scrollY - targetTop);
-
-    if (distance >= 4) {
-      window.scrollTo({ top: targetTop, behavior: 'smooth' });
-      await this.waitForScrollRest();
+        requestAnimationFrame(tick);
+      });
     }
 
-    // Re-lock user scroll after programmatic scroll completes
-    this.attachScrollBlockers();
-  }
+    waitForScrollToSettle(timeoutMs = 900) {
+      return new Promise((resolve) => {
+        let lastScrollY = window.scrollY;
+        let stableFrames = 0;
+        const startTime = performance.now();
 
-  async showStep(stepIndex, direction = 1) {
-    // Clamp and skip missing targets in the given direction so the user
-    // is never stuck on an element the current page doesn't have.
-    let idx = stepIndex;
-    const visited = new Set();
-    while (idx >= 0 && idx < this.steps.length) {
-      if (visited.has(idx)) break;
-      visited.add(idx);
-      const step = this.steps[idx];
-      if (step?.tab) {
-        this.activateTab(step.tab);
-        await this.waitForFrames();
+        const tick = () => {
+          const currentScrollY = window.scrollY;
+
+          if (Math.abs(currentScrollY - lastScrollY) < 1) {
+            stableFrames += 1;
+          } else {
+            stableFrames = 0;
+            lastScrollY = currentScrollY;
+          }
+
+          if (stableFrames >= 2 || performance.now() - startTime > timeoutMs) {
+            resolve();
+            return;
+          }
+
+          requestAnimationFrame(tick);
+        };
+
+        requestAnimationFrame(tick);
+      });
+    }
+
+    async focusTarget(targetElement) {
+      if (!targetElement) return;
+
+      this.detachScrollBlockers();
+      await this.waitForFrames(1);
+
+      const targetRect = targetElement.getBoundingClientRect();
+      const centeredTop = Math.max(
+        0,
+        window.scrollY + targetRect.top - (window.innerHeight / 2 - targetRect.height / 2)
+      );
+
+      const distance = Math.abs(window.scrollY - centeredTop);
+      if (distance >= 4) {
+        window.scrollTo({ top: centeredTop, behavior: "smooth" });
+        await this.waitForScrollToSettle();
       }
-      const el = document.querySelector(`[data-tour="${step.target}"]`);
-      if (el) {
-        // Found a visible target — use it
-        this.currentStepIndex = idx;
+
+      this.attachScrollBlockers();
+    }
+
+    async showStep(stepIndex, direction = 1) {
+      let cursor = stepIndex;
+      const visitedIndexes = new Set();
+
+      while (cursor >= 0 && cursor < this.steps.length) {
+        if (visitedIndexes.has(cursor)) break;
+        visitedIndexes.add(cursor);
+
+        const step = this.steps[cursor];
+        if (step?.tab) {
+          this.activateTab(step.tab);
+          await this.waitForFrames();
+        }
+
+        const targetElement = document.querySelector(`[data-tour="${step.target}"]`);
+        if (!targetElement) {
+          console.warn(`Tour target [data-tour="${step.target}"] not found. Skipping step.`);
+          cursor += direction;
+          continue;
+        }
+
+        this.currentStepIndex = cursor;
+        this.currentTarget = targetElement;
+
         const token = ++this.stepToken;
-        this.currentTarget = el;
-        await this.focusTarget(el);
+        await this.focusTarget(targetElement);
         if (token !== this.stepToken) return;
-        this.updateSpotlight(el);
-        this.updateTooltip(step, el);
+
+        this.updateSpotlight(targetElement);
+        this.updateTooltip(step, targetElement);
         return;
       }
-      console.warn(`Tour target [data-tour="${step.target}"] not found — skipping`);
-      idx += direction;
-    }
-    // Every remaining step was missing — finish the stage
-    console.warn("No remaining tour targets found on this page — completing stage.");
-    if (typeof this.onComplete === "function") {
-      await this.onComplete();
-      this.closeTour();
-    } else {
-      this.completeTour();
-    }
-  }
 
-  updateSpotlight(element) {
-    // Remove elevation from any previously spotlit element
-    if (this._spotlitElement && this._spotlitElement !== element) {
-      this._spotlitElement.classList.remove('onboarding-target-active');
-    }
-    // Elevate new target above the backdrop so it appears at full brightness
-    element.classList.add('onboarding-target-active');
-    this._spotlitElement = element;
+      console.warn("No remaining onboarding targets found for this page.");
 
-    const rect = element.getBoundingClientRect();
-    const padding = 10;
+      if (typeof this.onComplete === "function") {
+        await this.onComplete();
+        this.closeTour();
+        return;
+      }
 
-    let top = rect.top - padding;
-    let left = rect.left - padding;
-    let width = rect.width + padding * 2;
-    let height = rect.height + padding * 2;
-
-    top = Math.max(8, top);
-    left = Math.max(8, left);
-    width = Math.max(24, Math.min(window.innerWidth - left - 8, width));
-    height = Math.max(24, Math.min(window.innerHeight - top - 8, height));
-
-    this.spotlightElement.style.top = `${top}px`;
-    this.spotlightElement.style.left = `${left}px`;
-    this.spotlightElement.style.width = `${width}px`;
-    this.spotlightElement.style.height = `${height}px`;
-  }
-
-  updateTooltip(step, targetElement) {
-    const rect = targetElement.getBoundingClientRect();
-    const totalSteps = this.steps.length;
-
-    // ── Standard step tooltip ──
-    this.tooltipElement.classList.remove('is-intro');
-    const isLast = this.currentStepIndex === totalSteps - 1;
-    const stepNum = this.currentStepIndex + 1;
-    const stepLabel = `Step ${stepNum} of ${totalSteps}`;
-
-    this.tooltipElement.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <span style="font-size:11px; color:#06b6d4; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;">${stepLabel}</span>
-      </div>
-      <h3>${escapeHtml(step.title)}</h3>
-      <p>${escapeHtml(step.description)}</p>
-      <div style="margin-top:16px; display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap;">
-        ${isLast
-          ? '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish &#8250;</button>'
-          : '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Continue &#8250;</button>'}
-        <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
-        <button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()"
-          ${this.currentStepIndex === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>&#8249; Back</button>
-      </div>
-    `;
-
-    // Position tooltip relative to target element
-    this.tooltipElement.style.top = '0';
-    this.tooltipElement.style.left = '0';
-    this.tooltipElement.style.visibility = 'hidden';
-
-    const gap = 18;
-    const margin = 16;
-    const tooltipWidth = this.tooltipElement.offsetWidth;
-    const tooltipHeight = this.tooltipElement.offsetHeight;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const centerX = rect.left + rect.width / 2;
-
-    let left = Math.min(
-      Math.max(centerX - tooltipWidth / 2, margin),
-      vw - tooltipWidth - margin
-    );
-
-    const spaceBelow = vh - rect.bottom;
-    const spaceAbove = rect.top;
-    let top;
-
-    if (spaceBelow >= tooltipHeight + gap) {
-      top = rect.bottom + gap;
-    } else if (spaceAbove >= tooltipHeight + gap) {
-      top = rect.top - tooltipHeight - gap;
-    } else {
-      top = vh - tooltipHeight - margin;
+      await this.completeTour();
     }
 
-    top = Math.max(margin, Math.min(top, vh - tooltipHeight - margin));
-    left = Math.max(margin, Math.min(left, vw - tooltipWidth - margin));
+    updateSpotlight(targetElement) {
+      if (this.lastSpotlitElement && this.lastSpotlitElement !== targetElement) {
+        this.lastSpotlitElement.classList.remove("onboarding-target-active");
+      }
 
-    this.tooltipElement.style.top = `${top}px`;
-    this.tooltipElement.style.left = `${left}px`;
-    this.tooltipElement.style.visibility = '';
+      targetElement.classList.add("onboarding-target-active");
+      this.lastSpotlitElement = targetElement;
 
-    if (typeof this.tooltipElement.focus === 'function') {
-      this.tooltipElement.focus({ preventScroll: true });
+      const targetRect = targetElement.getBoundingClientRect();
+      const padding = 10;
+
+      let top = Math.max(8, targetRect.top - padding);
+      let left = Math.max(8, targetRect.left - padding);
+      let width = Math.max(24, targetRect.width + padding * 2);
+      let height = Math.max(24, targetRect.height + padding * 2);
+
+      width = Math.min(window.innerWidth - left - 8, width);
+      height = Math.min(window.innerHeight - top - 8, height);
+
+      this.spotlightElement.style.top = `${top}px`;
+      this.spotlightElement.style.left = `${left}px`;
+      this.spotlightElement.style.width = `${width}px`;
+      this.spotlightElement.style.height = `${height}px`;
     }
-  }
 
-  nextStep() {
-    if (this.currentStepIndex < this.steps.length - 1) {
+    updateTooltip(step, targetElement) {
+      const targetRect = targetElement.getBoundingClientRect();
+      const totalSteps = this.steps.length;
+      const currentStepNumber = this.currentStepIndex + 1;
+      const isLastStep = this.currentStepIndex === totalSteps - 1;
+
+      this.tooltipElement.classList.remove("is-intro");
+      this.tooltipElement.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-size:11px; color:#06b6d4; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;">
+            Step ${currentStepNumber} of ${totalSteps}
+          </span>
+        </div>
+        <h3>${escapeHtml(step.title)}</h3>
+        <p>${escapeHtml(step.description)}</p>
+        <div style="margin-top:16px; display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap;">
+          ${isLastStep
+            ? '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish &#8250;</button>'
+            : '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Continue &#8250;</button>'}
+          <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
+          <button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()"
+            ${this.currentStepIndex === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ""}>
+            &#8249; Back
+          </button>
+        </div>
+      `;
+
+      this.tooltipElement.style.top = "0";
+      this.tooltipElement.style.left = "0";
+      this.tooltipElement.style.visibility = "hidden";
+
+      const margin = 16;
+      const gap = 18;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const tooltipWidth = this.tooltipElement.offsetWidth;
+      const tooltipHeight = this.tooltipElement.offsetHeight;
+
+      const centerX = targetRect.left + targetRect.width / 2;
+      let left = Math.min(
+        Math.max(centerX - tooltipWidth / 2, margin),
+        viewportWidth - tooltipWidth - margin
+      );
+
+      const spaceBelow = viewportHeight - targetRect.bottom;
+      const spaceAbove = targetRect.top;
+      let top;
+
+      if (spaceBelow >= tooltipHeight + gap) {
+        top = targetRect.bottom + gap;
+      } else if (spaceAbove >= tooltipHeight + gap) {
+        top = targetRect.top - tooltipHeight - gap;
+      } else {
+        top = viewportHeight - tooltipHeight - margin;
+      }
+
+      top = Math.max(margin, Math.min(top, viewportHeight - tooltipHeight - margin));
+      left = Math.max(margin, Math.min(left, viewportWidth - tooltipWidth - margin));
+
+      this.tooltipElement.style.top = `${top}px`;
+      this.tooltipElement.style.left = `${left}px`;
+      this.tooltipElement.style.visibility = "";
+
+      if (typeof this.tooltipElement.focus === "function") {
+        this.tooltipElement.focus({ preventScroll: true });
+      }
+    }
+
+    nextStep() {
+      if (this.currentStepIndex >= this.steps.length - 1) return;
       this.showStep(this.currentStepIndex + 1, 1);
     }
-  }
 
-  prevStep() {
-    if (this.currentStepIndex > 0) {
+    prevStep() {
+      if (this.currentStepIndex <= 0) return;
       this.showStep(this.currentStepIndex - 1, -1);
     }
-  }
 
-  async completeTour() {
-    if (typeof this.onComplete === "function") {
-      await this.onComplete();
+    async completeTour() {
+      if (typeof this.onComplete === "function") {
+        await this.onComplete();
+        this.closeTour();
+        return;
+      }
+
+      const completePath = getOnboardingPath("complete");
+      await apiPost(completePath, { user_email: this.userEmail });
+
       this.closeTour();
-      return;
+      window.location.href = "/dashboard.html";
     }
 
-    await apiPost(ENDPOINTS.onboarding?.complete || "/api/onboarding/complete", {
-      user_email: this.userEmail
+    async skipTour() {
+      if (typeof this.onSkip === "function") {
+        await this.onSkip();
+        this.closeTour();
+        return;
+      }
+
+      try {
+        const skipPath = getOnboardingPath("skip");
+        await apiPost(skipPath, { user_email: this.userEmail });
+      } catch {
+        // Ignore skip request failure.
+      }
+
+      this.closeTour();
+      window.location.href = "/dashboard.html";
+    }
+
+    closeTour() {
+      this.isActive = false;
+      this.currentTarget = null;
+
+      if (this.lastSpotlitElement) {
+        this.lastSpotlitElement.classList.remove("onboarding-target-active");
+        this.lastSpotlitElement = null;
+      }
+
+      if (this.backdropElement) this.backdropElement.remove();
+      if (this.spotlightElement) this.spotlightElement.remove();
+      if (this.tooltipElement) this.tooltipElement.remove();
+
+      this.backdropElement = null;
+      this.spotlightElement = null;
+      this.tooltipElement = null;
+
+      this.unlockScreen();
+    }
+  }
+
+  function getOnboardingFlow() {
+    return window.ONBOARDING_FLOW || ["dashboard", "courses", "course", "sandbox", "progress", "account", "wrapup"];
+  }
+
+  function getOnboardingStageUrl(stage) {
+    const stageUrls = window.ONBOARDING_STAGE_URLS || {};
+    return stageUrls[stage] || `${stage}.html`;
+  }
+
+  function markOnboardingComplete() {
+    localStorage.setItem(ONBOARDING_KEYS.completed, "true");
+    clearOnboardingStage();
+    localStorage.removeItem(ONBOARDING_KEYS.skipped);
+
+    const onboardingUser = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.user));
+    if (onboardingUser) {
+      localStorage.setItem(onboardingCompletedKey(onboardingUser), "true");
+    }
+
+    localStorage.removeItem(ONBOARDING_KEYS.user);
+    setOnboardingSessionActive(false);
+
+    ["user", "netology_user"].forEach((storageKey) => {
+      const userData = parseJsonSafely(localStorage.getItem(storageKey), null);
+      if (!userData) return;
+      userData.onboarding_completed = true;
+      localStorage.setItem(storageKey, JSON.stringify(userData));
     });
-
-    this.closeTour();
-    window.location.href = "/dashboard.html";
   }
 
-  async skipTour() {
-    // Skip immediately — don't use confirm() which can be blocked by the lock
-    if (typeof this.onSkip === "function") {
-      await this.onSkip();
-      this.closeTour();
-      return;
+  function markOnboardingSkipped() {
+    localStorage.setItem(ONBOARDING_KEYS.skipped, "true");
+    clearOnboardingStage();
+
+    const onboardingUser = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.user));
+    if (onboardingUser) {
+      localStorage.setItem(onboardingSkippedKey(onboardingUser), "true");
     }
 
+    localStorage.removeItem(ONBOARDING_KEYS.user);
+    setOnboardingSessionActive(false);
+  }
+
+  function startOnboardingTour(userEmail, options = {}) {
+    window.onboardingTour = new OnboardingTour(userEmail, options);
+    window.onboardingTour.init();
+  }
+
+  function isOnboardingBlockedForEmail(email) {
+    const normalizedEmail = normalizeEmail(email);
+
+    const completed =
+      localStorage.getItem(ONBOARDING_KEYS.completed) === "true" ||
+      localStorage.getItem(onboardingCompletedKey(normalizedEmail)) === "true";
+
+    const skipped =
+      localStorage.getItem(ONBOARDING_KEYS.skipped) === "true" ||
+      localStorage.getItem(onboardingSkippedKey(normalizedEmail)) === "true";
+
+    return completed || skipped;
+  }
+
+  function maybeStartOnboardingTour(stageKey, userEmail) {
+    if (!stageKey || !userEmail) return false;
+
+    const normalizedEmail = normalizeEmail(userEmail);
+    const onboardingUser = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.user));
+
+    if (!onboardingUser) return false;
+
+    if (onboardingUser !== normalizedEmail) {
+      clearOnboardingStage();
+      return false;
+    }
+
+    let sessionAllowed = false;
     try {
-      await apiPost(ENDPOINTS.onboarding?.skip || "/api/onboarding/skip", {
-        user_email: this.userEmail
-      });
-    } catch {}
-
-    this.closeTour();
-    window.location.href = "/dashboard.html";
-  }
-
-  closeTour() {
-    this.isActive = false;
-    this.currentTarget = null;
-    // Remove spotlight elevation from any remaining target
-    if (this._spotlitElement) {
-      this._spotlitElement.classList.remove('onboarding-target-active');
-      this._spotlitElement = null;
+      sessionAllowed = sessionStorage.getItem(ONBOARDING_KEYS.session) === "true";
+    } catch {
+      sessionAllowed = false;
     }
-    if (this.backdropElement) this.backdropElement.remove();
-    if (this.spotlightElement) this.spotlightElement.remove();
-    if (this.tooltipElement) this.tooltipElement.remove();
-    this.unlockScreen();
-  }
-}
 
-function startOnboardingTour(userEmail, options = {}) {
-  window.onboardingTour = new OnboardingTour(userEmail, options);
-  window.onboardingTour.init();
-}
+    if (!sessionAllowed) {
+      clearOnboardingStage();
+      return false;
+    }
 
-function getOnboardingFlow() {
-  return window.ONBOARDING_FLOW || ["dashboard", "courses", "course", "sandbox", "progress", "account", "wrapup"];
-}
+    if (isOnboardingBlockedForEmail(normalizedEmail)) {
+      return false;
+    }
 
-function getOnboardingStageUrl(stage) {
-  const urls = window.ONBOARDING_STAGE_URLS || {};
-  return urls[stage] || `${stage}.html`;
-}
+    const flow = getOnboardingFlow();
+    let currentStage = String(localStorage.getItem(ONBOARDING_KEYS.stage) || "").trim();
 
-function markOnboardingComplete() {
-  localStorage.setItem("netology_onboarding_completed", "true");
-  localStorage.removeItem("netology_onboarding_stage");
-  localStorage.removeItem("netology_onboarding_skipped");
-  
-  // Also store per-email completion so onboarding doesn't re-trigger for this email
-  const onboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
-  if (onboardingUser) {
-    localStorage.setItem(`netology_onboarding_completed_${onboardingUser}`, "true");
-  }
-  
-  localStorage.removeItem("netology_onboarding_user");
-  try {
-    sessionStorage.removeItem("netology_onboarding_session");
-  } catch {}
+    if (currentStage && !flow.includes(currentStage)) {
+      currentStage = flow.includes("sandbox") ? "sandbox" : flow[0] || "";
+      if (currentStage) localStorage.setItem(ONBOARDING_KEYS.stage, currentStage);
+      else clearOnboardingStage();
+    }
 
-  const updateUser = (key) => {
-    const raw = localStorage.getItem(key);
-    if (!raw) return;
-    const data = parseJsonSafe(raw);
-    if (!data) return;
-    data.onboarding_completed = true;
-    localStorage.setItem(key, JSON.stringify(data));
-  };
+    if (!currentStage || currentStage !== stageKey) return false;
 
-  updateUser("user");
-  updateUser("netology_user");
-}
+    const stageSteps = window.ONBOARDING_STEPS?.[stageKey] || [];
+    if (!stageSteps.length) return false;
 
-function markOnboardingSkipped() {
-  localStorage.setItem("netology_onboarding_skipped", "true");
-  localStorage.removeItem("netology_onboarding_stage");
-  
-  // Also store per-email skipped flag
-  const onboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
-  if (onboardingUser) {
-    localStorage.setItem(`netology_onboarding_skipped_${onboardingUser}`, "true");
-  }
-  
-  localStorage.removeItem("netology_onboarding_user");
-  try {
-    sessionStorage.removeItem("netology_onboarding_session");
-  } catch {}
-}
+    const stageIndex = flow.indexOf(stageKey);
+    const nextStage = stageIndex >= 0 ? flow[stageIndex + 1] : null;
 
-function maybeStartOnboardingTour(stageKey, userEmail) {
-  if (!stageKey || !userEmail) return false;
+    const handleComplete = async () => {
+      if (nextStage) {
+        localStorage.setItem(ONBOARDING_KEYS.stage, nextStage);
 
-  const normalizedEmail = String(userEmail || "").trim().toLowerCase();
-  const onboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
-  if (onboardingUser && onboardingUser !== normalizedEmail) {
-    localStorage.removeItem("netology_onboarding_stage");
-    return false;
-  }
-  if (!onboardingUser) return false;
-  let sessionAllowed = false;
-  try {
-    sessionAllowed = sessionStorage.getItem("netology_onboarding_session") === "true";
-  } catch {}
-  if (!sessionAllowed) {
-    localStorage.removeItem("netology_onboarding_stage");
-    return false;
-  }
+        try {
+          const stepPath = getOnboardingPath("stepComplete")
+            .replace(":id", encodeURIComponent(stageKey));
 
-  // Check both global and per-email completion flags
-  const completed = localStorage.getItem("netology_onboarding_completed") === "true"
-    || localStorage.getItem(`netology_onboarding_completed_${normalizedEmail}`) === "true";
-  const skipped = localStorage.getItem("netology_onboarding_skipped") === "true"
-    || localStorage.getItem(`netology_onboarding_skipped_${normalizedEmail}`) === "true";
-  if (completed || skipped) return false;
+          await apiPost(stepPath, {
+            user_email: normalizedEmail,
+            stage: stageKey
+          });
+        } catch {
+          // Ignore step completion network failure.
+        }
 
-  const flow = getOnboardingFlow();
-  let stage = localStorage.getItem("netology_onboarding_stage");
-  if (stage && !flow.includes(stage)) {
-    stage = flow.includes("sandbox") ? "sandbox" : (flow[0] || "");
-    if (stage) localStorage.setItem("netology_onboarding_stage", stage);
-    else localStorage.removeItem("netology_onboarding_stage");
-  }
-  if (!stage || stage !== stageKey) return false;
+        window.location.href = getOnboardingStageUrl(nextStage);
+        return;
+      }
 
-  const steps = window.ONBOARDING_STEPS?.[stageKey] || [];
-  if (!steps.length || typeof startOnboardingTour !== "function") return false;
-
-  const idx = flow.indexOf(stageKey);
-  const nextStage = idx >= 0 ? flow[idx + 1] : null;
-
-  const goNext = async () => {
-    if (nextStage) {
-      localStorage.setItem("netology_onboarding_stage", nextStage);
       try {
-        const stepUrl = (ENDPOINTS.onboarding?.stepComplete || "/api/onboarding/step/:id")
-          .replace(":id", encodeURIComponent(stageKey));
-        await apiPost(stepUrl, {
-          user_email: userEmail,
-          stage: stageKey
-        });
-      } catch {}
-      window.location.href = getOnboardingStageUrl(nextStage);
-    } else {
-      try {
-        await apiPost(ENDPOINTS.onboarding?.complete || "/api/onboarding/complete", {
-          user_email: userEmail
-        });
-      } catch {}
+        const completePath = getOnboardingPath("complete");
+        await apiPost(completePath, { user_email: normalizedEmail });
+      } catch {
+        // Ignore completion network failure.
+      }
+
       markOnboardingComplete();
-      if (window.location.pathname.endsWith("dashboard.html") === false) {
+
+      if (!window.location.pathname.endsWith("dashboard.html")) {
         window.location.href = getOnboardingStageUrl("dashboard");
       }
-    }
-  };
+    };
 
-  const onSkip = async () => {
-    try {
-      await apiPost(ENDPOINTS.onboarding?.skip || "/api/onboarding/skip", {
-        user_email: userEmail
-      });
-    } catch {}
-    markOnboardingSkipped();
-    if (typeof showPopup === "function") {
+    const handleSkip = async () => {
+      try {
+        const skipPath = getOnboardingPath("skip");
+        await apiPost(skipPath, { user_email: normalizedEmail });
+      } catch {
+        // Ignore skip network failure.
+      }
+
+      markOnboardingSkipped();
       showPopup("Onboarding skipped. You can restart the tour from your dashboard anytime.", "info");
-    }
-  };
+    };
 
-  startOnboardingTour(userEmail, {
-    steps,
-    stage: stageKey,
-    onComplete: goNext,
-    onSkip,
-    allowApi: false
+    startOnboardingTour(normalizedEmail, {
+      steps: stageSteps,
+      stage: stageKey,
+      onComplete: handleComplete,
+      onSkip: handleSkip,
+      allowApi: false
+    });
+
+    return true;
+  }
+
+  window.markOnboardingComplete = markOnboardingComplete;
+  window.markOnboardingSkipped = markOnboardingSkipped;
+  window.maybeStartOnboardingTour = maybeStartOnboardingTour;
+
+  // -------------------------------------------------------
+  // Page boot
+  // -------------------------------------------------------
+
+  runWhenDomReady(() => {
+    initDecorativeBackgrounds();
+    initAuthForms();
   });
-
-  return true;
-}
-
-window.maybeStartOnboardingTour = maybeStartOnboardingTour;
+})();

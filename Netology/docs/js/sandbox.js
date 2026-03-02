@@ -1,21 +1,15 @@
 /*
-Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
-
-sandbox.js – Network Sandbox Pro (Figma AI layout, vanilla JS)
-
-Reworked to match the Figma AI version:
-- Full UI rebuild (left device library, center canvas, right panels, bottom console)
-- DOM/SVG rendering for devices + connections
-- Expanded device types and connection types
-- Properties + inspector + objectives tabs
-- Console, logs, packets
-- Keeps existing save/load/ping/challenge/DB session flows
+---------------------------------------------------------
+Student: C22320301 - Jamie O'Neill
+File: sandbox.js
+Purpose: Runs the full sandbox page (devices, links, tutorial/challenge checks, console, and saves).
+Notes: Merged console ownership into this file and kept sandbox behavior the same.
+---------------------------------------------------------
 */
 
 (() => {
+  "use strict";
+
   const getById = (id) => document.getElementById(id);
   const qs = (sel, root = document) => root.querySelector(sel);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -64,6 +58,8 @@ Reworked to match the Figma AI version:
   const GRID_SIZE = 20;
   const DEVICE_SIZE = 72;
   const DEVICE_RADIUS = DEVICE_SIZE / 2;
+  const CONSOLE_HISTORY_KEY = "sbx_command_history";
+  const CONSOLE_HISTORY_LIMIT = 50;
 
   const TOOL = {
     SELECT: "select",
@@ -220,7 +216,6 @@ Reworked to match the Figma AI version:
     return res.json();
   });
 
-  // AI Prompt: Explain the Utilities section in clear, simple terms.
   // ----------------------------------------
   // Utilities
   // ----------------------------------------
@@ -1483,7 +1478,6 @@ Reworked to match the Figma AI version:
     return findDevice(state.selectedIds[0]);
   }
 
-  // AI Prompt: Explain the XP + progress logging (kept) section in clear, simple terms.
   // ----------------------------------------
   // XP + progress logging (kept)
   // ----------------------------------------
@@ -1616,7 +1610,6 @@ Reworked to match the Figma AI version:
     }
   }
 
-  // AI Prompt: Explain the Lesson session DB save/load section in clear, simple terms.
   // ----------------------------------------
   // Lesson session DB save/load
   // ----------------------------------------
@@ -1711,7 +1704,6 @@ Reworked to match the Figma AI version:
     }
   }
 
-  // AI Prompt: Explain the Chrome (top nav + sidebar) section in clear, simple terms.
   // ----------------------------------------
   // Chrome (top nav + sidebar)
   // ----------------------------------------
@@ -1883,7 +1875,6 @@ Reworked to match the Figma AI version:
     window.location.href = "login.html";
   }
 
-  // AI Prompt: Explain the Rendering section in clear, simple terms.
   // ----------------------------------------
   // Rendering
   // ----------------------------------------
@@ -2892,7 +2883,6 @@ Reworked to match the Figma AI version:
     });
   }
 
-  // AI Prompt: Explain the History (Undo/Redo) section in clear, simple terms.
   // ----------------------------------------
   // History (Undo/Redo)
   // ----------------------------------------
@@ -2929,7 +2919,6 @@ Reworked to match the Figma AI version:
     if (redoBtn) redoBtn.disabled = state.historyIndex >= state.history.length - 1;
   }
 
-  // AI Prompt: Explain the Device and connection actions section in clear, simple terms.
   // ----------------------------------------
   // Device and connection actions
   // ----------------------------------------
@@ -3074,7 +3063,6 @@ Reworked to match the Figma AI version:
     });
   }
 
-  // AI Prompt: Explain the Ping & packets section in clear, simple terms.
   // ----------------------------------------
   // Ping & packets
   // ----------------------------------------
@@ -3255,7 +3243,6 @@ Reworked to match the Figma AI version:
     return [];
   }
 
-  // AI Prompt: Explain the DHCP section in clear, simple terms.
   // ----------------------------------------
   // DHCP
   // ----------------------------------------
@@ -3314,10 +3301,49 @@ Reworked to match the Figma AI version:
     markDirtyAndSaveSoon();
   }
 
-  // AI Prompt: Explain the Console + logs section in clear, simple terms.
   // ----------------------------------------
   // Console + logs
   // ----------------------------------------
+  function loadConsoleHistory() {
+    const savedHistory = parseJsonSafe(localStorage.getItem(CONSOLE_HISTORY_KEY), []);
+    if (!Array.isArray(savedHistory)) return;
+
+    state.commandHistory = savedHistory
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean)
+      .slice(-CONSOLE_HISTORY_LIMIT);
+    state.commandHistoryIndex = state.commandHistory.length;
+  }
+
+  function saveConsoleHistory() {
+    const trimmedHistory = state.commandHistory.slice(-CONSOLE_HISTORY_LIMIT);
+    localStorage.setItem(CONSOLE_HISTORY_KEY, JSON.stringify(trimmedHistory));
+  }
+
+  function addCommandToHistory(command) {
+    const normalizedCommand = String(command || "").trim();
+    if (!normalizedCommand) return;
+    state.commandHistory.push(normalizedCommand);
+    state.commandHistory = state.commandHistory.slice(-CONSOLE_HISTORY_LIMIT);
+    state.commandHistoryIndex = state.commandHistory.length;
+    saveConsoleHistory();
+  }
+
+  function stepCommandHistory(direction) {
+    if (!state.commandHistory.length) return "";
+
+    const nextIndex = state.commandHistoryIndex + direction;
+    if (nextIndex < 0) return state.commandHistory[0] || "";
+
+    if (nextIndex >= state.commandHistory.length) {
+      state.commandHistoryIndex = state.commandHistory.length;
+      return "";
+    }
+
+    state.commandHistoryIndex = nextIndex;
+    return state.commandHistory[state.commandHistoryIndex] || "";
+  }
+
   function addConsoleOutput(message) {
     state.consoleOutput.push(`[${new Date().toLocaleTimeString()}] ${message}`);
     state.consoleOutput = state.consoleOutput.slice(-200);
@@ -3330,98 +3356,360 @@ Reworked to match the Figma AI version:
     renderLogs();
   }
 
-  function executeCommand(command) {
-    addConsoleOutput(`> ${command}`);
-    const parts = command.toLowerCase().trim().split(/\s+/);
-    const cmd = parts[0];
+  function clearConsoleOutput() {
+    state.consoleOutput = [];
+    renderConsole();
+  }
 
-    switch (cmd) {
-      case "help":
-        addConsoleOutput("Commands: help, show devices, show connections, ping <src> <dst>, traceroute <src> <dst>, ipconfig, dhcp request, clear, save");
-        break;
-      case "show":
-        if (parts[1] === "devices") {
-          state.devices.forEach((d) => {
-            addConsoleOutput(`${d.name} (${d.type}) - ${d.config.ipAddress || "No IP"}`);
-          });
-        } else if (parts[1] === "connections") {
-          state.connections.forEach((c) => {
-            const from = findDevice(c.from);
-            const to = findDevice(c.to);
-            addConsoleOutput(`${from?.name || "?"} ↔ ${to?.name || "?"} (${c.type})`);
-          });
-        }
-        break;
-      case "ping":
-        if (parts.length >= 3) {
-          const src = state.devices.find((d) => d.name.toLowerCase() === parts[1]);
-          const dst = state.devices.find((d) => d.name.toLowerCase() === parts[2]);
-          if (src && dst) {
-            addConsoleOutput(`Pinging ${dst.name} from ${src.name}...`);
-            executePing(src.id, dst.id);
-            if (state.pingInspector) {
-              addConsoleOutput(state.pingInspector.success
-                ? `Reply from ${dst.config?.ipAddress || dst.name}: time=${state.pingInspector.latency || 1}ms`
-                : `Request failed: ${state.pingInspector.message || "No route"}`);
-            }
-          } else {
-            addConsoleOutput("Device not found. Use exact device names (case-insensitive).");
-          }
-        } else {
-          addConsoleOutput("Usage: ping <source> <destination>");
-        }
-        break;
-      case "ipconfig":
-        const selected = getSelectedDevice();
-        if (selected) {
-          addConsoleOutput(`IP: ${selected.config.ipAddress || "Not set"}`);
-          addConsoleOutput(`Mask: ${selected.config.subnetMask || "Not set"}`);
-          addConsoleOutput(`Gateway: ${selected.config.defaultGateway || "Not set"}`);
-        } else {
-          addConsoleOutput("No device selected");
-        }
-        break;
-      case "dhcp":
-        if (parts[1] === "request") {
-          const selectedDevice = getSelectedDevice();
-          if (selectedDevice) requestDHCP(selectedDevice.id);
-          else addConsoleOutput("No device selected");
-        }
-        break;
-      case "clear":
-        state.consoleOutput = [];
-        renderConsole();
-        break;
-      case "save":
-        handleSaveTopology();
-        break;
-      case "traceroute":
-        if (parts.length >= 3) {
-          const src = state.devices.find((d) => d.name.toLowerCase() === parts[1]);
-          const dst = state.devices.find((d) => d.name.toLowerCase() === parts[2]);
-          if (src && dst) {
-            addConsoleOutput(`Traceroute from ${src.name} to ${dst.name}...`);
-            const path = findPath(src.id, dst.id);
-            if (path && path.length > 0) {
-              path.forEach((hop, i) => {
-                const dev = findDevice(hop);
-                const latency = (i + 1) * (Math.random() * 2 + 0.5).toFixed(1);
-                addConsoleOutput(`  ${i + 1}  ${dev?.name || "?"} (${dev?.config?.ipAddress || "no ip"})  ${latency}ms`);
-              });
-              addConsoleOutput(`Trace complete. ${path.length} hop(s).`);
-            } else {
-              addConsoleOutput("No route found.");
-            }
-          } else {
-            addConsoleOutput("Device not found.");
-          }
-        } else {
-          addConsoleOutput("Usage: traceroute <source> <destination>");
-        }
-        break;
-      default:
-        addConsoleOutput("Unknown command. Type help.");
+  function findDeviceByName(deviceName) {
+    const normalizedName = String(deviceName || "").trim().toLowerCase();
+    if (!normalizedName) return null;
+    return state.devices.find((device) => String(device.name || "").trim().toLowerCase() === normalizedName) || null;
+  }
+
+  function showHelpCommand() {
+    addConsoleOutput("Commands:");
+    addConsoleOutput("  help");
+    addConsoleOutput("  show devices | show connections | show stats");
+    addConsoleOutput("  devices | connections | status");
+    addConsoleOutput("  ping <source> <destination>  (or ping <destination> with one selected device)");
+    addConsoleOutput("  traceroute <source> <destination>  (or traceroute <destination> with one selected device)");
+    addConsoleOutput("  ipconfig [device]");
+    addConsoleOutput("  configure <device> <ip|mask|gateway|name|dhcp> <value>");
+    addConsoleOutput("  dhcp request");
+    addConsoleOutput("  reset");
+    addConsoleOutput("  clear");
+    addConsoleOutput("  save");
+  }
+
+  function showDevicesCommand() {
+    if (!state.devices.length) {
+      addConsoleOutput("No devices in topology.");
+      return;
     }
+
+    addConsoleOutput(`Total devices: ${state.devices.length}`);
+    state.devices.forEach((device) => {
+      addConsoleOutput(`${device.name} (${device.type}) - ${device.config.ipAddress || "No IP"}`);
+    });
+  }
+
+  function showConnectionsCommand() {
+    if (!state.connections.length) {
+      addConsoleOutput("No connections in topology.");
+      return;
+    }
+
+    addConsoleOutput(`Total connections: ${state.connections.length}`);
+    state.connections.forEach((connection, index) => {
+      const fromDevice = findDevice(connection.from);
+      const toDevice = findDevice(connection.to);
+      const statusLabel = connection.status === "active" ? "Active" : "Down";
+      addConsoleOutput(`${index + 1}. ${fromDevice?.name || "?"} ↔ ${toDevice?.name || "?"} (${connection.type}, ${statusLabel})`);
+    });
+  }
+
+  function showStatusCommand() {
+    const activeConnections = state.connections.filter((connection) => connection.status === "active").length;
+    addConsoleOutput(`Devices: ${state.devices.length}`);
+    addConsoleOutput(`Connections: ${state.connections.length} (${activeConnections} active)`);
+    addConsoleOutput(`Selected: ${state.selectedIds.length || 0}`);
+  }
+
+  function resolveCommandEndpoints(args, usageText) {
+    if (args.length >= 2) {
+      const sourceDevice = findDeviceByName(args[0]);
+      const destinationDevice = findDeviceByName(args[1]);
+      if (!sourceDevice || !destinationDevice) {
+        addConsoleOutput("Device not found. Use exact device names (case-insensitive).");
+        return null;
+      }
+      return { sourceDevice, destinationDevice };
+    }
+
+    if (args.length === 1) {
+      const selectedDevice = getSelectedDevice();
+      if (!selectedDevice) {
+        addConsoleOutput(`${usageText} or select one source device first.`);
+        return null;
+      }
+      const destinationDevice = findDeviceByName(args[0]);
+      if (!destinationDevice) {
+        addConsoleOutput("Destination device not found.");
+        return null;
+      }
+      return { sourceDevice: selectedDevice, destinationDevice };
+    }
+
+    addConsoleOutput(usageText);
+    return null;
+  }
+
+  function runPingCommand(args) {
+    const endpoints = resolveCommandEndpoints(args, "Usage: ping <source> <destination>");
+    if (!endpoints) return;
+
+    const { sourceDevice, destinationDevice } = endpoints;
+    addConsoleOutput(`Pinging ${destinationDevice.name} from ${sourceDevice.name}...`);
+    executePing(sourceDevice.id, destinationDevice.id);
+
+    if (!state.pingInspector) return;
+    if (state.pingInspector.success) {
+      addConsoleOutput(`Reply from ${destinationDevice.config?.ipAddress || destinationDevice.name}: time=${state.pingInspector.latency || 1}ms`);
+      return;
+    }
+    addConsoleOutput(`Request failed: ${state.pingInspector.message || "No route"}`);
+  }
+
+  function runTracerouteCommand(args) {
+    const endpoints = resolveCommandEndpoints(args, "Usage: traceroute <source> <destination>");
+    if (!endpoints) return;
+
+    const { sourceDevice, destinationDevice } = endpoints;
+    addConsoleOutput(`Traceroute from ${sourceDevice.name} to ${destinationDevice.name}...`);
+    const path = findPath(sourceDevice.id, destinationDevice.id);
+
+    if (!path.length) {
+      addConsoleOutput("No route found.");
+      return;
+    }
+
+    path.forEach((hopId, index) => {
+      const hopDevice = findDevice(hopId);
+      const latencyMs = ((index + 1) * (Math.random() * 2 + 0.5)).toFixed(1);
+      addConsoleOutput(`  ${index + 1}  ${hopDevice?.name || "?"} (${hopDevice?.config?.ipAddress || "no ip"})  ${latencyMs}ms`);
+    });
+    addConsoleOutput(`Trace complete. ${path.length} hop(s).`);
+  }
+
+  function runIpConfigCommand(args) {
+    if (args.length >= 1) {
+      const targetDevice = findDeviceByName(args[0]);
+      if (!targetDevice) {
+        addConsoleOutput("Device not found.");
+        return;
+      }
+      addConsoleOutput(`${targetDevice.name} IP: ${targetDevice.config.ipAddress || "Not set"}`);
+      addConsoleOutput(`${targetDevice.name} Mask: ${targetDevice.config.subnetMask || "Not set"}`);
+      addConsoleOutput(`${targetDevice.name} Gateway: ${targetDevice.config.defaultGateway || "Not set"}`);
+      return;
+    }
+
+    const selectedDevice = getSelectedDevice();
+    if (selectedDevice) {
+      addConsoleOutput(`IP: ${selectedDevice.config.ipAddress || "Not set"}`);
+      addConsoleOutput(`Mask: ${selectedDevice.config.subnetMask || "Not set"}`);
+      addConsoleOutput(`Gateway: ${selectedDevice.config.defaultGateway || "Not set"}`);
+      return;
+    }
+
+    if (!state.devices.length) {
+      addConsoleOutput("No devices in topology.");
+      return;
+    }
+
+    state.devices.forEach((device) => {
+      addConsoleOutput(`${device.name}: ${device.config.ipAddress || "Not set"} / ${device.config.subnetMask || "Not set"}`);
+    });
+  }
+
+  function runConfigureCommand(args) {
+    if (args.length < 3) {
+      addConsoleOutput("Usage: configure <device> <property> <value>");
+      return;
+    }
+
+    const [targetName, propertyName, ...valueParts] = args;
+    const targetDevice = findDeviceByName(targetName);
+    if (!targetDevice) {
+      addConsoleOutput("Device not found.");
+      return;
+    }
+
+    const rawValue = valueParts.join(" ").trim();
+    const normalizedProperty = String(propertyName || "").toLowerCase();
+
+    if (normalizedProperty === "ip") {
+      targetDevice.config.ipAddress = rawValue;
+    } else if (normalizedProperty === "mask" || normalizedProperty === "subnet" || normalizedProperty === "subnetmask") {
+      targetDevice.config.subnetMask = rawValue;
+    } else if (normalizedProperty === "gateway" || normalizedProperty === "gw") {
+      targetDevice.config.defaultGateway = rawValue;
+    } else if (normalizedProperty === "name" || normalizedProperty === "hostname") {
+      targetDevice.name = rawValue || targetDevice.name;
+    } else if (normalizedProperty === "dhcp") {
+      const enabled = ["true", "1", "yes", "on", "enabled"].includes(rawValue.toLowerCase());
+      targetDevice.config.dhcpEnabled = enabled;
+    } else {
+      targetDevice.config[normalizedProperty] = rawValue;
+    }
+
+    updateDeviceStatus(targetDevice);
+    addActionLog(`Configured ${targetDevice.name}: ${normalizedProperty} = ${rawValue}`);
+    pushHistory();
+    renderAll();
+    notifyTutorialProgress();
+    markDirtyAndSaveSoon();
+    addConsoleOutput(`Configured ${targetDevice.name}: ${normalizedProperty} = ${rawValue}`);
+  }
+
+  function runResetCommand() {
+    const clearButton = getById("clearBtn");
+    if (clearButton) {
+      clearButton.click();
+      addConsoleOutput("Reset requested. Confirm in the clear workspace dialog.");
+      return;
+    }
+    addConsoleOutput("Use the Clear button in the toolbar to reset the workspace.");
+  }
+
+  function executeCommand(rawCommand) {
+    const command = String(rawCommand || "").trim();
+    if (!command) return;
+
+    addConsoleOutput(`> ${command}`);
+    const parts = command.toLowerCase().split(/\s+/);
+    const commandName = parts[0];
+    const args = parts.slice(1);
+
+    if (commandName === "help") {
+      showHelpCommand();
+      return;
+    }
+
+    if (commandName === "show") {
+      if (args[0] === "devices") {
+        showDevicesCommand();
+        return;
+      }
+      if (args[0] === "connections") {
+        showConnectionsCommand();
+        return;
+      }
+      if (args[0] === "stats" || args[0] === "status") {
+        showStatusCommand();
+        return;
+      }
+      addConsoleOutput("Usage: show devices | show connections | show stats");
+      return;
+    }
+
+    if (commandName === "devices") {
+      showDevicesCommand();
+      return;
+    }
+
+    if (commandName === "connections") {
+      showConnectionsCommand();
+      return;
+    }
+
+    if (commandName === "status") {
+      showStatusCommand();
+      return;
+    }
+
+    if (commandName === "ping") {
+      runPingCommand(args);
+      return;
+    }
+
+    if (commandName === "traceroute") {
+      runTracerouteCommand(args);
+      return;
+    }
+
+    if (commandName === "ipconfig") {
+      runIpConfigCommand(args);
+      return;
+    }
+
+    if (commandName === "configure") {
+      runConfigureCommand(args);
+      return;
+    }
+
+    if (commandName === "dhcp") {
+      if (args[0] === "request") {
+        const selectedDevice = getSelectedDevice();
+        if (selectedDevice) requestDHCP(selectedDevice.id);
+        else addConsoleOutput("No device selected");
+        return;
+      }
+      addConsoleOutput("Usage: dhcp request");
+      return;
+    }
+
+    if (commandName === "clear") {
+      clearConsoleOutput();
+      return;
+    }
+
+    if (commandName === "save") {
+      handleSaveTopology();
+      return;
+    }
+
+    if (commandName === "reset") {
+      runResetCommand();
+      return;
+    }
+
+    addConsoleOutput("Unknown command. Type help.");
+  }
+
+  function showConsoleWelcome() {
+    if (!state.consoleOutput.length) {
+      state.consoleOutput.push("Network Sandbox Pro v2.0");
+      state.consoleOutput.push("Ready.");
+    }
+    addConsoleOutput('Type "help" for available commands.');
+  }
+
+  function registerConsoleApi() {
+    const consoleApi = {
+      runCommand: (command) => {
+        const value = String(command || "").trim();
+        if (!value) return;
+        addCommandToHistory(value);
+        executeCommand(value);
+      },
+      addLine: (text, type = "default") => {
+        const line = String(text || "");
+        if (!line) return;
+        if (type === "cmd") {
+          addConsoleOutput(`> ${line}`);
+          return;
+        }
+        addConsoleOutput(line);
+      },
+      clear: () => {
+        clearConsoleOutput();
+      },
+      focusInput: () => {
+        consoleInputEl?.focus();
+      },
+      showWelcome: () => {
+        showConsoleWelcome();
+      },
+      getHistory: () => [...state.commandHistory],
+    };
+
+    window.NetologySandboxConsoleApi = consoleApi;
+
+    if (window.sandboxConsole && typeof window.sandboxConsole.setApi === "function") {
+      window.sandboxConsole.setApi(consoleApi);
+      return;
+    }
+
+    // Fallback legacy object for any old integrations.
+    window.sandboxConsole = {
+      executeCommand: consoleApi.runCommand,
+      addLine: consoleApi.addLine,
+      clearConsole: consoleApi.clear,
+      showWelcome: consoleApi.showWelcome,
+      focus: consoleApi.focusInput,
+    };
   }
 
   // ----------------------------------------
@@ -3471,7 +3759,6 @@ Reworked to match the Figma AI version:
     }
   }
 
-  // AI Prompt: Explain the Challenge validation section in clear, simple terms.
   // ----------------------------------------
   // Challenge validation
   // ----------------------------------------
@@ -3554,7 +3841,6 @@ Reworked to match the Figma AI version:
     return { ok: true };
   }
 
-  // AI Prompt: Explain the Save / Load section in clear, simple terms.
   // ----------------------------------------
   // Save / Load
   // ----------------------------------------
@@ -3770,7 +4056,6 @@ Reworked to match the Figma AI version:
     });
   }
 
-  // AI Prompt: Explain the Event binding section in clear, simple terms.
   // ----------------------------------------
   // Event binding
   // ----------------------------------------
@@ -4058,8 +4343,7 @@ Reworked to match the Figma AI version:
     function submitConsoleCommand() {
       const value = consoleInputEl.value.trim();
       if (!value) return;
-      state.commandHistory.push(value);
-      state.commandHistoryIndex = state.commandHistory.length;
+      addCommandToHistory(value);
       executeCommand(value);
       consoleInputEl.value = "";
     }
@@ -4073,21 +4357,12 @@ Reworked to match the Figma AI version:
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        if (state.commandHistory.length && state.commandHistoryIndex > 0) {
-          state.commandHistoryIndex--;
-          consoleInputEl.value = state.commandHistory[state.commandHistoryIndex];
-        }
+        consoleInputEl.value = stepCommandHistory(-1);
         return;
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        if (state.commandHistoryIndex < state.commandHistory.length - 1) {
-          state.commandHistoryIndex++;
-          consoleInputEl.value = state.commandHistory[state.commandHistoryIndex];
-        } else {
-          state.commandHistoryIndex = state.commandHistory.length;
-          consoleInputEl.value = "";
-        }
+        consoleInputEl.value = stepCommandHistory(1);
         return;
       }
     });
@@ -4225,7 +4500,6 @@ Reworked to match the Figma AI version:
     });
   }
 
-  // AI Prompt: Explain the Challenge initialization section in clear, simple terms.
   // ----------------------------------------
   // Challenge initialization
   // ----------------------------------------
@@ -4706,8 +4980,10 @@ Reworked to match the Figma AI version:
     bindTooltips();
     bindLibraryDrag();
     bindToolbar();
+    loadConsoleHistory();
     bindPanels();
     bindStage();
+    registerConsoleApi();
 
     // New feature bindings
     bindKeyboardShortcuts();

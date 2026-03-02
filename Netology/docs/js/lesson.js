@@ -1,19 +1,13 @@
-/**
- * lesson.js – Netology Interactive Lesson Engine (Complete Rebuild)
- *
- * Student Number: C22320301 | Jamie O'Neill | TU857/4 | 18/02/2026
- *
- * A Duolingo-inspired step-based lesson system with:
- * - Multiple exercise types (MCQ, drag-drop, fill-blank, matching, tap-word, flashcard)
- * - Streak & XP system with animations
- * - Progress tracking & completion reporting
- * - Mobile-first touch support
- * - Keyboard navigation & accessibility
- */
+/*
+---------------------------------------------------------
+Student: C22320301 - Jamie O'Neill
+File: lesson.js
+Purpose: Runs the interactive lesson flow, step checking, XP updates, and completion logic.
+Notes: Kept full lesson behavior and cleaned comments for simpler readability.
+---------------------------------------------------------
+*/
 
-/* ═══════════════════════════════════════════════════════════
-   HELPERS
-   ═══════════════════════════════════════════════════════════ */
+// Helpers.
 // Resolve API base lazily so it always picks up the value set by config.js
 function getLessonAPI() {
   return (window.API_BASE || "").replace(/\/$/, "");
@@ -29,26 +23,26 @@ function getCourseContentMap() {
 
 function getCurrentUser() {
   try {
-    const s = localStorage.getItem("netology_user") || localStorage.getItem("user");
-    return s ? JSON.parse(s) : null;
+    const storedUserJson = localStorage.getItem("netology_user") || localStorage.getItem("user");
+    return storedUserJson ? JSON.parse(storedUserJson) : null;
   } catch { return null; }
 }
 
 function resolveCourseContent(courseId, contentId) {
-  const c = getCourseContentMap();
-  if (contentId && c[String(contentId)]) return c[String(contentId)];
-  if (courseId && c[String(courseId)]) return c[String(courseId)];
+  const contentMap = getCourseContentMap();
+  if (contentId && contentMap[String(contentId)]) return contentMap[String(contentId)];
+  if (courseId && contentMap[String(courseId)]) return contentMap[String(courseId)];
   return null;
 }
 
-function getLessonByNumber(course, num) {
+function getLessonByNumber(course, lessonNumber) {
   if (!course?.units) return null;
-  let idx = 0;
+  let lessonIndex = 0;
   for (const unit of course.units) {
     if (!Array.isArray(unit.lessons)) continue;
     for (const lesson of unit.lessons) {
-      idx++;
-      if (idx === Number(num)) return { ...lesson, unit_title: unit.title || "Module" };
+      lessonIndex += 1;
+      if (lessonIndex === Number(lessonNumber)) return { ...lesson, unit_title: unit.title || "Module" };
     }
   }
   return null;
@@ -76,24 +70,24 @@ function getLessonItemXP(course, lessonNumber) {
 
 function getTotalLessons(course) {
   if (!course?.units) return 0;
-  let n = 0;
-  for (const u of course.units) n += (u.lessons?.length || 0);
-  return n;
+  let totalLessons = 0;
+  for (const unit of course.units) totalLessons += (unit.lessons?.length || 0);
+  return totalLessons;
 }
 
-function shuffleArray(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let currentIndex = shuffled.length - 1; currentIndex > 0; currentIndex -= 1) {
+    const randomIndex = Math.floor(Math.random() * (currentIndex + 1));
+    [shuffled[currentIndex], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[currentIndex]];
   }
-  return a;
+  return shuffled;
 }
 
-function escHtml(s) {
-  const d = document.createElement("div");
-  d.textContent = s;
-  return d.innerHTML;
+function escHtml(text) {
+  const tempElement = document.createElement("div");
+  tempElement.textContent = text;
+  return tempElement.innerHTML;
 }
 
 function clamp(val, min, max) {
@@ -156,9 +150,7 @@ async function awardLessonXP(email, courseId, lessonNumber, targetXP, deltaXP) {
   return { success: false, xp_added: 0 };
 }
 
-/* ═══════════════════════════════════════════════════════════
-   STEP BUILDER – converts lesson blocks into exercise steps
-   ═══════════════════════════════════════════════════════════ */
+// Step builder: convert lesson blocks into interactive steps.
 
 /**
  * Converts an objective like "Explain why protocols matter"
@@ -545,9 +537,7 @@ function buildStepsFromLesson(lesson, course) {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
-   EXERCISE RENDERERS
-   ═══════════════════════════════════════════════════════════ */
+// Exercise renderers.
 
 /**
  * Auto-bold key networking terms within a text node
@@ -1347,9 +1337,7 @@ function renderDragOrder(step) {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
-   LESSON ENGINE – Main controller
-   ═══════════════════════════════════════════════════════════ */
+// Lesson engine controller.
 class LessonEngine {
   constructor() {
     this.courseId = null;
@@ -1412,59 +1400,70 @@ class LessonEngine {
   }
 
   bindEvents() {
+    this.bindPrimaryButtons();
+    this.bindKeyboardShortcuts();
+    this.bindProgressLifecycleHandlers();
+  }
+
+  bindPrimaryButtons() {
     this.els.lesStartBtn?.addEventListener("click", () => this.startLesson());
     this.els.lesCheckBtn?.addEventListener("click", () => this.checkAnswer());
     this.els.lesSkipBtn?.addEventListener("click", () => this.skipStep());
     this.els.lesFeedbackContinue?.addEventListener("click", () => this.dismissFeedback());
     this.els.lesNextLessonBtn?.addEventListener("click", () => this.goToNextLesson());
     this.els.lesReviewBtn?.addEventListener("click", () => this.reviewMistakes());
-    this.els.lesCloseBtn?.addEventListener("click", (e) => {
-      if (e) e.preventDefault();
+    this.els.lesCloseBtn?.addEventListener("click", (event) => {
+      if (event) event.preventDefault();
       this.saveProgressSnapshot({ reason: "exit" });
       const href = this.els.lesCloseBtn?.href || "courses.html";
       window.location.href = href;
     });
+  }
 
-    // Keyboard shortcuts
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+  bindKeyboardShortcuts() {
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
         if (this.els.lesFeedbackOverlay?.style.display !== "none") {
           this.dismissFeedback();
         } else if (this.els.lesCheckBtn && !this.els.lesCheckBtn.disabled) {
           this.checkAnswer();
         }
       }
-      if (e.key === "Escape") {
-        if (this.els.lesFeedbackOverlay?.style.display !== "none") {
-          this.dismissFeedback();
-        }
+
+      if (event.key === "Escape" && this.els.lesFeedbackOverlay?.style.display !== "none") {
+        this.dismissFeedback();
       }
     });
+  }
 
+  bindProgressLifecycleHandlers() {
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) this.saveProgressSnapshot({ reason: "visibility" });
     });
+
     window.addEventListener("beforeunload", () => {
       this.saveProgressSnapshot({ reason: "unload", silent: true });
     });
   }
 
   parseURL() {
-    const p = new URLSearchParams(window.location.search);
-    this.courseId = p.get("course_id") || p.get("course");
-    const rawLesson = Number(p.get("lesson") || 0);
+    const queryParams = new URLSearchParams(window.location.search);
+    this.courseId = queryParams.get("course_id") || queryParams.get("course");
+    const rawLesson = Number(queryParams.get("lesson") || 0);
     this.lessonNumber = Number.isFinite(rawLesson) && rawLesson > 0 ? rawLesson : 1;
-    this.contentId = p.get("content_id") || p.get("content");
+    this.contentId = queryParams.get("content_id") || queryParams.get("content");
 
     this.updateBackLinks();
   }
 
   updateBackLinks() {
     if (!this.courseId) return;
-    const bp = new URLSearchParams();
-    bp.set("id", this.courseId);
-    if (this.contentId) bp.set("content_id", this.contentId);
-    const courseUrl = `course.html?${bp.toString()}`;
+
+    const backParams = new URLSearchParams();
+    backParams.set("id", this.courseId);
+    if (this.contentId) backParams.set("content_id", this.contentId);
+
+    const courseUrl = `course.html?${backParams.toString()}`;
     if (this.els.lesCloseBtn) this.els.lesCloseBtn.href = courseUrl;
     if (this.els.lesBackToCourseBtn) this.els.lesBackToCourseBtn.href = courseUrl;
   }
@@ -1484,8 +1483,32 @@ class LessonEngine {
     }
   }
 
+  resolveCourseAndLesson(contentMap) {
+    this.course = resolveCourseContent(this.courseId, this.contentId);
+    this.lesson = getLessonByNumber(this.course, this.lessonNumber);
+
+    // If lesson index is invalid, fall back to first lesson in this course.
+    if (this.course && !this.lesson) {
+      this.lessonNumber = 1;
+      this.lesson = getLessonByNumber(this.course, this.lessonNumber);
+    }
+
+    // Fallback: if no course id was valid, try the first course in content map.
+    if (this.course) return;
+
+    const firstCourseId = Object.keys(contentMap || {})[0];
+    if (!firstCourseId) return;
+
+    this.courseId = this.courseId || firstCourseId;
+    this.contentId = this.contentId || firstCourseId;
+    this.course = contentMap[firstCourseId];
+    this.lessonNumber = this.lessonNumber || 1;
+    this.lesson = getLessonByNumber(this.course, this.lessonNumber) || getLessonByNumber(this.course, 1);
+    this.updateBackLinks();
+  }
+
   loadLesson() {
-    // Safety timeout: if loading takes > 5 seconds, show an error
+    // Safety timeout if the page stays loading too long.
     const loadTimeout = setTimeout(() => {
       if (document.body.classList.contains("net-loading")) {
         document.body.classList.remove("net-loading");
@@ -1494,38 +1517,10 @@ class LessonEngine {
     }, 5000);
 
     try {
-      // Ensure ENDPOINTS is always fresh from window
       ENDPOINTS = window.ENDPOINTS || {};
-
       const contentMap = getCourseContentMap();
 
-      // Debug: log what we received to help diagnose blank-lesson issues
-      console.log("[lesson.js] loadLesson", {
-        courseId: this.courseId,
-        contentId: this.contentId,
-        lessonNumber: this.lessonNumber,
-        contentMapKeys: Object.keys(contentMap || {})
-      });
-
-      this.course = resolveCourseContent(this.courseId, this.contentId);
-      this.lesson = getLessonByNumber(this.course, this.lessonNumber);
-
-      if (this.course && !this.lesson) {
-        this.lessonNumber = 1;
-        this.lesson = getLessonByNumber(this.course, this.lessonNumber);
-      }
-
-      if (!this.course) {
-        const firstId = Object.keys(contentMap || {})[0];
-        if (firstId) {
-          this.courseId = this.courseId || firstId;
-          this.contentId = this.contentId || firstId;
-          this.course = contentMap[firstId];
-          this.lessonNumber = this.lessonNumber || 1;
-          this.lesson = getLessonByNumber(this.course, this.lessonNumber) || getLessonByNumber(this.course, 1);
-          this.updateBackLinks();
-        }
-      }
+      this.resolveCourseAndLesson(contentMap);
 
       if (!this.course || !this.lesson) {
         clearTimeout(loadTimeout);
@@ -1754,6 +1749,101 @@ class LessonEngine {
     this.loadStep(startIndex);
   }
 
+  setSkipButtonVisible(isVisible) {
+    const skipButton = this.els.lesSkipBtn;
+    if (skipButton) skipButton.style.display = isVisible ? "" : "none";
+  }
+
+  prepareStepUi(container, checkButton) {
+    if (container) container.innerHTML = "";
+    if (!checkButton) return;
+    checkButton.disabled = true;
+    checkButton.textContent = "Check";
+  }
+
+  updateStepProgressFill(index) {
+    const percent = ((index) / this.steps.length) * 100;
+    if (this.els.lesProgressFill) this.els.lesProgressFill.style.width = `${percent}%`;
+  }
+
+  buildRendererForStep(step, checkButton) {
+    let renderer;
+
+    switch (step.type) {
+      case "learn":
+        renderer = renderLearnStep(step);
+        if (checkButton) {
+          checkButton.textContent = "Continue";
+          checkButton.disabled = false;
+        }
+        this.setSkipButtonVisible(false);
+        return renderer;
+
+      case "mcq":
+        renderer = renderMCQ(step);
+        this.setSkipButtonVisible(true);
+        return renderer;
+
+      case "fill_blank":
+        renderer = renderFillBlank(step);
+        this.setSkipButtonVisible(true);
+        return renderer;
+
+      case "matching":
+        renderer = renderMatching(step);
+        this.setSkipButtonVisible(true);
+        return renderer;
+
+      case "tap_word":
+        renderer = renderTapWord(step);
+        this.setSkipButtonVisible(true);
+        return renderer;
+
+      case "flashcard":
+        renderer = renderFlashcard(step);
+        if (checkButton) {
+          checkButton.textContent = "Continue";
+          // Keep disabled until flashcards are viewed.
+          checkButton.disabled = true;
+        }
+        this.setSkipButtonVisible(true);
+        return renderer;
+
+      case "drag_order":
+        renderer = renderDragOrder(step);
+        this.setSkipButtonVisible(true);
+        return renderer;
+
+      case "sentence_complete":
+        renderer = renderSentenceComplete(step);
+        this.setSkipButtonVisible(true);
+        return renderer;
+
+      default:
+        renderer = renderLearnStep({
+          type: "learn",
+          title: "Step",
+          content: ["Continue to the next step."],
+          icon: "bi-arrow-right"
+        });
+        if (checkButton) {
+          checkButton.textContent = "Continue";
+          checkButton.disabled = false;
+        }
+        this.setSkipButtonVisible(false);
+        return renderer;
+    }
+  }
+
+  animateStepIn(rendererElement, container) {
+    requestAnimationFrame(() => {
+      rendererElement.classList.add("les-step-enter");
+    });
+
+    if (container) container.scrollTop = 0;
+    window.scrollTo({ top: 0, behavior: this.prefersReducedMotion ? "auto" : "smooth" });
+  }
+
   loadStep(index) {
     if (index >= this.steps.length) {
       this.showCompletion();
@@ -1763,116 +1853,67 @@ class LessonEngine {
     this.currentStepIndex = index;
     const step = this.steps[index];
     const container = this.els.lesStepContainer;
-    const checkBtn = this.els.lesCheckBtn;
-    const skipBtn = this.els.lesSkipBtn;
+    const checkButton = this.els.lesCheckBtn;
 
-    // Clear
-    container.innerHTML = "";
-    checkBtn.disabled = true;
-    checkBtn.textContent = "Check";
+    this.prepareStepUi(container, checkButton);
+    this.updateStepProgressFill(index);
 
-    // Update progress
-    const pct = ((index) / this.steps.length) * 100;
-    if (this.els.lesProgressFill) this.els.lesProgressFill.style.width = `${pct}%`;
-
-    // Render step
-    let renderer;
-    switch (step.type) {
-      case "learn":
-        renderer = renderLearnStep(step);
-        checkBtn.textContent = "Continue";
-        checkBtn.disabled = false;
-        if (skipBtn) skipBtn.style.display = "none";
-        break;
-      case "mcq":
-        renderer = renderMCQ(step);
-        if (skipBtn) skipBtn.style.display = "";
-        break;
-      case "fill_blank":
-        renderer = renderFillBlank(step);
-        if (skipBtn) skipBtn.style.display = "";
-        break;
-      case "matching":
-        renderer = renderMatching(step);
-        if (skipBtn) skipBtn.style.display = "";
-        break;
-      case "tap_word":
-        renderer = renderTapWord(step);
-        if (skipBtn) skipBtn.style.display = "";
-        break;
-      case "flashcard":
-        renderer = renderFlashcard(step);
-        checkBtn.textContent = "Continue";
-        checkBtn.disabled = true; // enabled after viewing all cards
-        if (skipBtn) skipBtn.style.display = "";
-        break;
-      case "drag_order":
-        renderer = renderDragOrder(step);
-        if (skipBtn) skipBtn.style.display = "";
-        break;
-      case "sentence_complete":
-        renderer = renderSentenceComplete(step);
-        if (skipBtn) skipBtn.style.display = "";
-        break;
-      default:
-        renderer = renderLearnStep({ type: "learn", title: "Step", content: ["Continue to the next step."], icon: "bi-arrow-right" });
-        checkBtn.textContent = "Continue";
-        checkBtn.disabled = false;
-        if (skipBtn) skipBtn.style.display = "none";
-    }
+    const renderer = this.buildRendererForStep(step, checkButton);
 
     this.currentRenderer = renderer;
-    container.appendChild(renderer.el);
+    if (container) container.appendChild(renderer.el);
+    this.animateStepIn(renderer.el, container);
+  }
 
-    // Animate in
-    requestAnimationFrame(() => {
-      renderer.el.classList.add("les-step-enter");
+  handlePassiveStepCheck(renderer) {
+    if (renderer.type !== "learn" && renderer.type !== "flashcard") return false;
+
+    if (renderer.type === "flashcard" && renderer.check) {
+      renderer.check();
+    }
+
+    this.stepResults.push({
+      type: renderer.type,
+      correct: true,
+      step: this.steps[this.currentStepIndex]
+    });
+    this.applyProgressAndXP(this.currentStepIndex + 1);
+    this.loadStep(this.currentStepIndex + 1);
+    return true;
+  }
+
+  handleInteractiveStepCheck(renderer) {
+    if (!renderer.check) return;
+
+    const result = renderer.check();
+    this.totalChecked += 1;
+
+    if (result.correct) {
+      this.correctCount += 1;
+      this.streak += 1;
+      if (this.streak > this.bestStreak) this.bestStreak = this.streak;
+      this.showStreakPopup();
+    } else {
+      this.streak = 0;
+    }
+
+    this.updateStats();
+    this.stepResults.push({
+      type: renderer.type,
+      correct: result.correct,
+      step: this.steps[this.currentStepIndex]
     });
 
-    // Scroll to top of step area
-    container.scrollTop = 0;
-    window.scrollTo({ top: 0, behavior: this.prefersReducedMotion ? "auto" : "smooth" });
+    const xpDelta = this.applyProgressAndXP(this.currentStepIndex + 1, { showPopup: false });
+    this.showFeedback(result.correct, result.explanation, xpDelta);
   }
 
   checkAnswer() {
     const renderer = this.currentRenderer;
     if (!renderer) return;
 
-    // Learn steps just advance
-    if (renderer.type === "learn" || renderer.type === "flashcard") {
-      if (renderer.type === "flashcard" && renderer.check) {
-        renderer.check();
-      }
-      this.stepResults.push({ type: renderer.type, correct: true, step: this.steps[this.currentStepIndex] });
-      this.applyProgressAndXP(this.currentStepIndex + 1);
-      this.loadStep(this.currentStepIndex + 1);
-      return;
-    }
-
-    // Interactive steps
-    if (renderer.check) {
-      const result = renderer.check();
-      this.totalChecked++;
-
-      if (result.correct) {
-        this.correctCount++;
-        this.streak++;
-        if (this.streak > this.bestStreak) this.bestStreak = this.streak;
-        this.showStreakPopup();
-      } else {
-        this.streak = 0;
-      }
-
-      this.updateStats();
-      this.stepResults.push({
-        type: renderer.type,
-        correct: result.correct,
-        step: this.steps[this.currentStepIndex]
-      });
-
-      const xpDelta = this.applyProgressAndXP(this.currentStepIndex + 1, { showPopup: false });
-      this.showFeedback(result.correct, result.explanation, xpDelta);
-    }
+    if (this.handlePassiveStepCheck(renderer)) return;
+    this.handleInteractiveStepCheck(renderer);
   }
 
   skipStep() {
@@ -2168,9 +2209,7 @@ class LessonEngine {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
-   CHROME – sidebar, dropdown, identity, logout (reused)
-   ═══════════════════════════════════════════════════════════ */
+// Shared chrome: sidebar, dropdown, identity, logout.
 function wireChrome(user) {
   wireSidebar();
   wireUserDropdown();
@@ -2250,9 +2289,7 @@ function fillIdentity(user) {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
-   INIT
-   ═══════════════════════════════════════════════════════════ */
+// Init.
 document.addEventListener("DOMContentLoaded", () => {
   const user = getCurrentUser();
   if (user) wireChrome(user);
