@@ -30,6 +30,11 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   const logsEl = getById("sbxActionLogs");
   const packetsEl = getById("sbxPacketLogs");
   const connTypeGroup = getById("connTypeGroup");
+  const topCarouselWrap = getById("sbxTopCarousel");
+  const topCarouselScroll = getById("sbxTopCarouselScroll");
+  const topCarouselDots = getById("sbxTopCarouselDots");
+  const topCarouselPrevBtn = getById("sbxTopCarouselPrev");
+  const topCarouselNextBtn = getById("sbxTopCarouselNext");
 
   const saveModalEl = getById("saveTopologyModal");
   const saveNameInput = getById("saveTopologyName");
@@ -61,6 +66,12 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   const CANVAS_HEIGHT = 2200;
   const CONSOLE_HISTORY_KEY = "sbx_command_history";
   const CONSOLE_HISTORY_LIMIT = 50;
+  const CAROUSEL_ROTATE_MS = 5500;
+  const TUTORIAL_DIFFICULTY_ORDER = {
+    beginner: 1,
+    intermediate: 2,
+    advanced: 3,
+  };
 
   const TOOL = {
     SELECT: "select",
@@ -206,6 +217,14 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   };
 
   let guideUI = null;
+  let suggestionsHideTimer = null;
+
+  const tutorialCarouselState = {
+    idsKey: "",
+    items: [],
+    index: 0,
+    timer: null,
+  };
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   const ENDPOINTS = window.ENDPOINTS || {};
@@ -224,6 +243,38 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   // ----------------------------------------
   function parseJsonSafe(str, fallback = null) {
     try { return JSON.parse(str); } catch { return fallback; }
+  }
+
+  function getStoredUser() {
+    return parseJsonSafe(localStorage.getItem("netology_user") || localStorage.getItem("user"));
+  }
+
+  function getTutorialDifficultyTier(difficulty) {
+    return TUTORIAL_DIFFICULTY_ORDER[String(difficulty || "").toLowerCase()] || 1;
+  }
+
+  function getUserTutorialTier(user) {
+    const rankRaw = String(user?.level || user?.rank || user?.unlock_tier || "").toLowerCase();
+    const numericLevel = Number(user?.numeric_level);
+    const xpLevel = Number.isFinite(numericLevel) && numericLevel > 0
+      ? numericLevel
+      : levelFromTotalXp(Number(user?.xp || 0));
+
+    let tierFromRank = 1;
+    if (rankRaw.includes("advanced")) tierFromRank = 3;
+    else if (rankRaw.includes("intermediate")) tierFromRank = 2;
+    else if (rankRaw.includes("novice") || rankRaw.includes("beginner")) tierFromRank = 1;
+
+    let tierFromLevel = 1;
+    if (xpLevel >= 5) tierFromLevel = 3;
+    else if (xpLevel >= 3) tierFromLevel = 2;
+
+    return clamp(Math.max(tierFromRank, tierFromLevel), 1, 3);
+  }
+
+  function getAvailableTutorials() {
+    const userTier = getUserTutorialTier(getStoredUser());
+    return SAMPLE_TUTORIALS.filter((tut) => getTutorialDifficultyTier(tut.difficulty) <= userTier);
   }
 
   function escapeHtml(str) {
@@ -561,14 +612,16 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   // Smart Device Connection Suggestions
   // ----------------------------------------
   function showConnectionSuggestions(device) {
-    // Never show suggestions while a guided challenge/tutorial is active
-    if (state.challengeMeta) return;
+    // Keep suggestions only in free mode.
+    if (state.mode !== "free") return;
     const panel = getById("sbxConnSuggest");
     const body  = getById("sbxConnSuggestBody");
     if (!panel || !body) return;
 
     const compat = DEVICE_COMPAT[device.type] || [];
-    const suggestions = [];
+    const connectSuggestions = [];
+    const addSuggestions = [];
+    const seen = new Set();
 
     compat.forEach(({ targets, conn }) => {
       targets.forEach((targetType) => {
@@ -581,54 +634,62 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
               (c.from === device.id && c.to === candidate.id) ||
               (c.from === candidate.id && c.to === device.id)
           );
-          if (!alreadyLinked) suggestions.push({ candidate, conn });
+          const key = `${candidate.id}:${conn}`;
+          if (!alreadyLinked && !seen.has(key)) {
+            seen.add(key);
+            connectSuggestions.push({ candidate, conn });
+          }
         });
       });
     });
 
-    // If no existing devices to connect to, show "what to add next" hints
-    if (!suggestions.length) {
-      const alreadyTypes = new Set(state.devices.map((d) => d.type));
-      compat.forEach(({ targets, conn }) => {
-        targets.forEach((targetType) => {
-          if (!alreadyTypes.has(targetType)) {
-            const dt = DEVICE_TYPES[targetType];
-            if (dt) suggestions.push({ addDevice: targetType, conn, label: dt.label });
+    const alreadyTypes = new Set(state.devices.map((d) => d.type));
+    compat.forEach(({ targets, conn }) => {
+      targets.forEach((targetType) => {
+        const key = `add:${targetType}:${conn}`;
+        if (!alreadyTypes.has(targetType) && !seen.has(key)) {
+          const dt = DEVICE_TYPES[targetType];
+          if (dt) {
+            seen.add(key);
+            addSuggestions.push({ addDevice: targetType, conn, label: dt.label });
           }
-        });
+        }
       });
+    });
 
-      if (!suggestions.length) return;
+    const suggestions = connectSuggestions.concat(addSuggestions).slice(0, 3);
+    if (!suggestions.length) {
+      dismissSuggestions();
+      return;
+    }
 
-      clearChildren(body);
-      // Show "add device" suggestions
-      suggestions.slice(0, 4).forEach(({ addDevice: devType, conn, label }) => {
+    clearChildren(body);
+    suggestions.forEach((suggestion) => {
+      if (suggestion.addDevice) {
+        const { addDevice: devType, conn, label } = suggestion;
         const ct = CONNECTION_TYPES[conn];
         const dt = DEVICE_TYPES[devType];
         const btn = makeEl("button", "sbx-conn-suggest-item");
         btn.type = "button";
         btn.innerHTML = `
-          <span class="sbx-conn-suggest-item-icon" style="color:${dt.color.includes("gradient") ? "#06b6d4" : dt.color}">
+          <span class="sbx-conn-suggest-item-icon" style="color:${dt.color.includes("gradient") ? "#0891b2" : dt.color}">
             <i class="bi ${dt.icon}"></i>
           </span>
           <span class="sbx-conn-suggest-item-text">
-            <strong>Add a ${label}</strong>
-            <span class="sbx-conn-suggest-item-meta">Then connect via ${ct.label}</span>
+            <span class="sbx-conn-suggest-item-kicker">Add</span>
+            <strong>${label}</strong>
+            <span class="sbx-conn-suggest-item-meta">Then link via ${ct.label}</span>
           </span>
-          <span class="sbx-conn-suggest-item-arrow"><i class="bi bi-plus-circle"></i></span>`;
+          <span class="sbx-conn-suggest-item-arrow"><i class="bi bi-plus-lg"></i></span>`;
         btn.addEventListener("click", () => {
           dismissSuggestions();
           addDevice(devType);
         });
         body.appendChild(btn);
-      });
-      panel.style.display = "";
-      return;
-    }
+        return;
+      }
 
-    // Show connect-to-existing suggestions
-    clearChildren(body);
-    suggestions.slice(0, 4).forEach(({ candidate, conn }) => {
+      const { candidate, conn } = suggestion;
       const ct = CONNECTION_TYPES[conn];
       const btn = makeEl("button", "sbx-conn-suggest-item");
       btn.type = "button";
@@ -637,17 +698,16 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
           <i class="bi bi-plug"></i>
         </span>
         <span class="sbx-conn-suggest-item-text">
+          <span class="sbx-conn-suggest-item-kicker">Connect</span>
           <strong>${candidate.name}</strong>
-          <span class="sbx-conn-suggest-item-meta">${ct.label} cable</span>
+          <span class="sbx-conn-suggest-item-meta">Use ${ct.label}</span>
         </span>
-        <span class="sbx-conn-suggest-item-arrow"><i class="bi bi-arrow-right"></i></span>`;
+        <span class="sbx-conn-suggest-item-arrow"><i class="bi bi-arrow-right-short"></i></span>`;
       btn.addEventListener("click", () => {
         dismissSuggestions();
-        // Set connection type
         state.connectType = conn;
         qsa("[data-conn-type]", connTypeGroup).forEach((b) => b.classList.remove("is-active"));
         qs(`[data-conn-type="${conn}"]`, connTypeGroup)?.classList.add("is-active");
-        // Switch to connect tool and pre-select source device
         state.tool = TOOL.CONNECT;
         qsa("[data-tool]").forEach((b) => b.classList.remove("is-active"));
         getById("toolConnectBtn")?.classList.add("is-active");
@@ -655,59 +715,155 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
         state.connectFrom = device.id;
         state.selectedIds = [device.id];
         renderDevices();
-        // Highlight the target
         addGuided(qs(`.sbx-device[data-id="${candidate.id}"]`, deviceLayer));
         const ct2 = CONNECTION_TYPES[conn];
-        setTip(`Click ${candidate.name} to complete the ${ct2.label} connection.`);
+        setTip(`Click ${candidate.name} to complete the ${ct2.label} link.`);
       });
       body.appendChild(btn);
     });
 
-    // Also highlight compatible devices on canvas
-    suggestions.slice(0, 4).forEach(({ candidate }) => {
-      if (candidate) {
-        addGuided(qs(`.sbx-device[data-id="${candidate.id}"]`, deviceLayer));
-      }
+    // Highlight only connect targets (not "add device" suggestions).
+    connectSuggestions.slice(0, 3).forEach(({ candidate }) => {
+      addGuided(qs(`.sbx-device[data-id="${candidate.id}"]`, deviceLayer));
     });
 
+    if (suggestionsHideTimer) {
+      clearTimeout(suggestionsHideTimer);
+      suggestionsHideTimer = null;
+    }
     panel.style.display = "";
+    requestAnimationFrame(() => panel.classList.add("is-show"));
   }
 
   function dismissSuggestions() {
     const panel = getById("sbxConnSuggest");
-    if (panel) panel.style.display = "none";
+    const body = getById("sbxConnSuggestBody");
+    if (!panel) return;
+    if (suggestionsHideTimer) clearTimeout(suggestionsHideTimer);
+    panel.classList.remove("is-show");
+    suggestionsHideTimer = setTimeout(() => {
+      panel.style.display = "none";
+      if (body) clearChildren(body);
+    }, 130);
     clearGuidedHighlights();
   }
 
   // ----------------------------------------
-  // Tutorial Carousel — renders in the top canvas bar (free mode only)
+  // Tutorial Carousel — top-left rotating cards (free mode only)
   // ----------------------------------------
-  function renderTutorialCarousel() {
-    // Old in-panel carousel (kept hidden, now unused)
-    const oldWrap = getById("sbxTutorialCarousel");
-    if (oldWrap) oldWrap.style.display = "none";
+  function clearTutorialCarouselTimer() {
+    if (!tutorialCarouselState.timer) return;
+    clearInterval(tutorialCarouselState.timer);
+    tutorialCarouselState.timer = null;
+  }
 
-    // New top-bar carousel
-    const wrap   = getById("sbxTopCarousel");
-    const scroll = getById("sbxTopCarouselScroll");
-    if (!wrap || !scroll) return;
-    if (state.mode !== "free") { wrap.style.display = "none"; return; }
-    wrap.style.display = "";
-    if (scroll.childElementCount > 0) return; // already populated
-    SAMPLE_TUTORIALS.forEach((tut) => {
-      const card = makeEl("button", "sbx-top-tut-card");
-      card.type = "button";
-      card.innerHTML = `
-        <i class="bi ${tut.icon} sbx-top-tut-icon"></i>
-        <span class="sbx-top-tut-title">${tut.title}</span>
-        <span class="sbx-top-tut-diff sbx-tut-diff--${tut.difficulty.toLowerCase()}">${tut.difficulty}</span>`;
-      card.addEventListener("click", () => launchSampleTutorial(tut));
-      scroll.appendChild(card);
+  function setTutorialCarouselIndex(nextIndex, options = {}) {
+    const { restartTimer = true } = options;
+    const total = tutorialCarouselState.items.length;
+    if (!total || !topCarouselScroll) return;
+    const index = ((nextIndex % total) + total) % total;
+    tutorialCarouselState.index = index;
+
+    qsa(".sbx-top-tut-card", topCarouselScroll).forEach((card, idx) => {
+      card.classList.toggle("is-active", idx === index);
     });
+    if (topCarouselDots) {
+      qsa(".sbx-top-carousel-dot", topCarouselDots).forEach((dot, idx) => {
+        dot.classList.toggle("is-active", idx === index);
+      });
+    }
+    if (topCarouselPrevBtn) topCarouselPrevBtn.disabled = total <= 1;
+    if (topCarouselNextBtn) topCarouselNextBtn.disabled = total <= 1;
+
+    if (restartTimer) startTutorialCarouselTimer();
+  }
+
+  function startTutorialCarouselTimer() {
+    clearTutorialCarouselTimer();
+    if (tutorialCarouselState.items.length <= 1) return;
+    tutorialCarouselState.timer = setInterval(() => {
+      setTutorialCarouselIndex(tutorialCarouselState.index + 1, { restartTimer: false });
+    }, CAROUSEL_ROTATE_MS);
+  }
+
+  function ensureTutorialCarouselControls() {
+    if (topCarouselPrevBtn && !topCarouselPrevBtn.dataset.bound) {
+      topCarouselPrevBtn.dataset.bound = "1";
+      topCarouselPrevBtn.addEventListener("click", () => {
+        setTutorialCarouselIndex(tutorialCarouselState.index - 1);
+      });
+    }
+    if (topCarouselNextBtn && !topCarouselNextBtn.dataset.bound) {
+      topCarouselNextBtn.dataset.bound = "1";
+      topCarouselNextBtn.addEventListener("click", () => {
+        setTutorialCarouselIndex(tutorialCarouselState.index + 1);
+      });
+    }
+    if (topCarouselWrap && !topCarouselWrap.dataset.bound) {
+      topCarouselWrap.dataset.bound = "1";
+      topCarouselWrap.addEventListener("mouseenter", clearTutorialCarouselTimer);
+      topCarouselWrap.addEventListener("mouseleave", startTutorialCarouselTimer);
+    }
+  }
+
+  function renderTutorialCarousel() {
+    if (!topCarouselWrap || !topCarouselScroll) return;
+    ensureTutorialCarouselControls();
+
+    if (state.mode !== "free") {
+      topCarouselWrap.style.display = "none";
+      clearTutorialCarouselTimer();
+      dismissSuggestions();
+      return;
+    }
+
+    const tutorials = getAvailableTutorials();
+    if (!tutorials.length) {
+      topCarouselWrap.style.display = "none";
+      clearTutorialCarouselTimer();
+      return;
+    }
+
+    const idsKey = tutorials.map((t) => t.id).join("|");
+    if (idsKey !== tutorialCarouselState.idsKey) {
+      tutorialCarouselState.idsKey = idsKey;
+      tutorialCarouselState.items = tutorials;
+      tutorialCarouselState.index = 0;
+      clearChildren(topCarouselScroll);
+      if (topCarouselDots) clearChildren(topCarouselDots);
+
+      tutorials.forEach((tut, idx) => {
+        const card = makeEl("button", `sbx-top-tut-card${idx === 0 ? " is-active" : ""}`);
+        card.type = "button";
+        card.innerHTML = `
+          <span class="sbx-top-tut-main">
+            <span class="sbx-top-tut-icon-wrap"><i class="bi ${tut.icon} sbx-top-tut-icon"></i></span>
+            <span class="sbx-top-tut-copy">
+              <span class="sbx-top-tut-title">${tut.title}</span>
+              <span class="sbx-top-tut-desc">${tut.desc || ""}</span>
+            </span>
+          </span>
+          <span class="sbx-top-tut-diff sbx-tut-diff--${String(tut.difficulty || "").toLowerCase()}">${tut.difficulty}</span>`;
+        card.addEventListener("click", () => launchSampleTutorial(tut));
+        topCarouselScroll.appendChild(card);
+
+        if (topCarouselDots) {
+          const dot = makeEl("button", `sbx-top-carousel-dot${idx === 0 ? " is-active" : ""}`);
+          dot.type = "button";
+          dot.setAttribute("aria-label", `Show tutorial ${idx + 1}`);
+          dot.addEventListener("click", () => setTutorialCarouselIndex(idx));
+          topCarouselDots.appendChild(dot);
+        }
+      });
+    }
+
+    topCarouselWrap.style.display = "";
+    setTutorialCarouselIndex(tutorialCarouselState.index, { restartTimer: false });
+    startTutorialCarouselTimer();
   }
 
   function launchSampleTutorial(tut) {
-    const rawUser = parseJsonSafe(localStorage.getItem("netology_user") || localStorage.getItem("user"));
+    const rawUser = getStoredUser();
     state.tutorialMeta = {
       courseId: 0,
       lesson: 0,

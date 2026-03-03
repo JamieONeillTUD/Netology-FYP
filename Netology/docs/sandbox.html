@@ -370,10 +370,21 @@ Notes:
 
         <!-- Canvas -->
         <section class="sbx-stage-wrap" data-tour="sandbox-canvas">
-          <!-- Top Tutorial Carousel (free/sandbox mode only — hidden in challenge mode) -->
+          <!-- Top Tutorial Carousel (free/sandbox mode only — hidden in guided mode) -->
           <div class="sbx-top-carousel" id="sbxTopCarousel" style="display:none;" aria-label="Available sandbox tutorials">
-            <div class="sbx-top-carousel-label"><i class="bi bi-stars" aria-hidden="true"></i> Quick Challenges</div>
+            <div class="sbx-top-carousel-head">
+              <div class="sbx-top-carousel-label"><i class="bi bi-stars" aria-hidden="true"></i> Quick Tutorials</div>
+              <div class="sbx-top-carousel-controls">
+                <button class="sbx-top-carousel-btn" id="sbxTopCarouselPrev" type="button" aria-label="Previous tutorial">
+                  <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                </button>
+                <button class="sbx-top-carousel-btn" id="sbxTopCarouselNext" type="button" aria-label="Next tutorial">
+                  <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
             <div class="sbx-top-carousel-scroll" id="sbxTopCarouselScroll"></div>
+            <div class="sbx-top-carousel-dots" id="sbxTopCarouselDots" aria-hidden="true"></div>
           </div>
 
           <div class="sbx-stage-head">
@@ -383,21 +394,6 @@ Notes:
             </div>
             <div id="tips" class="sbx-tip" aria-live="polite" role="status">
               Tip: Select a device to view and edit its settings.
-            </div>
-          </div>
-
-          <!-- Connection Suggestions Panel -->
-          <div class="sbx-conn-suggest" id="sbxConnSuggest" style="display:none;" aria-live="polite" role="status">
-            <div class="sbx-conn-suggest-header">
-              <i class="bi bi-lightning-fill" aria-hidden="true"></i>
-              <span class="sbx-conn-suggest-title">Suggested Connections</span>
-              <button class="sbx-conn-suggest-close" id="sbxConnSuggestClose" type="button" aria-label="Dismiss suggestions">
-                <i class="bi bi-x" aria-hidden="true"></i>
-              </button>
-            </div>
-            <div class="sbx-conn-suggest-body" id="sbxConnSuggestBody"></div>
-            <div class="sbx-conn-suggest-footer">
-              <span class="sbx-conn-suggest-hint"><i class="bi bi-cursor" aria-hidden="true"></i> Click a suggestion to start connecting</span>
             </div>
           </div>
 
@@ -419,6 +415,17 @@ Notes:
               <div class="sbx-empty-title">Start building your network</div>
               <div class="sbx-empty-sub">Drag a device from the left panel, or click any device card to add it to the canvas.</div>
               <div class="sbx-empty-hint"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Begin with a Router or Switch</div>
+            </div>
+
+            <!-- Connection Suggestions -->
+            <div class="sbx-conn-suggest" id="sbxConnSuggest" style="display:none;" aria-live="polite" role="status">
+              <div class="sbx-conn-suggest-header">
+                <span class="sbx-conn-suggest-title">Try this next</span>
+                <button class="sbx-conn-suggest-close" id="sbxConnSuggestClose" type="button" aria-label="Dismiss suggestions">
+                  <i class="bi bi-x" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div class="sbx-conn-suggest-body" id="sbxConnSuggestBody"></div>
             </div>
           </div>
         </section>
@@ -451,11 +458,6 @@ Notes:
             <!-- (1) Objectives — always first -->
             <div class="sbx-tabpanel is-active" id="panelObjectives">
               <div class="sbx-panel-content">
-                <!-- Tutorial Carousel (free mode only) -->
-                <div class="sbx-tutorial-carousel" id="sbxTutorialCarousel" style="display:none;">
-                  <div class="sbx-tutorial-carousel-title"><i class="bi bi-stars" aria-hidden="true"></i> Quick Challenges</div>
-                  <div class="sbx-tutorial-carousel-scroll" id="sbxTutorialCarouselScroll"></div>
-                </div>
                 <div class="sbx-challenge-banner" id="challengeBanner" style="display:none;">
                   <div class="sbx-challenge-head">
                     <div class="sbx-challenge-icon"><i class="bi bi-mortarboard-fill"></i></div>
