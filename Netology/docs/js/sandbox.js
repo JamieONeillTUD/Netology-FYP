@@ -29,7 +29,6 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   const consoleSendBtn = getById("sbxConsoleSend");
   const logsEl = getById("sbxActionLogs");
   const packetsEl = getById("sbxPacketLogs");
-  const zoomLabel = getById("zoomLabel");
   const connTypeGroup = getById("connTypeGroup");
 
   const saveModalEl = getById("saveTopologyModal");
@@ -58,6 +57,8 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   const GRID_SIZE = 20;
   const DEVICE_SIZE = 72;
   const DEVICE_RADIUS = DEVICE_SIZE / 2;
+  const CANVAS_WIDTH = 3200;
+  const CANVAS_HEIGHT = 2200;
   const CONSOLE_HISTORY_KEY = "sbx_command_history";
   const CONSOLE_HISTORY_LIMIT = 50;
 
@@ -180,6 +181,8 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     connectFrom: null,
     connectType: "ethernet",
     zoom: 1,
+    panX: 0,
+    panY: 0,
     showGrid: true,
     snap: true,
     dragging: null,
@@ -262,6 +265,94 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
   function clamp(n, min, max) {
     return Math.min(max, Math.max(min, n));
+  }
+
+  function getPanBounds(zoom = state.zoom) {
+    const rect = stage.getBoundingClientRect();
+    const scaledWidth = CANVAS_WIDTH * zoom;
+    const scaledHeight = CANVAS_HEIGHT * zoom;
+
+    let minX = rect.width - scaledWidth;
+    let maxX = 0;
+    let minY = rect.height - scaledHeight;
+    let maxY = 0;
+
+    if (scaledWidth <= rect.width) {
+      const centeredX = (rect.width - scaledWidth) / 2;
+      minX = centeredX;
+      maxX = centeredX;
+    }
+    if (scaledHeight <= rect.height) {
+      const centeredY = (rect.height - scaledHeight) / 2;
+      minY = centeredY;
+      maxY = centeredY;
+    }
+
+    return { minX, maxX, minY, maxY };
+  }
+
+  function clampPanToBounds() {
+    const bounds = getPanBounds();
+    state.panX = clamp(state.panX, bounds.minX, bounds.maxX);
+    state.panY = clamp(state.panY, bounds.minY, bounds.maxY);
+  }
+
+  function toWorldPoint(clientX, clientY) {
+    const rect = stage.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left - state.panX) / state.zoom,
+      y: (clientY - rect.top - state.panY) / state.zoom,
+    };
+  }
+
+  function toScreenPoint(worldX, worldY) {
+    return {
+      x: state.panX + worldX * state.zoom,
+      y: state.panY + worldY * state.zoom,
+    };
+  }
+
+  function applyCanvasWorldSize() {
+    const width = `${CANVAS_WIDTH}px`;
+    const height = `${CANVAS_HEIGHT}px`;
+    deviceLayer.style.width = width;
+    deviceLayer.style.height = height;
+    connectionLayer.style.width = width;
+    connectionLayer.style.height = height;
+    connectionLayer.setAttribute("width", String(CANVAS_WIDTH));
+    connectionLayer.setAttribute("height", String(CANVAS_HEIGHT));
+    connectionLayer.setAttribute("viewBox", `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`);
+  }
+
+  function resetViewport() {
+    const rect = stage.getBoundingClientRect();
+    state.zoom = 1;
+    state.panX = (rect.width - CANVAS_WIDTH) / 2;
+    state.panY = (rect.height - CANVAS_HEIGHT) / 2;
+    clampPanToBounds();
+  }
+
+  function setZoom(nextZoom, anchorClientX = null, anchorClientY = null) {
+    const clampedZoom = clamp(nextZoom, 0.4, 2.5);
+    if (clampedZoom === state.zoom) return;
+
+    if (Number.isFinite(anchorClientX) && Number.isFinite(anchorClientY)) {
+      const rect = stage.getBoundingClientRect();
+      const localX = anchorClientX - rect.left;
+      const localY = anchorClientY - rect.top;
+      const worldX = (localX - state.panX) / state.zoom;
+      const worldY = (localY - state.panY) / state.zoom;
+      state.zoom = clampedZoom;
+      state.panX = localX - worldX * state.zoom;
+      state.panY = localY - worldY * state.zoom;
+    } else {
+      state.zoom = clampedZoom;
+    }
+
+    clampPanToBounds();
+    updateZoomLabel();
+    renderConnections();
+    renderConnectionLabels();
   }
 
   function setTip(text) {
@@ -1289,15 +1380,16 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
   function getNextDevicePosition() {
     const rect = stage.getBoundingClientRect();
-    const centerX = rect.width / 2 - DEVICE_RADIUS;
-    const centerY = rect.height / 2 - DEVICE_RADIUS;
+    const viewportCenter = toWorldPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const centerX = viewportCenter.x - DEVICE_RADIUS;
+    const centerY = viewportCenter.y - DEVICE_RADIUS;
     const padding = 16;
     const index = state.devices.length;
 
     if (index === 0) {
       return {
-        x: clamp(centerX, padding, rect.width - DEVICE_SIZE - padding),
-        y: clamp(centerY, padding, rect.height - DEVICE_SIZE - padding),
+        x: clamp(centerX, padding, CANVAS_WIDTH - DEVICE_SIZE - padding),
+        y: clamp(centerY, padding, CANVAS_HEIGHT - DEVICE_SIZE - padding),
       };
     }
 
@@ -1308,8 +1400,8 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     const radius = ring * step;
     let x = centerX + Math.cos(angle) * radius;
     let y = centerY + Math.sin(angle) * radius;
-    x = clamp(x, padding, rect.width - DEVICE_SIZE - padding);
-    y = clamp(y, padding, rect.height - DEVICE_SIZE - padding);
+    x = clamp(x, padding, CANVAS_WIDTH - DEVICE_SIZE - padding);
+    y = clamp(y, padding, CANVAS_HEIGHT - DEVICE_SIZE - padding);
     return { x, y };
   }
 
@@ -1890,13 +1982,13 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   }
 
   function updateZoomLabel() {
-    if (zoomLabel) zoomLabel.textContent = `${Math.round(state.zoom * 100)}%`;
-    deviceLayer.style.transform = `scale(${state.zoom})`;
+    deviceLayer.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
     deviceLayer.style.transformOrigin = "0 0";
-    connectionLayer.style.transform = `scale(${state.zoom})`;
+    connectionLayer.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
     connectionLayer.style.transformOrigin = "0 0";
     if (state.showGrid) {
       stage.style.backgroundSize = `${GRID_SIZE * state.zoom}px ${GRID_SIZE * state.zoom}px`;
+      stage.style.backgroundPosition = `${state.panX}px ${state.panY}px`;
     }
   }
 
@@ -1904,6 +1996,9 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     stage.classList.toggle("is-grid", state.showGrid);
     if (state.showGrid) {
       stage.style.backgroundSize = `${GRID_SIZE * state.zoom}px ${GRID_SIZE * state.zoom}px`;
+      stage.style.backgroundPosition = `${state.panX}px ${state.panY}px`;
+    } else {
+      stage.style.backgroundPosition = "";
     }
   }
 
@@ -1996,10 +2091,9 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   }
 
   function resizeConnections() {
-    const rect = stage.getBoundingClientRect();
-    connectionLayer.setAttribute("width", rect.width);
-    connectionLayer.setAttribute("height", rect.height);
-    connectionLayer.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+    connectionLayer.setAttribute("width", String(CANVAS_WIDTH));
+    connectionLayer.setAttribute("height", String(CANVAS_HEIGHT));
+    connectionLayer.setAttribute("viewBox", `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`);
   }
 
   // Lightweight: update only existing SVG path positions (used during drag)
@@ -2923,7 +3017,6 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   // Device and connection actions
   // ----------------------------------------
   function addDevice(type, position = null) {
-    const rect = stage.getBoundingClientRect();
     const pos = position && Number.isFinite(position.x) && Number.isFinite(position.y)
       ? { x: position.x, y: position.y }
       : getNextDevicePosition();
@@ -2937,8 +3030,8 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     const device = normalizeDevice({
       id: `device-${Date.now()}`,
       type,
-      x: clamp(pos.x, 10, rect.width - DEVICE_SIZE - 10),
-      y: clamp(pos.y, 10, rect.height - DEVICE_SIZE - 10),
+      x: clamp(pos.x, 10, CANVAS_WIDTH - DEVICE_SIZE - 10),
+      y: clamp(pos.y, 10, CANVAS_HEIGHT - DEVICE_SIZE - 10),
       name: `${DEVICE_TYPES[type]?.label || "Device"} ${count}`,
       status: "on",
     });
@@ -4133,8 +4226,9 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
               ev.clientY >= rect.top &&
               ev.clientY <= rect.bottom;
             if (within) {
-              const x = (ev.clientX - rect.left) / state.zoom - DEVICE_RADIUS;
-              const y = (ev.clientY - rect.top) / state.zoom - DEVICE_RADIUS;
+              const worldPoint = toWorldPoint(ev.clientX, ev.clientY);
+              const x = worldPoint.x - DEVICE_RADIUS;
+              const y = worldPoint.y - DEVICE_RADIUS;
               addDevice(type, { x, y });
             }
           } else {
@@ -4156,7 +4250,11 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
         qsa("[data-tool]").forEach((b) => b.classList.remove("is-active"));
         btn.classList.add("is-active");
         state.connectFrom = null;
-        setTip(state.tool === TOOL.CONNECT ? "Select a device to start a connection." : "Select and drag devices.");
+        if (state.tool === TOOL.CONNECT) {
+          setTip("Select a device to start a connection.");
+        } else {
+          setTip("Select and drag devices.");
+        }
         updateConnGroupVisibility();
       });
     });
@@ -4181,15 +4279,13 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     });
 
     getById("zoomInBtn")?.addEventListener("click", () => {
-      state.zoom = clamp(state.zoom + 0.1, 0.5, 2);
-      updateZoomLabel();
-      renderConnections();
+      const rect = stage.getBoundingClientRect();
+      setZoom(state.zoom + 0.1, rect.left + rect.width / 2, rect.top + rect.height / 2);
     });
 
     getById("zoomOutBtn")?.addEventListener("click", () => {
-      state.zoom = clamp(state.zoom - 0.1, 0.5, 2);
-      updateZoomLabel();
-      renderConnections();
+      const rect = stage.getBoundingClientRect();
+      setZoom(state.zoom - 0.1, rect.left + rect.width / 2, rect.top + rect.height / 2);
     });
 
     getById("undoBtn")?.addEventListener("click", () => {
@@ -4412,6 +4508,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     deviceLayer.addEventListener("pointerdown", (e) => {
       // Skip drag when clicking action buttons (gear, copy, delete)
       if (e.target.closest(".sbx-device-action")) return;
+      if (e.button !== 0) return;
 
       const deviceEl = e.target.closest(".sbx-device");
       if (!deviceEl) return;
@@ -4448,9 +4545,9 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
         const freshEl = deviceLayer.querySelector(`[data-id="${id}"]`);
         if (!freshEl) return;
 
-        const rect = stage.getBoundingClientRect();
-        const pointerX = (e.clientX - rect.left) / state.zoom;
-        const pointerY = (e.clientY - rect.top) / state.zoom;
+        const pointer = toWorldPoint(e.clientX, e.clientY);
+        const pointerX = pointer.x;
+        const pointerY = pointer.y;
 
         state.dragging = {
           id,
@@ -4467,21 +4564,21 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
     window.addEventListener("pointermove", (e) => {
       if (!state.dragging) return;
-      const rect = stage.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / state.zoom - state.dragging.offsetX;
-      const y = (e.clientY - rect.top) / state.zoom - state.dragging.offsetY;
+      const pointer = toWorldPoint(e.clientX, e.clientY);
+      const x = pointer.x - state.dragging.offsetX;
+      const y = pointer.y - state.dragging.offsetY;
       const device = findDevice(state.dragging.id);
       if (!device) return;
 
-      device.x = x;
-      device.y = y;
-      state.dragging.el.style.left = `${x}px`;
-      state.dragging.el.style.top = `${y}px`;
+      device.x = clamp(x, 0, CANVAS_WIDTH - DEVICE_SIZE);
+      device.y = clamp(y, 0, CANVAS_HEIGHT - DEVICE_SIZE);
+      state.dragging.el.style.left = `${device.x}px`;
+      state.dragging.el.style.top = `${device.y}px`;
       // Lightweight update — only move existing connection line paths, no rebuild
       updateConnectionPaths();
     });
 
-    window.addEventListener("pointerup", () => {
+    const endPointerInteraction = () => {
       if (!state.dragging) return;
       state.dragging.el.classList.remove("is-dragging");
       const device = findDevice(state.dragging.id);
@@ -4493,10 +4590,16 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
       pushHistory();
       renderAll();
       markDirtyAndSaveSoon();
-    });
+    };
+
+    window.addEventListener("pointerup", endPointerInteraction);
+    window.addEventListener("pointercancel", endPointerInteraction);
 
     window.addEventListener("resize", () => {
+      clampPanToBounds();
+      updateZoomLabel();
       renderConnections();
+      renderConnectionLabels();
     });
   }
 
@@ -4643,6 +4746,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
         getById("toolSelectBtn")?.classList.add("is-active");
         state.connectFrom = null;
         setTip("Select and drag devices.");
+        updateConnGroupVisibility();
         return;
       }
       // C - Connect tool
@@ -4651,6 +4755,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
         qsa("[data-tool]").forEach((b) => b.classList.remove("is-active"));
         getById("toolConnectBtn")?.classList.add("is-active");
         setTip("Select a device to start a connection.");
+        updateConnGroupVisibility();
         return;
       }
       // Escape - Deselect
@@ -4661,6 +4766,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
         return;
       }
     });
+
   }
 
   // --- Duplicate Selected Device ---
@@ -4720,12 +4826,17 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   // --- Mouse Wheel Zoom ---
   function bindMouseWheelZoom() {
     stageEl.addEventListener("wheel", (e) => {
-      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      state.zoom = clamp(state.zoom + delta, 0.5, 2);
+      if (e.ctrlKey || e.metaKey) {
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        setZoom(state.zoom + delta, e.clientX, e.clientY);
+        return;
+      }
+      state.panX -= e.deltaX;
+      state.panY -= e.deltaY;
+      clampPanToBounds();
       updateZoomLabel();
-      renderConnections();
+      renderConnectionLabels();
     }, { passive: false });
   }
 
@@ -4816,10 +4927,9 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   // --- Auto-Layout ---
   function autoLayout() {
     if (!state.devices.length) return;
-    const rect = stage.getBoundingClientRect();
     const padding = 60;
     const cols = Math.ceil(Math.sqrt(state.devices.length));
-    const cellW = Math.floor((rect.width - padding * 2) / cols);
+    const cellW = Math.floor((CANVAS_WIDTH - padding * 2) / cols);
     const cellH = Math.floor(cellW * 0.9);
 
     state.devices.forEach((d, i) => {
@@ -4853,9 +4963,8 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     if (!minimapVisible) return;
     const svg = getById("sbxMinimapSvg");
     if (!svg) return;
-    const rect = stage.getBoundingClientRect();
-    const scaleX = 160 / rect.width;
-    const scaleY = 100 / rect.height;
+    const scaleX = 160 / CANVAS_WIDTH;
+    const scaleY = 100 / CANVAS_HEIGHT;
     const scale = Math.min(scaleX, scaleY);
 
     let html = "";
@@ -4931,18 +5040,21 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   function renderConnectionLabels() {
     // Remove old labels
     qsa(".sbx-conn-label", stageEl).forEach((el) => el.remove());
+    const rect = stage.getBoundingClientRect();
     state.connections.forEach((c) => {
       const from = findDevice(c.from);
       const to = findDevice(c.to);
       if (!from || !to) return;
       const mx = ((from.x + DEVICE_RADIUS) + (to.x + DEVICE_RADIUS)) / 2;
       const my = ((from.y + DEVICE_RADIUS) + (to.y + DEVICE_RADIUS)) / 2;
+      const point = toScreenPoint(mx, my - 12);
+      if (point.x < -60 || point.y < -40 || point.x > rect.width + 60 || point.y > rect.height + 60) return;
       const label = document.createElement("div");
       label.className = "sbx-conn-label";
       label.textContent = (c.type || "ethernet").toUpperCase().slice(0, 3);
       label.title = `${CONNECTION_TYPES[c.type]?.label || c.type} – ${BANDWIDTH_MAP[c.type] || ""}`;
-      label.style.left = `${mx}px`;
-      label.style.top = `${my - 12}px`;
+      label.style.left = `${point.x}px`;
+      label.style.top = `${point.y}px`;
       stageEl.appendChild(label);
     });
   }
@@ -5009,8 +5121,11 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     state.selectedIds = [];
     pushHistory();
 
+    applyCanvasWorldSize();
+    resetViewport();
     updateGrid();
     updateZoomLabel();
+    updateConnGroupVisibility();
     setTip("Select a device to view and edit its settings.");
     renderAllEnhanced();
 

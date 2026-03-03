@@ -5879,8 +5879,8 @@ body[data-theme="sunrise"] {
   grid-template-columns: 260px minmax(0,1fr) 320px;
   gap: 8px; align-items: stretch;
   position: relative;
-  height: calc(100vh - 180px);
-  min-height: 520px;
+  height: calc(100vh - 155px);
+  min-height: 620px;
   border-radius: 16px;
   overflow: hidden;
   background: var(--sbx-canvas-bg);
@@ -6236,9 +6236,11 @@ body[data-theme="sunrise"] {
 
 .sbx-stage {
   position: relative; flex: 1; overflow: hidden;
+  min-height: 560px;
   background-color: var(--sbx-canvas-bg);
   background-image: radial-gradient(circle,var(--sbx-canvas-dot) 1px,transparent 1px);
   background-size: 24px 24px; background-position: 12px 12px;
+  cursor: default;
 }
 .sbx-stage.is-drop { background-color: rgba(13,148,136,.03); outline: 2px dashed rgba(13,148,136,.3); outline-offset: -6px; }
 .sbx-stage.is-grid {
@@ -6256,7 +6258,7 @@ body[data-theme="sunrise"] {
 
 /* --- SVG Connection Layer --- */
 .sbx-connections {
-  position: absolute; inset: 0; width: 100%; height: 100%;
+  position: absolute; top: 0; left: 0;
   pointer-events: none; z-index: 5;
 }
 .sbx-connections path {
@@ -6288,7 +6290,7 @@ body[data-theme="sunrise"] {
 }
 
 /* --- Devices on Canvas --- */
-.sbx-devices { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.sbx-devices { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 10; }
 
 .sbx-device {
   position: absolute; width: 72px; height: 72px;
@@ -6914,8 +6916,8 @@ body[data-theme="sunrise"] {
   .sbx-workspace { grid-template-columns: 1fr; height: auto; min-height: auto; }
   .sbx-panel { min-height: auto; }
   .sbx-panel-left, .sbx-panel-right { order: 2; border: 1px solid var(--sbx-panel-border); }
-  .sbx-stage-wrap { order: 1; min-height: 420px; }
-  .sbx-stage { min-height: 420px; }
+  .sbx-stage-wrap { order: 1; min-height: 520px; }
+  .sbx-stage { min-height: 520px; }
   .sbx-minimap { display: none !important; }
 }
 @media (max-width: 767.98px) {
