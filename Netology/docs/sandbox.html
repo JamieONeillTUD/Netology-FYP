@@ -279,7 +279,7 @@ Notes:
           </button>
         </div>
       </div>
-      <div class="sbx-workspace">
+      <div class="sbx-workspace" data-tour="sandbox-workspace">
         <!-- Left Panel -->
         <aside class="sbx-panel sbx-panel-left" id="sbxLeftPanel" data-tour="sandbox-library">
           <div class="sbx-panel-head">
@@ -392,8 +392,15 @@ Notes:
               <div class="sbx-stage-title">Topology Canvas</div>
               <div class="sbx-stage-sub">Drag devices from the library, connect them, and configure.</div>
             </div>
-            <div id="tips" class="sbx-tip" aria-live="polite" role="status">
-              Tip: Select a device to view and edit its settings.
+            <div class="sbx-stage-tools">
+              <button class="sbx-stage-chip" id="sbxTutorialsToggle" type="button" data-tooltip="Show or hide quick tutorials"
+                data-tour="sandbox-tutorial-toggle" aria-pressed="true">
+                <i class="bi bi-eye-slash" aria-hidden="true"></i>
+                <span id="sbxTutorialsToggleLabel">Hide tutorials</span>
+              </button>
+              <div id="tips" class="sbx-tip" aria-live="polite" role="status">
+                Tip: Select a device to view and edit its settings.
+              </div>
             </div>
           </div>
 
@@ -411,10 +418,12 @@ Notes:
               <svg id="sbxMinimapSvg"></svg>
             </div>
             <div class="sbx-empty" id="sbxEmptyState">
-              <div class="sbx-empty-icon"><i class="bi bi-diagram-3"></i></div>
-              <div class="sbx-empty-title">Start building your network</div>
-              <div class="sbx-empty-sub">Drag a device from the left panel, or click any device card to add it to the canvas.</div>
-              <div class="sbx-empty-hint"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Begin with a Router or Switch</div>
+              <div class="sbx-empty-inner">
+                <div class="sbx-empty-icon"><i class="bi bi-diagram-3"></i></div>
+                <div class="sbx-empty-title">Start building your network</div>
+                <div class="sbx-empty-sub">Drag a device from the left panel, or click any device card to add it to the canvas.</div>
+                <div class="sbx-empty-hint"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Begin with a Router or Switch</div>
+              </div>
             </div>
 
             <!-- Connection Suggestions -->
@@ -529,7 +538,7 @@ Notes:
                 </div>
                 <div class="sbx-inspect-terminal-hint">
                   <i class="bi bi-terminal" aria-hidden="true"></i>
-                  Double-click a device to open its terminal.
+                  Terminal supports device names or IPs (example: <code>ping PC 192.168.1.1</code>).
                 </div>
               </div>
               <div class="sbx-panel-content" id="sbxInspectorBody">
@@ -549,9 +558,9 @@ Notes:
         <i class="bi bi-chevron-left"></i>
       </button>
 
-      <!-- Bottom Console (collapsed by default; opens on device double-click) -->
-      <section class="sbx-bottom is-collapsed" id="sbxBottomPanel" data-tour="sandbox-console">
-        <div class="sbx-bottom-head">
+      <!-- Bottom Console (open by default; can be collapsed) -->
+      <section class="sbx-bottom" id="sbxBottomPanel" data-tour="sandbox-console">
+        <div class="sbx-bottom-head" id="sbxBottomHead">
           <div class="sbx-tablist" id="sbxBottomTabs">
             <button class="sbx-tab is-active" data-bottom-tab="console" type="button" data-tooltip="Console commands">
               <i class="bi bi-terminal"></i> Console
@@ -563,10 +572,16 @@ Notes:
               <i class="bi bi-lightning"></i> Packets
             </button>
           </div>
-          <button class="sbx-iconbtn sbx-panel-toggle" id="bottomPanelToggle" type="button"
-            data-tooltip="Show/hide terminal">
-            <i class="bi bi-chevron-up"></i>
-          </button>
+          <div class="sbx-bottom-controls">
+            <button class="sbx-iconbtn sbx-panel-toggle" id="bottomPanelSizeToggle" type="button"
+              data-tooltip="Toggle terminal size" aria-label="Toggle terminal size">
+              <i class="bi bi-arrows-angle-expand"></i>
+            </button>
+            <button class="sbx-iconbtn sbx-panel-toggle" id="bottomPanelToggle" type="button"
+              data-tooltip="Show/hide terminal" aria-label="Expand terminal">
+              <i class="bi bi-chevron-up"></i>
+            </button>
+          </div>
         </div>
 
         <div class="sbx-bottom-body">
@@ -574,7 +589,7 @@ Notes:
             <div class="sbx-console-output" id="sbxConsoleOutput"></div>
             <div class="sbx-console-input">
               <span class="sbx-console-prompt" aria-hidden="true">$</span>
-              <input type="text" id="sbxConsoleInput" placeholder="type a command, e.g. help, ping, show devices" autocomplete="off" aria-label="Console command input">
+              <input type="text" id="sbxConsoleInput" placeholder="type a command: help, ping PC Router, ping 192.168.1.10" autocomplete="off" aria-label="Console command input">
               <button class="sbx-console-send" id="sbxConsoleSend" type="button"
                 data-tooltip="Run command (Enter)"><i class="bi bi-play-fill" aria-hidden="true"></i> Run</button>
             </div>
@@ -586,6 +601,10 @@ Notes:
             <div class="sbx-logs" id="sbxPacketLogs">No packet activity yet.</div>
           </div>
         </div>
+        <button class="sbx-bottom-resize" id="sbxBottomResizeHandle" type="button" aria-label="Resize terminal"
+          data-tooltip="Drag to resize terminal">
+          <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+        </button>
       </section>
     </div>
   </main>
@@ -734,6 +753,11 @@ Notes:
 
           <label class="form-label">Select target device</label>
           <select id="pingTargetSelect" class="form-select mb-3"></select>
+          <div class="sbx-ping-help mb-3">
+            <div><strong>Source:</strong> the currently selected device.</div>
+            <div><strong>Terminal format:</strong> <code>ping &lt;source&gt; &lt;destination&gt;</code> or <code>ping &lt;destination&gt;</code> when one source device is selected.</div>
+            <div><strong>Input:</strong> use device name or IP address. No <code>?</code> needed.</div>
+          </div>
 
           <div id="pingResult" class="sbx-ping-result"></div>
         </div>

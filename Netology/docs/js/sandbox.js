@@ -35,6 +35,8 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   const topCarouselDots = getById("sbxTopCarouselDots");
   const topCarouselPrevBtn = getById("sbxTopCarouselPrev");
   const topCarouselNextBtn = getById("sbxTopCarouselNext");
+  const tutorialsToggleBtn = getById("sbxTutorialsToggle");
+  const tutorialsToggleLabel = getById("sbxTutorialsToggleLabel");
 
   const saveModalEl = getById("saveTopologyModal");
   const saveNameInput = getById("saveTopologyName");
@@ -53,9 +55,12 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   const leftPanel = getById("sbxLeftPanel");
   const rightPanel = getById("sbxRightPanel");
   const bottomPanel = getById("sbxBottomPanel");
+  const bottomHead = getById("sbxBottomHead");
   const leftToggle = getById("leftPanelToggle");
   const rightToggle = getById("rightPanelToggle");
   const bottomToggle = getById("bottomPanelToggle");
+  const bottomSizeToggle = getById("bottomPanelSizeToggle");
+  const bottomResizeHandle = getById("sbxBottomResizeHandle");
   const leftOpenBtn = getById("leftPanelOpenBtn");
   const rightOpenBtn = getById("rightPanelOpenBtn");
 
@@ -64,8 +69,17 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   const DEVICE_RADIUS = DEVICE_SIZE / 2;
   const CANVAS_WIDTH = 3200;
   const CANVAS_HEIGHT = 2200;
+  const AUTO_NETWORK = {
+    prefix: "192.168.1.",
+    routerHost: 1,
+    startHost: 10,
+    endHost: 240,
+    mask: "255.255.255.0",
+  };
   const CONSOLE_HISTORY_KEY = "sbx_command_history";
   const CONSOLE_HISTORY_LIMIT = 50;
+  const TERMINAL_LAYOUT_KEY = "netology_sbx_terminal_layout";
+  const TUTORIAL_CAROUSEL_HIDDEN_KEY = "netology_sbx_tutorials_hidden";
   const CAROUSEL_ROTATE_MS = 5500;
   const TUTORIAL_DIFFICULTY_ORDER = {
     beginner: 1,
@@ -218,12 +232,21 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
   let guideUI = null;
   let suggestionsHideTimer = null;
+  let terminalLayout = {
+    left: null,
+    top: null,
+    width: null,
+    bodyHeight: 220,
+    size: "small",
+    collapsed: false,
+  };
 
   const tutorialCarouselState = {
     idsKey: "",
     items: [],
     index: 0,
     timer: null,
+    hidden: localStorage.getItem(TUTORIAL_CAROUSEL_HIDDEN_KEY) === "1",
   };
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
@@ -317,6 +340,267 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
   function clamp(n, min, max) {
     return Math.min(max, Math.max(min, n));
+  }
+
+  function getTerminalViewportLimits() {
+    return {
+      minX: 8,
+      minY: 70,
+      maxX: window.innerWidth - 8,
+      maxY: window.innerHeight - 8,
+    };
+  }
+
+  function getTerminalBodyHeight() {
+    if (!bottomPanel) return 220;
+    const raw = parseFloat(getComputedStyle(bottomPanel).getPropertyValue("--sbx-terminal-body-height"));
+    if (Number.isFinite(raw) && raw > 0) return raw;
+    return Number.isFinite(terminalLayout.bodyHeight) ? Number(terminalLayout.bodyHeight) : 220;
+  }
+
+  function setTerminalBodyHeight(nextHeight, { persist = true } = {}) {
+    if (!bottomPanel) return;
+    const maxAllowed = Math.max(170, window.innerHeight - 140);
+    const clamped = clamp(Number(nextHeight) || 220, 160, maxAllowed);
+    terminalLayout.bodyHeight = Math.round(clamped);
+    bottomPanel.style.setProperty("--sbx-terminal-body-height", `${Math.round(clamped)}px`);
+    if (persist) persistTerminalLayout();
+  }
+
+  function placeTerminalPanel(left, top) {
+    if (!bottomPanel) return;
+    const nextLeft = Math.round(left);
+    const nextTop = Math.round(top);
+    bottomPanel.style.left = `${nextLeft}px`;
+    bottomPanel.style.top = `${nextTop}px`;
+    bottomPanel.style.right = "auto";
+    bottomPanel.style.bottom = "auto";
+    terminalLayout.left = nextLeft;
+    terminalLayout.top = nextTop;
+  }
+
+  function anchorTerminalPanel() {
+    if (!bottomPanel) return;
+    const rect = bottomPanel.getBoundingClientRect();
+    if (!Number.isFinite(terminalLayout.width)) {
+      terminalLayout.width = Math.round(rect.width);
+    }
+    bottomPanel.style.width = `${Math.round(rect.width)}px`;
+    placeTerminalPanel(rect.left, rect.top);
+  }
+
+  function clampTerminalPanelToViewport() {
+    if (!bottomPanel) return;
+    if (window.innerWidth <= 767) return;
+    const rect = bottomPanel.getBoundingClientRect();
+    const limits = getTerminalViewportLimits();
+    const maxLeft = Math.max(limits.minX, limits.maxX - rect.width);
+    const maxTop = Math.max(limits.minY, limits.maxY - rect.height);
+    placeTerminalPanel(
+      clamp(rect.left, limits.minX, maxLeft),
+      clamp(rect.top, limits.minY, maxTop),
+    );
+  }
+
+  function persistTerminalLayout() {
+    if (!bottomPanel) return;
+    try {
+      const payload = {
+        left: Number.isFinite(terminalLayout.left) ? Math.round(terminalLayout.left) : null,
+        top: Number.isFinite(terminalLayout.top) ? Math.round(terminalLayout.top) : null,
+        width: Number.isFinite(terminalLayout.width) ? Math.round(terminalLayout.width) : null,
+        bodyHeight: Math.round(getTerminalBodyHeight()),
+        size: String(terminalLayout.size || "small"),
+        collapsed: Boolean(terminalLayout.collapsed),
+      };
+      localStorage.setItem(TERMINAL_LAYOUT_KEY, JSON.stringify(payload));
+    } catch {}
+  }
+
+  function loadTerminalLayout() {
+    const saved = parseJsonSafe(localStorage.getItem(TERMINAL_LAYOUT_KEY), null);
+    if (!saved || typeof saved !== "object") return;
+    terminalLayout = {
+      left: Number.isFinite(Number(saved.left)) ? Number(saved.left) : null,
+      top: Number.isFinite(Number(saved.top)) ? Number(saved.top) : null,
+      width: Number.isFinite(Number(saved.width)) ? Number(saved.width) : null,
+      bodyHeight: Number.isFinite(Number(saved.bodyHeight)) ? Number(saved.bodyHeight) : 220,
+      size: saved.size === "large" ? "large" : "small",
+      collapsed: false,
+    };
+  }
+
+  function setBottomSize(size, { persist = true } = {}) {
+    if (!bottomPanel) return;
+    const nextSize = size === "large" ? "large" : "small";
+    const presets = nextSize === "large"
+      ? { width: 660, bodyHeight: 270 }
+      : { width: 500, bodyHeight: 210 };
+
+    terminalLayout.size = nextSize;
+    bottomPanel.classList.toggle("is-large", nextSize === "large");
+
+    if (window.innerWidth > 767) {
+      const maxWidth = Math.max(340, window.innerWidth - 22);
+      const nextWidth = clamp(presets.width, 340, maxWidth);
+      bottomPanel.style.width = `${Math.round(nextWidth)}px`;
+      terminalLayout.width = Math.round(nextWidth);
+      setTerminalBodyHeight(presets.bodyHeight, { persist: false });
+      clampTerminalPanelToViewport();
+    }
+
+    updateBottomPanelButtons();
+    if (persist) persistTerminalLayout();
+  }
+
+  function updateBottomPanelButtons() {
+    if (!bottomPanel) return;
+    const collapsed = bottomPanel.classList.contains("is-collapsed");
+    const isLarge = bottomPanel.classList.contains("is-large");
+
+    if (bottomToggle) {
+      const icon = qs("i", bottomToggle);
+      if (icon) icon.className = collapsed ? "bi bi-chevron-up" : "bi bi-chevron-down";
+      bottomToggle.setAttribute("aria-label", collapsed ? "Expand terminal" : "Collapse terminal");
+      bottomToggle.setAttribute("data-tooltip", collapsed ? "Expand terminal" : "Collapse terminal");
+    }
+
+    if (bottomSizeToggle) {
+      const icon = qs("i", bottomSizeToggle);
+      if (icon) icon.className = isLarge ? "bi bi-arrows-angle-contract" : "bi bi-arrows-angle-expand";
+      bottomSizeToggle.setAttribute("aria-label", isLarge ? "Switch to smaller terminal" : "Switch to larger terminal");
+      bottomSizeToggle.setAttribute("data-tooltip", isLarge ? "Use smaller terminal" : "Use larger terminal");
+    }
+
+    if (bottomResizeHandle) {
+      const canResize = !collapsed && window.innerWidth > 767;
+      bottomResizeHandle.style.display = canResize ? "" : "none";
+    }
+  }
+
+  function setBottomCollapsed(collapsed, { persist = true } = {}) {
+    if (!bottomPanel) return;
+    const next = Boolean(collapsed);
+    bottomPanel.classList.toggle("is-collapsed", next);
+    terminalLayout.collapsed = next;
+    updateBottomPanelButtons();
+    if (persist) persistTerminalLayout();
+  }
+
+  function initTerminalWindowControls() {
+    if (!bottomPanel || !bottomHead) return;
+    loadTerminalLayout();
+
+    if (window.innerWidth > 767) {
+      setBottomSize(terminalLayout.size, { persist: false });
+      if (Number.isFinite(terminalLayout.width) && terminalLayout.width >= 280) {
+        bottomPanel.style.width = `${Math.round(terminalLayout.width)}px`;
+        terminalLayout.width = Math.round(terminalLayout.width);
+      }
+      setTerminalBodyHeight(terminalLayout.bodyHeight, { persist: false });
+    }
+
+    if (Number.isFinite(terminalLayout.left) && Number.isFinite(terminalLayout.top) && window.innerWidth > 767) {
+      placeTerminalPanel(terminalLayout.left, terminalLayout.top);
+      clampTerminalPanelToViewport();
+    }
+    setBottomCollapsed(false, { persist: false });
+    updateBottomPanelButtons();
+
+    let dragState = null;
+    bottomHead.addEventListener("pointerdown", (e) => {
+      if (window.innerWidth <= 767) return;
+      if (e.button !== 0) return;
+      if (e.target.closest("button, input, textarea, select, a, label")) return;
+      anchorTerminalPanel();
+      const rect = bottomPanel.getBoundingClientRect();
+      dragState = {
+        pointerId: e.pointerId,
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+      };
+      bottomPanel.classList.add("is-dragging");
+      bottomHead.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    bottomHead.addEventListener("pointermove", (e) => {
+      if (!dragState || dragState.pointerId !== e.pointerId) return;
+      const rect = bottomPanel.getBoundingClientRect();
+      const limits = getTerminalViewportLimits();
+      const maxLeft = Math.max(limits.minX, limits.maxX - rect.width);
+      const maxTop = Math.max(limits.minY, limits.maxY - rect.height);
+      const nextLeft = clamp(e.clientX - dragState.offsetX, limits.minX, maxLeft);
+      const nextTop = clamp(e.clientY - dragState.offsetY, limits.minY, maxTop);
+      placeTerminalPanel(nextLeft, nextTop);
+    });
+    const finishDrag = (e) => {
+      if (!dragState || dragState.pointerId !== e.pointerId) return;
+      dragState = null;
+      bottomPanel.classList.remove("is-dragging");
+      const rect = bottomPanel.getBoundingClientRect();
+      terminalLayout.width = Math.round(rect.width);
+      persistTerminalLayout();
+    };
+    bottomHead.addEventListener("pointerup", finishDrag);
+    bottomHead.addEventListener("pointercancel", finishDrag);
+    bottomHead.addEventListener("lostpointercapture", finishDrag);
+
+    let resizeState = null;
+    bottomResizeHandle?.addEventListener("pointerdown", (e) => {
+      if (window.innerWidth <= 767) return;
+      if (e.button !== 0) return;
+      anchorTerminalPanel();
+      resizeState = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        startWidth: bottomPanel.getBoundingClientRect().width,
+        startBodyHeight: getTerminalBodyHeight(),
+      };
+      bottomPanel.classList.add("is-resizing");
+      bottomResizeHandle.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    bottomResizeHandle?.addEventListener("pointermove", (e) => {
+      if (!resizeState || resizeState.pointerId !== e.pointerId) return;
+      const limits = getTerminalViewportLimits();
+      const currentRect = bottomPanel.getBoundingClientRect();
+      const maxWidth = Math.max(360, limits.maxX - currentRect.left);
+      const minWidth = 360;
+      const nextWidth = clamp(resizeState.startWidth + (e.clientX - resizeState.startX), minWidth, maxWidth);
+      bottomPanel.style.width = `${Math.round(nextWidth)}px`;
+      terminalLayout.width = Math.round(nextWidth);
+      const nextBodyHeight = resizeState.startBodyHeight + (e.clientY - resizeState.startY);
+      setTerminalBodyHeight(nextBodyHeight, { persist: false });
+      clampTerminalPanelToViewport();
+    });
+    const finishResize = (e) => {
+      if (!resizeState || resizeState.pointerId !== e.pointerId) return;
+      resizeState = null;
+      bottomPanel.classList.remove("is-resizing");
+      persistTerminalLayout();
+    };
+    bottomResizeHandle?.addEventListener("pointerup", finishResize);
+    bottomResizeHandle?.addEventListener("pointercancel", finishResize);
+    bottomResizeHandle?.addEventListener("lostpointercapture", finishResize);
+
+    bottomSizeToggle?.addEventListener("click", () => {
+      setBottomSize(bottomPanel.classList.contains("is-large") ? "small" : "large");
+    });
+
+    window.addEventListener("resize", () => {
+      if (!bottomPanel) return;
+      if (window.innerWidth <= 767) {
+        bottomPanel.style.left = "";
+        bottomPanel.style.top = "";
+        bottomPanel.style.right = "";
+        bottomPanel.style.bottom = "";
+      } else {
+        clampTerminalPanelToViewport();
+      }
+      updateBottomPanelButtons();
+      persistTerminalLayout();
+    });
   }
 
   function getPanBounds(zoom = state.zoom) {
@@ -752,6 +1036,33 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   // ----------------------------------------
   // Tutorial Carousel — top-left rotating cards (free mode only)
   // ----------------------------------------
+  function updateTutorialToggleButton(hasTutorials = true) {
+    if (!tutorialsToggleBtn) return;
+    const inFreeMode = state.mode === "free";
+    const hidden = tutorialCarouselState.hidden;
+
+    tutorialsToggleBtn.style.display = inFreeMode ? "" : "none";
+    tutorialsToggleBtn.disabled = !inFreeMode || !hasTutorials;
+    tutorialsToggleBtn.classList.toggle("is-off", hidden || !hasTutorials);
+    tutorialsToggleBtn.setAttribute("aria-pressed", String(hasTutorials && !hidden));
+
+    if (tutorialsToggleLabel) {
+      if (!hasTutorials) tutorialsToggleLabel.textContent = "No tutorials";
+      else tutorialsToggleLabel.textContent = hidden ? "Show tutorials" : "Hide tutorials";
+    }
+
+    const icon = qs("i", tutorialsToggleBtn);
+    if (icon) icon.className = `bi ${hidden ? "bi-eye" : "bi-eye-slash"}`;
+  }
+
+  function setTutorialCarouselHidden(hidden, { persist = true } = {}) {
+    tutorialCarouselState.hidden = Boolean(hidden);
+    if (persist) {
+      localStorage.setItem(TUTORIAL_CAROUSEL_HIDDEN_KEY, tutorialCarouselState.hidden ? "1" : "0");
+    }
+    renderTutorialCarousel();
+  }
+
   function clearTutorialCarouselTimer() {
     if (!tutorialCarouselState.timer) return;
     clearInterval(tutorialCarouselState.timer);
@@ -805,6 +1116,12 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
       topCarouselWrap.addEventListener("mouseenter", clearTutorialCarouselTimer);
       topCarouselWrap.addEventListener("mouseleave", startTutorialCarouselTimer);
     }
+    if (tutorialsToggleBtn && !tutorialsToggleBtn.dataset.bound) {
+      tutorialsToggleBtn.dataset.bound = "1";
+      tutorialsToggleBtn.addEventListener("click", () => {
+        setTutorialCarouselHidden(!tutorialCarouselState.hidden);
+      });
+    }
   }
 
   function renderTutorialCarousel() {
@@ -815,11 +1132,19 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
       topCarouselWrap.style.display = "none";
       clearTutorialCarouselTimer();
       dismissSuggestions();
+      updateTutorialToggleButton(false);
       return;
     }
 
     const tutorials = getAvailableTutorials();
+    updateTutorialToggleButton(tutorials.length > 0);
     if (!tutorials.length) {
+      topCarouselWrap.style.display = "none";
+      clearTutorialCarouselTimer();
+      return;
+    }
+
+    if (tutorialCarouselState.hidden) {
       topCarouselWrap.style.display = "none";
       clearTutorialCarouselTimer();
       return;
@@ -1615,6 +1940,100 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     return (ip1Int & maskInt) === (ip2Int & maskInt);
   }
 
+  function buildAutoLanIp(host) {
+    return `${AUTO_NETWORK.prefix}${host}`;
+  }
+
+  function pickAvailableAutoLanIp(usedIps, preferredHost = null) {
+    if (Number.isInteger(preferredHost)) {
+      const preferredIp = buildAutoLanIp(preferredHost);
+      if (!usedIps.has(preferredIp)) return preferredIp;
+    }
+
+    for (let host = AUTO_NETWORK.startHost; host <= AUTO_NETWORK.endHost; host += 1) {
+      const candidate = buildAutoLanIp(host);
+      if (!usedIps.has(candidate)) return candidate;
+    }
+
+    for (let host = 2; host <= 254; host += 1) {
+      const candidate = buildAutoLanIp(host);
+      if (!usedIps.has(candidate)) return candidate;
+    }
+
+    return "";
+  }
+
+  function applyAutoNetworkDefaults({ force = false } = {}) {
+    if (!state.devices.length) return;
+
+    const orderedDevices = [...state.devices].sort((a, b) => {
+      const aRank = a.type === "router" ? 0 : 1;
+      const bRank = b.type === "router" ? 0 : 1;
+      return aRank - bRank;
+    });
+
+    const usedIps = new Set();
+    let primaryRouterIp = "";
+
+    orderedDevices.forEach((device) => {
+      if (!device?.config) return;
+      const isCloud = device.type === "cloud";
+
+      if (force || !isValidSubnet(device.config.subnetMask)) {
+        device.config.subnetMask = AUTO_NETWORK.mask;
+      }
+      if (isCloud) {
+        updateDeviceStatus(device);
+        return;
+      }
+
+      const currentIp = String(device.config.ipAddress || "").trim();
+      const validCurrentIp = isValidIP(currentIp);
+      const duplicateCurrentIp = validCurrentIp && usedIps.has(currentIp);
+
+      if (force || !validCurrentIp || duplicateCurrentIp) {
+        const preferredHost = device.type === "router" && !primaryRouterIp
+          ? AUTO_NETWORK.routerHost
+          : null;
+        const nextIp = pickAvailableAutoLanIp(usedIps, preferredHost);
+        if (nextIp) device.config.ipAddress = nextIp;
+      }
+
+      const finalIp = String(device.config.ipAddress || "").trim();
+      if (isValidIP(finalIp)) {
+        usedIps.add(finalIp);
+        if (!primaryRouterIp && device.type === "router") primaryRouterIp = finalIp;
+      }
+    });
+
+    state.devices.forEach((device) => {
+      if (!device?.config) return;
+      if (force || !isValidSubnet(device.config.subnetMask)) {
+        device.config.subnetMask = AUTO_NETWORK.mask;
+      }
+
+      if (device.type === "router" || device.type === "cloud") {
+        if (force || !isValidIP(String(device.config.defaultGateway || "").trim())) {
+          device.config.defaultGateway = "";
+        }
+        updateDeviceStatus(device);
+        return;
+      }
+
+      const gateway = String(device.config.defaultGateway || "").trim();
+      const gatewayInTopology = gateway
+        ? state.devices.some((d) => d.id !== device.id && String(d.config?.ipAddress || "").trim() === gateway)
+        : false;
+      const invalidOrMissingGateway = !gateway || !isValidIP(gateway) || gateway === device.config.ipAddress || !gatewayInTopology;
+
+      if (force || invalidOrMissingGateway) {
+        device.config.defaultGateway = primaryRouterIp || "";
+      }
+
+      updateDeviceStatus(device);
+    });
+  }
+
   function generateMacAddress() {
     return "XX:XX:XX:XX:XX:XX".replace(/X/g, () =>
       Math.floor(Math.random() * 16).toString(16).toUpperCase()
@@ -1935,6 +2354,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
       state.devices = (data.devices || []).map(normalizeDevice);
       state.connections = (data.connections || []).map(normalizeConnection).filter(Boolean);
+      applyAutoNetworkDefaults();
       state.selectedIds = [];
       state.connectFrom = null;
       rebuildMacTables();
@@ -2337,7 +2757,15 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     if (!inspectorBody) return;
     if (!state.pingInspector) {
       clearChildren(inspectorBody);
-      inspectorBody.textContent = "Run a ping test to see detailed results.";
+      const guide = makeEl("div", "sbx-inspector-guide");
+      guide.append(
+        makeEl("div", "sbx-inspector-guide-title", "How ping testing works"),
+        makeEl("div", "sbx-inspector-guide-line", "1. Select one source device on the canvas."),
+        makeEl("div", "sbx-inspector-guide-line", "2. Click Ping in Quick Actions and choose a destination."),
+        makeEl("div", "sbx-inspector-guide-line", "3. You can also use terminal commands with device names or IPs."),
+        makeEl("div", "sbx-inspector-guide-line", "Examples: ping pc router  |  ping 192.168.1.10")
+      );
+      inspectorBody.appendChild(guide);
       return;
     }
 
@@ -2716,40 +3144,54 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
         const maskInput = getById("prop_mask");
         const gwInput = getById("prop_gw");
         const dhcpToggle = getById("prop_dhcp");
+        const requestedIp = ipInput ? String(ipInput.value || "").trim() : "";
+        const requestedMask = maskInput ? String(maskInput.value || "").trim() : "";
+        const requestedGateway = gwInput ? String(gwInput.value || "").trim() : "";
 
         if (nameInput) {
           device.name = nameInput.value;
           addActionLog(`Renamed ${device.name}`);
         }
         if (ipInput) {
-          device.config.ipAddress = ipInput.value;
+          device.config.ipAddress = requestedIp;
         }
         if (maskInput) {
-          device.config.subnetMask = maskInput.value;
+          device.config.subnetMask = requestedMask;
         }
         if (gwInput) {
-          device.config.defaultGateway = gwInput.value;
+          device.config.defaultGateway = requestedGateway;
         }
         if (dhcpToggle) {
           device.config.dhcpEnabled = dhcpToggle.checked;
           if (device.config.dhcpEnabled) requestDHCP(device.id);
         }
 
-        updateDeviceStatus(device);
+        applyAutoNetworkDefaults();
         updateWarnings(device);
         pushHistory();
         notifyTutorialProgress();
         markDirtyAndSaveSoon();
-        renderDevices();
-        renderObjects();
+        renderAll();
 
         // Update header name
         const headerName2 = getById("sbxConfigDeviceName");
         if (headerName2) headerName2.textContent = device.name || "";
 
+        const correctedIp = String(device.config.ipAddress || "").trim();
+        const correctedMask = String(device.config.subnetMask || "").trim();
+        const correctedGateway = String(device.config.defaultGateway || "").trim();
+        const wasAutoCorrected =
+          requestedIp !== correctedIp ||
+          requestedMask !== correctedMask ||
+          requestedGateway !== correctedGateway;
+
+        const toastMessage = wasAutoCorrected
+          ? `${device.name} updated. Invalid or empty network values were auto-corrected.`
+          : `${device.name} configuration applied.`;
+
         showToast({
           title: "Device updated",
-          message: `${device.name} configuration applied.`,
+          message: toastMessage,
           variant: "success",
           timeout: 2200,
         });
@@ -3054,11 +3496,14 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     const ipWarn = getById("ip_warning");
     const maskWarn = getById("mask_warning");
     const gwWarn = getById("gw_warning");
+    const ipValue = String(device.config.ipAddress || "").trim();
+    const maskValue = String(device.config.subnetMask || "").trim();
+    const gatewayValue = String(device.config.defaultGateway || "").trim();
 
-    if (ipWarn) ipWarn.textContent = isValidIP(device.config.ipAddress) ? "" : "Invalid IP";
-    if (maskWarn) maskWarn.textContent = isValidSubnet(device.config.subnetMask) ? "" : "Invalid subnet";
+    if (ipWarn) ipWarn.textContent = ipValue && !isValidIP(ipValue) ? "Invalid IP" : "";
+    if (maskWarn) maskWarn.textContent = maskValue && !isValidSubnet(maskValue) ? "Invalid subnet" : "";
     if (gwWarn) {
-      gwWarn.textContent = device.config.defaultGateway && !isValidIP(device.config.defaultGateway) ? "Invalid gateway" : "";
+      gwWarn.textContent = gatewayValue && !isValidIP(gatewayValue) ? "Invalid gateway" : "";
     }
   }
 
@@ -3150,6 +3595,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     if (!snap) return;
     state.devices = snap.devices.map(normalizeDevice);
     state.connections = snap.connections.map(normalizeConnection).filter(Boolean);
+    applyAutoNetworkDefaults();
     rebuildMacTables();
     renderAll();
     updateHistoryButtons();
@@ -3186,8 +3632,8 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
       status: "on",
     });
 
-    updateDeviceStatus(device);
     state.devices.push(device);
+    applyAutoNetworkDefaults();
     state.selectedIds = [device.id];
     state.deviceAnimations.add(device.id);
     addActionLog(`Added ${device.name}`);
@@ -3205,6 +3651,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     const removed = state.devices.filter((d) => ids.includes(d.id));
     state.devices = state.devices.filter((d) => !ids.includes(d.id));
     state.connections = state.connections.filter((c) => !ids.includes(c.from) && !ids.includes(c.to));
+    applyAutoNetworkDefaults();
     state.selectedIds = [];
     removed.forEach((d) => addActionLog(`Removed ${d.name}`));
     rebuildMacTables();
@@ -3493,20 +3940,59 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     const device = findDevice(deviceId);
     if (!device) return;
 
-    const dhcpServer = state.devices.find((d) => d.config.dhcpServer?.enabled);
-    if (!dhcpServer || !dhcpServer.config.dhcpServer) {
-      addConsoleOutput("DHCP: No DHCP server found");
+    const enabledServers = state.devices.filter((d) => d.config?.dhcpServer?.enabled && d.config?.dhcpServer);
+    if (!enabledServers.length) {
+      addConsoleOutput("DHCP: No enabled DHCP server found.");
       return;
     }
 
+    const reachableServers = enabledServers.filter((server) => (
+      server.id === device.id || findPath(device.id, server.id).length > 0
+    ));
+    if (!reachableServers.length) {
+      addConsoleOutput("DHCP: DHCP server exists, but no route to server.");
+      return;
+    }
+
+    const dhcpServer = reachableServers[0];
     const config = dhcpServer.config.dhcpServer;
-    const startIP = ipToInt(config.rangeStart || "0.0.0.0");
-    const endIP = ipToInt(config.rangeEnd || "0.0.0.0");
-    const usedIPs = config.leases.map((l) => ipToInt(l.ip));
+    if (!Array.isArray(config.leases)) config.leases = [];
+
+    if (!isValidIP(config.rangeStart) || !isValidIP(config.rangeEnd)) {
+      addConsoleOutput(`DHCP: Invalid pool range on ${dhcpServer.name}.`);
+      addConsoleOutput("Set valid Range Start and Range End in Config > DHCP.");
+      return;
+    }
+
+    const startIP = ipToInt(config.rangeStart);
+    const endIP = ipToInt(config.rangeEnd);
+    if (startIP > endIP) {
+      addConsoleOutput("DHCP: Range Start must be lower than or equal to Range End.");
+      return;
+    }
+
+    const existingLease = config.leases.find((lease) => lease.mac === device.config.macAddress && isValidIP(lease.ip));
+    if (existingLease) {
+      device.config.ipAddress = existingLease.ip;
+      device.config.subnetMask = config.mask || "255.255.255.0";
+      device.config.defaultGateway = config.gateway || "";
+      device.config.dhcpEnabled = true;
+      updateDeviceStatus(device);
+      addConsoleOutput(`DHCP: Reused ${existingLease.ip} for ${device.name}`);
+      renderDevices();
+      markDirtyAndSaveSoon();
+      return;
+    }
+
+    const usedIPs = new Set(
+      config.leases
+        .filter((lease) => isValidIP(lease.ip))
+        .map((lease) => ipToInt(lease.ip))
+    );
 
     let assigned = null;
     for (let ip = startIP; ip <= endIP; ip += 1) {
-      if (!usedIPs.includes(ip)) {
+      if (!usedIPs.has(ip)) {
         assigned = ip;
         break;
       }
@@ -3538,7 +4024,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     device.config.dhcpEnabled = true;
 
     updateDeviceStatus(device);
-    addConsoleOutput(`DHCP: Assigned ${ipString} to ${device.name}`);
+    addConsoleOutput(`DHCP: Assigned ${ipString} to ${device.name} via ${dhcpServer.name}`);
     addActionLog(`DHCP assigned ${ipString} to ${device.name}`);
     renderDevices();
     markDirtyAndSaveSoon();
@@ -3610,19 +4096,40 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     return state.devices.find((device) => String(device.name || "").trim().toLowerCase() === normalizedName) || null;
   }
 
+  function findDeviceByIp(ipAddress) {
+    const normalizedIp = String(ipAddress || "").trim();
+    if (!isValidIP(normalizedIp)) return null;
+    return state.devices.find((device) => String(device.config?.ipAddress || "").trim() === normalizedIp) || null;
+  }
+
+  function findDeviceByIdentifier(input) {
+    const raw = String(input || "").trim();
+    if (!raw) return null;
+    return findDeviceByName(raw) || findDeviceByIp(raw);
+  }
+
+  function showPingUsage(commandName = "ping") {
+    addConsoleOutput(`Usage: ${commandName} <source> <destination>`);
+    addConsoleOutput(`   or: ${commandName} <destination>  (with one source device selected)`);
+    addConsoleOutput("Input accepts device name or IP address (no ? needed).");
+    addConsoleOutput(`Examples: ${commandName} pc router | ${commandName} 192.168.1.10`);
+  }
+
   function showHelpCommand() {
     addConsoleOutput("Commands:");
     addConsoleOutput("  help");
     addConsoleOutput("  show devices | show connections | show stats");
     addConsoleOutput("  devices | connections | status");
-    addConsoleOutput("  ping <source> <destination>  (or ping <destination> with one selected device)");
-    addConsoleOutput("  traceroute <source> <destination>  (or traceroute <destination> with one selected device)");
-    addConsoleOutput("  ipconfig [device]");
+    addConsoleOutput("  ping <source> <destination>  (device name or IP)");
+    addConsoleOutput("  traceroute <source> <destination>  (device name or IP)");
+    addConsoleOutput("  ipconfig [device|ip]");
     addConsoleOutput("  configure <device> <ip|mask|gateway|name|dhcp> <value>");
-    addConsoleOutput("  dhcp request");
+    addConsoleOutput("  dhcp request  (selected device)");
     addConsoleOutput("  reset");
     addConsoleOutput("  clear");
     addConsoleOutput("  save");
+    addConsoleOutput("Tip: ping/traceroute can use one argument if a source device is selected.");
+    addConsoleOutput("Tip: New devices are auto-assigned valid IP/mask/gateway values.");
   }
 
   function showDevicesCommand() {
@@ -3661,10 +4168,16 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
   function resolveCommandEndpoints(args, usageText) {
     if (args.length >= 2) {
-      const sourceDevice = findDeviceByName(args[0]);
-      const destinationDevice = findDeviceByName(args[1]);
-      if (!sourceDevice || !destinationDevice) {
-        addConsoleOutput("Device not found. Use exact device names (case-insensitive).");
+      const sourceDevice = findDeviceByIdentifier(args[0]);
+      const destinationDevice = findDeviceByIdentifier(args[1]);
+      if (!sourceDevice) {
+        addConsoleOutput(`Source "${args[0]}" not found.`);
+        addConsoleOutput("Use an exact device name or assigned IP.");
+        return null;
+      }
+      if (!destinationDevice) {
+        addConsoleOutput(`Destination "${args[1]}" not found.`);
+        addConsoleOutput("Use an exact device name or assigned IP.");
         return null;
       }
       return { sourceDevice, destinationDevice };
@@ -3676,9 +4189,10 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
         addConsoleOutput(`${usageText} or select one source device first.`);
         return null;
       }
-      const destinationDevice = findDeviceByName(args[0]);
+      const destinationDevice = findDeviceByIdentifier(args[0]);
       if (!destinationDevice) {
-        addConsoleOutput("Destination device not found.");
+        addConsoleOutput(`Destination "${args[0]}" not found.`);
+        addConsoleOutput("Use an exact device name or assigned IP.");
         return null;
       }
       return { sourceDevice: selectedDevice, destinationDevice };
@@ -3689,6 +4203,11 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   }
 
   function runPingCommand(args) {
+    if (!args.length || ["?", "help", "-h"].includes(String(args[0] || "").trim())) {
+      showPingUsage("ping");
+      return;
+    }
+
     const endpoints = resolveCommandEndpoints(args, "Usage: ping <source> <destination>");
     if (!endpoints) return;
 
@@ -3705,6 +4224,11 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   }
 
   function runTracerouteCommand(args) {
+    if (!args.length || ["?", "help", "-h"].includes(String(args[0] || "").trim())) {
+      showPingUsage("traceroute");
+      return;
+    }
+
     const endpoints = resolveCommandEndpoints(args, "Usage: traceroute <source> <destination>");
     if (!endpoints) return;
 
@@ -3727,9 +4251,10 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
   function runIpConfigCommand(args) {
     if (args.length >= 1) {
-      const targetDevice = findDeviceByName(args[0]);
+      const targetDevice = findDeviceByIdentifier(args[0]);
       if (!targetDevice) {
-        addConsoleOutput("Device not found.");
+        addConsoleOutput(`Device "${args[0]}" not found.`);
+        addConsoleOutput("Use an exact device name or assigned IP.");
         return;
       }
       addConsoleOutput(`${targetDevice.name} IP: ${targetDevice.config.ipAddress || "Not set"}`);
@@ -3763,14 +4288,21 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     }
 
     const [targetName, propertyName, ...valueParts] = args;
-    const targetDevice = findDeviceByName(targetName);
+    const targetDevice = findDeviceByIdentifier(targetName);
     if (!targetDevice) {
-      addConsoleOutput("Device not found.");
+      addConsoleOutput(`Device "${targetName}" not found.`);
       return;
     }
 
     const rawValue = valueParts.join(" ").trim();
     const normalizedProperty = String(propertyName || "").toLowerCase();
+    const requestedIp = normalizedProperty === "ip" ? rawValue : String(targetDevice.config.ipAddress || "").trim();
+    const requestedMask = (normalizedProperty === "mask" || normalizedProperty === "subnet" || normalizedProperty === "subnetmask")
+      ? rawValue
+      : String(targetDevice.config.subnetMask || "").trim();
+    const requestedGateway = (normalizedProperty === "gateway" || normalizedProperty === "gw")
+      ? rawValue
+      : String(targetDevice.config.defaultGateway || "").trim();
 
     if (normalizedProperty === "ip") {
       targetDevice.config.ipAddress = rawValue;
@@ -3783,17 +4315,30 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     } else if (normalizedProperty === "dhcp") {
       const enabled = ["true", "1", "yes", "on", "enabled"].includes(rawValue.toLowerCase());
       targetDevice.config.dhcpEnabled = enabled;
+      if (enabled) requestDHCP(targetDevice.id);
     } else {
       targetDevice.config[normalizedProperty] = rawValue;
     }
 
-    updateDeviceStatus(targetDevice);
+    applyAutoNetworkDefaults();
     addActionLog(`Configured ${targetDevice.name}: ${normalizedProperty} = ${rawValue}`);
     pushHistory();
     renderAll();
     notifyTutorialProgress();
     markDirtyAndSaveSoon();
     addConsoleOutput(`Configured ${targetDevice.name}: ${normalizedProperty} = ${rawValue}`);
+
+    const correctedIp = String(targetDevice.config.ipAddress || "").trim();
+    const correctedMask = String(targetDevice.config.subnetMask || "").trim();
+    const correctedGateway = String(targetDevice.config.defaultGateway || "").trim();
+    const wasAutoCorrected =
+      requestedIp !== correctedIp ||
+      requestedMask !== correctedMask ||
+      requestedGateway !== correctedGateway;
+
+    if (wasAutoCorrected) {
+      addConsoleOutput(`Auto-corrected network: IP=${correctedIp || "unset"}, Mask=${correctedMask || "unset"}, GW=${correctedGateway || "unset"}`);
+    }
   }
 
   function runResetCommand() {
@@ -3873,10 +4418,15 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     }
 
     if (commandName === "dhcp") {
+      if (!args.length || ["?", "help", "-h"].includes(String(args[0] || "").trim())) {
+        addConsoleOutput("Usage: dhcp request");
+        addConsoleOutput("Select one device, then run: dhcp request");
+        return;
+      }
       if (args[0] === "request") {
         const selectedDevice = getSelectedDevice();
         if (selectedDevice) requestDHCP(selectedDevice.id);
-        else addConsoleOutput("No device selected");
+        else addConsoleOutput("No device selected. Select one device first.");
         return;
       }
       addConsoleOutput("Usage: dhcp request");
@@ -4257,6 +4807,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
     state.devices = (data.devices || []).map(normalizeDevice);
     state.connections = (data.connections || []).map(normalizeConnection).filter(Boolean);
+    applyAutoNetworkDefaults();
     state.selectedIds = [];
     state.connectFrom = null;
     rebuildMacTables();
@@ -4459,21 +5010,23 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
       const selected = getSelectedDevice();
       if (!selected) return;
 
-      const connected = state.connections
-        .filter((c) => c.from === selected.id || c.to === selected.id)
-        .map((c) => (c.from === selected.id ? findDevice(c.to) : findDevice(c.from)))
-        .filter(Boolean);
+      const targets = state.devices.filter((device) => device.id !== selected.id);
 
       const select = getById("pingTargetSelect");
       if (!select) return;
       clearChildren(select);
-      connected.forEach((dev) => {
+      targets.forEach((dev) => {
         const opt = document.createElement("option");
         opt.value = dev.id;
-        opt.textContent = dev.name;
+        const ip = String(dev.config?.ipAddress || "").trim();
+        opt.textContent = ip ? `${dev.name} (${ip})` : `${dev.name} (No IP)`;
         select.appendChild(opt);
       });
-      const defaultTarget = connected[0] || null;
+
+      const runPingButton = getById("runPingBtn");
+      if (runPingButton) runPingButton.disabled = !targets.length;
+
+      const defaultTarget = targets[0] || null;
       updatePingOverview({ fromDevice: selected, toDevice: defaultTarget, path: defaultTarget ? findPath(selected.id, defaultTarget.id) : [] }, null);
 
       select.onchange = () => {
@@ -4484,8 +5037,13 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
       const resultBox = getById("pingResult");
       if (resultBox) {
-        resultBox.className = "sbx-ping-result";
-        resultBox.textContent = "Ready to run a ping.";
+        if (targets.length) {
+          resultBox.className = "sbx-ping-result";
+          resultBox.textContent = "Ready to run a ping.";
+        } else {
+          resultBox.className = "sbx-ping-result is-fail";
+          resultBox.textContent = "No target device available. Add another device first.";
+        }
       }
 
       const modal = new bootstrap.Modal(getById("pingModal"));
@@ -4542,8 +5100,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     });
 
     bottomToggle?.addEventListener("click", () => {
-      bottomPanel.classList.toggle("is-collapsed");
-      bottomToggle.querySelector("i").className = bottomPanel.classList.contains("is-collapsed") ? "bi bi-chevron-up" : "bi bi-chevron-down";
+      setBottomCollapsed(!bottomPanel.classList.contains("is-collapsed"));
     });
 
     qsa(".sbx-tab", getById("sbxRightTabs")).forEach((tab) => {
@@ -5237,6 +5794,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
     bindToolbar();
     loadConsoleHistory();
     bindPanels();
+    initTerminalWindowControls();
     bindStage();
     registerConsoleApi();
 
@@ -5310,7 +5868,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
       if (!dev) return;
       const ip = dev.config?.ipAddress || "Not configured";
       const mask = dev.config?.subnetMask || "";
-      const gw  = dev.config?.gateway || "";
+      const gw = dev.config?.defaultGateway || "";
       addConsoleOutput(`[${dev.name}] IP: ${ip}${mask ? " / " + mask : ""}${gw ? "  GW: " + gw : ""}`);
       setRightTab("inspector");
     });
@@ -5340,9 +5898,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
       state.selectedIds = [id];
       renderAll();
       if (bottomPanel) {
-        bottomPanel.classList.remove("is-collapsed");
-        const toggleIcon = bottomToggle?.querySelector("i");
-        if (toggleIcon) toggleIcon.className = "bi bi-chevron-down";
+        setBottomCollapsed(false);
       }
       // Switch to console tab and focus input
       qsa(".sbx-bottom-panel", bottomPanel).forEach((p) => p.classList.remove("is-active"));

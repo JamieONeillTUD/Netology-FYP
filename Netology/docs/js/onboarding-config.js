@@ -54,12 +54,14 @@ window.ONBOARDING_STEPS = {
     { target: "course-modules", title: "Modules", description: "Expand any module to see learning items, quizzes, and challenges." }
   ],
   sandbox: [
-    { target: "sandbox-toolbar", title: "Sandbox Tools", description: "Select, connect, undo, and save your work." },
-    { target: "sandbox-library", title: "Device Library", description: "Drag routers, switches, and hosts to the canvas." },
-    { target: "sandbox-canvas", title: "Topology Canvas", description: "Build networks by hand and learn by doing." },
-    { target: "sandbox-stats", title: "Live Stats", description: "Track devices and connections as you build." },
-    { target: "sandbox-inspector", title: "Inspector", description: "Check status, pings, and diagnostics." },
-    { target: "sandbox-console", title: "Console", description: "Run commands and view results instantly." }
+    { target: "sandbox-toolbar", title: "Sandbox Tools", description: "Use select/connect, undo-redo, zoom, and save controls from one compact toolbar." },
+    { target: "sandbox-tutorial-toggle", title: "Tutorial Toggle", description: "Turn quick tutorials on or off at any time from this switch." },
+    { target: "sandbox-workspace", title: "Workspace Layout", description: "The library and inspector sit off the canvas for breathing room, and each panel can be collapsed for extra space." },
+    { target: "sandbox-library", title: "Device Library", description: "Drag or click routers, switches, servers, and clients into the topology." },
+    { target: "sandbox-canvas", title: "Topology Canvas", description: "Build, connect, and test network designs in the centered canvas area." },
+    { target: "sandbox-stats", title: "Live Stats", description: "Track device and connection counts while you build." },
+    { target: "sandbox-inspector", title: "Inspector", description: "Open objectives, objects, diagnostics, and config from this right panel." },
+    { target: "sandbox-console", title: "Console", description: "Use the floating terminal dock for commands. You can switch between small/large size, drag it, and resize it." }
   ],
   progress: [
     { target: "progress-categories", title: "Progress Views", description: "Switch between courses, modules, quizzes, and sandbox." },
