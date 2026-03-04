@@ -9188,23 +9188,6 @@ body.net-sigma .net-meter-fill {
   }
 }
 
-@keyframes netBadgePop {
-  0% {
-    transform: scale(0) rotate(-12deg);
-    opacity: 0;
-  }
-
-  70% {
-    transform: scale(1.12) rotate(3deg);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(1) rotate(0);
-    opacity: 1;
-  }
-}
-
 @keyframes netRippleOut {
   to {
     transform: scale(3.5);
@@ -11124,11 +11107,6 @@ body.net-onboarding-lock .onboarding-tooltip * {
   font-size: 1rem;
 }
 
-.net-earned-badge.is-pop {
-  animation: netBadgePop 0.55s ease both;
-  box-shadow: 0 10px 20px rgba(13, 148, 136, 0.25);
-}
-
 .net-achievement-toast-host {
   position: fixed;
   top: 86px;
@@ -11196,41 +11174,6 @@ body.net-onboarding-lock .onboarding-tooltip * {
   font-weight: 700;
   color: #0f766e;
   white-space: nowrap;
-}
-
-.net-achievement-confetti {
-  position: fixed;
-  inset: 64px 0 auto 0;
-  height: 100px;
-  pointer-events: none;
-  z-index: 1199;
-  overflow: hidden;
-}
-
-.net-achievement-confetti-piece {
-  position: absolute;
-  top: -16px;
-  width: 8px;
-  height: 12px;
-  border-radius: 2px;
-  opacity: 0.95;
-  animation-name: netAchievementConfettiFall;
-  animation-timing-function: ease-out;
-  animation-fill-mode: forwards;
-}
-
-@keyframes netAchievementConfettiFall {
-  0% {
-    transform: translateY(-12px) rotate(0deg) scale(0.9);
-    opacity: 0;
-  }
-  12% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(112px) rotate(360deg) scale(0.85);
-    opacity: 0;
-  }
 }
 
 .net-theme-radio-grid {

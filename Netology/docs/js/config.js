@@ -313,6 +313,7 @@ window.ENDPOINTS = {
     const key = pendingKey(safeEmail);
     const current = parseArray(localStorage.getItem(key));
     const byId = new Map();
+    const incoming = [];
 
     current.forEach((entry) => {
       const normalized = normalizeUnlock(entry);
@@ -321,11 +322,18 @@ window.ENDPOINTS = {
 
     unlocks.forEach((entry) => {
       const normalized = normalizeUnlock(entry);
-      if (normalized) byId.set(normalized.id, normalized);
+      if (!normalized) return;
+      byId.set(normalized.id, normalized);
+      incoming.push(normalized);
     });
 
     const merged = Array.from(byId.values());
     localStorage.setItem(key, JSON.stringify(merged));
+
+    if (incoming.length) {
+      showUnlockPopups(safeEmail, incoming);
+    }
+
     return merged;
   }
 
@@ -333,15 +341,6 @@ window.ENDPOINTS = {
     const safeEmail = normEmail(email);
     if (!safeEmail) return [];
     return parseArray(localStorage.getItem(pendingKey(safeEmail)));
-  }
-
-  function consumePendingUnlocks(email) {
-    const safeEmail = normEmail(email);
-    if (!safeEmail) return [];
-    const key = pendingKey(safeEmail);
-    const pending = parseArray(localStorage.getItem(key));
-    localStorage.removeItem(key);
-    return pending;
   }
 
   function getSeenIds(email) {
@@ -365,22 +364,130 @@ window.ENDPOINTS = {
     return ids;
   }
 
-  function initializeSeen(email, achievementIds) {
+  function currentUserEmail() {
+    try {
+      const primary = localStorage.getItem("netology_user") || localStorage.getItem("user");
+      const parsed = primary ? JSON.parse(primary) : null;
+      return normEmail(parsed?.email || "");
+    } catch {
+      return "";
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function iconHtml(unlock) {
+    const raw = String(unlock?.icon || "").trim();
+    if (raw.startsWith("bi-")) return `<i class="bi ${escapeHtml(raw)}"></i>`;
+    return escapeHtml(raw || "⭐");
+  }
+
+  function ensureToastHost() {
+    if (!document.body) return null;
+    let host = document.getElementById("globalAchievementToastHost");
+    if (host) return host;
+
+    host = document.createElement("div");
+    host.id = "globalAchievementToastHost";
+    host.className = "net-achievement-toast-host";
+    document.body.appendChild(host);
+    return host;
+  }
+
+  function showAchievementToast(unlock) {
+    const host = ensureToastHost();
+    if (!host) return;
+
+    const xpValue = Number(unlock?.xp_added || unlock?.xp_awarded || unlock?.xp_reward || 0);
+    const toast = document.createElement("div");
+    toast.className = "net-achievement-toast";
+    toast.innerHTML = `
+      <div class="net-achievement-toast-icon">${iconHtml(unlock)}</div>
+      <div class="net-achievement-toast-copy">
+        <div class="net-achievement-toast-title">Achievement unlocked</div>
+        <div class="net-achievement-toast-name">${escapeHtml(unlock?.name || "Achievement")}</div>
+      </div>
+      <div class="net-achievement-toast-xp">${xpValue > 0 ? `+${xpValue} XP` : ""}</div>
+    `;
+
+    host.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("is-visible"));
+    window.setTimeout(() => {
+      toast.classList.remove("is-visible");
+      window.setTimeout(() => toast.remove(), 250);
+    }, 2800);
+  }
+
+  function removePendingIds(email, achievementIds) {
     const safeEmail = normEmail(email);
-    if (!safeEmail || !Array.isArray(achievementIds)) return [];
-    const key = seenKey(safeEmail);
-    if (localStorage.getItem(key)) return getSeenIds(safeEmail);
-    const ids = achievementIds.map((id) => String(id || "").trim()).filter(Boolean);
-    localStorage.setItem(key, JSON.stringify(ids));
-    return ids;
+    if (!safeEmail || !Array.isArray(achievementIds) || !achievementIds.length) return;
+
+    const removeSet = new Set(achievementIds.map((id) => String(id || "").trim()).filter(Boolean));
+    if (!removeSet.size) return;
+
+    const key = pendingKey(safeEmail);
+    const pending = parseArray(localStorage.getItem(key));
+    if (!pending.length) return;
+
+    const filtered = pending.filter((entry) => {
+      const id = String(entry?.id || "").trim();
+      return id && !removeSet.has(id);
+    });
+
+    if (filtered.length) localStorage.setItem(key, JSON.stringify(filtered));
+    else localStorage.removeItem(key);
+  }
+
+  function showUnlockPopups(email, unlocks) {
+    const safeEmail = normEmail(email);
+    if (!safeEmail || !Array.isArray(unlocks) || !unlocks.length || !document.body) return [];
+
+    const seen = new Set(getSeenIds(safeEmail));
+    const displayList = [];
+    const displayIds = new Set();
+
+    unlocks.forEach((entry) => {
+      const normalized = normalizeUnlock(entry);
+      if (!normalized) return;
+      if (seen.has(normalized.id) || displayIds.has(normalized.id)) return;
+      displayIds.add(normalized.id);
+      displayList.push(normalized);
+    });
+
+    if (!displayList.length) return [];
+
+    displayList.forEach((unlock, index) => {
+      window.setTimeout(() => showAchievementToast(unlock), index * 220);
+    });
+
+    const ids = displayList.map((unlock) => unlock.id);
+    markSeen(safeEmail, ids);
+    removePendingIds(safeEmail, ids);
+    return displayList;
+  }
+
+  function showPendingForCurrentUser() {
+    const email = currentUserEmail();
+    if (!email) return [];
+    const pending = getPendingUnlocks(email);
+    if (!pending.length) return [];
+    return showUnlockPopups(email, pending);
   }
 
   window.NetologyAchievements = {
-    queueUnlocks,
-    getPendingUnlocks,
-    consumePendingUnlocks,
-    getSeenIds,
-    markSeen,
-    initializeSeen
+    queueUnlocks
   };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", showPendingForCurrentUser, { once: true });
+  } else {
+    showPendingForCurrentUser();
+  }
 })();
