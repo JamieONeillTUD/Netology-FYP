@@ -11256,7 +11256,7 @@ body.net-onboarding-lock .onboarding-tooltip * {
 /* CTA card */
 .net-figma-cta-card {
   position: relative;
-  background: linear-gradient(135deg, rgba(236, 253, 248, 0.9), rgba(240, 249, 255, 0.9));
+  background: linear-gradient(135deg, var(--net-teal), var(--net-cyan));
   border: 2px solid rgba(13, 148, 136, 0.14);
   border-radius: 20px;
   padding: 3.5rem 2rem;
