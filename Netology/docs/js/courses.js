@@ -70,34 +70,48 @@ Notes: Rewritten into small clear functions with simple comments and same page b
 
   // Path filter buttons (All / Novice / Intermediate / Advanced).
   function wireTrackFilters() {
-    const filterButtons = document.querySelectorAll("[data-path]");
+    const filterButtons = Array.from(document.querySelectorAll("[data-path]"));
     if (!filterButtons.length) return;
+
+    const applyTrackFilter = (rawPath) => {
+      const normalizedPath = String(rawPath || "all").toLowerCase();
+      const selectedPath = normalizedPath === "all" || TRACK_NAMES.includes(normalizedPath)
+        ? normalizedPath
+        : "all";
+
+      filterButtons.forEach((buttonElement) => {
+        const buttonPath = String(buttonElement.dataset.path || "all").toLowerCase();
+        const isActive = buttonPath === selectedPath;
+        buttonElement.classList.toggle("active", isActive);
+        buttonElement.classList.toggle("btn-teal", isActive);
+        buttonElement.classList.toggle("btn-outline-teal", !isActive);
+        buttonElement.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+
+      document.querySelectorAll(".net-course-section").forEach((sectionElement) => {
+        if (selectedPath === "all") {
+          sectionElement.style.display = "block";
+          return;
+        }
+
+        const sectionTrack = String(sectionElement.dataset.difficulty || "").toLowerCase();
+        sectionElement.style.display = sectionTrack === selectedPath ? "block" : "none";
+      });
+    };
 
     filterButtons.forEach((filterButton) => {
       filterButton.addEventListener("click", (event) => {
         event.preventDefault();
-        const selectedPath = String(filterButton.dataset.path || "all").toLowerCase();
-
-        filterButtons.forEach((buttonElement) => {
-          buttonElement.classList.remove("active", "btn-teal");
-          buttonElement.classList.add("btn-outline-teal");
-          buttonElement.setAttribute("aria-selected", "false");
-        });
-
-        filterButton.classList.add("active", "btn-teal");
-        filterButton.classList.remove("btn-outline-teal");
-        filterButton.setAttribute("aria-selected", "true");
-
-        document.querySelectorAll(".net-course-section").forEach((sectionElement) => {
-          if (selectedPath === "all") {
-            sectionElement.style.display = "block";
-            return;
-          }
-
-          const sectionTrack = String(sectionElement.dataset.difficulty || "").toLowerCase();
-          sectionElement.style.display = sectionTrack === selectedPath ? "block" : "none";
-        });
+        applyTrackFilter(filterButton.dataset.path || "all");
       });
+    });
+
+    // Always start in "All Paths" view so novice courses are visible by default.
+    applyTrackFilter("all");
+
+    // If browser restores the page from bfcache, reset to "All Paths" again.
+    window.addEventListener("pageshow", () => {
+      applyTrackFilter("all");
     });
   }
 
