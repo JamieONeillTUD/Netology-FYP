@@ -142,53 +142,64 @@ Notes:
 
   <main class="container-fluid my-4 net-account-shell net-shell--wide" role="main">
 
-    <!-- Profile Hero Card -->
-    <section class="mx-4 mb-4 net-card p-4 p-lg-5" data-tour="account-profile-hero">
-      <div class="row align-items-center gap-4">
-        <div class="col-auto">
-          <div class="net-profile-avatar-lg" id="profileAvatar" style="width: 120px; height: 120px; font-size: 2.5rem;">S</div>
-        </div>
-        <div class="col">
-          <h1 class="fs-3 fw-bold mb-1" id="profileName">Student</h1>
-          <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
-            <span class="text-muted" id="profileEmail">email@example.com</span>
-            <span class="badge text-bg-light border" id="rankBadge">Novice</span>
-            <span class="badge text-bg-light border" id="levelBadge">Level 1</span>
+    <!-- Profile Header -->
+    <section class="mx-4 mb-4 net-card net-account-header p-4 p-lg-5" data-tour="account-profile-hero">
+      <div class="net-account-header-grid">
+        <div class="net-account-identity">
+          <div class="net-profile-avatar-lg net-account-avatar" id="profileAvatar">S</div>
+          <div class="net-account-identity-copy">
+            <h1 class="net-account-name mb-1" id="profileName">Student</h1>
+            <div class="net-account-email mb-2" id="profileEmail">email@example.com</div>
+            <div class="net-account-meta">
+              <span class="badge text-bg-light border" id="levelBadge">Level 1</span>
+              <span class="badge text-bg-light border" id="rankBadge">Novice</span>
+            </div>
+            <div class="net-account-submeta mt-2">
+              <div id="profileSkillLine">Level 1 • Novice</div>
+              <div id="profileJoinedLine">Joined <span id="joinedDate">Recently</span></div>
+            </div>
           </div>
-          <p class="text-muted mb-0">Joined on <span id="joinedDate">Feb 16, 2026</span></p>
+        </div>
+
+        <div class="net-account-xp-card" aria-label="XP progress">
+          <div class="net-account-xp-kicker">XP Progress</div>
+          <div class="net-account-xp-text" id="headerXpProgressText">0 / 100 XP to next level</div>
+          <div class="progress net-account-xp-track" role="progressbar" aria-label="XP to next level">
+            <div class="progress-bar net-progress-fill" id="headerXpProgressBar" style="width: 0%"></div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Learning Stats Row -->
     <section class="mx-4 mb-4">
-      <div class="row g-3">
+      <div class="row g-3 net-account-stat-row">
         <div class="col-md-3">
-          <div class="net-card p-3 text-center">
-            <div class="text-warning mb-2" style="font-size: 1.8rem;"><i class="bi bi-star-fill"></i></div>
-            <div class="fw-bold fs-4" id="totalXpStat">0</div>
-            <div class="small text-muted">Total XP</div>
+          <div class="net-card p-3 text-center net-account-stat-card">
+            <div class="net-account-stat-icon text-warning"><i class="bi bi-lightning-charge-fill"></i></div>
+            <div class="fw-bold fs-3" id="totalXpStat">0</div>
+            <div class="small text-muted fw-semibold">Total XP Earned</div>
           </div>
         </div>
         <div class="col-md-3">
-          <div class="net-card p-3 text-center">
-            <div class="text-info mb-2" style="font-size: 1.8rem;"><i class="bi bi-book"></i></div>
-            <div class="fw-bold fs-4" id="coursesCompletedStat">0</div>
-            <div class="small text-muted">Courses Done</div>
+          <div class="net-card p-3 text-center net-account-stat-card">
+            <div class="net-account-stat-icon text-info"><i class="bi bi-book-half"></i></div>
+            <div class="fw-bold fs-3" id="coursesCompletedStat">0</div>
+            <div class="small text-muted fw-semibold">Courses Completed</div>
           </div>
         </div>
         <div class="col-md-3">
-          <div class="net-card p-3 text-center">
-            <div class="text-danger mb-2" style="font-size: 1.8rem;"><i class="bi bi-fire"></i></div>
-            <div class="fw-bold fs-4" id="streakStat">0</div>
-            <div class="small text-muted">Day Streak</div>
+          <div class="net-card p-3 text-center net-account-stat-card">
+            <div class="net-account-stat-icon text-danger"><i class="bi bi-fire"></i></div>
+            <div class="fw-bold fs-3" id="streakStat">0</div>
+            <div class="small text-muted fw-semibold">Login Streak</div>
           </div>
         </div>
         <div class="col-md-3">
-          <div class="net-card p-3 text-center">
-            <div class="text-success mb-2" style="font-size: 1.8rem;"><i class="bi bi-trophy"></i></div>
-            <div class="fw-bold fs-4" id="achievementsStat">0</div>
-            <div class="small text-muted">Achievements</div>
+          <div class="net-card p-3 text-center net-account-stat-card">
+            <div class="net-account-stat-icon text-success"><i class="bi bi-trophy-fill"></i></div>
+            <div class="fw-bold fs-3" id="achievementsStat">0</div>
+            <div class="small text-muted fw-semibold">Achievements</div>
           </div>
         </div>
       </div>
@@ -216,11 +227,11 @@ Notes:
 
     <!-- Tab: Profile -->
     <section class="mx-4 mb-4 account-tab" data-tab="profile" role="tabpanel">
-      <div class="row g-3">
-        <div class="col-lg-8">
-          <div class="net-card p-4">
+      <div class="row g-4">
+        <div class="col-xl-6">
+          <div class="net-card p-4 net-account-block">
             <h4 class="fw-bold mb-3"><i class="bi bi-person-circle me-2"></i>Profile Information</h4>
-            
+
             <div class="mb-3">
               <label class="form-label small fw-semibold text-muted">Full Name</label>
               <input type="text" class="form-control form-control-sm" id="fullNameInput" disabled>
@@ -236,75 +247,75 @@ Notes:
               <input type="text" class="form-control form-control-sm" id="memberSinceInput" disabled>
             </div>
 
-            <div class="mb-3">
-              <label class="form-label small fw-semibold text-muted">Current Level</label>
+            <div class="mb-0">
+              <label class="form-label small fw-semibold text-muted">Skill Level</label>
               <div class="input-group input-group-sm">
                 <span class="input-group-text"><i class="bi bi-lightning-fill text-warning"></i></span>
                 <input type="text" class="form-control" id="currentLevelInput" disabled>
                 <span class="input-group-text" id="currentRankInput">Novice</span>
               </div>
             </div>
+          </div>
+        </div>
 
-            <hr class="my-4">
-
-            <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart me-2"></i>Learning Stats</h5>
-
-            <div class="row g-3">
-              <div class="col-6">
-                <div class="mb-3">
-                  <label class="form-label small fw-semibold text-muted">Total XP Earned</label>
-                  <div class="fs-5 fw-bold text-warning" id="totalXpDisplay">0</div>
+        <div class="col-xl-6">
+          <div class="net-card p-4 net-account-block">
+            <h4 class="fw-bold mb-3"><i class="bi bi-bar-chart me-2"></i>Learning Stats</h4>
+            <div class="net-mini-stat-grid">
+              <article class="net-mini-stat">
+                <div class="net-mini-stat-icon text-warning"><i class="bi bi-lightning-charge-fill"></i></div>
+                <div>
+                  <div class="net-mini-stat-label">Total XP Earned</div>
+                  <div class="net-mini-stat-value" id="totalXpDisplay">0</div>
                 </div>
-              </div>
-              <div class="col-6">
-                <div class="mb-3">
-                  <label class="form-label small fw-semibold text-muted">Courses Completed</label>
-                  <div class="fs-5 fw-bold text-info" id="coursesCompletedDisplay">0</div>
+              </article>
+              <article class="net-mini-stat">
+                <div class="net-mini-stat-icon text-info"><i class="bi bi-book-half"></i></div>
+                <div>
+                  <div class="net-mini-stat-label">Courses Completed</div>
+                  <div class="net-mini-stat-value" id="coursesCompletedDisplay">0</div>
                 </div>
-              </div>
-            </div>
-
-            <div class="row g-3">
-              <div class="col-6">
-                <div class="mb-3">
-                  <label class="form-label small fw-semibold text-muted">Login Streak</label>
-                  <div class="fs-5 fw-bold text-danger" id="streakDisplay">0 days</div>
+              </article>
+              <article class="net-mini-stat">
+                <div class="net-mini-stat-icon text-danger"><i class="bi bi-fire"></i></div>
+                <div>
+                  <div class="net-mini-stat-label">Login Streak</div>
+                  <div class="net-mini-stat-value" id="streakDisplay">0 days</div>
                 </div>
-              </div>
-              <div class="col-6">
-                <div class="mb-3">
-                  <label class="form-label small fw-semibold text-muted">Achievements Unlocked</label>
-                  <div class="fs-5 fw-bold text-success" id="achievementsDisplay">0</div>
+              </article>
+              <article class="net-mini-stat">
+                <div class="net-mini-stat-icon text-success"><i class="bi bi-trophy-fill"></i></div>
+                <div>
+                  <div class="net-mini-stat-label">Achievements</div>
+                  <div class="net-mini-stat-value" id="achievementsDisplay">0</div>
                 </div>
-              </div>
+              </article>
             </div>
           </div>
         </div>
 
-        <div class="col-lg-4">
-          <div class="net-card p-4">
-            <h5 class="fw-bold mb-3"><i class="bi bi-trophy me-2"></i>Rank Progress</h5>
-            <div class="text-center mb-3">
-              <div class="fs-1 fw-bold text-teal" id="rankDisplayLarge">1</div>
-              <div class="small text-muted" id="rankNameDisplay">Novice</div>
+        <div class="col-xl-6">
+          <div class="net-card p-4 net-account-block">
+            <h4 class="fw-bold mb-3"><i class="bi bi-award me-2"></i>Rank Progress</h4>
+            <div class="net-rank-visual mb-3">
+              <div class="net-rank-level">LEVEL <span id="rankDisplayLarge">1</span></div>
+              <div class="net-rank-name" id="rankNameDisplay">Novice</div>
             </div>
-            
-            <div class="mb-3">
-              <div class="small fw-semibold text-muted mb-1">XP to Next Level</div>
-              <div class="progress" style="height: 8px;">
-                <div class="progress-bar net-progress-fill" id="levelProgressBar" style="width: 0%"></div>
-              </div>
-              <div class="small text-muted mt-1" id="levelProgressText">0 / 100 XP</div>
+            <div class="small fw-semibold text-muted mb-1">XP to Next Level</div>
+            <div class="progress net-rank-track" role="progressbar" aria-label="Rank progress">
+              <div class="progress-bar net-progress-fill" id="levelProgressBar" style="width: 0%"></div>
             </div>
+            <div class="small text-muted mt-2" id="levelProgressText">0 / 100 XP</div>
+          </div>
+        </div>
 
-            <hr class="my-3">
-
-            <div class="small">
-              <div class="fw-semibold text-muted mb-2">Recent Badges</div>
-              <div id="recentBadgesSmall" class="d-flex flex-wrap gap-2">
-                <span class="text-muted small">No badges yet</span>
-              </div>
+        <div class="col-xl-6">
+          <div class="net-card p-4 net-account-block">
+            <h4 class="fw-bold mb-3"><i class="bi bi-patch-check me-2"></i>Recent Badges</h4>
+            <div id="recentBadgesSmall" class="net-badge-grid">
+              <span class="text-muted small">No badges yet</span>
             </div>
+            <p class="small text-muted mb-0 mt-3">Complete courses to unlock badges.</p>
           </div>
         </div>
       </div>
@@ -319,13 +330,30 @@ Notes:
 
             <div class="mb-3">
               <label class="form-label small fw-semibold text-muted">Theme</label>
-              <select class="form-select form-select-sm" id="themeSelect">
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="ocean">Ocean</option>
-                <option value="sunrise">Sunrise</option>
-              </select>
-              <div class="small text-muted mt-2">Choose how the interface looks.</div>
+              <div class="net-theme-radio-grid" role="radiogroup" aria-label="Theme mode">
+                <label class="net-theme-radio">
+                  <input type="radio" name="themeMode" value="light">
+                  <span class="net-theme-radio-copy">
+                    <strong>Light Mode</strong>
+                    <small>Bright, clean interface</small>
+                  </span>
+                </label>
+                <label class="net-theme-radio">
+                  <input type="radio" name="themeMode" value="dark">
+                  <span class="net-theme-radio-copy">
+                    <strong>Dark Mode</strong>
+                    <small>Lower light contrast view</small>
+                  </span>
+                </label>
+                <label class="net-theme-radio">
+                  <input type="radio" name="themeMode" value="system">
+                  <span class="net-theme-radio-copy">
+                    <strong>System Default</strong>
+                    <small>Follows your device setting</small>
+                  </span>
+                </label>
+              </div>
+              <div class="small text-muted mt-2">Choosing a mode applies immediately.</div>
             </div>
           </div>
         </div>
@@ -338,7 +366,7 @@ Notes:
               <input class="form-check-input" type="checkbox" id="dyslexicToggle">
               <label class="form-check-label" for="dyslexicToggle">
                 <strong>Dyslexic-friendly font</strong>
-                <div class="small text-muted">Improves readability for many users.</div>
+                <div class="small text-muted">Applies a readability-focused font across Netology and saves this setting.</div>
               </label>
             </div>
           </div>
@@ -351,7 +379,7 @@ Notes:
             <h5 class="fw-bold mb-3"><i class="bi bi-map me-2"></i>Onboarding Guide</h5>
             <p class="text-muted small mb-3">Replay the interactive tour to learn about Netology's features again.</p>
             <button class="btn btn-outline-teal btn-sm" id="restartOnboardingBtn" type="button">
-              <i class="bi bi-arrow-clockwise me-2"></i>Restart Onboarding Tour
+              <i class="bi bi-arrow-clockwise me-2"></i>Replay Interactive Tour
             </button>
           </div>
         </div>

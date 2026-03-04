@@ -10,8 +10,8 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
 (() => {
   "use strict";
 
-  const BASE_XP = 100;
   const ENDPOINTS = window.ENDPOINTS || {};
+  const XP = window.NetologyXP || null;
 
   // Use shared API helper when available.
   const apiGet = typeof window.apiGet === "function"
@@ -72,23 +72,40 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
 
   // Theme and accessibility controls.
   function initAppearanceControls() {
-    const themeSelect = document.getElementById("themeSelect");
+    const themeChoices = Array.from(document.querySelectorAll('input[name="themeMode"]'));
     const dyslexicToggle = document.getElementById("dyslexicToggle");
+    const safeTheme = (value) => {
+      const normalized = String(value || "").trim().toLowerCase();
+      if (normalized === "dark" || normalized === "system") return normalized;
+      return "light";
+    };
+    const readTheme = () => safeTheme(localStorage.getItem("netology_theme") || "light");
+    const applyTheme = (themeMode) => {
+      const selectedTheme = safeTheme(themeMode);
 
-    if (themeSelect) {
-      const savedTheme = localStorage.getItem("netology_theme") || "light";
-      themeSelect.value = savedTheme;
-
-      themeSelect.addEventListener("change", (event) => {
-        const selectedTheme = String(event.target.value || "light");
-
-        if (window.NetologyTheme?.setTheme) {
-          window.NetologyTheme.setTheme(selectedTheme);
-          return;
-        }
-
+      if (window.NetologyTheme?.setTheme) {
+        window.NetologyTheme.setTheme(selectedTheme);
+      } else {
         localStorage.setItem("netology_theme", selectedTheme);
-        document.body?.setAttribute("data-theme", selectedTheme);
+        const resolvedTheme = selectedTheme === "system"
+          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : selectedTheme;
+        document.body?.setAttribute("data-theme", resolvedTheme);
+      }
+
+      themeChoices.forEach((input) => {
+        input.checked = input.value === selectedTheme;
+      });
+    };
+
+    if (themeChoices.length) {
+      const savedTheme = readTheme();
+      themeChoices.forEach((input) => {
+        input.checked = input.value === savedTheme;
+        input.addEventListener("change", () => {
+          if (!input.checked) return;
+          applyTheme(input.value);
+        });
       });
     }
 
@@ -118,8 +135,6 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
     button.addEventListener("click", () => {
       const email = String(currentUser.email || "").trim().toLowerCase();
 
-      localStorage.removeItem("netology_onboarding_completed");
-      localStorage.removeItem("netology_onboarding_skipped");
       localStorage.removeItem(`netology_onboarding_completed_${email}`);
       localStorage.removeItem(`netology_onboarding_skipped_${email}`);
 
@@ -325,12 +340,15 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
       setElementValue("rankBadge", rank);
       setElementValue("levelBadge", `Level ${level}`);
       setElementValue("joinedDate", joinedDate);
+      setElementValue("profileSkillLine", `Level ${level} • ${rank}`);
       setElementValue("memberSinceInput", joinedDate);
 
       setElementValue("rankDisplayLarge", level);
       setElementValue("rankNameDisplay", rank);
       setElementValue("levelProgressBar", progressPercent);
       setElementValue("levelProgressText", `${currentLevelXp} / ${nextLevelXp} XP`);
+      setElementValue("headerXpProgressBar", progressPercent);
+      setElementValue("headerXpProgressText", `${currentLevelXp} / ${nextLevelXp} XP to next level`);
 
       setElementValue("totalXpDisplay", totalXp.toLocaleString());
       setElementValue("totalXpStat", totalXp.toLocaleString());
@@ -383,43 +401,107 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
     if (!container) return;
 
     if (!Array.isArray(unlockedAchievements) || unlockedAchievements.length === 0) {
-      container.innerHTML = '<span class="text-muted small">No badges yet</span>';
+      container.innerHTML = Array.from({ length: 4 }).map(() =>
+        '<span class="net-badge-placeholder" aria-label="Locked badge"><i class="bi bi-lock-fill"></i></span>'
+      ).join("");
       return;
     }
 
-    const recentBadges = unlockedAchievements.slice(0, 3);
+    const recentBadges = unlockedAchievements.slice(0, 4);
     const badgesHtml = recentBadges.map((badge) => {
       const title = escapeHtml(badge?.name || "Badge");
       const icon = badge?.icon || "⭐";
-      return `<span title="${title}" style="font-size: 1.2rem; cursor: help;">${icon}</span>`;
+      return `<span class="net-earned-badge" title="${title}">${icon}</span>`;
     }).join("");
 
-    container.innerHTML = badgesHtml || '<span class="text-muted small">No badges yet</span>';
+    container.innerHTML = badgesHtml
+      || Array.from({ length: 4 }).map(() =>
+        '<span class="net-badge-placeholder" aria-label="Locked badge"><i class="bi bi-lock-fill"></i></span>'
+      ).join("");
   }
 
   // Load activity heatmap + last active date.
   async function loadActivityData(currentUser) {
+    const email = String(currentUser?.email || "").trim().toLowerCase();
+    if (!email) return;
+
+    let serverActivity = [];
     try {
       const responseData = await apiGet(ENDPOINTS.progress?.userActivity || "/api/user/activity", {
-        user_email: currentUser.email,
+        user_email: email,
         range: 90
       });
-      const activityList = listFrom(responseData, "activity");
-
-      if (Array.isArray(activityList)) {
-        renderActivityHeatmap(activityList);
-      }
-
-      const lastItem = Array.isArray(activityList) && activityList.length
-        ? activityList[activityList.length - 1]
-        : null;
-      const lastDate = lastItem?.date || lastItem?.activity_date;
-      if (lastDate) {
-        setElementValue("lastActiveText", new Date(lastDate).toLocaleDateString());
-      }
+      serverActivity = listFrom(responseData, "activity");
     } catch (error) {
       console.error("Error loading activity:", error);
     }
+
+    const mergedActivity = mergeActivityData(serverActivity, email);
+    renderActivityHeatmap(mergedActivity);
+
+    const lastItem = mergedActivity.length ? mergedActivity[mergedActivity.length - 1] : null;
+    if (lastItem?.date) {
+      setElementValue("lastActiveText", new Date(lastItem.date).toLocaleDateString());
+    }
+  }
+
+  function mergeActivityData(serverActivity, email) {
+    const dayMap = {};
+    const addDayCount = (dateKey, increment) => {
+      if (!dateKey) return;
+      const safeIncrement = Math.max(0, Number(increment) || 0);
+      dayMap[dateKey] = (dayMap[dateKey] || 0) + safeIncrement;
+    };
+
+    listFrom(serverActivity, "activity").forEach((entry) => {
+      const dateKey = normalizeDateKey(entry?.date || entry?.activity_date);
+      const lessonCount = Number(entry?.lessons ?? entry?.lessons_completed ?? 0);
+      const quizCount = Number(entry?.quizzes ?? entry?.quizzes_completed ?? 0);
+      const challengeCount = Number(entry?.challenges ?? entry?.challenges_completed ?? 0);
+      const loginCount = Number(entry?.logins ?? entry?.login_count ?? 0);
+      const explicitCount = Number(entry?.count ?? entry?.activity_count ?? 0);
+      const xpCount = Number(entry?.xp ?? entry?.xp_earned ?? 0);
+
+      const derivedCount = lessonCount + quizCount + challengeCount + loginCount + (xpCount > 0 ? Math.max(1, Math.round(xpCount / 25)) : 0);
+      addDayCount(dateKey, explicitCount > 0 ? explicitCount : derivedCount);
+    });
+
+    const progressLog = parseJson(localStorage.getItem(`netology_progress_log:${email}`)) || [];
+    if (Array.isArray(progressLog)) {
+      progressLog.forEach((entry) => {
+        const dateKey = normalizeDateKey(entry?.date || toDateFromTimestamp(entry?.ts));
+        const xpPart = Number(entry?.xp || 0) > 0 ? 1 : 0;
+        addDayCount(dateKey, 1 + xpPart);
+      });
+    }
+
+    const loginLog = parseJson(localStorage.getItem(`netology_login_log:${email}`)) || [];
+    if (Array.isArray(loginLog)) {
+      loginLog.forEach((dateValue) => {
+        addDayCount(normalizeDateKey(dateValue), 1);
+      });
+    }
+
+    return Object.keys(dayMap)
+      .sort()
+      .map((dateKey) => ({ date: dateKey, count: dayMap[dateKey] }));
+  }
+
+  function normalizeDateKey(value) {
+    if (!value) return "";
+    const raw = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const parsedDate = new Date(raw);
+    if (Number.isNaN(parsedDate.getTime())) return "";
+    return parsedDate.toISOString().slice(0, 10);
+  }
+
+  function toDateFromTimestamp(value) {
+    const ts = Number(value);
+    if (!Number.isFinite(ts)) return "";
+    const parsedDate = new Date(ts);
+    if (Number.isNaN(parsedDate.getTime())) return "";
+    return parsedDate.toISOString().slice(0, 10);
   }
 
   function renderActivityHeatmap(activityList) {
@@ -431,13 +513,15 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
     const countByDate = {};
     activityList.forEach((activityEntry) => {
       const date = activityEntry?.date || activityEntry?.activity_date;
-      const count = activityEntry?.count
+      const count = Number(
+        activityEntry?.count
         || activityEntry?.activity_count
         || activityEntry?.logins
         || activityEntry?.lessons
-        || 0;
+        || 0
+      );
       if (!date) return;
-      countByDate[date] = Math.min(Number(count) || 0, 4);
+      countByDate[date] = (countByDate[date] || 0) + Math.max(0, count || 0);
     });
 
     const today = new Date();
@@ -446,38 +530,35 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
       const date = new Date(today);
       date.setDate(date.getDate() - dayOffset);
       const dateKey = date.toISOString().slice(0, 10);
-      const level = countByDate[dateKey] || 0;
+      const total = Number(countByDate[dateKey] || 0);
+      const level = total <= 0 ? 0
+        : total <= 2 ? 1
+          : total <= 4 ? 2
+            : total <= 7 ? 3
+              : 4;
 
       const cell = document.createElement("div");
       cell.className = `activity-cell level-${level}`;
-      cell.title = `${dateKey}: ${level} activities`;
+      cell.title = `${dateKey}: ${total} activities`;
       container.appendChild(cell);
     }
   }
 
   // XP helper functions.
   function totalXpForLevel(level) {
-    const safeLevel = Math.max(1, Number(level) || 1);
-    return BASE_XP * (safeLevel - 1) * safeLevel / 2;
+    return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
   }
 
   function levelFromXP(totalXp) {
-    const xp = Math.max(0, Number(totalXp) || 0);
-    const factor = xp / BASE_XP;
-    const computedLevel = Math.floor((1 + Math.sqrt(1 + 8 * factor)) / 2);
-    return Math.max(1, computedLevel);
+    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
   }
 
   function xpForNextLevel(level) {
-    const safeLevel = Math.max(1, Number(level) || 1);
-    return BASE_XP * safeLevel;
+    return XP?.xpForNextLevel ? XP.xpForNextLevel(level) : 100;
   }
 
   function rankForLevel(level) {
-    const safeLevel = Number(level) || 1;
-    if (safeLevel >= 5) return "Advanced";
-    if (safeLevel >= 3) return "Intermediate";
-    return "Novice";
+    return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
   }
 
   function getCurrentUser() {

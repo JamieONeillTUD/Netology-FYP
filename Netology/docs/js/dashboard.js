@@ -10,8 +10,8 @@ Notes: Rebuilt with simpler structure, removed old/unused sections, and kept das
 (() => {
   "use strict";
 
-  const BASE_XP = 100;
   const ENDPOINTS = window.ENDPOINTS || {};
+  const XP = window.NetologyXP || null;
   const CHALLENGE_CACHE_MS = 60000;
   const REFRESH_DEBOUNCE_MS = 180;
 
@@ -166,26 +166,19 @@ Notes: Rebuilt with simpler structure, removed old/unused sections, and kept das
   }
 
   function totalXpForLevel(level) {
-    const safeLevel = Math.max(1, Number(level) || 1);
-    return BASE_XP * (safeLevel - 1) * safeLevel / 2;
+    return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
   }
 
   function levelFromXP(totalXp) {
-    const xp = Math.max(0, Number(totalXp) || 0);
-    const factor = xp / BASE_XP;
-    const computedLevel = Math.floor((1 + Math.sqrt(1 + 8 * factor)) / 2);
-    return Math.max(1, computedLevel);
+    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
   }
 
   function xpForNextLevel(level) {
-    const safeLevel = Math.max(1, Number(level) || 1);
-    return BASE_XP * safeLevel;
+    return XP?.xpForNextLevel ? XP.xpForNextLevel(level) : 100;
   }
 
   function rankForLevel(level) {
-    if (Number(level) >= 5) return "Advanced";
-    if (Number(level) >= 3) return "Intermediate";
-    return "Novice";
+    return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
   }
 
   function readUserLevel(user) {
@@ -206,6 +199,19 @@ Notes: Rebuilt with simpler structure, removed old/unused sections, and kept das
   }
 
   function computeXpDisplay(user) {
+    if (XP?.resolveUserProgress) {
+      const resolved = XP.resolveUserProgress(user);
+      return {
+        totalXp: resolved.totalXp,
+        level: resolved.level,
+        rank: resolved.rank || readUserRank(user, resolved.level),
+        xpIntoLevel: resolved.xpIntoLevel,
+        xpNext: resolved.nextLevelXp,
+        progressPercent: resolved.progressPercent,
+        toNext: resolved.toNextXp
+      };
+    }
+
     const totalXp = Math.max(0, Number(user?.xp || 0));
     const level = readUserLevel(user);
 
@@ -1477,9 +1483,8 @@ Notes: Rebuilt with simpler structure, removed old/unused sections, and kept das
     const existingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
 
     const alreadyOnboarded = Boolean(user.onboarding_completed)
-      || localStorage.getItem("netology_onboarding_completed") === "true"
       || localStorage.getItem(`netology_onboarding_completed_${email}`) === "true"
-      || localStorage.getItem("netology_onboarding_skipped") === "true";
+      || localStorage.getItem(`netology_onboarding_skipped_${email}`) === "true";
 
     if (alreadyOnboarded) return;
 
@@ -1492,6 +1497,7 @@ Notes: Rebuilt with simpler structure, removed old/unused sections, and kept das
 
     try {
       sessionStorage.setItem("netology_onboarding_session", "true");
+      sessionStorage.removeItem("netology_welcome_shown");
     } catch {
       // Ignore storage errors.
     }

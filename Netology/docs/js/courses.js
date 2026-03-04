@@ -11,8 +11,8 @@ Notes: Rewritten into small clear functions with simple comments and same page b
   "use strict";
 
   const TRACK_NAMES = ["novice", "intermediate", "advanced"];
-  const BASE_LEVEL_XP = 100;
   const ENDPOINTS = window.ENDPOINTS || {};
+  const XP = window.NetologyXP || null;
 
   // Use shared API helper when available, otherwise use a simple fetch helper.
   const apiGet = typeof window.apiGet === "function"
@@ -507,10 +507,7 @@ Notes: Rewritten into small clear functions with simple comments and same page b
   }
 
   function levelFromXP(totalXp) {
-    const xp = Math.max(0, Number(totalXp) || 0);
-    const xpFactor = xp / BASE_LEVEL_XP;
-    const computedLevel = Math.floor((1 + Math.sqrt(1 + 8 * xpFactor)) / 2);
-    return Math.max(1, computedLevel);
+    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
   }
 
   function getCurrentUser() {

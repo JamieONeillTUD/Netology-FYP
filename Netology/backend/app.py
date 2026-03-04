@@ -710,27 +710,135 @@ def update_user_preferences():
 # =========================================================
 @app.get('/api/user/activity')
 def get_user_activity():
-    """Get daily activity for heatmap"""
+    """Get merged daily activity for heatmap."""
     from db import get_db_connection
-    
-    user_email = request.args.get('user_email')
-    range_days = request.args.get('range', '365')
-    
+
+    user_email = (request.args.get('user_email') or '').strip().lower()
+    if not user_email:
+        return jsonify({'success': False, 'message': 'user_email is required'}), 400
+
+    try:
+        range_days = int(request.args.get('range', 90))
+    except (TypeError, ValueError):
+        range_days = 90
+
+    range_days = max(1, min(range_days, 365))
+
     conn = get_db_connection()
     cur = conn.cursor()
-    
+
     try:
-        cur.execute("""
-            SELECT activity_date, xp_earned, lessons_completed, login_count
-            FROM user_daily_activity
-            WHERE user_email = %s 
-            AND activity_date >= CURRENT_DATE - INTERVAL '%s days'
-            ORDER BY activity_date
-        """, (user_email, range_days))
-        
-        activity = [{'date': str(r[0]), 'xp': r[1], 'lessons': r[2], 'logins': r[3]} 
-                    for r in cur.fetchall()]
-        
+        # Merge multiple sources to avoid stale/empty heatmaps.
+        by_date = {}
+
+        def day_entry(date_value):
+            date_key = str(date_value)
+            if date_key not in by_date:
+                by_date[date_key] = {
+                    "daily_xp": 0,
+                    "daily_lessons": 0,
+                    "daily_quizzes": 0,
+                    "daily_challenges": 0,
+                    "daily_logins": 0,
+                    "log_xp": 0,
+                    "log_lessons": 0,
+                    "log_quizzes": 0,
+                    "log_challenges": 0,
+                    "log_xp_events": 0,
+                    "login_table_count": 0
+                }
+            return by_date[date_key]
+
+        try:
+            cur.execute("""
+                SELECT
+                    activity_date,
+                    COALESCE(xp_earned, 0),
+                    COALESCE(lessons_completed, 0),
+                    COALESCE(quizzes_completed, 0),
+                    COALESCE(challenges_completed, 0),
+                    COALESCE(login_count, 0)
+                FROM user_daily_activity
+                WHERE user_email = %s
+                  AND activity_date >= CURRENT_DATE - (%s::int - 1)
+                ORDER BY activity_date
+            """, (user_email, range_days))
+
+            for row in cur.fetchall():
+                day = day_entry(row[0])
+                day["daily_xp"] = int(row[1] or 0)
+                day["daily_lessons"] = int(row[2] or 0)
+                day["daily_quizzes"] = int(row[3] or 0)
+                day["daily_challenges"] = int(row[4] or 0)
+                day["daily_logins"] = int(row[5] or 0)
+        except Exception as source_error:
+            print("Activity source user_daily_activity error:", source_error)
+
+        try:
+            cur.execute("""
+                SELECT
+                    DATE(created_at) AS activity_date,
+                    COALESCE(SUM(xp_awarded), 0) AS xp_earned,
+                    COALESCE(SUM(CASE WHEN LOWER(action) LIKE 'lesson%' OR LOWER(action) LIKE '% lesson%' THEN 1 ELSE 0 END), 0) AS lessons_completed,
+                    COALESCE(SUM(CASE WHEN LOWER(action) LIKE 'quiz%' OR LOWER(action) LIKE '% quiz%' THEN 1 ELSE 0 END), 0) AS quizzes_completed,
+                    COALESCE(SUM(CASE WHEN LOWER(action) LIKE 'challenge%' OR LOWER(action) LIKE '% challenge%' THEN 1 ELSE 0 END), 0) AS challenges_completed,
+                    COUNT(*) AS xp_events
+                FROM xp_log
+                WHERE user_email = %s
+                  AND created_at >= CURRENT_DATE - (%s::int - 1) * INTERVAL '1 day'
+                GROUP BY DATE(created_at)
+                ORDER BY DATE(created_at)
+            """, (user_email, range_days))
+
+            for row in cur.fetchall():
+                day = day_entry(row[0])
+                day["log_xp"] = int(row[1] or 0)
+                day["log_lessons"] = int(row[2] or 0)
+                day["log_quizzes"] = int(row[3] or 0)
+                day["log_challenges"] = int(row[4] or 0)
+                day["log_xp_events"] = int(row[5] or 0)
+        except Exception as source_error:
+            print("Activity source xp_log error:", source_error)
+
+        try:
+            cur.execute("""
+                SELECT
+                    login_date,
+                    COUNT(*) AS login_count
+                FROM user_logins
+                WHERE user_email = %s
+                  AND login_date >= CURRENT_DATE - (%s::int - 1)
+                GROUP BY login_date
+                ORDER BY login_date
+            """, (user_email, range_days))
+
+            for row in cur.fetchall():
+                day = day_entry(row[0])
+                day["login_table_count"] = int(row[1] or 0)
+        except Exception as source_error:
+            print("Activity source user_logins error:", source_error)
+
+        activity = []
+        for date_key in sorted(by_date.keys()):
+            day = by_date[date_key]
+            lessons = max(day["daily_lessons"], day["log_lessons"])
+            quizzes = max(day["daily_quizzes"], day["log_quizzes"])
+            challenges = max(day["daily_challenges"], day["log_challenges"])
+            logins = max(day["daily_logins"], day["login_table_count"])
+            xp_earned = max(day["daily_xp"], day["log_xp"])
+            completion_count = lessons + quizzes + challenges
+            count = max(completion_count, day["log_xp_events"]) + logins
+
+            activity.append({
+                "date": date_key,
+                "xp": xp_earned,
+                "lessons": lessons,
+                "quizzes": quizzes,
+                "challenges": challenges,
+                "logins": logins,
+                "count": count
+            })
+
         return jsonify({'success': True, 'activity': activity})
     finally:
         cur.close()

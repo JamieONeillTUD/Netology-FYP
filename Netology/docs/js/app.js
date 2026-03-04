@@ -16,14 +16,16 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   const ENDPOINTS = window.ENDPOINTS || {};
+  const XP = window.NetologyXP || null;
   const ONBOARDING_STAGE_DEFAULT = "dashboard";
   const ONBOARDING_KEYS = {
     stage: "netology_onboarding_stage",
     user: "netology_onboarding_user",
-    session: "netology_onboarding_session",
-    firstLogin: "netology_onboarding_first_login",
-    completed: "netology_onboarding_completed",
-    skipped: "netology_onboarding_skipped"
+    session: "netology_onboarding_session"
+  };
+  const ONBOARDING_USER_KEYS = {
+    completedPrefix: "netology_onboarding_completed_",
+    skippedPrefix: "netology_onboarding_skipped_"
   };
   const ONBOARDING_PATHS = {
     steps: "/api/onboarding/steps",
@@ -65,11 +67,11 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
 
   // Build per-user onboarding key names.
   function onboardingCompletedKey(email) {
-    return `${ONBOARDING_KEYS.completed}_${normalizeEmail(email)}`;
+    return `${ONBOARDING_USER_KEYS.completedPrefix}${normalizeEmail(email)}`;
   }
 
   function onboardingSkippedKey(email) {
-    return `${ONBOARDING_KEYS.skipped}_${normalizeEmail(email)}`;
+    return `${ONBOARDING_USER_KEYS.skippedPrefix}${normalizeEmail(email)}`;
   }
 
   // Resolve onboarding API paths with local fallback values.
@@ -1012,23 +1014,17 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
         const loginPayload = buildLoginPayload(responseData, normalizedEmail, unlockTier);
         persistUserSession(loginPayload);
 
-        const firstLoginFlag = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.firstLogin));
-        const hasGlobalCompletion =
-          localStorage.getItem(ONBOARDING_KEYS.completed) === "true" ||
-          localStorage.getItem(ONBOARDING_KEYS.skipped) === "true";
-
         const hasEmailCompletion =
           Boolean(responseData.onboarding_completed) ||
-          localStorage.getItem(onboardingCompletedKey(normalizedEmail)) === "true";
+          localStorage.getItem(onboardingCompletedKey(normalizedEmail)) === "true" ||
+          localStorage.getItem(onboardingSkippedKey(normalizedEmail)) === "true";
 
         const shouldStartOnboarding =
-          !hasGlobalCompletion &&
           !hasEmailCompletion &&
-          (Boolean(responseData.is_first_login) || firstLoginFlag === normalizedEmail);
+          Boolean(responseData.is_first_login);
 
         if (shouldStartOnboarding) {
           stageOnboardingForUser(normalizedEmail, ONBOARDING_STAGE_DEFAULT);
-          localStorage.removeItem(ONBOARDING_KEYS.firstLogin);
           setOnboardingSessionActive(true);
         }
 
@@ -1215,43 +1211,25 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
   }
 
   function totalXpForLevel(level) {
-    const safeLevel = Math.max(1, Number(level) || 1);
-    return (100 * (safeLevel - 1) * safeLevel) / 2;
+    return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
   }
 
   function levelFromTotalXp(totalXp) {
-    const safeXp = Math.max(0, Number(totalXp) || 0);
-    const value = safeXp / 100;
-    const level = Math.floor((1 + Math.sqrt(1 + 8 * value)) / 2);
-    return Math.max(1, level);
+    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
   }
 
   function xpForNextLevel(level) {
-    const safeLevel = Math.max(1, Number(level) || 1);
-    return 100 * safeLevel;
+    return XP?.xpForNextLevel ? XP.xpForNextLevel(level) : 100;
   }
 
   function rankForLevel(level) {
-    const numericLevel = Number(level);
-    if (numericLevel >= 5) return "Advanced";
-    if (numericLevel >= 3) return "Intermediate";
-    return "Novice";
+    return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
   }
 
   function applyXpToUser(userData, additionalXp) {
+    if (XP?.applyXpToUser) return XP.applyXpToUser(userData, additionalXp);
     const nextTotalXp = Math.max(0, Number(userData?.xp || 0) + Number(additionalXp || 0));
-    const level = levelFromTotalXp(nextTotalXp);
-    const levelStartXp = totalXpForLevel(level);
-
-    return {
-      ...userData,
-      xp: nextTotalXp,
-      numeric_level: level,
-      xp_into_level: Math.max(0, nextTotalXp - levelStartXp),
-      next_level_xp: xpForNextLevel(level),
-      level: rankForLevel(level),
-      rank: rankForLevel(level)
-    };
+    return { ...(userData || {}), xp: nextTotalXp };
   }
 
   function bumpStoredUserXp(email, deltaXp) {
@@ -1800,9 +1778,7 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
   }
 
   function markOnboardingComplete() {
-    localStorage.setItem(ONBOARDING_KEYS.completed, "true");
     clearOnboardingStage();
-    localStorage.removeItem(ONBOARDING_KEYS.skipped);
 
     const onboardingUser = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.user));
     if (onboardingUser) {
@@ -1821,7 +1797,6 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
   }
 
   function markOnboardingSkipped() {
-    localStorage.setItem(ONBOARDING_KEYS.skipped, "true");
     clearOnboardingStage();
 
     const onboardingUser = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.user));
@@ -1842,11 +1817,9 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
     const normalizedEmail = normalizeEmail(email);
 
     const completed =
-      localStorage.getItem(ONBOARDING_KEYS.completed) === "true" ||
       localStorage.getItem(onboardingCompletedKey(normalizedEmail)) === "true";
 
     const skipped =
-      localStorage.getItem(ONBOARDING_KEYS.skipped) === "true" ||
       localStorage.getItem(onboardingSkippedKey(normalizedEmail)) === "true";
 
     return completed || skipped;

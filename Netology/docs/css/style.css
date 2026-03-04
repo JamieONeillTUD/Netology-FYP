@@ -10855,6 +10855,362 @@ body.net-onboarding-lock .onboarding-tooltip * {
   margin-bottom: 0.5rem;
 }
 
+/* ============================================
+   ACCOUNT PAGE REDESIGN OVERRIDES
+   ============================================ */
+
+.net-account-page .net-card {
+  border-radius: 18px;
+  border-color: rgba(15, 23, 42, 0.09);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.net-account-page .net-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(13, 148, 136, 0.14);
+}
+
+.net-account-header {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 160% at 105% -20%, rgba(6, 182, 212, 0.22), transparent 55%),
+    radial-gradient(110% 130% at -5% 120%, rgba(20, 184, 166, 0.18), transparent 56%),
+    rgba(255, 255, 255, 0.94);
+}
+
+.net-account-header-grid {
+  display: grid;
+  gap: 1.4rem;
+}
+
+@media (min-width: 992px) {
+  .net-account-header-grid {
+    grid-template-columns: 1.2fr 0.8fr;
+    align-items: center;
+  }
+}
+
+.net-account-identity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.net-account-avatar {
+  width: 108px;
+  height: 108px;
+  font-size: 2.3rem;
+  border-radius: 24px;
+  box-shadow: 0 18px 32px rgba(6, 182, 212, 0.24);
+}
+
+.net-account-identity-copy {
+  min-width: 0;
+}
+
+.net-account-name {
+  font-size: clamp(1.4rem, 2.2vw, 1.9rem);
+  font-weight: 850;
+  color: rgba(15, 23, 42, 0.95);
+  line-height: 1.12;
+}
+
+.net-account-email {
+  color: rgba(51, 65, 85, 0.8);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.net-account-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.net-account-submeta {
+  display: grid;
+  gap: 0.18rem;
+  color: rgba(51, 65, 85, 0.82);
+  font-weight: 500;
+}
+
+.net-account-xp-card {
+  border-radius: 16px;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.95));
+  padding: 1rem 1.1rem;
+}
+
+.net-account-xp-kicker {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(15, 23, 42, 0.56);
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.net-account-xp-text {
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.88);
+  margin-bottom: 0.7rem;
+}
+
+.net-account-xp-track,
+.net-rank-track {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.24);
+  overflow: hidden;
+}
+
+.net-account-stat-row .col-md-3 {
+  display: flex;
+}
+
+.net-account-stat-card {
+  flex: 1;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.net-account-stat-icon {
+  font-size: 1.6rem;
+  margin-bottom: 0.3rem;
+}
+
+.net-account-block {
+  height: 100%;
+}
+
+.net-mini-stat-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 575.98px) {
+  .net-mini-stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.net-mini-stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 0.75rem;
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.net-mini-stat-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(15, 23, 42, 0.05);
+  font-size: 1rem;
+}
+
+.net-mini-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(15, 23, 42, 0.58);
+  font-weight: 700;
+}
+
+.net-mini-stat-value {
+  font-size: 1.25rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: rgba(15, 23, 42, 0.9);
+}
+
+.net-rank-visual {
+  border: 1px solid rgba(6, 182, 212, 0.18);
+  border-radius: 14px;
+  padding: 0.9rem;
+  background: linear-gradient(150deg, rgba(20, 184, 166, 0.09), rgba(56, 189, 248, 0.08));
+}
+
+.net-rank-level {
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(15, 23, 42, 0.65);
+  font-weight: 800;
+}
+
+.net-rank-level span {
+  font-size: 1.35rem;
+  color: var(--net-teal);
+  letter-spacing: 0.02em;
+}
+
+.net-rank-name {
+  font-size: 1.06rem;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.84);
+}
+
+.net-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.net-badge-placeholder,
+.net-earned-badge {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 1.05rem;
+}
+
+.net-badge-placeholder {
+  border: 1px dashed rgba(100, 116, 139, 0.35);
+  color: rgba(100, 116, 139, 0.8);
+  background: rgba(248, 250, 252, 0.85);
+}
+
+.net-earned-badge {
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  background: linear-gradient(145deg, rgba(20, 184, 166, 0.12), rgba(56, 189, 248, 0.1));
+  color: #0f766e;
+  cursor: help;
+}
+
+.net-theme-radio-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.net-theme-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 13px;
+  background: rgba(248, 250, 252, 0.8);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.net-theme-radio:hover {
+  border-color: rgba(13, 148, 136, 0.45);
+  transform: translateY(-1px);
+}
+
+.net-theme-radio input {
+  margin-top: 0;
+}
+
+.net-theme-radio input:checked {
+  accent-color: var(--net-teal);
+}
+
+.net-theme-radio:has(input:checked) {
+  border-color: rgba(13, 148, 136, 0.65);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.13);
+  background: rgba(240, 253, 250, 0.86);
+}
+
+.net-theme-radio-copy {
+  display: grid;
+  line-height: 1.2;
+}
+
+.net-theme-radio-copy small {
+  color: rgba(15, 23, 42, 0.6);
+  font-size: 0.76rem;
+}
+
+#activityHeatmapContainer {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  overflow-x: auto;
+  padding: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.activity-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  background: #e2e8f0;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.activity-cell:hover {
+  border-color: rgba(13, 148, 136, 0.6);
+  transform: scale(1.18);
+}
+
+.activity-cell.level-1 {
+  background: #ccfbf1;
+}
+
+.activity-cell.level-2 {
+  background: #5eead4;
+}
+
+.activity-cell.level-3 {
+  background: #14b8a6;
+}
+
+.activity-cell.level-4 {
+  background: #0f766e;
+}
+
+@media (max-width: 991.98px) {
+  .net-account-avatar {
+    width: 88px;
+    height: 88px;
+    font-size: 1.9rem;
+  }
+}
+
+[data-theme="dark"] .net-account-page .net-account-header,
+[data-theme="dark"] .net-account-page .net-account-xp-card,
+[data-theme="dark"] .net-account-page .net-mini-stat,
+[data-theme="dark"] .net-account-page .net-theme-radio,
+[data-theme="dark"] .net-account-page .net-rank-visual,
+[data-theme="dark"] .net-account-page #activityHeatmapContainer,
+[data-theme="dark"] .net-account-page .net-badge-placeholder {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+[data-theme="dark"] .net-account-page .net-account-name,
+[data-theme="dark"] .net-account-page .net-account-xp-text,
+[data-theme="dark"] .net-account-page .net-mini-stat-value,
+[data-theme="dark"] .net-account-page .net-rank-name {
+  color: rgba(226, 232, 240, 0.95);
+}
+
+[data-theme="dark"] .net-account-page .net-account-email,
+[data-theme="dark"] .net-account-page .net-account-submeta,
+[data-theme="dark"] .net-account-page .net-mini-stat-label,
+[data-theme="dark"] .net-account-page .net-theme-radio-copy small,
+[data-theme="dark"] .net-account-page .net-rank-level {
+  color: rgba(203, 213, 225, 0.82);
+}
+
 /* ═══════════════════════════════════════════════════════════
    SANDBOX CONSOLE ENHANCEMENTS
    ═══════════════════════════════════════════════════════════ */

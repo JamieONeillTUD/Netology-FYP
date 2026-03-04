@@ -13,7 +13,7 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
   // API and storage keys.
 
   const getApiBase = () => (window.API_BASE || "").replace(/\/$/, "");
-  const BASE_XP = 100;
+  const XP = window.NetologyXP || null;
   const apiGet = window.apiGet || (async (path, params = {}) => {
     const base = getApiBase();
     const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
@@ -118,20 +118,15 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
   }
 
   function totalXpForLevel(level) {
-    const lvl = Math.max(1, Number(level) || 1);
-    return BASE_XP * (lvl - 1) * lvl / 2;
+    return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
   }
 
   function levelFromXP(totalXP) {
-    const xp = Math.max(0, Number(totalXP) || 0);
-    const t = xp / BASE_XP;
-    const lvl = Math.floor((1 + Math.sqrt(1 + 8 * t)) / 2);
-    return Math.max(1, lvl);
+    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXP) : 1;
   }
 
   function xpForNextLevel(level) {
-    const lvl = Math.max(1, Number(level) || 1);
-    return BASE_XP * lvl;
+    return XP?.xpForNextLevel ? XP.xpForNextLevel(level) : 100;
   }
 
   function unlockLevelFromTier(tier) {
@@ -142,7 +137,16 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
   }
 
   function computeXPFromTotal(totalXP) {
-    // Convert total XP into level + progress within the current level.
+    if (XP?.getLevelProgress) {
+      const progress = XP.getLevelProgress(totalXP);
+      return {
+        level: progress.level,
+        currentLevelXP: progress.xpIntoLevel,
+        xpNext: progress.nextLevelXp,
+        xpProgressPct: progress.progressPercent,
+        toNext: progress.toNextXp
+      };
+    }
     const level = levelFromXP(totalXP);
     const levelStart = totalXpForLevel(level);
     const currentLevelXP = Math.max(0, totalXP - levelStart);
@@ -153,12 +157,11 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
   }
 
   function rankForLevel(level) {
-    if (Number(level) >= 5) return "Advanced";
-    if (Number(level) >= 3) return "Intermediate";
-    return "Novice";
+    return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
   }
 
   function applyXpToUser(user, addXP) {
+    if (XP?.applyXpToUser) return XP.applyXpToUser(user, addXP);
     const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
     const progress = computeXPFromTotal(nextTotal);
     return {
@@ -1901,23 +1904,9 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
   function wireLessonModalControls() {
     const prevBtn = getById("lessonPrevBtn");
     const nextBtn = getById("lessonNextBtn");
-    const completeBtn = getById("lessonCompleteBtn");
 
     prevBtn?.addEventListener("click", () => moveLearn(-1));
     nextBtn?.addEventListener("click", () => moveLearn(1));
-
-    completeBtn?.addEventListener("click", async () => {
-      if (!state.user?.email) {
-        showAria("Sign in to save progress.");
-        return;
-      }
-      if (!state.activeLearn) return;
-
-      await completeItem("learn", state.activeLearn.lesson_number, state.activeLearn.xp);
-      renderAll();
-      wireDynamicHandlers();
-      updateLessonModalButtons();
-    });
   }
 
   function openLearnModalByLessonNumber(lessonNumber) {
@@ -2139,16 +2128,9 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
   function updateLessonModalButtons() {
     const prevBtn = getById("lessonPrevBtn");
     const nextBtn = getById("lessonNextBtn");
-    const completeBtn = getById("lessonCompleteBtn");
 
     if (prevBtn) prevBtn.disabled = state.activeLearnIndex <= 0;
     if (nextBtn) nextBtn.disabled = state.activeLearnIndex >= state.learnItemsFlat.length - 1;
-
-    if (completeBtn && state.activeLearn) {
-      const done = isLessonSoftCompleted(state.user?.email, state.courseId, state.activeLearn.lesson_number);
-      completeBtn.disabled = done || state.courseLocked;
-      setButtonIconText(completeBtn, "bi bi-check2-circle me-1", done ? "Completed" : "Mark Complete");
-    }
   }
 
   // Save completion to backend (best effort) and local state.

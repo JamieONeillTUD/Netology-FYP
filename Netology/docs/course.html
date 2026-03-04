@@ -16,7 +16,7 @@ Purpose:
 - ‘Up Next’ action card with Continue / Review button and quick inline stats
 - Modules list: course.js builds and injects collapsible module cards
 - Lesson quick preview drawer (Bootstrap offcanvas): content preview with
-  Prev/Next nav, Open Lesson link, and Mark Complete button
+  Prev/Next nav and Open Lesson link
 
 Notes:
 - URL param: ?course=<courseId>  (read by course.js on page load)
@@ -401,9 +401,6 @@ Notes:
 
         <div class="d-flex gap-2">
           <a class="btn btn-outline-secondary" id="lessonOpenBtn" href="#">Open lesson</a>
-          <button class="btn btn-teal" id="lessonCompleteBtn" type="button">
-            <i class="bi bi-check2-circle me-1" aria-hidden="true"></i> Mark Complete
-          </button>
         </div>
       </div>
     </div>

@@ -228,6 +228,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   const ENDPOINTS = window.ENDPOINTS || {};
+  const XP = window.NetologyXP || null;
   const apiGet = window.apiGet || (async (path, params = {}) => {
     const base = API_BASE.trim();
     const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
@@ -1730,29 +1731,29 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   // XP + progress logging (kept)
   // ----------------------------------------
   function totalXpForLevel(level) {
-    const lvl = Math.max(1, Number(level) || 1);
-    return (lvl - 1) * lvl * 50;
+    return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
   }
 
   function levelFromTotalXp(totalXp) {
-    let level = 1;
-    let remaining = Math.max(0, Number(totalXp) || 0);
-    let step = 100;
-    while (remaining >= step) {
-      remaining -= step;
-      level += 1;
-      step += 100;
-    }
-    return level;
+    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
   }
 
   function rankForLevel(level) {
-    if (Number(level) >= 5) return "Advanced";
-    if (Number(level) >= 3) return "Intermediate";
-    return "Novice";
+    return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
   }
 
   function resolveXpProgress(user) {
+    if (XP?.resolveUserProgress) {
+      const resolved = XP.resolveUserProgress(user);
+      return {
+        totalXp: resolved.totalXp,
+        level: resolved.level,
+        xpInto: resolved.xpIntoLevel,
+        nextXp: resolved.nextLevelXp,
+        pct: resolved.progressPercent
+      };
+    }
+
     const totalXp = Math.max(0, Number(user?.xp || 0));
     const numericLevel = Number(user?.numeric_level);
     const level = Number.isFinite(numericLevel) && numericLevel > 0 ? numericLevel : levelFromTotalXp(totalXp);
@@ -1768,18 +1769,11 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
   }
 
   function applyXpToUser(user, addXP) {
+    if (XP?.applyXpToUser) return XP.applyXpToUser(user, addXP);
     const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
-    const nextLevel = levelFromTotalXp(nextTotal);
-    const nextStart = totalXpForLevel(nextLevel);
-    const xpInto = Math.max(0, nextTotal - nextStart);
     return {
       ...user,
-      xp: nextTotal,
-      numeric_level: nextLevel,
-      level: rankForLevel(nextLevel),
-      rank: rankForLevel(nextLevel),
-      xp_into_level: xpInto,
-      next_level_xp: nextLevel * 100
+      xp: nextTotal
     };
   }
 
@@ -3944,21 +3938,7 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
       getHistory: () => [...state.commandHistory],
     };
 
-    window.NetologySandboxConsoleApi = consoleApi;
-
-    if (window.sandboxConsole && typeof window.sandboxConsole.setApi === "function") {
-      window.sandboxConsole.setApi(consoleApi);
-      return;
-    }
-
-    // Fallback legacy object for any old integrations.
-    window.sandboxConsole = {
-      executeCommand: consoleApi.runCommand,
-      addLine: consoleApi.addLine,
-      clearConsole: consoleApi.clear,
-      showWelcome: consoleApi.showWelcome,
-      focus: consoleApi.focusInput,
-    };
+    window.sandboxConsole = consoleApi;
   }
 
   // ----------------------------------------

@@ -11,8 +11,8 @@ Notes: Simplified structure, improved naming, and kept the same progress behavio
   "use strict";
 
   // Core constants used across the page.
-  const BASE_XP = 100;
   const ENDPOINTS = window.ENDPOINTS || {};
+  const XP = window.NetologyXP || null;
   const PROGRESS_TYPE_STORAGE_KEY = "netology_progress_type";
   const PROGRESS_TYPE_DEFAULT = "courses";
   const PROGRESS_TYPE_ALIASES = {
@@ -1901,20 +1901,15 @@ Notes: Simplified structure, improved naming, and kept the same progress behavio
 
   // XP helpers.
   function totalXpForLevel(level) {
-    const safeLevel = Math.max(1, Number(level) || 1);
-    return BASE_XP * (safeLevel - 1) * safeLevel / 2;
+    return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
   }
 
   function levelFromXp(totalXp) {
-    const safeXp = Math.max(0, Number(totalXp) || 0);
-    const scaledXp = safeXp / BASE_XP;
-    const level = Math.floor((1 + Math.sqrt(1 + 8 * scaledXp)) / 2);
-    return Math.max(1, level);
+    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
   }
 
   function xpForNextLevel(level) {
-    const safeLevel = Math.max(1, Number(level) || 1);
-    return BASE_XP * safeLevel;
+    return XP?.xpForNextLevel ? XP.xpForNextLevel(level) : 100;
   }
 
   function computeXpProgress(totalXp) {
@@ -1938,9 +1933,7 @@ Notes: Simplified structure, improved naming, and kept the same progress behavio
   }
 
   function rankForLevel(level) {
-    if (Number(level) >= 5) return "Advanced";
-    if (Number(level) >= 3) return "Intermediate";
-    return "Novice";
+    return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
   }
 
   // Storage helpers.

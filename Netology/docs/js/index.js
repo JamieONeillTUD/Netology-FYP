@@ -7,7 +7,7 @@ Notes: Simplified structure and helper naming while keeping the same behavior.
 ---------------------------------------------------------
 */
 
-const BASE_XP = 100;
+const XP = window.NetologyXP || null;
 
 // Simple DOM helper.
 function getById(elementId) {
@@ -34,20 +34,15 @@ function parseJsonSafe(rawValue) {
 
 // XP helper math.
 function totalXpForLevel(level) {
-  const safeLevel = Math.max(1, Number(level) || 1);
-  return (BASE_XP * (safeLevel - 1) * safeLevel) / 2;
+  return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
 }
 
 function levelFromXP(totalXp) {
-  const safeXp = Math.max(0, Number(totalXp) || 0);
-  const ratio = safeXp / BASE_XP;
-  const computedLevel = Math.floor((1 + Math.sqrt(1 + 8 * ratio)) / 2);
-  return Math.max(1, computedLevel);
+  return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
 }
 
 function xpForNextLevel(level) {
-  const safeLevel = Math.max(1, Number(level) || 1);
-  return BASE_XP * safeLevel;
+  return XP?.xpForNextLevel ? XP.xpForNextLevel(level) : 100;
 }
 
 // Read user from local storage.

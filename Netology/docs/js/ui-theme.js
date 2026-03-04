@@ -8,6 +8,8 @@ Notes: Moved theme logic out of config.js into a dedicated UI helper file.
 */
 
 (() => {
+  const SYSTEM_THEME_QUERY = "(prefers-color-scheme: dark)";
+
   // Find the element that should receive theme classes/attributes.
   function getThemeTargetElement() {
     return document.body || document.documentElement;
@@ -28,7 +30,12 @@ Notes: Moved theme logic out of config.js into a dedicated UI helper file.
     const targetElement = getThemeTargetElement();
     if (!targetElement) return;
 
-    targetElement.setAttribute("data-theme", getSavedTheme());
+    const savedTheme = String(getSavedTheme() || "light").toLowerCase();
+    const resolvedTheme = savedTheme === "system"
+      ? (window.matchMedia(SYSTEM_THEME_QUERY).matches ? "dark" : "light")
+      : savedTheme;
+
+    targetElement.setAttribute("data-theme", resolvedTheme);
     targetElement.classList.toggle("net-dyslexic", isDyslexicModeEnabled());
   }
 
@@ -53,6 +60,23 @@ Notes: Moved theme logic out of config.js into a dedicated UI helper file.
     document.addEventListener("DOMContentLoaded", applyThemeSettings);
   } else {
     applyThemeSettings();
+  }
+
+  try {
+    const query = window.matchMedia(SYSTEM_THEME_QUERY);
+    const handleSystemThemeChange = () => {
+      if (String(getSavedTheme() || "").toLowerCase() === "system") {
+        applyThemeSettings();
+      }
+    };
+
+    if (typeof query.addEventListener === "function") {
+      query.addEventListener("change", handleSystemThemeChange);
+    } else if (typeof query.addListener === "function") {
+      query.addListener(handleSystemThemeChange);
+    }
+  } catch {
+    // Ignore matchMedia support issues.
   }
 
   window.NetologyTheme = {

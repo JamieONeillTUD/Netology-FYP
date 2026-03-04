@@ -12,20 +12,57 @@ Notes: Kept full lesson behavior and cleaned comments for simpler readability.
 function getLessonAPI() {
   return (window.API_BASE || "").replace(/\/$/, "");
 }
-// Keep backward compat for any internal usage of LESSON_API
-const LESSON_API = "";  // deprecated – use getLessonAPI() instead
 
 function getCourseContentMap() {
   if (typeof window !== "undefined" && window.COURSE_CONTENT) return window.COURSE_CONTENT;
   if (typeof COURSE_CONTENT !== "undefined" && COURSE_CONTENT) return COURSE_CONTENT;
   return {};
 }
+const XP = window.NetologyXP || null;
 
 function getCurrentUser() {
   try {
     const storedUserJson = localStorage.getItem("netology_user") || localStorage.getItem("user");
     return storedUserJson ? JSON.parse(storedUserJson) : null;
   } catch { return null; }
+}
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function totalXpForLevel(level) {
+  return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
+}
+
+function levelFromTotalXp(totalXp) {
+  return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
+}
+
+function rankForLevel(level) {
+  return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
+}
+
+function applyXpToUser(userData, additionalXp) {
+  if (XP?.applyXpToUser) return XP.applyXpToUser(userData, additionalXp);
+  const xpToAdd = Math.max(0, Number(additionalXp) || 0);
+  const current = userData && typeof userData === "object" ? userData : {};
+  return { ...current, xp: Math.max(0, Number(current.xp || 0) + xpToAdd) };
+}
+
+function bumpUserXP(email, additionalXp) {
+  if (!additionalXp) return;
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) return;
+
+  ["user", "netology_user"].forEach((storageKey) => {
+    const currentUser = safeParseJson(localStorage.getItem(storageKey), null);
+    if (!currentUser) return;
+    if (normalizeEmail(currentUser.email) !== normalizedEmail) return;
+
+    const updatedUser = applyXpToUser(currentUser, additionalXp);
+    localStorage.setItem(storageKey, JSON.stringify(updatedUser));
+  });
 }
 
 function resolveCourseContent(courseId, contentId) {
@@ -1485,12 +1522,6 @@ class LessonEngine {
 
     writeLessonProgress(this.userEmail, this.courseId, this.lessonNumber, payload);
 
-    // Fire soft-complete report when crossing the 40% threshold for the first time
-    const wasAlreadySoftDone = prevPct >= PROGRESS_SOFT_PCT;
-    if (!wasAlreadySoftDone && finalPct >= PROGRESS_SOFT_PCT && finalPct < 100 && reason !== "complete") {
-      this.reportSoftComplete?.();
-    }
-
     if (!silent) this.syncProgressRemote(payload, reason);
   }
 
@@ -1521,16 +1552,6 @@ class LessonEngine {
     if (delta > 0) {
       this.addXP(delta, { showPopup });
       this.progressXP = targetXP;
-      if (this.userEmail && typeof bumpUserXP === "function") {
-        awardLessonXP(this.userEmail, this.courseId, this.lessonNumber, targetXP, delta)
-          .then((result) => {
-            const xpAdded = result?.success ? Number(result.xp_added || 0) : delta;
-            if (xpAdded > 0) bumpUserXP(this.userEmail, xpAdded);
-          })
-          .catch(() => {
-            bumpUserXP(this.userEmail, delta);
-          });
-      }
     } else {
       this.progressXP = targetXP;
       this.xpEarned = targetXP;
@@ -1902,53 +1923,60 @@ class LessonEngine {
     const user = getCurrentUser();
     if (!user?.email || !this.courseId || !this.lessonNumber) return;
 
+    const api = getLessonAPI();
+    if (!api) return;
+
+    const completionPath = ENDPOINTS.courses?.completeLesson || "/complete-lesson";
+    const completionXP = Math.max(0, Number(this.xpEarned || this.lessonXP || 0));
+
     try {
-      const api = getLessonAPI();
-      if (!api) return;
-      await fetch(`${api}/complete-lesson`, {
+      const completionRes = await fetch(`${api}${completionPath}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: user.email,
+          email: normalizeEmail(user.email),
           course_id: String(this.courseId),
           lesson_number: this.lessonNumber,
-          earned_xp: this.xpEarned || 0,
+          earned_xp: completionXP,
           progress_pct: 100,
           completed_stamp: true,
           mastered: true
         })
       });
+
+      const completionData = await completionRes.json().catch(() => ({}));
+      if (!completionRes.ok || !completionData?.success) {
+        throw new Error(completionData?.message || `HTTP ${completionRes.status}`);
+      }
+
+      const xpAdded = Number(completionData.xp_added || 0);
+      if (xpAdded > 0) bumpUserXP(user.email, xpAdded);
+      return;
     } catch (e) {
       console.warn("Could not report lesson completion:", e);
+    }
+
+    if (!completionXP) return;
+    try {
+      const fallback = await awardLessonXP(
+        normalizeEmail(user.email),
+        this.courseId,
+        this.lessonNumber,
+        completionXP,
+        completionXP
+      );
+      const xpAdded = Number(fallback?.xp_added || 0);
+      if (fallback?.success && xpAdded > 0) bumpUserXP(user.email, xpAdded);
+    } catch (e) {
+      console.warn("Could not apply XP fallback:", e);
     }
   }
 
   /**
-   * Report 40% soft-complete milestone to the backend.
-   * Called automatically when progress crosses the PROGRESS_SOFT_PCT threshold.
+   * Soft-complete remains local-only, so no backend write here.
    */
   async reportSoftComplete() {
-    const user = getCurrentUser();
-    if (!user?.email || !this.courseId || !this.lessonNumber) return;
-    try {
-      const api = getLessonAPI();
-      if (!api) return;
-      await fetch(`${api}/complete-lesson`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: user.email,
-          course_id: String(this.courseId),
-          lesson_number: this.lessonNumber,
-          earned_xp: this.xpEarned || 0,
-          progress_pct: this.progressPct,
-          completed_stamp: true,
-          mastered: false
-        })
-      });
-    } catch (e) {
-      console.warn("Could not report soft complete:", e);
-    }
+    // Soft completion is tracked locally only.
   }
 
   goToNextLesson() {

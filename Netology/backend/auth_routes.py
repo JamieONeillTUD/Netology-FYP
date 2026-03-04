@@ -435,7 +435,7 @@ def user_info():
 
         cur.execute(
             """
-            SELECT first_name, last_name, xp, username, reasons, email, start_level
+            SELECT first_name, last_name, xp, username, reasons, email, start_level, created_at
             FROM users
             WHERE email = %s
             """,
@@ -459,6 +459,7 @@ def user_info():
 
             # start_level now read directly from its own column
             start_level = _clean_start_level(user[6])
+            created_at = user[7]
 
             return jsonify({
                 "success": True,
@@ -477,6 +478,9 @@ def user_info():
 
                 # Unlocking preference
                 "start_level": start_level,
+
+                # Account metadata
+                "created_at": created_at.isoformat() if created_at else None,
 
                 # Reasons for display on account page
                 "reasons": reasons_text

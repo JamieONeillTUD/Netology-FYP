@@ -10,6 +10,7 @@ Notes: Rewritten with simpler structure, clearer names, and short student-friend
 const RESULTS_PASS_PERCENT = 70;
 const DEFAULT_QUIZ_XP = 40;
 const ENDPOINTS = window.ENDPOINTS || {};
+const XP = window.NetologyXP || null;
 
 // Use shared API helper when available.
 const apiGet = typeof window.apiGet === "function"
@@ -332,44 +333,21 @@ async function refreshUserFromServer(email) {
 
 // XP math helpers.
 function totalXpForLevel(level) {
-  const safeLevel = Math.max(1, Number(level) || 1);
-  return (safeLevel - 1) * safeLevel * 50;
+  return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
 }
 
 function levelFromTotalXp(totalXp) {
-  let level = 1;
-  let remainingXp = Math.max(0, Number(totalXp) || 0);
-  let levelStepXp = 100;
-
-  while (remainingXp >= levelStepXp) {
-    remainingXp -= levelStepXp;
-    level += 1;
-    levelStepXp += 100;
-  }
-
-  return level;
+  return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
 }
 
 function rankForLevel(level) {
-  if (Number(level) >= 5) return "Advanced";
-  if (Number(level) >= 3) return "Intermediate";
-  return "Novice";
+  return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
 }
 
 function applyXpToUser(user, xpToAdd) {
+  if (XP?.applyXpToUser) return XP.applyXpToUser(user, xpToAdd);
   const nextTotalXp = Math.max(0, Number(user?.xp || 0) + Number(xpToAdd || 0));
-  const nextLevel = levelFromTotalXp(nextTotalXp);
-  const levelStartXp = totalXpForLevel(nextLevel);
-
-  return {
-    ...user,
-    xp: nextTotalXp,
-    numeric_level: nextLevel,
-    level: rankForLevel(nextLevel),
-    rank: rankForLevel(nextLevel),
-    xp_into_level: Math.max(0, nextTotalXp - levelStartXp),
-    next_level_xp: nextLevel * 100
-  };
+  return { ...(user || {}), xp: nextTotalXp };
 }
 
 function bumpUserXP(email, xpToAdd) {
