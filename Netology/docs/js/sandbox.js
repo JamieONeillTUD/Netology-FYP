@@ -4027,20 +4027,27 @@ Notes: Merged console ownership into this file and kept sandbox behavior the sam
       if (xpData.success) {
         const alreadyDone = xpData.already_completed;
         const xpGained = Number(xpData.xp_added || 0);
+        const achievementXp = Number(xpData.achievement_xp_added || 0);
+        const totalXpGained = xpGained + achievementXp;
+        const newlyUnlocked = Array.isArray(xpData.newly_unlocked) ? xpData.newly_unlocked : [];
+        if (newlyUnlocked.length && window.NetologyAchievements?.queueUnlocks) {
+          window.NetologyAchievements.queueUnlocks(user.email, newlyUnlocked);
+        }
+
         if (alreadyDone) {
           setStatusBox(resultBox, "small text-success fw-semibold", "bi-check2-circle", "Passed! Challenge already completed.");
         } else {
-          setStatusBox(resultBox, "small text-success fw-semibold", "bi-check2-circle", `Passed! +${xpGained} XP earned.`);
+          setStatusBox(resultBox, "small text-success fw-semibold", "bi-check2-circle", `Passed! +${totalXpGained} XP earned.`);
         }
         markChallengeCompletion(
           user.email,
           lessonSession.course_id,
           lessonSession.lesson_number,
-          xpGained
+          totalXpGained
         );
         await refreshUserFromServer(user.email);
         // Show celebration overlay
-        showChallengeCompleteOverlay(xpGained, alreadyDone);
+        showChallengeCompleteOverlay(totalXpGained, alreadyDone);
       } else {
         setStatusBox(resultBox, "small text-warning fw-semibold", "bi-exclamation-triangle", "Passed, but XP award failed.");
       }

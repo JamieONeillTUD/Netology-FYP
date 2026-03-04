@@ -715,7 +715,9 @@ async function finishQuiz(state) {
   };
 
   const awardResponse = await awardQuizXpOnce(state, localEarnedXp);
-  const finalEarnedXp = Number(awardResponse?.xpAwarded ?? localEarnedXp);
+  const finalEarnedXp =
+    Number(awardResponse?.xpAwarded ?? localEarnedXp)
+    + Number(awardResponse?.achievementXp || 0);
 
   result.earnedXP = finalEarnedXp;
   if (awardResponse?.alreadyCompleted) {
@@ -914,13 +916,13 @@ function awardKey(state) {
 // Award XP once using backend route when available.
 async function awardQuizXpOnce(state, earnedXp) {
   if (localStorage.getItem(awardKey(state)) === "1") {
-    return { xpAwarded: 0, alreadyCompleted: true, usedBackend: false };
+    return { xpAwarded: 0, achievementXp: 0, newlyUnlocked: [], alreadyCompleted: true, usedBackend: false };
   }
 
   const apiBase = window.API_BASE;
   if (!apiBase) {
     localStorage.setItem(awardKey(state), "1");
-    return { xpAwarded: Number(earnedXp || 0), alreadyCompleted: false, usedBackend: false };
+    return { xpAwarded: Number(earnedXp || 0), achievementXp: 0, newlyUnlocked: [], alreadyCompleted: false, usedBackend: false };
   }
 
   try {
@@ -940,17 +942,24 @@ async function awardQuizXpOnce(state, earnedXp) {
 
     if (data?.success) {
       localStorage.setItem(awardKey(state), "1");
+      const newlyUnlocked = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
+      if (newlyUnlocked.length && window.NetologyAchievements?.queueUnlocks) {
+        window.NetologyAchievements.queueUnlocks(state.email, newlyUnlocked);
+      }
+
       return {
         xpAwarded: Number(data.xp_added || 0),
+        achievementXp: Number(data.achievement_xp_added || 0),
+        newlyUnlocked,
         alreadyCompleted: Boolean(data.already_completed),
         usedBackend: true
       };
     }
 
-    return { xpAwarded: Number(earnedXp || 0), alreadyCompleted: false, usedBackend: false };
+    return { xpAwarded: Number(earnedXp || 0), achievementXp: 0, newlyUnlocked: [], alreadyCompleted: false, usedBackend: false };
   } catch (error) {
     console.error("awardQuizXpOnce error:", error);
-    return { xpAwarded: Number(earnedXp || 0), alreadyCompleted: false, usedBackend: false };
+    return { xpAwarded: Number(earnedXp || 0), achievementXp: 0, newlyUnlocked: [], alreadyCompleted: false, usedBackend: false };
   }
 }
 

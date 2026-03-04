@@ -1951,6 +1951,16 @@ class LessonEngine {
 
       const xpAdded = Number(completionData.xp_added || 0);
       if (xpAdded > 0) bumpUserXP(user.email, xpAdded);
+
+      const achievementXp = Number(completionData.achievement_xp_added || 0);
+      if (achievementXp > 0) bumpUserXP(user.email, achievementXp);
+
+      const newlyUnlocked = Array.isArray(completionData.newly_unlocked)
+        ? completionData.newly_unlocked
+        : [];
+      if (newlyUnlocked.length && window.NetologyAchievements?.queueUnlocks) {
+        window.NetologyAchievements.queueUnlocks(normalizeEmail(user.email), newlyUnlocked);
+      }
       return;
     } catch (e) {
       console.warn("Could not report lesson completion:", e);

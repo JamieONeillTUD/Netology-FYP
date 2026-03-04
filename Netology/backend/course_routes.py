@@ -24,6 +24,7 @@ UPDATED (Part 2):
 from flask import Blueprint, request, jsonify
 from db import get_db_connection
 from xp_system import add_xp_to_user
+from achievement_engine import evaluate_achievements_for_event
 
 # Blueprint for all courseAPI routes
 courses = Blueprint("courses", __name__)
@@ -331,7 +332,15 @@ def start_course():
         conn.commit()
         cur.close(); conn.close()
 
-        return jsonify({"success": True, "message": "Course started."})
+        newly_unlocked = evaluate_achievements_for_event(email, "course_start")
+        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+
+        return jsonify({
+            "success": True,
+            "message": "Course started.",
+            "newly_unlocked": newly_unlocked,
+            "achievement_xp_added": achievement_xp_added,
+        })
 
     except Exception as e:
         print("Start course error:", e)
@@ -439,13 +448,18 @@ def complete_lesson():
             else:
                 xp_added, new_level = (0, 0)
 
+            newly_unlocked = evaluate_achievements_for_event(email, "lesson_complete")
+            achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+
             return jsonify({
                 "success": True,
                 "progress_pct": int(new_progress),
                 "completed": completed_flag,
                 "xp_added": xp_added,
                 "new_level": new_level,
-                "already_completed": (not newly_added)
+                "already_completed": (not newly_added),
+                "newly_unlocked": newly_unlocked,
+                "achievement_xp_added": achievement_xp_added,
             })
 
         # --- ORIGINAL METHOD (no lesson_number): keep your existing step behavior ---
@@ -464,13 +478,17 @@ def complete_lesson():
         cur.close(); conn.close()
 
         xp_added, new_level = add_xp_to_user(email, xp_award, action="Lesson Completed")
+        newly_unlocked = evaluate_achievements_for_event(email, "lesson_complete")
+        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
 
         return jsonify({
             "success": True,
             "progress_pct": int(new_progress),
             "completed": completed_flag,
             "xp_added": xp_added,
-            "new_level": new_level
+            "new_level": new_level,
+            "newly_unlocked": newly_unlocked,
+            "achievement_xp_added": achievement_xp_added,
         })
 
     except Exception as e:
@@ -528,11 +546,16 @@ def complete_quiz():
         else:
             xp_added, new_level = (0, 0)
 
+        newly_unlocked = evaluate_achievements_for_event(email, "quiz_complete")
+        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+
         return jsonify({
             "success": True,
             "xp_added": xp_added,
             "new_level": new_level,
-            "already_completed": (not newly_added)
+            "already_completed": (not newly_added),
+            "newly_unlocked": newly_unlocked,
+            "achievement_xp_added": achievement_xp_added,
         })
 
     except Exception as e:
@@ -590,11 +613,16 @@ def complete_challenge():
         else:
             xp_added, new_level = (0, 0)
 
+        newly_unlocked = evaluate_achievements_for_event(email, "challenge_complete")
+        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+
         return jsonify({
             "success": True,
             "xp_added": xp_added,
             "new_level": new_level,
-            "already_completed": (not newly_added)
+            "already_completed": (not newly_added),
+            "newly_unlocked": newly_unlocked,
+            "achievement_xp_added": achievement_xp_added,
         })
 
     except Exception as e:
@@ -663,13 +691,18 @@ def complete_course():
         else:
             xp_added, new_level = (0, 0)
 
+        newly_unlocked = evaluate_achievements_for_event(email, "course_complete")
+        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+
         return jsonify({
             "success": True,
             "progress_pct": 100,
             "completed": True,
             "xp_added": xp_added,
             "new_level": new_level,
-            "already_completed": bool(already_done)
+            "already_completed": bool(already_done),
+            "newly_unlocked": newly_unlocked,
+            "achievement_xp_added": achievement_xp_added,
         })
 
     except Exception as e:

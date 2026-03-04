@@ -11120,6 +11120,119 @@ body.net-onboarding-lock .onboarding-tooltip * {
   cursor: help;
 }
 
+.net-earned-badge i {
+  font-size: 1rem;
+}
+
+.net-earned-badge.is-pop {
+  animation: netBadgePop 0.55s ease both;
+  box-shadow: 0 10px 20px rgba(13, 148, 136, 0.25);
+}
+
+.net-achievement-toast-host {
+  position: fixed;
+  top: 86px;
+  right: 18px;
+  z-index: 1200;
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.net-achievement-toast {
+  min-width: 240px;
+  max-width: 320px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+  padding: 0.7rem 0.78rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.7rem;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.net-achievement-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.net-achievement-toast-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  color: #0f766e;
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(56, 189, 248, 0.18));
+  font-size: 1rem;
+}
+
+.net-achievement-toast-copy {
+  display: grid;
+  gap: 1px;
+}
+
+.net-achievement-toast-title {
+  font-size: 0.66rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(100, 116, 139, 0.95);
+  font-weight: 800;
+}
+
+.net-achievement-toast-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.9);
+}
+
+.net-achievement-toast-xp {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #0f766e;
+  white-space: nowrap;
+}
+
+.net-achievement-confetti {
+  position: fixed;
+  inset: 64px 0 auto 0;
+  height: 100px;
+  pointer-events: none;
+  z-index: 1199;
+  overflow: hidden;
+}
+
+.net-achievement-confetti-piece {
+  position: absolute;
+  top: -16px;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  opacity: 0.95;
+  animation-name: netAchievementConfettiFall;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+
+@keyframes netAchievementConfettiFall {
+  0% {
+    transform: translateY(-12px) rotate(0deg) scale(0.9);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(112px) rotate(360deg) scale(0.85);
+    opacity: 0;
+  }
+}
+
 .net-theme-radio-grid {
   display: grid;
   gap: 0.65rem;
@@ -11240,6 +11353,20 @@ body.net-onboarding-lock .onboarding-tooltip * {
 [data-theme="dark"] .net-account-page .net-theme-radio-copy small,
 [data-theme="dark"] .net-account-page .net-rank-level {
   color: rgba(203, 213, 225, 0.82);
+}
+
+[data-theme="dark"] .net-achievement-toast {
+  background: rgba(15, 23, 42, 0.94);
+  border-color: rgba(148, 163, 184, 0.34);
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.55);
+}
+
+[data-theme="dark"] .net-achievement-toast-title {
+  color: rgba(148, 163, 184, 0.9);
+}
+
+[data-theme="dark"] .net-achievement-toast-name {
+  color: rgba(226, 232, 240, 0.96);
 }
 
 /* ═══════════════════════════════════════════════════════════

@@ -396,14 +396,36 @@ CREATE TABLE IF NOT EXISTS user_challenge_progress (
 ALTER TABLE lessons ADD COLUMN IF NOT EXISTS slide_count INTEGER DEFAULT 0;
 ALTER TABLE lessons ADD COLUMN IF NOT EXISTS avg_time_seconds INTEGER DEFAULT 0;
 
--- SEED SAMPLE ACHIEVEMENTS
-INSERT INTO achievements (id, name, description, category, rarity, unlock_criteria) VALUES
-('first_lesson', 'First Steps', 'Complete your first lesson', 'Learner', 'common', '{"type": "lessons_completed", "value": 1}'),
-('five_day_streak', 'On Fire!', 'Maintain a 5-day learning streak', 'Explorer', 'rare', '{"type": "streak_days", "value": 5}'),
-('novice_master', 'Novice Master', 'Complete all Novice courses', 'Master', 'epic', '{"type": "courses_by_difficulty", "difficulty": "Novice", "value": 5}'),
-('sandbox_builder', 'Builder', 'Create 10 sandbox topologies', 'Builder', 'rare', '{"type": "topologies_created", "value": 10}'),
-('speed_learner', 'Speed Learner', 'Complete 5 lessons in one day', 'Learner', 'rare', '{"type": "lessons_per_day", "value": 5}')
-ON CONFLICT DO NOTHING;
+-- SEED ACHIEVEMENTS (20 total, aligned with achievement_engine.py)
+INSERT INTO achievements (id, name, description, category, icon, xp_reward, rarity, unlock_criteria) VALUES
+('first_login', 'Welcome Back', 'Log in for the first time.', 'Onboarding', 'bi-door-open-fill', 10, 'common', '{"type":"logins_total","value":1}'),
+('login_streak_3', 'Momentum', 'Maintain a 3-day login streak.', 'Streak', 'bi-calendar-check-fill', 40, 'common', '{"type":"login_streak","value":3}'),
+('five_day_streak', 'On Fire!', 'Maintain a 5-day login streak.', 'Streak', 'bi-fire', 75, 'rare', '{"type":"login_streak","value":5}'),
+('login_streak_10', 'Unstoppable', 'Maintain a 10-day login streak.', 'Streak', 'bi-fire', 160, 'epic', '{"type":"login_streak","value":10}'),
+('onboarding_complete', 'Tour Complete', 'Complete the onboarding walkthrough.', 'Onboarding', 'bi-compass-fill', 60, 'common', '{"type":"event","event":"onboarding_complete"}'),
+('course_starter', 'Course Starter', 'Start your first course.', 'Courses', 'bi-journal-plus', 20, 'common', '{"type":"courses_started","value":1}'),
+('course_explorer', 'Course Explorer', 'Start 3 courses.', 'Courses', 'bi-journals', 60, 'rare', '{"type":"courses_started","value":3}'),
+('first_lesson', 'First Steps', 'Complete your first lesson.', 'Learning', 'bi-bookmark-check-fill', 30, 'common', '{"type":"lessons_completed","value":1}'),
+('speed_learner', 'Speed Learner', 'Complete 5 lessons.', 'Learning', 'bi-lightning-charge-fill', 100, 'rare', '{"type":"lessons_completed","value":5}'),
+('lesson_marathon', 'Lesson Marathon', 'Complete 15 lessons.', 'Learning', 'bi-lightning-fill', 220, 'epic', '{"type":"lessons_completed","value":15}'),
+('first_quiz', 'Quiz Rookie', 'Complete your first quiz.', 'Quizzes', 'bi-patch-question-fill', 35, 'common', '{"type":"quizzes_completed","value":1}'),
+('quiz_machine', 'Quiz Machine', 'Complete 5 quizzes.', 'Quizzes', 'bi-ui-checks-grid', 120, 'rare', '{"type":"quizzes_completed","value":5}'),
+('first_challenge', 'Challenge Accepted', 'Complete your first challenge.', 'Challenges', 'bi-shield-check', 45, 'common', '{"type":"challenges_completed","value":1}'),
+('challenge_crusher', 'Challenge Crusher', 'Complete 5 challenges.', 'Challenges', 'bi-trophy-fill', 170, 'epic', '{"type":"challenges_completed","value":5}'),
+('first_course_complete', 'Course Finisher', 'Complete your first course.', 'Courses', 'bi-check2-square', 200, 'rare', '{"type":"courses_completed","value":1}'),
+('novice_master', 'Novice Master', 'Complete 3 courses.', 'Courses', 'bi-mortarboard-fill', 320, 'epic', '{"type":"courses_completed","value":3}'),
+('level_3_reached', 'Rising Talent', 'Reach Level 3.', 'Progress', 'bi-bar-chart-steps', 120, 'rare', '{"type":"level_reached","value":3}'),
+('level_5_reached', 'Advanced Path', 'Reach Level 5.', 'Progress', 'bi-stars', 260, 'epic', '{"type":"level_reached","value":5}'),
+('xp_500_club', '500 XP Club', 'Earn a total of 500 XP.', 'Progress', 'bi-gem', 150, 'rare', '{"type":"total_xp","value":500}'),
+('all_rounder', 'All-Rounder', 'Complete at least one lesson, quiz, and challenge.', 'Mastery', 'bi-award-fill', 180, 'epic', '{"type":"all_of","rules":[{"type":"lessons_completed","value":1},{"type":"quizzes_completed","value":1},{"type":"challenges_completed","value":1}]}')
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    category = EXCLUDED.category,
+    icon = EXCLUDED.icon,
+    xp_reward = EXCLUDED.xp_reward,
+    rarity = EXCLUDED.rarity,
+    unlock_criteria = EXCLUDED.unlock_criteria;
 
 -- SEED SAMPLE CHALLENGES (5 daily + 5 weekly + 1 event)
 INSERT INTO challenges (title, description, challenge_type, difficulty, xp_reward, required_action) VALUES

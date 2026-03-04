@@ -1172,6 +1172,23 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: normalizedEmail })
+        }).then(async (response) => {
+          const data = await response.json().catch(() => null);
+          if (!data || !data.success) return;
+
+          if (Array.isArray(data.log) && data.log.length) {
+            saveLoginLog(normalizedEmail, data.log);
+          }
+
+          const unlocks = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
+          if (unlocks.length && window.NetologyAchievements?.queueUnlocks) {
+            window.NetologyAchievements.queueUnlocks(normalizedEmail, unlocks);
+          }
+
+          const achievementXp = Number(data.achievement_xp_added || 0);
+          if (achievementXp > 0) {
+            bumpStoredUserXp(normalizedEmail, achievementXp);
+          }
         }).catch(() => {
           // Ignore network errors for background sync.
         });
@@ -1198,34 +1215,6 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
     return streakCount;
   }
 
-  function getStoredBadges(email) {
-    try {
-      return JSON.parse(localStorage.getItem(`netology_badges:${email}`) || "[]");
-    } catch {
-      return [];
-    }
-  }
-
-  function saveStoredBadges(email, badges) {
-    localStorage.setItem(`netology_badges:${email}`, JSON.stringify(badges));
-  }
-
-  function totalXpForLevel(level) {
-    return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
-  }
-
-  function levelFromTotalXp(totalXp) {
-    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
-  }
-
-  function xpForNextLevel(level) {
-    return XP?.xpForNextLevel ? XP.xpForNextLevel(level) : 100;
-  }
-
-  function rankForLevel(level) {
-    return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
-  }
-
   function applyXpToUser(userData, additionalXp) {
     if (XP?.applyXpToUser) return XP.applyXpToUser(userData, additionalXp);
     const nextTotalXp = Math.max(0, Number(userData?.xp || 0) + Number(additionalXp || 0));
@@ -1244,75 +1233,11 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
     });
   }
 
-  function getLoginBadgeDefinitions() {
-    return [
-      { id: "login-streak-3", name: "3-Day Streak", description: "Log in 3 days in a row", target: 3, xp: 50 },
-      { id: "login-streak-5", name: "5-Day Streak", description: "Log in 5 days in a row", target: 5, xp: 75 },
-      { id: "login-streak-7", name: "7-Day Streak", description: "Log in 7 days in a row", target: 7, xp: 100 },
-      { id: "login-streak-10", name: "10-Day Streak", description: "Log in 10 days in a row", target: 10, xp: 150 }
-    ];
-  }
-
-  async function awardAchievementRemote(email, badgeDefinition) {
-    if (!email || !API_BASE) return { awarded: false, xp_added: 0 };
-
-    try {
-      const response = await fetch(`${API_BASE}${ENDPOINTS.achievements?.award || "/award-achievement"}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          achievement_id: badgeDefinition.id,
-          name: badgeDefinition.name,
-          description: badgeDefinition.description,
-          tier: badgeDefinition.tier || "bronze",
-          xp: badgeDefinition.xp || 0
-        })
-      });
-
-      const responseData = await response.json().catch(() => ({}));
-      return responseData || { awarded: false, xp_added: 0 };
-    } catch {
-      return { awarded: false, xp_added: 0 };
-    }
-  }
-
+  // Kept for compatibility with existing dashboard/login flow.
+  // Achievements now unlock from backend event evaluation.
   async function awardLoginStreakBadges(email, streak) {
-    const normalizedEmail = normalizeEmail(email);
-    if (!normalizedEmail) return;
-
-    const badgeDefinitions = getLoginBadgeDefinitions();
-    const currentBadges = getStoredBadges(normalizedEmail);
-    const earnedIds = new Set(currentBadges.map((badge) => badge.id));
-    let changed = false;
-
-    for (const badgeDefinition of badgeDefinitions) {
-      if (streak < badgeDefinition.target) continue;
-      if (earnedIds.has(badgeDefinition.id)) continue;
-
-      const result = await awardAchievementRemote(normalizedEmail, badgeDefinition);
-      if (!result?.awarded) continue;
-
-      currentBadges.push({
-        id: badgeDefinition.id,
-        name: badgeDefinition.name,
-        description: badgeDefinition.description,
-        xp: badgeDefinition.xp,
-        earnedAt: getDateKey()
-      });
-
-      earnedIds.add(badgeDefinition.id);
-      changed = true;
-
-      const xpToAdd = Number(result.xp_added || badgeDefinition.xp || 0);
-      if (xpToAdd > 0) {
-        bumpStoredUserXp(normalizedEmail, xpToAdd);
-      }
-    }
-
-    if (changed) {
-      saveStoredBadges(normalizedEmail, currentBadges);
-    }
+    void email;
+    void streak;
   }
 
   window.recordLoginDay = recordLoginDay;
@@ -1893,7 +1818,15 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
 
       try {
         const completePath = getOnboardingPath("complete");
-        await apiPost(completePath, { user_email: normalizedEmail });
+        const completeData = await apiPost(completePath, { user_email: normalizedEmail });
+        const unlocks = Array.isArray(completeData?.newly_unlocked) ? completeData.newly_unlocked : [];
+        if (unlocks.length && window.NetologyAchievements?.queueUnlocks) {
+          window.NetologyAchievements.queueUnlocks(normalizedEmail, unlocks);
+        }
+        const achievementXp = Number(completeData?.achievement_xp_added || 0);
+        if (achievementXp > 0) {
+          bumpStoredUserXp(normalizedEmail, achievementXp);
+        }
       } catch {
         // Ignore completion network failure.
       }

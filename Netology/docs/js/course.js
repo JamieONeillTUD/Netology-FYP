@@ -262,11 +262,29 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
   async function startCourseBackend(email, courseId) {
     if (!email || !courseId) return;
     try {
-      await fetch(`${getApiBase()}/start-course`, {
+      const response = await fetch(`${getApiBase()}/start-course`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, course_id: Number(courseId) })
       });
+
+      const data = await response.json().catch(() => null);
+      if (!data || !data.success) return;
+
+      const newlyUnlocked = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
+      if (newlyUnlocked.length && window.NetologyAchievements?.queueUnlocks) {
+        window.NetologyAchievements.queueUnlocks(email, newlyUnlocked);
+      }
+
+      const achievementXp = Number(data.achievement_xp_added || 0);
+      if (achievementXp > 0 && state.user?.email) {
+        state.user = applyXpToUser(state.user, achievementXp);
+        ["user", "netology_user"].forEach((storageKey) => {
+          const current = parseJsonSafe(localStorage.getItem(storageKey), null);
+          if (!current || String(current.email || "").toLowerCase() !== String(email).toLowerCase()) return;
+          localStorage.setItem(storageKey, JSON.stringify(applyXpToUser(current, achievementXp)));
+        });
+      }
     } catch {
       // best effort
     }

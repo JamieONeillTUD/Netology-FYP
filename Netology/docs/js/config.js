@@ -262,3 +262,125 @@ window.ENDPOINTS = {
     resolveUserProgress
   };
 })();
+
+// Shared achievement helpers: pending unlock queue + seen tracking.
+(() => {
+  "use strict";
+
+  if (window.NetologyAchievements) return;
+
+  function normEmail(email) {
+    return String(email || "").trim().toLowerCase();
+  }
+
+  function parseArray(rawValue) {
+    try {
+      const parsed = rawValue ? JSON.parse(rawValue) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function pendingKey(email) {
+    return `netology_achievement_pending:${normEmail(email)}`;
+  }
+
+  function seenKey(email) {
+    return `netology_achievement_seen:${normEmail(email)}`;
+  }
+
+  function normalizeUnlock(unlock) {
+    if (!unlock || typeof unlock !== "object") return null;
+    const id = String(unlock.id || "").trim();
+    if (!id) return null;
+
+    return {
+      id,
+      name: String(unlock.name || "Achievement"),
+      description: String(unlock.description || ""),
+      icon: String(unlock.icon || "bi-award-fill"),
+      rarity: String(unlock.rarity || "common"),
+      xp_added: Number(unlock.xp_added || unlock.xp_awarded || 0),
+      earned_at: unlock.earned_at || new Date().toISOString()
+    };
+  }
+
+  function queueUnlocks(email, unlocks) {
+    const safeEmail = normEmail(email);
+    if (!safeEmail || !Array.isArray(unlocks) || unlocks.length === 0) return [];
+
+    const key = pendingKey(safeEmail);
+    const current = parseArray(localStorage.getItem(key));
+    const byId = new Map();
+
+    current.forEach((entry) => {
+      const normalized = normalizeUnlock(entry);
+      if (normalized) byId.set(normalized.id, normalized);
+    });
+
+    unlocks.forEach((entry) => {
+      const normalized = normalizeUnlock(entry);
+      if (normalized) byId.set(normalized.id, normalized);
+    });
+
+    const merged = Array.from(byId.values());
+    localStorage.setItem(key, JSON.stringify(merged));
+    return merged;
+  }
+
+  function getPendingUnlocks(email) {
+    const safeEmail = normEmail(email);
+    if (!safeEmail) return [];
+    return parseArray(localStorage.getItem(pendingKey(safeEmail)));
+  }
+
+  function consumePendingUnlocks(email) {
+    const safeEmail = normEmail(email);
+    if (!safeEmail) return [];
+    const key = pendingKey(safeEmail);
+    const pending = parseArray(localStorage.getItem(key));
+    localStorage.removeItem(key);
+    return pending;
+  }
+
+  function getSeenIds(email) {
+    const safeEmail = normEmail(email);
+    if (!safeEmail) return [];
+    return parseArray(localStorage.getItem(seenKey(safeEmail))).map((id) => String(id));
+  }
+
+  function markSeen(email, achievementIds) {
+    const safeEmail = normEmail(email);
+    if (!safeEmail || !Array.isArray(achievementIds)) return [];
+
+    const merged = new Set(getSeenIds(safeEmail));
+    achievementIds.forEach((id) => {
+      const safeId = String(id || "").trim();
+      if (safeId) merged.add(safeId);
+    });
+
+    const ids = Array.from(merged.values());
+    localStorage.setItem(seenKey(safeEmail), JSON.stringify(ids));
+    return ids;
+  }
+
+  function initializeSeen(email, achievementIds) {
+    const safeEmail = normEmail(email);
+    if (!safeEmail || !Array.isArray(achievementIds)) return [];
+    const key = seenKey(safeEmail);
+    if (localStorage.getItem(key)) return getSeenIds(safeEmail);
+    const ids = achievementIds.map((id) => String(id || "").trim()).filter(Boolean);
+    localStorage.setItem(key, JSON.stringify(ids));
+    return ids;
+  }
+
+  window.NetologyAchievements = {
+    queueUnlocks,
+    getPendingUnlocks,
+    consumePendingUnlocks,
+    getSeenIds,
+    markSeen,
+    initializeSeen
+  };
+})();

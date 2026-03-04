@@ -12,6 +12,7 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
 
   const ENDPOINTS = window.ENDPOINTS || {};
   const XP = window.NetologyXP || null;
+  const ACH = window.NetologyAchievements || null;
 
   // Use shared API helper when available.
   const apiGet = typeof window.apiGet === "function"
@@ -391,6 +392,7 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
       setElementValue("streakStat", streakDays);
 
       renderRecentBadges(unlockedAchievements);
+      await revealNewAchievements(currentUser.email, unlockedAchievements);
     } catch (error) {
       console.error("Error loading stats:", error);
     }
@@ -410,14 +412,193 @@ Notes: Rewritten with simple functions, clearer names, and same page behavior.
     const recentBadges = unlockedAchievements.slice(0, 4);
     const badgesHtml = recentBadges.map((badge) => {
       const title = escapeHtml(badge?.name || "Badge");
-      const icon = badge?.icon || "⭐";
-      return `<span class="net-earned-badge" title="${title}">${icon}</span>`;
+      const badgeId = escapeHtml(badge?.id || "");
+      const icon = renderBadgeIconHtml(badge);
+      return `<span class="net-earned-badge" data-badge-id="${badgeId}" title="${title}">${icon}</span>`;
     }).join("");
 
     container.innerHTML = badgesHtml
       || Array.from({ length: 4 }).map(() =>
         '<span class="net-badge-placeholder" aria-label="Locked badge"><i class="bi bi-lock-fill"></i></span>'
       ).join("");
+  }
+
+  function renderBadgeIconHtml(badge) {
+    const rawIcon = String(badge?.icon || "").trim();
+    if (rawIcon.startsWith("bi-")) {
+      return `<i class="bi ${escapeHtml(rawIcon)}" aria-hidden="true"></i>`;
+    }
+    return escapeHtml(rawIcon || "⭐");
+  }
+
+  function getSeenStorageKey(email) {
+    return `netology_achievement_seen:${String(email || "").trim().toLowerCase()}`;
+  }
+
+  function queuePendingBack(email, entries) {
+    if (!ACH?.queueUnlocks || !Array.isArray(entries) || !entries.length) return;
+    ACH.queueUnlocks(email, entries);
+  }
+
+  function getRevealCandidates(email, unlockedAchievements) {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!normalizedEmail || !Array.isArray(unlockedAchievements)) return [];
+
+    const unlockedById = new Map();
+    unlockedAchievements.forEach((achievement) => {
+      const id = String(achievement?.id || "").trim();
+      if (!id) return;
+      unlockedById.set(id, achievement);
+    });
+
+    const pending = ACH?.consumePendingUnlocks
+      ? ACH.consumePendingUnlocks(normalizedEmail)
+      : [];
+    const pendingResolved = [];
+    const pendingUnresolved = [];
+    pending.forEach((entry) => {
+      const id = String(entry?.id || "").trim();
+      if (!id) return;
+      if (unlockedById.has(id)) pendingResolved.push(unlockedById.get(id));
+      else pendingUnresolved.push(entry);
+    });
+    if (pendingUnresolved.length) queuePendingBack(normalizedEmail, pendingUnresolved);
+
+    const unlockedIds = Array.from(unlockedById.keys());
+    const seenKey = getSeenStorageKey(normalizedEmail);
+    const hasSeenSnapshot = Boolean(localStorage.getItem(seenKey));
+
+    if (!hasSeenSnapshot) {
+      if (!pendingResolved.length) {
+        ACH?.initializeSeen?.(normalizedEmail, unlockedIds);
+        return [];
+      }
+      const pendingIds = new Set(pendingResolved.map((achievement) => String(achievement?.id || "").trim()));
+      const initialSeen = unlockedIds.filter((id) => !pendingIds.has(id));
+      ACH?.initializeSeen?.(normalizedEmail, initialSeen);
+    }
+
+    const seenIds = new Set(ACH?.getSeenIds?.(normalizedEmail) || []);
+    const fallbackNew = unlockedAchievements.filter((achievement) => {
+      const id = String(achievement?.id || "").trim();
+      return id && !seenIds.has(id);
+    });
+
+    const byId = new Map();
+    pendingResolved.forEach((achievement) => {
+      const id = String(achievement?.id || "").trim();
+      if (id) byId.set(id, achievement);
+    });
+    fallbackNew.forEach((achievement) => {
+      const id = String(achievement?.id || "").trim();
+      if (id) byId.set(id, achievement);
+    });
+
+    return Array.from(byId.values());
+  }
+
+  function escapeSelector(value) {
+    const raw = String(value || "");
+    if (window.CSS?.escape) return window.CSS.escape(raw);
+    return raw.replace(/([ #;?%&,.+*~':"!^$[\]()=>|/@])/g, "\\$1");
+  }
+
+  function popBadge(badgeId) {
+    const container = document.getElementById("recentBadgesSmall");
+    if (!container || !badgeId) return;
+
+    const selector = `.net-earned-badge[data-badge-id="${escapeSelector(String(badgeId))}"]`;
+    const badgeElement = container.querySelector(selector);
+    if (!badgeElement) return;
+
+    badgeElement.classList.remove("is-pop");
+    void badgeElement.offsetWidth;
+    badgeElement.classList.add("is-pop");
+  }
+
+  function showUnlockToast(achievement) {
+    const hostId = "accountUnlockToastHost";
+    let host = document.getElementById(hostId);
+    if (!host) {
+      host = document.createElement("div");
+      host.id = hostId;
+      host.className = "net-achievement-toast-host";
+      document.body.appendChild(host);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = "net-achievement-toast";
+
+    const rawIcon = String(achievement?.icon || "").trim();
+    const iconHtml = rawIcon.startsWith("bi-")
+      ? `<i class="bi ${escapeHtml(rawIcon)}"></i>`
+      : escapeHtml(rawIcon || "⭐");
+
+    const xpValue = Number(
+      achievement?.xp_added
+      || achievement?.xp_awarded
+      || achievement?.xp_reward
+      || 0
+    );
+
+    toast.innerHTML = `
+      <div class="net-achievement-toast-icon">${iconHtml}</div>
+      <div class="net-achievement-toast-copy">
+        <div class="net-achievement-toast-title">Achievement unlocked</div>
+        <div class="net-achievement-toast-name">${escapeHtml(achievement?.name || "Badge")}</div>
+      </div>
+      <div class="net-achievement-toast-xp">${xpValue > 0 ? `+${xpValue} XP` : ""}</div>
+    `;
+
+    host.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("is-visible"));
+
+    window.setTimeout(() => {
+      toast.classList.remove("is-visible");
+      window.setTimeout(() => toast.remove(), 250);
+    }, 3000);
+  }
+
+  function burstConfetti() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const host = document.createElement("div");
+    host.className = "net-achievement-confetti";
+    document.body.appendChild(host);
+
+    const colors = ["#0d9488", "#06b6d4", "#22c55e", "#f59e0b", "#f97316"];
+    for (let i = 0; i < 28; i += 1) {
+      const piece = document.createElement("span");
+      piece.className = "net-achievement-confetti-piece";
+      piece.style.left = `${Math.random() * 100}%`;
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.animationDelay = `${Math.random() * 0.12}s`;
+      piece.style.animationDuration = `${0.9 + Math.random() * 0.8}s`;
+      host.appendChild(piece);
+    }
+
+    window.setTimeout(() => host.remove(), 1700);
+  }
+
+  function wait(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  async function revealNewAchievements(email, unlockedAchievements) {
+    if (!ACH || !email) return;
+
+    const newAchievements = getRevealCandidates(email, unlockedAchievements);
+    if (!newAchievements.length) return;
+
+    for (const achievement of newAchievements) {
+      const id = String(achievement?.id || "").trim();
+      if (id) popBadge(id);
+      showUnlockToast(achievement);
+      burstConfetti();
+      await wait(450);
+    }
+
+    ACH.markSeen?.(email, newAchievements.map((achievement) => achievement?.id));
   }
 
   // Load activity heatmap + last active date.

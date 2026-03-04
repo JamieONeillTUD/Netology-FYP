@@ -32,6 +32,11 @@ from db import get_db_connection
 
 # XP/Level progression helpers (Part 3)
 from xp_system import get_level_progress, rank_for_level, add_xp_to_user
+from achievement_engine import (
+    ensure_achievement_catalog,
+    evaluate_achievements_for_event,
+    get_user_achievements_payload,
+)
 
 auth = Blueprint("auth", __name__)
 bcrypt = Bcrypt()
@@ -580,30 +585,21 @@ def user_achievements():
         return jsonify({"success": False, "message": "Email required."}), 400
 
     try:
-        ensure_user_achievements_table()
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT achievement_id, name, description, tier, xp_awarded, earned_at
-            FROM user_achievements
-            WHERE user_email = %s
-            ORDER BY earned_at DESC;
-        """, (email,))
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        payload = get_user_achievements_payload(email)
+        if not payload.get("success"):
+            return jsonify({"success": False, "message": "Error loading achievements."}), 500
 
-        achievements = []
-        for r in rows:
-            achievements.append({
-                "id": r[0],
-                "name": r[1],
-                "description": r[2],
-                "tier": r[3],
-                "xp": int(r[4] or 0),
-                "earned_at": r[5].isoformat() if r[5] else None
-            })
-
+        achievements = [
+            {
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "description": item.get("description"),
+                "tier": item.get("rarity"),
+                "xp": int(item.get("xp_awarded") or item.get("xp_reward") or 0),
+                "earned_at": item.get("earned_at"),
+            }
+            for item in payload.get("unlocked", [])
+        ]
         return jsonify({"success": True, "achievements": achievements})
     except Exception as e:
         print("User achievements error:", e)
@@ -625,8 +621,27 @@ def award_achievement():
 
     try:
         ensure_user_achievements_table()
+        ensure_achievement_catalog()
         conn = get_db_connection()
         cur = conn.cursor()
+
+        # Prefer catalog metadata when this achievement exists there.
+        cur.execute(
+            """
+            SELECT name, description, rarity, xp_reward
+            FROM achievements
+            WHERE id = %s
+            LIMIT 1;
+            """,
+            (achievement_id,),
+        )
+        catalog_row = cur.fetchone()
+        if catalog_row:
+            name = catalog_row[0] or name
+            description = catalog_row[1] or description
+            tier = catalog_row[2] or tier
+            xp = int(catalog_row[3] or xp or 0)
+
         cur.execute("""
             INSERT INTO user_achievements (user_email, achievement_id, name, description, tier, xp_awarded)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -676,6 +691,9 @@ def award_xp():
         if not exists:
             xp_added, new_level = add_xp_to_user(email, xp, action=action)
 
+        newly_unlocked = evaluate_achievements_for_event(email, "xp_award")
+        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+
         conn.commit()
         cur.close()
         conn.close()
@@ -684,7 +702,9 @@ def award_xp():
             "success": True,
             "awarded": (not exists),
             "xp_added": xp_added,
-            "new_level": new_level
+            "new_level": new_level,
+            "newly_unlocked": newly_unlocked,
+            "achievement_xp_added": achievement_xp_added,
         })
     except Exception as e:
         print("Award XP error:", e)
@@ -724,7 +744,16 @@ def record_login():
         conn.close()
 
         log = [r[0].isoformat() for r in rows]
-        return jsonify({"success": True, "log": log, "is_new": is_new})
+        newly_unlocked = evaluate_achievements_for_event(email, "login")
+        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+
+        return jsonify({
+            "success": True,
+            "log": log,
+            "is_new": is_new,
+            "newly_unlocked": newly_unlocked,
+            "achievement_xp_added": achievement_xp_added,
+        })
 
     except Exception as e:
         print("Record login error:", e)

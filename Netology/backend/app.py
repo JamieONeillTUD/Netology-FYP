@@ -15,6 +15,11 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from datetime import datetime
 import json
+from achievement_engine import (
+    ensure_achievement_catalog,
+    evaluate_achievements_for_event,
+    get_user_achievements_payload,
+)
 
 from auth_routes import auth, bcrypt as auth_bcrypt
 from course_routes import courses
@@ -193,7 +198,16 @@ def complete_onboarding():
         """, (user_email,))
         
         conn.commit()
-        return jsonify({'success': True, 'message': 'Welcome to Netology!', 'redirectTo': '/dashboard'})
+        newly_unlocked = evaluate_achievements_for_event(user_email, "onboarding_complete")
+        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+
+        return jsonify({
+            'success': True,
+            'message': 'Welcome to Netology!',
+            'redirectTo': '/dashboard',
+            'newly_unlocked': newly_unlocked,
+            'achievement_xp_added': achievement_xp_added,
+        })
     finally:
         cur.close()
         conn.close()
@@ -480,7 +494,8 @@ def get_progress_stats():
     
     try:
         cur.execute("SELECT xp FROM users WHERE email = %s", (user_email,))
-        total_xp = cur.fetchone()[0] if cur.fetchone() else 0
+        row = cur.fetchone()
+        total_xp = row[0] if row else 0
         
         level, xp_into_level, next_level_xp = get_level_progress(total_xp)
         
@@ -590,52 +605,19 @@ def get_user_challenges():
 @app.get('/api/user/achievements')
 def get_user_achievements():
     """Get user's achievements"""
-    from db import get_db_connection
-
     user_email = request.args.get('user_email')
+    if not user_email:
+        return jsonify({'success': False, 'unlocked': [], 'locked': [], 'message': 'user_email required'}), 400
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT a.id, a.name, a.description, a.rarity, a.icon
-            FROM achievements a
-            JOIN user_achievements ua ON a.id = ua.achievement_id
-            WHERE ua.user_email = %s
-            ORDER BY ua.earned_at DESC
-        """, (user_email,))
-
-        unlocked = [{'id': r[0], 'name': r[1], 'description': r[2], 'rarity': r[3], 'icon': r[4]}
-                    for r in cur.fetchall()]
-
-        cur.execute("""
-            SELECT id, name, description, rarity, icon
-            FROM achievements
-            WHERE id NOT IN (
-                SELECT achievement_id FROM user_achievements WHERE user_email = %s
-            )
-        """, (user_email,))
-
-        locked = [{'id': r[0], 'name': r[1], 'description': r[2], 'rarity': r[3], 'icon': r[4]}
-                  for r in cur.fetchall()]
-
-        return jsonify({
-            'success': True,
-            'unlocked': unlocked,
-            'locked': locked,
-            'total_unlocked': len(unlocked),
-            'total_available': len(unlocked) + len(locked)
-        })
+        ensure_achievement_catalog()
+        payload = get_user_achievements_payload(user_email)
+        if not payload.get("success"):
+            return jsonify({'success': False, 'unlocked': [], 'locked': [], 'message': 'Could not load achievements'}), 500
+        return jsonify(payload)
     except Exception as e:
         print(f"Achievements endpoint error: {e}")
         return jsonify({'success': False, 'unlocked': [], 'locked': [], 'message': str(e)}), 500
-    finally:
-        try:
-            cur.close()
-            conn.close()
-        except Exception:
-            pass
 
 # =========================================================
 # USER PREFERENCES ENDPOINTS
