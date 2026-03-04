@@ -1,30 +1,3 @@
-<!--
-Student Number: C22320301
-Student Name:   Jamie O’Neill
-Course Code:    TU857/4
-Date:           09/02/2026
-
-HTML
----------------------------------------
-courses.html – Netology Course Library
-
-Purpose:
-- Full catalogue of all 9 courses, organised into three difficulty tracks
-- Slide-out sidebar + sticky top navbar (same chrome as dashboard.html)
-- Hero banner with ‘Structured Learning Paths’ heading and animated pill badge
-- Filter tab bar: All Paths / Novice / Intermediate / Advanced
-- Three track sections: Novice (Level 1+), Intermediate (Level 3+), Advanced (Level 5+)
-  each with a responsive grid of course cards built by courses.js
-- Course cards show title, description, lesson count, time, XP, progress bar,
-  and a lock overlay if the user’s level is too low
-- ‘Your Learning Progress’ section: a progress bar row for each course started
-
-Notes:
-- Course cards injected by courses.js; metadata from course_content.js
-- Sidebar and top nav user info populated by app.js
-- Scripts: config.js → app.js → course_content.js → courses.js → Bootstrap JS
--->
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -32,7 +5,6 @@ Notes:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Netology – Courses</title>
 
-  <!-- Vendor: Bootstrap + Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="css/style.css">
@@ -90,7 +62,6 @@ Notes:
     <div class="container-fluid">
       <div class="net-topnav-inner">
 
-        <!-- Left -->
         <div class="net-topnav-left">
           <button class="net-hambtn"
                   id="openSidebarBtn"
@@ -101,7 +72,6 @@ Notes:
           </button>
         </div>
 
-        <!-- Center brand -->
         <div class="net-topnav-center">
           <a href="dashboard.html" class="net-topnav-brand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
@@ -109,9 +79,7 @@ Notes:
           </a>
         </div>
 
-        <!-- Right -->
         <div class="net-topnav-right position-relative">
-          <!-- User dropdown -->
           <div class="position-relative">
             <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
@@ -210,7 +178,7 @@ Notes:
     </section>
 
     <!-- My Learning Progress -->
-    <section class="mx-4 mb-4 net-card p-4" data-tour="courses-my-progress">
+    <section class="mx-4 mb-4 net-card p-4 net-learning-progress" data-tour="courses-my-progress">
       <h4 class="fw-bold mb-3"><i class="bi bi-progress-bar me-2"></i>Your Learning Progress</h4>
       <div id="myProgressContainer" class="row"></div>
       <div id="noProgressPlaceholder" class="text-center py-4 text-muted d-none">
@@ -225,7 +193,6 @@ Notes:
     <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
   </footer>
 
-  <!-- course content meta (required_level/difficulty) -->
   <script src="js/config.js"></script>
   <script src="js/onboarding-config.js"></script>
   <script src="js/ui-theme.js"></script>

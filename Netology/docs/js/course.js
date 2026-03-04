@@ -28,10 +28,7 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
   const ENDPOINTS = window.ENDPOINTS || {};
   const PATHS = {
     userInfo: ENDPOINTS.auth?.userInfo || "/user-info",
-    getCompletions: ENDPOINTS.courses?.userCourseStatus || "/user-course-status",
-    completeLesson: ENDPOINTS.courses?.completeLesson || "/complete-lesson",
-    completeQuiz: ENDPOINTS.courses?.completeQuiz || "/complete-quiz",
-    completeChallenge: ENDPOINTS.courses?.completeChallenge || "/complete-challenge",
+    getCompletions: ENDPOINTS.courses?.userCourseStatus || "/user-course-status"
   };
 
   // localStorage fallback key
@@ -64,14 +61,6 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
       node.appendChild(document.createTextNode(part));
       if (idx < parts.length - 1) node.appendChild(document.createElement("br"));
     });
-  }
-
-  function setButtonIconText(btn, iconClass, label) {
-    if (!btn) return;
-    btn.replaceChildren();
-    const icon = makeIcon(iconClass);
-    icon.setAttribute("aria-hidden", "true");
-    btn.append(icon, document.createTextNode(` ${label}`));
   }
 
   function setText(id, text) {
@@ -195,15 +184,6 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
     return { correct, total };
   }
 
-  function escapeHtml(str) {
-    return String(str ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
   function cssEscapeAttr(str) {
     // minimal escape for attribute selectors
     return String(str ?? "").replace(/"/g, '\\"');
@@ -230,22 +210,6 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
     } catch {
       return null;
     }
-  }
-
-  function logProgressEvent(email, payload) {
-    if (!email) return;
-    const entry = {
-      type: payload.type,
-      course_id: payload.course_id,
-      lesson_number: payload.lesson_number,
-      xp: Number(payload.xp || 0),
-      ts: Date.now(),
-      date: new Date().toISOString().slice(0, 10)
-    };
-    const raw = localStorage.getItem(LOG_KEY(email));
-    const list = parseJsonSafe(raw) || [];
-    list.push(entry);
-    localStorage.setItem(LOG_KEY(email), JSON.stringify(list));
   }
 
   function getProgressLog(email) {
@@ -305,20 +269,6 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
       });
     } catch {
       // best effort
-    }
-  }
-
-  function bumpUserXP(email, addXP) {
-    if (!email || !addXP) return;
-    const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
-    const user = parseJsonSafe(raw) || {};
-    if (!user || user.email !== email) return;
-    const updated = applyXpToUser(user, addXP);
-    if (localStorage.getItem("netology_user")) {
-      localStorage.setItem("netology_user", JSON.stringify(updated));
-    }
-    if (localStorage.getItem("user")) {
-      localStorage.setItem("user", JSON.stringify(updated));
     }
   }
 
@@ -1143,15 +1093,6 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
     const total = tutorials.length;
     const done = tutorials.filter(isItemCompleted).length;
     return { total, done, completed: total > 0 && done === total };
-  }
-
-  function findModuleForLesson(lessonNumber) {
-    const target = Number(lessonNumber || 0);
-    if (!target) return null;
-    for (const mod of state.course.modules) {
-      if (mod.items.some((it) => Number(it.lesson_number) === target)) return mod;
-    }
-    return null;
   }
 
   function moduleToastKey(module) {
@@ -2133,134 +2074,6 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
     if (nextBtn) nextBtn.disabled = state.activeLearnIndex >= state.learnItemsFlat.length - 1;
   }
 
-  // Save completion to backend (best effort) and local state.
-
-  async function completeItem(type, lessonNumber, xp) {
-    const t = String(type).toLowerCase();
-    const n = Number(lessonNumber);
-    const moduleForLesson = findModuleForLesson(n);
-    const moduleWasDone = moduleForLesson ? computeModuleCompletion(moduleForLesson).completed : false;
-    const courseWasDone = computeProgress().pct === 100;
-    const already =
-      (t === "learn" && state.completed.lesson.has(n)) ||
-      (t === "quiz" && state.completed.quiz.has(n)) ||
-      (t === "challenge" && state.completed.challenge.has(n));
-
-    if (already) {
-      showAria(`${capitalize(t)} already completed.`);
-      return;
-    }
-
-    const xpValue = Number(xp || 0);
-
-    // Optimistic update so the UI updates immediately.
-    if (t === "learn") state.completed.lesson.add(n);
-    if (t === "quiz") state.completed.quiz.add(n);
-    if (t === "challenge") state.completed.challenge.add(n);
-
-    cacheCompletionsToLS(state.user.email, state.courseId);
-    const backend = await tryBackendComplete(t, n, xpValue).catch(() => null);
-    const xpAwarded = backend && backend.success ? Number(backend.xp_added || 0) : xpValue;
-
-    logProgressEvent(state.user.email, {
-      type: t,
-      course_id: state.courseId,
-      lesson_number: n,
-      xp: xpAwarded
-    });
-    if (xpAwarded > 0) {
-      bumpUserXP(state.user.email, xpAwarded);
-    }
-
-    if (backend?.already_completed) {
-      showAria(`${capitalize(t)} completed (already recorded).`);
-    } else {
-      showAria(`${capitalize(t)} completed. +${xpAwarded} XP`);
-    }
-
-    if (xpAwarded > 0) {
-      // Update local stats so UI reflects progress immediately
-      state.stats.xp = Number(state.stats.xp || 0) + xpAwarded;
-      const updated = computeXPFromTotal(state.stats.xp);
-      state.stats.level = updated.level;
-      state.stats.currentLevelXP = updated.currentLevelXP;
-      state.stats.xpProgressPct = updated.xpProgressPct;
-      state.stats.xpNext = updated.xpNext;
-
-      setText("sideLevelBadge", `Lv ${state.stats.level}`);
-      setText("sideXPText", `${state.stats.currentLevelXP}/${state.stats.xpNext}`);
-      const sideXPBar = getById("sideXPBar");
-      if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
-
-      computeLockState();
-    }
-
-    if (backend && backend.success) {
-      await loadUserStats(state.user.email);
-    }
-
-    const prog = computeProgress();
-    if (prog.pct === 100) showAria("Course completed!");
-
-    if (moduleForLesson && !moduleWasDone) {
-      const now = computeModuleCompletion(moduleForLesson);
-      if (now.completed) {
-        const key = moduleToastKey(moduleForLesson);
-        if (localStorage.getItem(key) !== "1") {
-          showCompletionToast({
-            title: "Module completed",
-            message: moduleForLesson.title || "Module finished",
-            icon: "bi-check2-circle"
-          });
-          localStorage.setItem(key, "1");
-        }
-      }
-    }
-
-    if (!courseWasDone && prog.pct === 100) {
-      const key = courseToastKey();
-      if (localStorage.getItem(key) !== "1") {
-        showCompletionToast({
-          title: "Course completed",
-          message: state.course?.title || "Course finished",
-          icon: "bi-trophy",
-          mini: false
-        });
-        localStorage.setItem(key, "1");
-      }
-    }
-  }
-
-  async function tryBackendComplete(type, lessonNumber, xp) {
-    if (!getApiBase()) return false;
-
-    const payload = {
-      email: state.user.email,
-      course_id: Number(state.courseId),
-      lesson_number: Number(lessonNumber),
-      earned_xp: Number(xp || 0),
-    };
-
-    let path = "";
-    if (type === "learn") path = PATHS.completeLesson;
-    if (type === "quiz") path = PATHS.completeQuiz;
-    if (type === "challenge") path = PATHS.completeChallenge;
-    if (!path) return false;
-
-    const res = await fetch(`${getApiBase()}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json().catch(() => ({}));
-    if (data && data.success === false) return { success: false };
-
-    return { success: true, ...data };
-  }
-
   // Show toast when returning from another page.
 
   function maybeShowReturnToast() {
@@ -2306,16 +2119,7 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
     showAria(progressMessage);
   }
 
-  // Icon builders for module and lesson rows.
-
-  function moduleIcon(modProg, locked) {
-    let cls = "bi bi-book text-white";
-    if (locked) cls = "bi bi-lock-fill text-muted";
-    else if (modProg.completed) cls = "bi bi-check2-circle text-white";
-    const icon = makeIcon(cls);
-    icon.setAttribute("aria-hidden", "true");
-    return icon;
-  }
+  // Icon builders for lesson rows.
 
   function lessonIcon(it, completed, locked) {
     const wrap = document.createElement("div");

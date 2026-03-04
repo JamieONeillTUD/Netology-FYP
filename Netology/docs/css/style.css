@@ -10462,6 +10462,37 @@ body.net-onboarding-lock .onboarding-tooltip * {
   z-index: 10;
 }
 
+.net-course-card.locked::after {
+  content: attr(data-lock-message);
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translate(-50%, 8px);
+  width: max-content;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.95);
+  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(2, 6, 23, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.net-course-card.locked:hover::after,
+.net-course-card.locked:focus-within::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
 .net-course-card.in-progress {
   box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
 }
@@ -15265,4 +15296,445 @@ body[data-theme="dark"] .les-learn-callout {
 
 .net-lesson-page.net-loading .net-topnav {
   display: block;
+}
+
+/* ============================================
+   COURSES PAGE CARD REFRESH (2026)
+   ============================================ */
+
+.net-courses-page .net-course-grid {
+  gap: 1.1rem;
+  padding-top: 0.7rem;
+  padding-bottom: 1rem;
+}
+
+.net-courses-page .net-course-card {
+  min-width: 320px;
+  max-width: 370px;
+  min-height: 340px;
+  border-radius: 22px;
+  padding: 1.2rem;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.11);
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  animation: net-course-card-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--course-card-delay, 0ms);
+}
+
+@keyframes net-course-card-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.net-courses-page .net-course-card:hover {
+  transform: translateY(-9px) scale(1.02);
+  box-shadow: 0 24px 42px rgba(15, 23, 42, 0.15);
+}
+
+.net-courses-page .net-course-card[data-difficulty="novice"] {
+  background: linear-gradient(158deg, #f0fdf4 0%, #ffffff 42%, #ecfeff 100%);
+}
+
+.net-courses-page .net-course-card[data-difficulty="intermediate"] {
+  background: linear-gradient(158deg, #fffbeb 0%, #ffffff 44%, #f0f9ff 100%);
+}
+
+.net-courses-page .net-course-card[data-difficulty="advanced"] {
+  background: linear-gradient(158deg, #fff1f2 0%, #ffffff 46%, #f8fafc 100%);
+}
+
+.net-courses-page .net-course-header {
+  align-items: center;
+}
+
+.net-courses-page .net-course-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.2);
+  animation: net-course-icon-float 3.2s ease-in-out infinite;
+}
+
+@keyframes net-course-icon-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.net-courses-page .net-course-title {
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.net-courses-page .net-course-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  margin: 0.55rem 0 0.35rem;
+}
+
+.net-courses-page .net-course-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: rgba(15, 23, 42, 0.82);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.net-courses-page .net-course-stat-pill i {
+  color: var(--net-teal);
+}
+
+.net-courses-page .net-course-module-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+}
+
+.net-courses-page .net-module-objective-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(13, 148, 136, 0.22);
+  background: rgba(20, 184, 166, 0.09);
+  color: #0f766e;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 0.2rem 0.48rem;
+}
+
+.net-courses-page .net-module-objective-chip.is-more {
+  border-style: dashed;
+  background: rgba(148, 163, 184, 0.14);
+  color: rgba(15, 23, 42, 0.75);
+}
+
+.net-courses-page .net-course-desc {
+  margin-top: 0.45rem;
+}
+
+.net-courses-page .net-course-footer {
+  align-items: flex-end;
+  gap: 0.7rem;
+}
+
+.net-courses-page .net-course-progress-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.net-courses-page .net-course-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.net-courses-page .net-course-progress-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.74);
+}
+
+.net-courses-page .net-course-bar--wide {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+}
+
+.net-courses-page .net-course-progress-sub {
+  margin-top: 0.26rem;
+  font-size: 0.68rem;
+  color: rgba(15, 23, 42, 0.62);
+  font-weight: 600;
+}
+
+.net-courses-page .net-course-bar-fill {
+  position: relative;
+}
+
+.net-courses-page .net-course-bar-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
+  transform: translateX(-110%);
+  animation: net-course-progress-shine 2.8s ease-in-out infinite;
+}
+
+@keyframes net-course-progress-shine {
+  to { transform: translateX(110%); }
+}
+
+.net-courses-page .net-course-cta {
+  border-radius: 999px;
+  min-width: 112px;
+  font-size: 0.76rem;
+  padding: 0.52rem 0.95rem;
+}
+
+.net-courses-page .net-course-card.locked {
+  opacity: 0.86;
+}
+
+.net-courses-page .net-course-card.locked .net-course-lock {
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.32), rgba(2, 6, 23, 0.62));
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 767.98px) {
+  .net-courses-page .net-course-card {
+    min-width: 86vw;
+    max-width: 86vw;
+    min-height: 320px;
+  }
+
+  .net-courses-page .net-course-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .net-courses-page .net-course-cta {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+[data-theme="dark"] .net-courses-page .net-course-card {
+  background: linear-gradient(162deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.9)) !important;
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
+}
+
+[data-theme="dark"] .net-courses-page .net-course-title,
+[data-theme="dark"] .net-courses-page .net-course-progress-label,
+[data-theme="dark"] .net-courses-page .net-course-desc {
+  color: rgba(226, 232, 240, 0.93);
+}
+
+[data-theme="dark"] .net-courses-page .net-course-stat-pill,
+[data-theme="dark"] .net-courses-page .net-module-objective-chip {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: rgba(226, 232, 240, 0.88);
+}
+
+[data-theme="dark"] .net-courses-page .net-course-progress-sub {
+  color: rgba(203, 213, 225, 0.78);
+}
+
+/* ============================================
+   COURSES PAGE: LEARNING PROGRESS REFRESH
+   ============================================ */
+
+.net-courses-page .net-learning-progress {
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(14, 165, 233, 0.1), transparent 55%),
+    radial-gradient(120% 140% at 0% 100%, rgba(20, 184, 166, 0.11), transparent 60%),
+    rgba(255, 255, 255, 0.96);
+}
+
+.net-courses-page #myProgressContainer {
+  row-gap: 0.15rem;
+}
+
+.net-courses-page .net-progress-course-card {
+  height: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  padding: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  opacity: 0;
+  transform: translateY(12px) scale(0.99);
+  animation: net-progress-card-reveal 0.48s ease forwards;
+  animation-delay: var(--progress-card-delay, 0ms);
+}
+
+@keyframes net-progress-card-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.net-courses-page .net-progress-course-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
+}
+
+.net-courses-page .net-progress-course-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.net-courses-page .net-progress-course-title {
+  margin: 0;
+  font-weight: 750;
+  color: rgba(15, 23, 42, 0.92);
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.net-courses-page .net-progress-course-status {
+  border-radius: 999px;
+  padding: 0.16rem 0.52rem;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.net-courses-page .net-progress-course-status.is-complete {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.28);
+  color: #166534;
+}
+
+.net-courses-page .net-progress-course-status.is-on-track {
+  background: rgba(14, 165, 233, 0.13);
+  border-color: rgba(14, 165, 233, 0.28);
+  color: #075985;
+}
+
+.net-courses-page .net-progress-course-status.is-progress {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #92400e;
+}
+
+.net-courses-page .net-progress-course-status.is-idle {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #334155;
+}
+
+.net-courses-page .net-progress-course-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  font-size: 0.71rem;
+  color: rgba(15, 23, 42, 0.72);
+  font-weight: 650;
+}
+
+.net-courses-page .net-progress-course-metrics span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.net-courses-page .net-progress-course-metrics i {
+  color: var(--net-teal);
+}
+
+.net-courses-page .net-progress-course-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.net-courses-page .net-progress-course-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(148, 163, 184, 0.25);
+}
+
+.net-courses-page .net-progress-course-track-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--net-teal), var(--net-cyan));
+  transition: width 0.45s ease;
+}
+
+.net-courses-page .net-progress-course-caption {
+  font-size: 0.7rem;
+  color: rgba(15, 23, 42, 0.62);
+  font-weight: 650;
+}
+
+.net-courses-page .net-progress-course-btn {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(13, 148, 136, 0.34);
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.13), rgba(6, 182, 212, 0.11));
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.5rem 0.7rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.net-courses-page .net-progress-course-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(13, 148, 136, 0.55);
+  box-shadow: 0 10px 20px rgba(13, 148, 136, 0.22);
+  color: #0f766e;
+}
+
+.net-courses-page #noProgressPlaceholder {
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.75);
+}
+
+[data-theme="dark"] .net-courses-page .net-learning-progress {
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(14, 165, 233, 0.11), transparent 55%),
+    radial-gradient(120% 140% at 0% 100%, rgba(20, 184, 166, 0.1), transparent 60%),
+    rgba(15, 23, 42, 0.83);
+}
+
+[data-theme="dark"] .net-courses-page .net-progress-course-card {
+  background: linear-gradient(165deg, rgba(15, 23, 42, 0.93), rgba(30, 41, 59, 0.9));
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .net-courses-page .net-progress-course-title,
+[data-theme="dark"] .net-courses-page .net-progress-course-metrics,
+[data-theme="dark"] .net-courses-page .net-progress-course-caption {
+  color: rgba(226, 232, 240, 0.92);
+}
+
+[data-theme="dark"] .net-courses-page .net-progress-course-btn {
+  border-color: rgba(45, 212, 191, 0.35);
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.22), rgba(6, 182, 212, 0.22));
+  color: rgba(226, 232, 240, 0.94);
+}
+
+[data-theme="dark"] .net-courses-page .net-progress-course-btn:hover {
+  color: rgba(226, 232, 240, 0.98);
+}
+
+[data-theme="dark"] .net-courses-page #noProgressPlaceholder {
+  border-color: rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.56);
 }
