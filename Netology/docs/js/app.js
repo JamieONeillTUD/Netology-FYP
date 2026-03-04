@@ -1694,7 +1694,7 @@ Notes: Reorganized into clear sections, removed duplicate patterns, and kept exi
   }
 
   function getOnboardingFlow() {
-    return window.ONBOARDING_FLOW || ["dashboard", "courses", "course", "sandbox", "progress", "account", "wrapup"];
+    return window.ONBOARDING_FLOW || ["dashboard", "courses", "course", "sandbox", "account", "wrapup"];
   }
 
   function getOnboardingStageUrl(stage) {

@@ -13,7 +13,6 @@ window.ONBOARDING_FLOW = [
   "courses",
   "course",
   "sandbox",
-  "progress",
   "account",
   "wrapup"
 ];
@@ -24,7 +23,6 @@ window.ONBOARDING_STAGE_URLS = {
   courses: "courses.html",
   course: "course.html?id=1",
   sandbox: "sandbox.html?mode=practice",
-  progress: "progress.html",
   account: "account.html",
   wrapup: "dashboard.html"
 };
@@ -62,10 +60,6 @@ window.ONBOARDING_STEPS = {
     { target: "sandbox-stats", title: "Live Stats", description: "Track device and connection counts while you build." },
     { target: "sandbox-inspector", title: "Inspector", description: "Open objectives, objects, diagnostics, and config from this right panel." },
     { target: "sandbox-console", title: "Console", description: "Use the floating terminal dock for commands. You can switch between small/large size, drag it, and resize it." }
-  ],
-  progress: [
-    { target: "progress-categories", title: "Progress Views", description: "Switch between courses, modules, quizzes, and sandbox." },
-    { target: "progress-split", title: "Split View", description: "See what’s in progress vs. completed." }
   ],
   account: [
     { target: "account-profile-hero", title: "Profile Snapshot", description: "Your stats, badges, and streaks live here." },
