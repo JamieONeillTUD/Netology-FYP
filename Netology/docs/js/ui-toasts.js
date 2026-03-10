@@ -10,6 +10,8 @@ Notes: Merged toast behavior into one API and removed duplicate local builders.
 (() => {
   if (window.NetologyToast?.show) return;
 
+  const inlineBannerTimers = new Map();
+
   // Create a DOM element with optional class and text.
   function createElement(tagName, className = "", text = null) {
     const element = document.createElement(tagName);
@@ -92,6 +94,84 @@ Notes: Merged toast behavior into one API and removed duplicate local builders.
     toastElement.classList.remove("is-show");
     toastElement.classList.add("is-leaving");
     setTimeout(() => toastElement.remove(), 300);
+  }
+
+  // Pick icon class for inline alert banners.
+  function getInlineBannerIcon(type) {
+    const normalizedType = String(type || "error").toLowerCase();
+    if (normalizedType === "success") return "bi-check-circle-fill";
+    if (normalizedType === "warning") return "bi-exclamation-triangle-fill";
+    return "bi-x-circle-fill";
+  }
+
+  // Render icon + message content into an inline banner.
+  function renderInlineBannerContent(bannerElement, type, message) {
+    if (!bannerElement) return;
+
+    const iconWrap = createElement("span", "net-banner-icon");
+    iconWrap.setAttribute("aria-hidden", "true");
+    const iconElement = createElement("i", `bi ${getInlineBannerIcon(type)}`);
+    iconWrap.appendChild(iconElement);
+
+    bannerElement.replaceChildren();
+    bannerElement.append(iconWrap, document.createTextNode(String(message || "")));
+  }
+
+  // Show an inline alert banner with optional auto-hide timer.
+  function showInlineBanner(options = {}) {
+    const bannerId = String(options.bannerId || "").trim();
+    const message = String(options.message || "");
+    const type = String(options.type || "error").toLowerCase();
+    const timeoutMs = Number(options.timeoutMs || 4500);
+    const timerKey = String(options.timerKey || "");
+    const fallbackType = String(options.fallbackToPopupType || type || "error");
+
+    if (!bannerId) {
+      showMessageToast(message, fallbackType, 3200);
+      return;
+    }
+
+    const bannerElement = document.getElementById(bannerId);
+    if (!bannerElement) {
+      showMessageToast(message, fallbackType, 3200);
+      return;
+    }
+
+    bannerElement.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
+    bannerElement.classList.add("alert");
+
+    if (type === "success") bannerElement.classList.add("alert-success");
+    else if (type === "warning") bannerElement.classList.add("alert-warning");
+    else bannerElement.classList.add("alert-danger");
+
+    renderInlineBannerContent(bannerElement, type, message);
+
+    if (!timerKey) return;
+
+    const existingTimer = inlineBannerTimers.get(timerKey);
+    if (existingTimer) window.clearTimeout(existingTimer);
+
+    const nextTimer = window.setTimeout(() => {
+      bannerElement.classList.add("d-none");
+      inlineBannerTimers.delete(timerKey);
+    }, timeoutMs);
+
+    inlineBannerTimers.set(timerKey, nextTimer);
+  }
+
+  // Hide an inline alert banner and clear its timer.
+  function hideInlineBanner(bannerId, timerKey = "") {
+    const targetId = String(bannerId || "").trim();
+    if (!targetId) return;
+
+    const bannerElement = document.getElementById(targetId);
+    if (bannerElement) bannerElement.classList.add("d-none");
+
+    const key = String(timerKey || "").trim();
+    if (!key || !inlineBannerTimers.has(key)) return;
+
+    window.clearTimeout(inlineBannerTimers.get(key));
+    inlineBannerTimers.delete(key);
   }
 
   // Render a standard Netology toast.
@@ -288,7 +368,9 @@ Notes: Merged toast behavior into one API and removed duplicate local builders.
     show,
     showCelebrateToast,
     showMessageToast,
-    showSandboxToast
+    showSandboxToast,
+    showInlineBanner,
+    hideInlineBanner
   };
 
   window.showCelebrateToast = showCelebrateToast;

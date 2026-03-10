@@ -1658,26 +1658,8 @@ Notes: Rebuilt with simpler structure, removed old/unused sections, and kept das
   async function handleLoginStreakAndBadges(user) {
     if (!user?.email) return;
 
-    const email = user.email;
-    let loginLog = [];
-
     if (typeof window.recordLoginDay === "function") {
-      const sharedResult = window.recordLoginDay(email);
-      if (Array.isArray(sharedResult)) {
-        loginLog = sharedResult;
-      } else if (sharedResult && Array.isArray(sharedResult.log)) {
-        loginLog = sharedResult.log;
-      }
-    }
-
-    if (!loginLog.length) {
-      loginLog = readLoginLog(email);
-    }
-
-    const streak = computeLoginStreak(loginLog);
-
-    if (typeof window.awardLoginStreakBadges === "function") {
-      await window.awardLoginStreakBadges(email, streak);
+      window.recordLoginDay(user.email);
     }
   }
 
