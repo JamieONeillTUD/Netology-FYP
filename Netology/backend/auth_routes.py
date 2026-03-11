@@ -1,593 +1,315 @@
 """
-Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
-
-Python (Flask)
--------------------------------------------
-auth_routes.py – User Authentication Routes
-
-Register new users
-Login existing users
-Shows basic user profile (XP, level, name)
-Logout
-Forgot password reset
-
-UPDATED (Starting Level Unlock Change):
-- The signup “level choice” (novice/intermediate/advanced) NO LONGER changes the user’s actual level.
-  - Users always start at Level 1 (numeric_level = 1) with rank "Novice"
-- The level choice is now stored as a "start_level" preference for unlocking courses/challenges.
-  - To avoid changing your DB schema, we store it inside the existing `reasons` field as:
-      start_level=<choice>; reason1, reason2...
-- login + user-info now return "start_level" so your frontend can unlock content based on it.
-
-IMPORTANT:
-- Your real progression still comes from XP via get_level_progress().
+auth_routes.py — Auth and account management routes.
 """
 
-from flask import Blueprint, request, jsonify, redirect
-from flask_bcrypt import Bcrypt
-from db import get_db_connection
+import re
+from contextlib import contextmanager
 
-# XP/Level progression helpers (Part 3)
-from xp_system import get_level_progress, rank_for_level, add_xp_to_user
+from flask import Blueprint, jsonify, redirect, request
+from flask_bcrypt import Bcrypt
+
 from achievement_engine import (
     ensure_achievement_catalog,
     evaluate_achievements_for_event,
     get_user_achievements_payload,
 )
+from db import get_db_connection
+from xp_system import add_xp_to_user, get_level_progress, rank_for_level
 
 auth = Blueprint("auth", __name__)
 bcrypt = Bcrypt()
 
-_USERS_SCHEMA_OK = False
+# ── Constants ─────────────────────────────────────────────────────────────────
+
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
+VALID_START_LEVELS = {"novice", "intermediate", "advanced"}
+PASSWORD_MIN_LENGTH = 8
 
 
-# AI Prompt: Explain the Helper Functions (Jamie style: small + readable) section in clear, simple terms.
-# =========================================================
-# Helper Functions (Jamie style: small + readable)
-# =========================================================
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _norm_email(email: str) -> str:
-    """Lowercase + trim email for consistent storage and login."""
+@contextmanager
+def _db_cursor():
+    """Open a DB connection and cursor, always closing both when done."""
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    try:
+        yield connection, cursor
+    finally:
+        try:
+            cursor.close()
+        finally:
+            connection.close()
+
+
+def _to_int(value, default=0):
+    """Safely cast value to int, returning default on failure."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _norm_email(email):
+    """Lowercase and strip whitespace from an email string."""
     return (email or "").strip().lower()
 
 
-def _is_valid_email(email: str) -> bool:
-    """Basic email barrier for server-side validation."""
-    import re
-    return bool(re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$", (email or "").strip()))
+def _is_valid_email(email):
+    """Return True if the email looks valid."""
+    return bool(EMAIL_PATTERN.match((email or "").strip()))
 
 
-def _clean_start_level(level_value: str) -> str:
-    """
-    Ensures start_level is one of: novice / intermediate / advanced.
-    This does NOT affect real user XP level (numeric_level).
-    """
-    v = (level_value or "").strip().lower()
-    if v in ("novice", "intermediate", "advanced"):
-        return v
-    return "novice"
-
-def ensure_users_schema():
-    """
-    Ensure users table has required columns for auth + onboarding.
-    Returns (ok: bool, error: str | None).
-    """
-    global _USERS_SCHEMA_OK
-    if _USERS_SCHEMA_OK:
-        return True, None
-
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Verify users table exists
-        cur.execute("SELECT to_regclass('public.users')")
-        exists = cur.fetchone()[0] is not None
-        if not exists:
-            return False, "users table missing"
-
-        # Safe migrations (idempotent)
-        stmts = [
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS level VARCHAR(50) DEFAULT 'Novice'",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS numeric_level INTEGER DEFAULT 1",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS reasons TEXT",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS dob DATE",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS start_level VARCHAR(20) DEFAULT 'novice'",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_first_login BOOLEAN DEFAULT TRUE",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMP",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-        ]
-        for stmt in stmts:
-            cur.execute(stmt)
-
-        conn.commit()
-        _USERS_SCHEMA_OK = True
-        return True, None
-    except Exception as e:
-        print("Ensure users schema error:", e)
-        return False, str(e)
-    finally:
-        try:
-            cur.close()
-            conn.close()
-        except Exception:
-            pass
+def _clean_start_level(level_value):
+    """Return the level if valid, otherwise fall back to 'novice'."""
+    level = (level_value or "").strip().lower()
+    return level if level in VALID_START_LEVELS else "novice"
 
 
-def ensure_user_preferences_table():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_preferences (
-            user_email VARCHAR(255) PRIMARY KEY REFERENCES users(email) ON DELETE CASCADE,
-            weekly_summary BOOLEAN DEFAULT TRUE,
-            streak_reminders BOOLEAN DEFAULT TRUE,
-            new_course_alerts BOOLEAN DEFAULT FALSE,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+def _json_error(message, status_code):
+    """Return a standard JSON error response."""
+    return jsonify({"success": False, "message": message}), status_code
 
 
-def ensure_user_achievements_table():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_achievements (
-            id SERIAL PRIMARY KEY,
-            user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
-            achievement_id VARCHAR(100) NOT NULL,
-            name VARCHAR(150),
-            description TEXT,
-            tier VARCHAR(20),
-            xp_awarded INTEGER DEFAULT 0,
-            earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE (user_email, achievement_id)
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+def _progress_payload(total_xp):
+    """Build the XP / level / rank dict included in user responses."""
+    xp_total = _to_int(total_xp)
+    numeric_level, xp_into_level, next_level_xp = get_level_progress(xp_total)
+    rank = rank_for_level(numeric_level)
+    return {
+        "xp": xp_total,
+        "numeric_level": numeric_level,
+        "level": rank,
+        "rank": rank,
+        "xp_into_level": xp_into_level,
+        "next_level_xp": next_level_xp,
+    }
 
 
-def ensure_user_logins_table():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_logins (
-            user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
-            login_date DATE NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_email, login_date)
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+# ── Routes ────────────────────────────────────────────────────────────────────
 
-
-# AI Prompt: Explain the Register New User section in clear, simple terms.
-# =========================================================
-# Register New User
-# =========================================================
-"""
-Register
----
-Creates a new user account.
-
-Signup wizard sends:
-- first_name, last_name, username, email, dob
-- password + confirm_password
-- level choice (novice/intermediate/advanced)  -> used for unlocking content ONLY
-- reasons (list)
-
-Stored:
-- numeric_level starts at 1 (real progression from XP)
-- level label stays "Novice" at creation
-- start_level is stored inside reasons to avoid DB schema changes
-"""
 @auth.route("/register", methods=["POST"])
 def register():
+    """Create a new user account."""
+    form = request.form
+    first_name = (form.get("first_name") or "").strip()
+    last_name = (form.get("last_name") or "").strip()
+    username = (form.get("username") or "").strip()
+    email = _norm_email(form.get("email"))
+    dob = (form.get("dob") or "").strip()
+    password = form.get("password") or ""
+    confirm_password = form.get("confirm_password") or ""
+    start_level = _clean_start_level(form.get("level"))
+    reasons = [item.strip() for item in form.getlist("reasons") if (item or "").strip()]
+    reasons_text = ", ".join(reasons)
+
+    if not all([first_name, last_name, username, email, dob]):
+        return _json_error("Please fill in all required fields.", 400)
+    if not _is_valid_email(email):
+        return _json_error("Please enter a valid email address.", 400)
+    if len(password) < PASSWORD_MIN_LENGTH:
+        return _json_error(f"Password must be at least {PASSWORD_MIN_LENGTH} characters.", 400)
+    if password != confirm_password:
+        return _json_error("Passwords do not match.", 400)
+    if not reasons:
+        return _json_error("Please select at least one reason.", 400)
+
     try:
-        ok, _err = ensure_users_schema()
-        if not ok:
-            return jsonify({
-                "success": False,
-                "message": "Database not ready. Check connection and run netology_schema.sql."
-            }), 500
+        with _db_cursor() as (connection, cursor):
+            cursor.execute("SELECT 1 FROM users WHERE email = %s", (email,))
+            if cursor.fetchone():
+                return _json_error("That email is already registered. Please login instead.", 409)
 
-        data = request.form
+            cursor.execute("SELECT 1 FROM users WHERE username = %s", (username,))
+            if cursor.fetchone():
+                return _json_error("That username is already taken. Please choose another.", 409)
 
-        # Get fields from form (wizard)
-        first_name = (data.get("first_name") or "").strip()
-        last_name = (data.get("last_name") or "").strip()
-        username = (data.get("username") or "").strip()
-        email = _norm_email(data.get("email"))
-        dob = (data.get("dob") or "").strip()
-
-        password = data.get("password") or ""
-        confirm_password = data.get("confirm_password") or ""
-
-        # "Starting level" preference (unlocking only)
-        start_level = _clean_start_level(data.get("level") or "novice")
-
-        # Reasons (checkbox list) — stored cleanly, no start_level prefix needed
-        reasons_list = request.form.getlist("reasons")
-        reasons = ", ".join([r.strip() for r in reasons_list if r.strip()])
-
-        # AI Prompt: Explain the Server-side validation (simple + strict) section in clear, simple terms.
-        # -------------------------------------------------
-        # Server-side validation (simple + strict)
-        # -------------------------------------------------
-        if not first_name or not last_name or not username or not email or not dob:
-            return jsonify({"success": False, "message": "Please fill in all required fields."}), 400
-
-        if not _is_valid_email(email):
-            return jsonify({"success": False, "message": "Please enter a valid email address."}), 400
-
-        if not password or len(password) < 8:
-            return jsonify({"success": False, "message": "Password must be at least 8 characters."}), 400
-
-        if password != confirm_password:
-            return jsonify({"success": False, "message": "Passwords do not match."}), 400
-
-        # Wizard requires at least one reason (as you wanted)
-        if not reasons_list:
-            return jsonify({"success": False, "message": "Please select at least one reason."}), 400
-
-        # AI Prompt: Explain the REAL progression values (do NOT change from start_level) section in clear, simple terms.
-        # -------------------------------------------------
-        # REAL progression values (do NOT change from start_level)
-        # -------------------------------------------------
-        numeric_level = 1
-        level_label = rank_for_level(numeric_level)  # should be "Novice"
-        xp = 0
-
-        # Hash password
-        hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
-
-        # AI Prompt: Explain the Database insert (with duplicate checks) section in clear, simple terms.
-        # -------------------------------------------------
-        # Database insert (with duplicate checks)
-        # -------------------------------------------------
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Email already exists?
-        cur.execute("SELECT 1 FROM users WHERE email = %s", (email,))
-        if cur.fetchone():
-            cur.close()
-            conn.close()
-            return jsonify({
-                "success": False,
-                "message": "That email is already registered. Please login instead."
-            }), 409
-
-        # Username already exists?
-        cur.execute("SELECT 1 FROM users WHERE username = %s", (username,))
-        if cur.fetchone():
-            cur.close()
-            conn.close()
-            return jsonify({
-                "success": False,
-                "message": "That username is already taken. Please choose another."
-            }), 409
-
-        # Insert user — start_level stored in its own column now
-        cur.execute(
-            """
-            INSERT INTO users
-            (first_name, last_name, username, email, password_hash, level,
-             numeric_level, reasons, xp, dob, start_level,
-             is_first_login, onboarding_completed)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, FALSE)
-            """,
-            (first_name, last_name, username, email, hashed_password, level_label,
-             numeric_level, reasons, xp, dob, start_level),
-        )
-
-        conn.commit()
-        cur.close()
-        conn.close()
+            password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+            cursor.execute(
+                """
+                INSERT INTO users (
+                    first_name, last_name, username, email, password_hash,
+                    level, numeric_level, reasons, xp, dob, start_level,
+                    is_first_login, onboarding_completed
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, FALSE)
+                """,
+                (first_name, last_name, username, email, password_hash,
+                 "Novice", 1, reasons_text, 0, dob, start_level),
+            )
+            connection.commit()
 
         return jsonify({"success": True})
+    except Exception as error:
+        print("Register error:", error)
+        return _json_error("Signup failed. Please try again.", 500)
 
-    except Exception as e:
-        print("Signup error:", e)
-        return jsonify({"success": False, "message": "Signup failed. Please try again."}), 500
 
-
-# AI Prompt: Explain the Login User section in clear, simple terms.
-# =========================================================
-# Login User
-# =========================================================
-"""
-Login
----
-Logs a user in.
-- Checks email exists
-- Verifies password
-- Returns user info for frontend
-
-UPDATED:
-- Returns start_level (for unlocking content)
-- Keeps real XP progression as the source of truth
-"""
 @auth.route("/login", methods=["POST"])
 def login():
+    """Verify credentials and return user data."""
     email = _norm_email(request.form.get("email"))
     password = request.form.get("password") or ""
 
     try:
-        ok, _err = ensure_users_schema()
-        if not ok:
-            return jsonify({
-                "success": False,
-                "message": "Database not ready. Check connection and run netology_schema.sql."
-            }), 500
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT first_name, last_name, password_hash, xp, username,
+                       start_level, is_first_login, onboarding_completed
+                FROM users
+                WHERE email = %s
+                """,
+                (email,),
+            )
+            user = cursor.fetchone()
 
-        conn = get_db_connection()
-        cur = conn.cursor()
+        if not user or not bcrypt.check_password_hash(user[2], password):
+            return _json_error("Invalid email or password.", 401)
 
-        cur.execute(
-            """
-            SELECT first_name, last_name, password_hash, level, xp, numeric_level, username, start_level,
-                   is_first_login, onboarding_completed
-            FROM users
-            WHERE email = %s
-            """,
-            (email,),
-        )
-        user = cur.fetchone()
-
-        cur.close()
-        conn.close()
-
-        # Validate credentials
-        if user and bcrypt.check_password_hash(user[2], password):
-            first_name = user[0]
-            last_name = user[1]
-            xp = int(user[4] or 0)
-
-            # Real level from XP rules
-            calc_level, xp_into_level, next_level_xp = get_level_progress(xp)
-            rank = rank_for_level(calc_level)
-
-            # Start level preference — now read from its own column
-            start_level = _clean_start_level(user[7])
-
-            # Onboarding status
-            is_first_login = user[8] if user[8] is not None else True
-            onboarding_completed = user[9] if user[9] is not None else False
-
-            return jsonify({
-                "success": True,
-                "first_name": first_name,
-                "last_name": last_name,
-                "username": user[6],
-                "xp": xp,
-
-                # Backwards-compatible field (some frontend uses "level")
-                "level": rank,
-
-                # Real progression fields
-                "numeric_level": calc_level,
-                "rank": rank,
-                "xp_into_level": xp_into_level,
-                "next_level_xp": next_level_xp,
-
-                # Unlocking preference
-                "start_level": start_level,
-
-                # Onboarding status
-                "is_first_login": is_first_login,
-                "onboarding_completed": onboarding_completed,
-                "email": email
-            })
-
-        return jsonify({"success": False, "message": "Invalid email or password."}), 401
-
-    except Exception as e:
-        print("Login error:", e)
-        return jsonify({"success": False, "message": "Login failed. Try again."}), 500
+        return jsonify({
+            "success": True,
+            "first_name": user[0],
+            "last_name": user[1],
+            "username": user[4],
+            **_progress_payload(user[3]),
+            "start_level": _clean_start_level(user[5]),
+            "is_first_login": user[6] is not False,
+            "onboarding_completed": bool(user[7]),
+            "email": email,
+        })
+    except Exception as error:
+        print("Login error:", error)
+        return _json_error("Login failed. Try again.", 500)
 
 
-# AI Prompt: Explain the Logout section in clear, simple terms.
-# =========================================================
-# Logout
-# =========================================================
 @auth.route("/logout")
 def logout():
+    """Redirect to the home page."""
     return redirect("/docs/index.html")
 
 
-# AI Prompt: Explain the Fetch User Info (dashboard/account refresh) section in clear, simple terms.
-# =========================================================
-# Fetch User Info (dashboard/account refresh)
-# =========================================================
-"""
-User Info
----
-Returns basic user information used by dashboard/account pages:
-- first_name
-- username
-- xp
-- numeric_level + rank + progress fields
-- start_level (unlocking preference)
-"""
 @auth.route("/user-info")
 def user_info():
+    """Return profile data for a given email."""
     email = _norm_email(request.args.get("email"))
+    if not email:
+        return _json_error("Email required.", 400)
 
     try:
-        ok, _err = ensure_users_schema()
-        if not ok:
-            return jsonify({
-                "success": False,
-                "message": "Database not ready. Check connection and run netology_schema.sql."
-            }), 500
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT first_name, last_name, xp, username, reasons, email, start_level, created_at
+                FROM users
+                WHERE email = %s
+                """,
+                (email,),
+            )
+            user = cursor.fetchone()
 
-        conn = get_db_connection()
-        cur = conn.cursor()
+        if not user:
+            return _json_error("User not found.", 404)
 
-        cur.execute(
-            """
-            SELECT first_name, last_name, xp, username, reasons, email, start_level, created_at
-            FROM users
-            WHERE email = %s
-            """,
-            (email,)
-        )
-        user = cur.fetchone()
-
-        cur.close()
-        conn.close()
-
-        if user:
-            first_name = user[0]
-            last_name = user[1]
-            xp = int(user[2] or 0)
-            username = user[3]
-            reasons_text = user[4] or ""
-            email_db = user[5]
-
-            calc_level, xp_into_level, next_level_xp = get_level_progress(xp)
-            rank = rank_for_level(calc_level)
-
-            # start_level now read directly from its own column
-            start_level = _clean_start_level(user[6])
-            created_at = user[7]
-
-            return jsonify({
-                "success": True,
-                "first_name": first_name,
-                "username": username,
-                "xp": xp,
-                "last_name": last_name,
-                "email": email_db,
-
-                # Real progression fields
-                "numeric_level": calc_level,
-                "level": rank,
-                "rank": rank,
-                "xp_into_level": xp_into_level,
-                "next_level_xp": next_level_xp,
-
-                # Unlocking preference
-                "start_level": start_level,
-
-                # Account metadata
-                "created_at": created_at.isoformat() if created_at else None,
-
-                # Reasons for display on account page
-                "reasons": reasons_text
-            })
-
-        return jsonify({"success": False, "message": "User not found."}), 404
-
-    except Exception as e:
-        print("User info error:", e)
-        return jsonify({"success": False, "message": "Error loading user info."}), 500
+        created_at = user[7]
+        return jsonify({
+            "success": True,
+            "first_name": user[0],
+            "last_name": user[1],
+            "username": user[3],
+            "email": user[5],
+            **_progress_payload(user[2]),
+            "start_level": _clean_start_level(user[6]),
+            "created_at": created_at.isoformat() if created_at else None,
+            "reasons": user[4] or "",
+        })
+    except Exception as error:
+        print("User info error:", error)
+        return _json_error("Error loading user info.", 500)
 
 
-# AI Prompt: Explain the User Preferences (Account page) section in clear, simple terms.
-# =========================================================
-# User Preferences (Account page)
-# =========================================================
 @auth.route("/user-preferences", methods=["GET", "POST"])
 def user_preferences():
+    """Get or save notification preferences for a user."""
     if request.method == "GET":
         email = _norm_email(request.args.get("email"))
         if not email:
-            return jsonify({"success": False, "message": "Email required."}), 400
+            return _json_error("Email required.", 400)
 
         try:
-            ensure_user_preferences_table()
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT weekly_summary, streak_reminders, new_course_alerts
-                FROM user_preferences
-                WHERE user_email = %s
-            """, (email,))
-            row = cur.fetchone()
-            cur.close()
-            conn.close()
+            with _db_cursor() as (_connection, cursor):
+                cursor.execute(
+                    """
+                    SELECT weekly_summary, streak_reminders, new_course_alerts
+                    FROM user_preferences
+                    WHERE user_email = %s
+                    """,
+                    (email,),
+                )
+                row = cursor.fetchone()
 
             if row:
-                return jsonify({
-                    "success": True,
-                    "weekly": bool(row[0]),
-                    "streak": bool(row[1]),
-                    "new_courses": bool(row[2])
-                })
+                return jsonify({"success": True, "weekly": bool(row[0]), "streak": bool(row[1]), "new_courses": bool(row[2])})
 
-            return jsonify({
-                "success": True,
-                "weekly": True,
-                "streak": True,
-                "new_courses": False
-            })
+            # No row yet — return sensible defaults
+            return jsonify({"success": True, "weekly": True, "streak": True, "new_courses": False})
+        except Exception as error:
+            print("User preferences GET error:", error)
+            return _json_error("Error loading preferences.", 500)
 
-        except Exception as e:
-            print("User prefs error:", e)
-            return jsonify({"success": False, "message": "Error loading preferences."}), 500
-
-    # POST
+    # POST — save preferences
     data = request.get_json(silent=True) or {}
     email = _norm_email(data.get("email"))
     if not email:
-        return jsonify({"success": False, "message": "Email required."}), 400
+        return _json_error("Email required.", 400)
 
     weekly = bool(data.get("weekly", True))
     streak = bool(data.get("streak", True))
-    new_courses = bool(data.get("newCourses", False))
+    new_courses = bool(data.get("newCourses", data.get("new_courses", False)))
 
     try:
-        ensure_user_preferences_table()
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO user_preferences (user_email, weekly_summary, streak_reminders, new_course_alerts)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (user_email)
-            DO UPDATE SET
-                weekly_summary = EXCLUDED.weekly_summary,
-                streak_reminders = EXCLUDED.streak_reminders,
-                new_course_alerts = EXCLUDED.new_course_alerts,
-                updated_at = CURRENT_TIMESTAMP;
-        """, (email, weekly, streak, new_courses))
-        conn.commit()
-        cur.close()
-        conn.close()
+        with _db_cursor() as (connection, cursor):
+            # Simple flow: update existing row first, insert only if missing.
+            cursor.execute(
+                """
+                UPDATE user_preferences
+                SET weekly_summary = %s,
+                    streak_reminders = %s,
+                    new_course_alerts = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_email = %s
+                """,
+                (weekly, streak, new_courses, email),
+            )
+
+            if cursor.rowcount == 0:
+                cursor.execute(
+                    """
+                    INSERT INTO user_preferences
+                    (user_email, weekly_summary, streak_reminders, new_course_alerts)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (email, weekly, streak, new_courses),
+                )
+
+            connection.commit()
         return jsonify({"success": True})
-    except Exception as e:
-        print("Save prefs error:", e)
-        return jsonify({"success": False, "message": "Could not save preferences."}), 500
+    except Exception as error:
+        print("User preferences POST error:", error)
+        return _json_error("Could not save preferences.", 500)
 
 
-# AI Prompt: Explain the User Achievements section in clear, simple terms.
-# =========================================================
-# User Achievements
-# =========================================================
 @auth.route("/user-achievements", methods=["GET"])
 def user_achievements():
+    """Return all achievements earned by a user."""
     email = _norm_email(request.args.get("email"))
     if not email:
-        return jsonify({"success": False, "message": "Email required."}), 400
+        return _json_error("Email required.", 400)
 
     try:
         payload = get_user_achievements_payload(email)
         if not payload.get("success"):
-            return jsonify({"success": False, "message": "Error loading achievements."}), 500
+            return _json_error("Error loading achievements.", 500)
 
         achievements = [
             {
@@ -595,157 +317,138 @@ def user_achievements():
                 "name": item.get("name"),
                 "description": item.get("description"),
                 "tier": item.get("rarity"),
-                "xp": int(item.get("xp_awarded") or item.get("xp_reward") or 0),
+                "xp": _to_int(item.get("xp_awarded") or item.get("xp_reward")),
                 "earned_at": item.get("earned_at"),
             }
             for item in payload.get("unlocked", [])
         ]
         return jsonify({"success": True, "achievements": achievements})
-    except Exception as e:
-        print("User achievements error:", e)
-        return jsonify({"success": False, "message": "Error loading achievements."}), 500
+    except Exception as error:
+        print("User achievements error:", error)
+        return _json_error("Error loading achievements.", 500)
 
 
 @auth.route("/award-achievement", methods=["POST"])
 def award_achievement():
+    """Grant an achievement to a user (no-op if already earned)."""
     data = request.get_json(silent=True) or {}
     email = _norm_email(data.get("email"))
     achievement_id = (data.get("achievement_id") or data.get("id") or "").strip()
     name = (data.get("name") or "").strip()
     description = (data.get("description") or "").strip()
     tier = (data.get("tier") or "").strip()
-    xp = int(data.get("xp") or 0)
+    xp = _to_int(data.get("xp"))
 
     if not email or not achievement_id:
-        return jsonify({"success": False, "message": "Email and achievement_id required."}), 400
+        return _json_error("Email and achievement_id required.", 400)
 
     try:
-        ensure_user_achievements_table()
         ensure_achievement_catalog()
-        conn = get_db_connection()
-        cur = conn.cursor()
 
-        # Prefer catalog metadata when this achievement exists there.
-        cur.execute(
-            """
-            SELECT name, description, rarity, xp_reward
-            FROM achievements
-            WHERE id = %s
-            LIMIT 1;
-            """,
-            (achievement_id,),
-        )
-        catalog_row = cur.fetchone()
-        if catalog_row:
-            name = catalog_row[0] or name
-            description = catalog_row[1] or description
-            tier = catalog_row[2] or tier
-            xp = int(catalog_row[3] or xp or 0)
+        with _db_cursor() as (connection, cursor):
+            # Pull canonical details from the achievements catalog if available
+            cursor.execute(
+                "SELECT name, description, rarity, xp_reward FROM achievements WHERE id = %s LIMIT 1",
+                (achievement_id,),
+            )
+            catalog_row = cursor.fetchone()
+            if catalog_row:
+                name = catalog_row[0] or name
+                description = catalog_row[1] or description
+                tier = catalog_row[2] or tier
+                xp = _to_int(catalog_row[3], xp)
 
-        cur.execute("""
-            INSERT INTO user_achievements (user_email, achievement_id, name, description, tier, xp_awarded)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (user_email, achievement_id) DO NOTHING;
-        """, (email, achievement_id, name, description, tier, xp))
-        inserted = (cur.rowcount == 1)
-        conn.commit()
-        cur.close()
-        conn.close()
+            cursor.execute(
+                """
+                INSERT INTO user_achievements (user_email, achievement_id, name, description, tier, xp_awarded)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (user_email, achievement_id) DO NOTHING
+                """,
+                (email, achievement_id, name, description, tier, xp),
+            )
+            awarded = cursor.rowcount == 1
+            connection.commit()
 
-        xp_added = 0
-        new_level = 0
-        if inserted and xp > 0:
+        xp_added = new_level = 0
+        if awarded and xp > 0:
             xp_added, new_level = add_xp_to_user(email, xp, action=f"Achievement: {achievement_id}")
 
-        return jsonify({
-            "success": True,
-            "awarded": inserted,
-            "xp_added": xp_added,
-            "new_level": new_level
-        })
-    except Exception as e:
-        print("Award achievement error:", e)
-        return jsonify({"success": False, "message": "Could not award achievement."}), 500
+        return jsonify({"success": True, "awarded": awarded, "xp_added": xp_added, "new_level": new_level})
+    except Exception as error:
+        print("Award achievement error:", error)
+        return _json_error("Could not award achievement.", 500)
 
 
 @auth.route("/award-xp", methods=["POST"])
 def award_xp():
+    """Award XP for an action (idempotent — each action is only awarded once)."""
     data = request.get_json(silent=True) or {}
     email = _norm_email(data.get("email"))
     action = (data.get("action") or "").strip()
-    xp = int(data.get("xp") or 0)
+    xp = _to_int(data.get("xp"))
 
     if not email or not action or xp <= 0:
-        return jsonify({"success": False, "message": "Email, action, and positive XP are required."}), 400
+        return _json_error("Email, action, and positive XP are required.", 400)
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+        # Check whether this action has already been awarded
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                "SELECT 1 FROM xp_log WHERE user_email = %s AND action = %s LIMIT 1",
+                (email, action),
+            )
+            already_awarded = cursor.fetchone() is not None
 
-        # Idempotency: only award once per action key
-        cur.execute("SELECT 1 FROM xp_log WHERE user_email = %s AND action = %s LIMIT 1;", (email, action))
-        exists = cur.fetchone() is not None
-
-        xp_added = 0
-        new_level = 0
-        if not exists:
+        xp_added = new_level = 0
+        if not already_awarded:
             xp_added, new_level = add_xp_to_user(email, xp, action=action)
 
         newly_unlocked = evaluate_achievements_for_event(email, "xp_award")
-        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
-
-        conn.commit()
-        cur.close()
-        conn.close()
+        achievement_xp_added = sum(_to_int(item.get("xp_added")) for item in newly_unlocked)
 
         return jsonify({
             "success": True,
-            "awarded": (not exists),
+            "awarded": not already_awarded,
             "xp_added": xp_added,
             "new_level": new_level,
             "newly_unlocked": newly_unlocked,
             "achievement_xp_added": achievement_xp_added,
         })
-    except Exception as e:
-        print("Award XP error:", e)
-        return jsonify({"success": False, "message": "Could not award XP."}), 500
+    except Exception as error:
+        print("Award XP error:", error)
+        return _json_error("Could not award XP.", 500)
 
 
-# AI Prompt: Explain the Login Activity (streak tracking) section in clear, simple terms.
-# =========================================================
-# Login Activity (streak tracking)
-# =========================================================
 @auth.route("/record-login", methods=["POST"])
 def record_login():
+    """Record today's login and return the full login history."""
     data = request.get_json(silent=True) or {}
     email = _norm_email(data.get("email"))
     if not email:
-        return jsonify({"success": False, "message": "Email required."}), 400
+        return _json_error("Email required.", 400)
 
     try:
-        ensure_user_logins_table()
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO user_logins (user_email, login_date)
-            VALUES (%s, CURRENT_DATE)
-            ON CONFLICT (user_email, login_date) DO NOTHING;
-        """, (email,))
-        is_new = cur.rowcount == 1
+        with _db_cursor() as (connection, cursor):
+            cursor.execute(
+                """
+                INSERT INTO user_logins (user_email, login_date)
+                VALUES (%s, CURRENT_DATE)
+                ON CONFLICT (user_email, login_date) DO NOTHING
+                """,
+                (email,),
+            )
+            is_new = cursor.rowcount == 1
 
-        cur.execute("""
-            SELECT login_date
-            FROM user_logins
-            WHERE user_email = %s
-            ORDER BY login_date;
-        """, (email,))
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+            cursor.execute(
+                "SELECT login_date FROM user_logins WHERE user_email = %s ORDER BY login_date",
+                (email,),
+            )
+            rows = cursor.fetchall()
+            connection.commit()
 
-        log = [r[0].isoformat() for r in rows]
+        log = [row[0].isoformat() for row in rows]
         newly_unlocked = evaluate_achievements_for_event(email, "login")
-        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+        achievement_xp_added = sum(_to_int(item.get("xp_added")) for item in newly_unlocked)
 
         return jsonify({
             "success": True,
@@ -754,57 +457,36 @@ def record_login():
             "newly_unlocked": newly_unlocked,
             "achievement_xp_added": achievement_xp_added,
         })
+    except Exception as error:
+        print("Record login error:", error)
+        return _json_error("Could not record login.", 500)
 
-    except Exception as e:
-        print("Record login error:", e)
-        return jsonify({"success": False, "message": "Could not record login."}), 500
 
-
-# AI Prompt: Explain the Forgot Password section in clear, simple terms.
-# =========================================================
-# Forgot Password
-# =========================================================
-"""
-Forgot Password
----
-User enters email + username + new password
-If email + username match an account, update password hash.
-"""
 @auth.route("/forgot-password", methods=["POST"])
 def forgot_password():
+    """Reset a user's password directly (no email token — dev simplicity)."""
+    data = request.get_json(silent=True) or {}
+    email = _norm_email(data.get("email"))
+    new_password = data.get("password") or ""
+
+    if not email or not new_password:
+        return _json_error("All fields are required.", 400)
+    if not _is_valid_email(email):
+        return _json_error("Invalid email address.", 400)
+    if len(new_password) < PASSWORD_MIN_LENGTH:
+        return _json_error(f"Password must be at least {PASSWORD_MIN_LENGTH} characters.", 400)
+
     try:
-        data = request.get_json() or {}
+        with _db_cursor() as (connection, cursor):
+            cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+            if not cursor.fetchone():
+                return _json_error("No account found with that email.", 404)
 
-        email = _norm_email(data.get("email"))
-        new_password = data.get("password") or ""
-
-        if not email or not new_password:
-            return jsonify({"success": False, "message": "All fields are required."}), 400
-
-        if not _is_valid_email(email):
-            return jsonify({"success": False, "message": "Invalid email address."}), 400
-
-        if len(new_password) < 8:
-            return jsonify({"success": False, "message": "Password must be at least 8 characters."}), 400
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
-        if not cur.fetchone():
-            cur.close()
-            conn.close()
-            return jsonify({"success": False, "message": "No account found with that email."}), 404
-
-        hashed = bcrypt.generate_password_hash(new_password).decode("utf-8")
-        cur.execute("UPDATE users SET password_hash = %s WHERE email = %s", (hashed, email))
-
-        conn.commit()
-        cur.close()
-        conn.close()
+            password_hash = bcrypt.generate_password_hash(new_password).decode("utf-8")
+            cursor.execute("UPDATE users SET password_hash = %s WHERE email = %s", (password_hash, email))
+            connection.commit()
 
         return jsonify({"success": True})
-
-    except Exception as e:
-        print("Forgot password error:", e)
-        return jsonify({"success": False, "message": "Server error."}), 500
+    except Exception as error:
+        print("Forgot password error:", error)
+        return _json_error("Server error.", 500)

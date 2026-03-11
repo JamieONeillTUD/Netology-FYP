@@ -2,8 +2,8 @@
 ---------------------------------------------------------
 Student: C22320301 - Jamie O’Neill
 File: config.js
-Purpose: Stores the core backend URL and API endpoint map used across the site.
-Notes: Removed theme, toast, preview, and onboarding helpers from this file.
+Purpose: Stores API config and shared client helpers used across the site.
+Notes: Theme application is handled in ui-theme.js.
 ---------------------------------------------------------
 */
 
@@ -98,37 +98,6 @@ window.ENDPOINTS = {
     check: "/healthz"
   }
 };
-
-// Apply saved theme + dyslexic preference early on every page.
-(() => {
-  "use strict";
-
-  function resolveTheme(themeName) {
-    const savedTheme = String(themeName || "light").toLowerCase();
-    if (savedTheme === "system") {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
-    return savedTheme || "light";
-  }
-
-  function applySavedUiPreferences() {
-    const target = document.body || document.documentElement;
-    if (!target) return;
-
-    const storedTheme = localStorage.getItem("netology_theme") || "light";
-    const resolvedTheme = resolveTheme(storedTheme);
-    target.setAttribute("data-theme", resolvedTheme);
-
-    const isDyslexic = localStorage.getItem("netology_dyslexic") === "true";
-    target.classList.toggle("net-dyslexic", isDyslexic);
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", applySavedUiPreferences, { once: true });
-  } else {
-    applySavedUiPreferences();
-  }
-})();
 
 // Shared XP helper so all pages use one math definition.
 (() => {

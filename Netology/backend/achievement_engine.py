@@ -1,11 +1,10 @@
 """
 achievement_engine.py
-Central achievement catalog, rule evaluation, and unlock awarding.
+Achievement catalog, rule checks, and unlock awarding.
 """
 
-from __future__ import annotations
-
 import json
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -14,329 +13,77 @@ from xp_system import add_xp_to_user, get_level_progress
 
 
 _CATALOG_READY = False
+MAX_CHAIN_UNLOCK_ROUNDS = 5
+
+# Achievement definitions now come from the SQL seed data
+# in netology_schema.sql (achievements table).
 
 
-# Single source of truth for all unlockable achievements.
-ACHIEVEMENT_DEFINITIONS = [
-    {
-        "id": "first_login",
-        "name": "Welcome Back",
-        "description": "Log in for the first time.",
-        "category": "Onboarding",
-        "icon": "bi-door-open-fill",
-        "xp_reward": 10,
-        "rarity": "common",
-        "unlock_criteria": {"type": "logins_total", "value": 1},
-    },
-    {
-        "id": "login_streak_3",
-        "name": "Momentum",
-        "description": "Maintain a 3-day login streak.",
-        "category": "Streak",
-        "icon": "bi-calendar-check-fill",
-        "xp_reward": 40,
-        "rarity": "common",
-        "unlock_criteria": {"type": "login_streak", "value": 3},
-    },
-    {
-        "id": "five_day_streak",
-        "name": "On Fire!",
-        "description": "Maintain a 5-day login streak.",
-        "category": "Streak",
-        "icon": "bi-fire",
-        "xp_reward": 75,
-        "rarity": "rare",
-        "unlock_criteria": {"type": "login_streak", "value": 5},
-    },
-    {
-        "id": "login_streak_10",
-        "name": "Unstoppable",
-        "description": "Maintain a 10-day login streak.",
-        "category": "Streak",
-        "icon": "bi-fire",
-        "xp_reward": 160,
-        "rarity": "epic",
-        "unlock_criteria": {"type": "login_streak", "value": 10},
-    },
-    {
-        "id": "onboarding_complete",
-        "name": "Tour Complete",
-        "description": "Complete the onboarding walkthrough.",
-        "category": "Onboarding",
-        "icon": "bi-compass-fill",
-        "xp_reward": 60,
-        "rarity": "common",
-        "unlock_criteria": {"type": "event", "event": "onboarding_complete"},
-    },
-    {
-        "id": "course_starter",
-        "name": "Course Starter",
-        "description": "Start your first course.",
-        "category": "Courses",
-        "icon": "bi-journal-plus",
-        "xp_reward": 20,
-        "rarity": "common",
-        "unlock_criteria": {"type": "courses_started", "value": 1},
-    },
-    {
-        "id": "course_explorer",
-        "name": "Course Explorer",
-        "description": "Start 3 courses.",
-        "category": "Courses",
-        "icon": "bi-journals",
-        "xp_reward": 60,
-        "rarity": "rare",
-        "unlock_criteria": {"type": "courses_started", "value": 3},
-    },
-    {
-        "id": "first_lesson",
-        "name": "First Steps",
-        "description": "Complete your first lesson.",
-        "category": "Learning",
-        "icon": "bi-bookmark-check-fill",
-        "xp_reward": 30,
-        "rarity": "common",
-        "unlock_criteria": {"type": "lessons_completed", "value": 1},
-    },
-    {
-        "id": "speed_learner",
-        "name": "Speed Learner",
-        "description": "Complete 5 lessons.",
-        "category": "Learning",
-        "icon": "bi-lightning-charge-fill",
-        "xp_reward": 100,
-        "rarity": "rare",
-        "unlock_criteria": {"type": "lessons_completed", "value": 5},
-    },
-    {
-        "id": "lesson_marathon",
-        "name": "Lesson Marathon",
-        "description": "Complete 15 lessons.",
-        "category": "Learning",
-        "icon": "bi-lightning-fill",
-        "xp_reward": 220,
-        "rarity": "epic",
-        "unlock_criteria": {"type": "lessons_completed", "value": 15},
-    },
-    {
-        "id": "first_quiz",
-        "name": "Quiz Rookie",
-        "description": "Complete your first quiz.",
-        "category": "Quizzes",
-        "icon": "bi-patch-question-fill",
-        "xp_reward": 35,
-        "rarity": "common",
-        "unlock_criteria": {"type": "quizzes_completed", "value": 1},
-    },
-    {
-        "id": "quiz_machine",
-        "name": "Quiz Machine",
-        "description": "Complete 5 quizzes.",
-        "category": "Quizzes",
-        "icon": "bi-ui-checks-grid",
-        "xp_reward": 120,
-        "rarity": "rare",
-        "unlock_criteria": {"type": "quizzes_completed", "value": 5},
-    },
-    {
-        "id": "first_challenge",
-        "name": "Challenge Accepted",
-        "description": "Complete your first challenge.",
-        "category": "Challenges",
-        "icon": "bi-shield-check",
-        "xp_reward": 45,
-        "rarity": "common",
-        "unlock_criteria": {"type": "challenges_completed", "value": 1},
-    },
-    {
-        "id": "challenge_crusher",
-        "name": "Challenge Crusher",
-        "description": "Complete 5 challenges.",
-        "category": "Challenges",
-        "icon": "bi-trophy-fill",
-        "xp_reward": 170,
-        "rarity": "epic",
-        "unlock_criteria": {"type": "challenges_completed", "value": 5},
-    },
-    {
-        "id": "first_course_complete",
-        "name": "Course Finisher",
-        "description": "Complete your first course.",
-        "category": "Courses",
-        "icon": "bi-check2-square",
-        "xp_reward": 200,
-        "rarity": "rare",
-        "unlock_criteria": {"type": "courses_completed", "value": 1},
-    },
-    {
-        "id": "novice_master",
-        "name": "Novice Master",
-        "description": "Complete 3 courses.",
-        "category": "Courses",
-        "icon": "bi-mortarboard-fill",
-        "xp_reward": 320,
-        "rarity": "epic",
-        "unlock_criteria": {"type": "courses_completed", "value": 3},
-    },
-    {
-        "id": "level_3_reached",
-        "name": "Rising Talent",
-        "description": "Reach Level 3.",
-        "category": "Progress",
-        "icon": "bi-bar-chart-steps",
-        "xp_reward": 120,
-        "rarity": "rare",
-        "unlock_criteria": {"type": "level_reached", "value": 3},
-    },
-    {
-        "id": "level_5_reached",
-        "name": "Advanced Path",
-        "description": "Reach Level 5.",
-        "category": "Progress",
-        "icon": "bi-stars",
-        "xp_reward": 260,
-        "rarity": "epic",
-        "unlock_criteria": {"type": "level_reached", "value": 5},
-    },
-    {
-        "id": "xp_500_club",
-        "name": "500 XP Club",
-        "description": "Earn a total of 500 XP.",
-        "category": "Progress",
-        "icon": "bi-gem",
-        "xp_reward": 150,
-        "rarity": "rare",
-        "unlock_criteria": {"type": "total_xp", "value": 500},
-    },
-    {
-        "id": "all_rounder",
-        "name": "All-Rounder",
-        "description": "Complete at least one lesson, quiz, and challenge.",
-        "category": "Mastery",
-        "icon": "bi-award-fill",
-        "xp_reward": 180,
-        "rarity": "epic",
-        "unlock_criteria": {
-            "type": "all_of",
-            "rules": [
-                {"type": "lessons_completed", "value": 1},
-                {"type": "quizzes_completed", "value": 1},
-                {"type": "challenges_completed", "value": 1},
-            ],
-        },
-    },
-]
-
-
-def _safe_int(value: Any, default: int = 0) -> int:
+def _as_int(value: Any, default: int = 0) -> int:
+    """Return an int value, or a fallback when conversion fails."""
     try:
         return int(value)
     except (TypeError, ValueError):
         return int(default)
 
 
-def _norm_event(event_name: str | None) -> str:
+def _normalize_event_name(event_name: str | None) -> str:
+    """Normalize event text so comparisons are consistent."""
     return str(event_name or "").strip().lower()
 
 
-def _ensure_tables(cur) -> None:
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS achievements (
-            id VARCHAR(100) PRIMARY KEY,
-            name VARCHAR(150) NOT NULL,
-            description TEXT,
-            category VARCHAR(50),
-            icon VARCHAR(500),
-            xp_reward INTEGER DEFAULT 0,
-            rarity VARCHAR(20) DEFAULT 'common',
-            unlock_criteria JSONB,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """
-    )
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS user_achievements (
-            id SERIAL PRIMARY KEY,
-            user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
-            achievement_id VARCHAR(100) NOT NULL,
-            name VARCHAR(150),
-            description TEXT,
-            tier VARCHAR(20),
-            xp_awarded INTEGER DEFAULT 0,
-            earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE (user_email, achievement_id)
-        );
-        """
-    )
-    cur.execute("ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS name VARCHAR(150);")
-    cur.execute("ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS description TEXT;")
-    cur.execute("ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS tier VARCHAR(20);")
-    cur.execute("ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 0;")
-    cur.execute("ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
-    cur.execute("ALTER TABLE achievements ADD COLUMN IF NOT EXISTS icon VARCHAR(500);")
-    cur.execute("ALTER TABLE achievements ADD COLUMN IF NOT EXISTS xp_reward INTEGER DEFAULT 0;")
-    cur.execute("ALTER TABLE achievements ADD COLUMN IF NOT EXISTS rarity VARCHAR(20) DEFAULT 'common';")
-    cur.execute("ALTER TABLE achievements ADD COLUMN IF NOT EXISTS unlock_criteria JSONB;")
-    cur.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_user_achievements_email
-        ON user_achievements (user_email);
-        """
-    )
+@contextmanager
+def _db_session():
+    """Open a DB connection/cursor and always close them."""
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    try:
+        yield connection, cursor
+    finally:
+        try:
+            cursor.close()
+        finally:
+            connection.close()
+
+
+def _count_rows(cursor, sql: str, params: tuple[Any, ...]) -> int:
+    """Run a COUNT(*) query and return the integer result."""
+    cursor.execute(sql, params)
+    row = cursor.fetchone()
+    return _as_int(row[0], 0) if row else 0
 
 
 def ensure_achievement_catalog(force: bool = False) -> None:
+    """Validate that the achievements catalog exists and is populated."""
     global _CATALOG_READY
     if _CATALOG_READY and not force:
         return
 
-    conn = get_db_connection()
-    cur = conn.cursor()
-
     try:
-        _ensure_tables(cur)
-        payload_rows = [
-            (
-                item["id"],
-                item["name"],
-                item["description"],
-                item["category"],
-                item["icon"],
-                _safe_int(item["xp_reward"]),
-                item["rarity"],
-                json.dumps(item["unlock_criteria"]),
-            )
-            for item in ACHIEVEMENT_DEFINITIONS
-        ]
+        with _db_session() as (connection, cursor):
+            cursor.execute("SELECT to_regclass('public.achievements')")
+            table_ref = cursor.fetchone()
+            if not table_ref or table_ref[0] is None:
+                raise RuntimeError(
+                    "achievements table missing. Run netology_schema.sql."
+                )
 
-        cur.executemany(
-            """
-            INSERT INTO achievements
-                (id, name, description, category, icon, xp_reward, rarity, unlock_criteria)
-            VALUES
-                (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
-            ON CONFLICT (id) DO UPDATE SET
-                name = EXCLUDED.name,
-                description = EXCLUDED.description,
-                category = EXCLUDED.category,
-                icon = EXCLUDED.icon,
-                xp_reward = EXCLUDED.xp_reward,
-                rarity = EXCLUDED.rarity,
-                unlock_criteria = EXCLUDED.unlock_criteria;
-            """,
-            payload_rows,
-        )
+            count = _count_rows(cursor, "SELECT COUNT(*) FROM achievements;", ())
+            if count <= 0:
+                raise RuntimeError(
+                    "achievements catalog is empty. Run netology_schema.sql seed."
+                )
 
-        conn.commit()
-        _CATALOG_READY = True
-    finally:
-        cur.close()
-        conn.close()
+            connection.commit()
+            _CATALOG_READY = True
+    except Exception as error:
+        _CATALOG_READY = False
+        print("Achievement catalog check error:", error)
+        raise
 
 
-def _compute_login_streak(login_dates_desc: list[Any]) -> int:
+def _calculate_login_streak(login_dates_desc: list[Any]) -> int:
+    """Count consecutive login dates ending today."""
     if not login_dates_desc:
         return 0
 
@@ -354,7 +101,8 @@ def _compute_login_streak(login_dates_desc: list[Any]) -> int:
     return streak
 
 
-def _parse_criteria(criteria_value: Any) -> dict[str, Any]:
+def _to_criteria_dict(criteria_value: Any) -> dict[str, Any]:
+    """Accept dict or JSON string criteria values."""
     if isinstance(criteria_value, dict):
         return criteria_value
     if isinstance(criteria_value, str):
@@ -366,8 +114,9 @@ def _parse_criteria(criteria_value: Any) -> dict[str, Any]:
     return {}
 
 
-def _load_user_metrics(cur, email: str) -> dict[str, Any] | None:
-    cur.execute(
+def _load_user_stats(cursor, email: str) -> dict[str, Any] | None:
+    """Load all user stats used by achievement rule checks."""
+    cursor.execute(
         """
         SELECT COALESCE(xp, 0), COALESCE(numeric_level, 1), COALESCE(onboarding_completed, FALSE)
         FROM users
@@ -375,18 +124,21 @@ def _load_user_metrics(cur, email: str) -> dict[str, Any] | None:
         """,
         (email,),
     )
-    row = cur.fetchone()
+    row = cursor.fetchone()
     if not row:
         return None
 
-    total_xp = _safe_int(row[0], 0)
-    calc_level, _xp_into_level, _next_level_xp = get_level_progress(total_xp)
-    numeric_level = max(_safe_int(row[1], calc_level), calc_level)
+    total_xp = _as_int(row[0], 0)
+    computed_level, _xp_into_level, _next_level_xp = get_level_progress(total_xp)
+    numeric_level = max(_as_int(row[1], computed_level), computed_level)
 
-    cur.execute("SELECT COUNT(*) FROM user_logins WHERE user_email = %s;", (email,))
-    logins_total = _safe_int(cur.fetchone()[0], 0)
+    logins_total = _count_rows(
+        cursor,
+        "SELECT COUNT(*) FROM user_logins WHERE user_email = %s;",
+        (email,),
+    )
 
-    cur.execute(
+    cursor.execute(
         """
         SELECT login_date
         FROM user_logins
@@ -396,24 +148,35 @@ def _load_user_metrics(cur, email: str) -> dict[str, Any] | None:
         """,
         (email,),
     )
-    login_dates = [r[0] for r in cur.fetchall()]
+    login_dates = [row[0] for row in cursor.fetchall()]
 
-    cur.execute("SELECT COUNT(*) FROM user_courses WHERE user_email = %s;", (email,))
-    courses_started = _safe_int(cur.fetchone()[0], 0)
-
-    cur.execute("SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = TRUE;", (email,))
-    courses_completed = _safe_int(cur.fetchone()[0], 0)
-
-    cur.execute("SELECT COUNT(*) FROM user_lessons WHERE user_email = %s;", (email,))
-    lessons_completed = _safe_int(cur.fetchone()[0], 0)
-
-    cur.execute("SELECT COUNT(*) FROM user_quizzes WHERE user_email = %s;", (email,))
-    quizzes_completed = _safe_int(cur.fetchone()[0], 0)
-
-    cur.execute("SELECT COUNT(*) FROM user_challenges WHERE user_email = %s;", (email,))
-    challenges_completed = _safe_int(cur.fetchone()[0], 0)
-
-    cur.execute(
+    courses_started = _count_rows(
+        cursor,
+        "SELECT COUNT(*) FROM user_courses WHERE user_email = %s;",
+        (email,),
+    )
+    courses_completed = _count_rows(
+        cursor,
+        "SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = TRUE;",
+        (email,),
+    )
+    lessons_completed = _count_rows(
+        cursor,
+        "SELECT COUNT(*) FROM user_lessons WHERE user_email = %s;",
+        (email,),
+    )
+    quizzes_completed = _count_rows(
+        cursor,
+        "SELECT COUNT(*) FROM user_quizzes WHERE user_email = %s;",
+        (email,),
+    )
+    challenges_completed = _count_rows(
+        cursor,
+        "SELECT COUNT(*) FROM user_challenges WHERE user_email = %s;",
+        (email,),
+    )
+    slides_completed = _count_rows(
+        cursor,
         """
         SELECT COUNT(*)
         FROM user_slide_progress
@@ -421,14 +184,13 @@ def _load_user_metrics(cur, email: str) -> dict[str, Any] | None:
         """,
         (email,),
     )
-    slides_completed = _safe_int(cur.fetchone()[0], 0)
 
     return {
         "onboarding_completed": bool(row[2]),
         "total_xp": total_xp,
         "level": numeric_level,
         "logins_total": logins_total,
-        "login_streak": _compute_login_streak(login_dates),
+        "login_streak": _calculate_login_streak(login_dates),
         "courses_started": courses_started,
         "courses_completed": courses_completed,
         "lessons_completed": lessons_completed,
@@ -438,31 +200,32 @@ def _load_user_metrics(cur, email: str) -> dict[str, Any] | None:
     }
 
 
-def _criteria_met(criteria: dict[str, Any], metrics: dict[str, Any], event_name: str) -> bool:
-    ctype = str(criteria.get("type") or "").strip().lower()
-    if not ctype:
+def _rule_matches(rule: dict[str, Any], stats: dict[str, Any], event_name: str) -> bool:
+    """Return True if a single rule is satisfied."""
+    rule_type = str(rule.get("type") or "").strip().lower()
+    if not rule_type:
         return False
 
-    if ctype == "event":
-        expected_event = _norm_event(criteria.get("event"))
+    if rule_type == "event":
+        expected_event = _normalize_event_name(rule.get("event"))
         return bool(expected_event and expected_event == event_name)
 
-    if ctype == "all_of":
-        rules = criteria.get("rules")
-        if not isinstance(rules, list) or not rules:
+    if rule_type == "all_of":
+        child_rules = rule.get("rules")
+        if not isinstance(child_rules, list) or not child_rules:
             return False
-        return all(_criteria_met(_parse_criteria(rule), metrics, event_name) for rule in rules)
+        return all(_rule_matches(_to_criteria_dict(item), stats, event_name) for item in child_rules)
 
-    if ctype == "any_of":
-        rules = criteria.get("rules")
-        if not isinstance(rules, list) or not rules:
+    if rule_type == "any_of":
+        child_rules = rule.get("rules")
+        if not isinstance(child_rules, list) or not child_rules:
             return False
-        return any(_criteria_met(_parse_criteria(rule), metrics, event_name) for rule in rules)
+        return any(_rule_matches(_to_criteria_dict(item), stats, event_name) for item in child_rules)
 
-    if ctype == "onboarding_completed":
-        return bool(metrics.get("onboarding_completed"))
+    if rule_type == "onboarding_completed":
+        return bool(stats.get("onboarding_completed"))
 
-    metric_key_by_type = {
+    metric_name_by_rule_type = {
         "logins_total": "logins_total",
         "login_streak": "login_streak",
         "courses_started": "courses_started",
@@ -475,12 +238,12 @@ def _criteria_met(criteria: dict[str, Any], metrics: dict[str, Any], event_name:
         "level_reached": "level",
     }
 
-    metric_key = metric_key_by_type.get(ctype)
-    if not metric_key:
+    metric_name = metric_name_by_rule_type.get(rule_type)
+    if not metric_name:
         return False
 
-    current_value = _safe_int(metrics.get(metric_key), 0)
-    target_value = max(1, _safe_int(criteria.get("value"), 1))
+    current_value = _as_int(stats.get(metric_name), 0)
+    target_value = max(1, _as_int(rule.get("value"), 1))
     return current_value >= target_value
 
 
@@ -494,102 +257,96 @@ def evaluate_achievements_for_event(user_email: str, event_name: str | None = No
         return []
 
     ensure_achievement_catalog()
-    normalized_event = _norm_event(event_name)
-
-    conn = get_db_connection()
-    cur = conn.cursor()
-    unlocked_results: list[dict[str, Any]] = []
+    normalized_event = _normalize_event_name(event_name)
 
     try:
-        # Multiple rounds allow chained unlocks when achievement XP pushes a user
-        # into additional thresholds (e.g. level/XP-based achievements).
-        for _round in range(5):
-            metrics = _load_user_metrics(cur, email)
-            if metrics is None:
-                break
+        with _db_session() as (connection, cursor):
+            unlocked_achievements: list[dict[str, Any]] = []
 
-            cur.execute(
-                """
-                SELECT id, name, description, category, icon, xp_reward, rarity, unlock_criteria
-                FROM achievements
-                ORDER BY id;
-                """
-            )
-            catalog_rows = cur.fetchall()
+            # Run multiple passes so XP from one unlock can trigger another unlock.
+            for _ in range(MAX_CHAIN_UNLOCK_ROUNDS):
+                user_stats = _load_user_stats(cursor, email)
+                if user_stats is None:
+                    break
 
-            cur.execute(
-                """
-                SELECT achievement_id
-                FROM user_achievements
-                WHERE user_email = %s;
-                """,
-                (email,),
-            )
-            already_unlocked_ids = {r[0] for r in cur.fetchall()}
-
-            unlocked_this_round = 0
-            for row in catalog_rows:
-                achievement_id, name, description, category, icon, xp_reward, rarity, criteria_value = row
-                if achievement_id in already_unlocked_ids:
-                    continue
-
-                criteria = _parse_criteria(criteria_value)
-                if not _criteria_met(criteria, metrics, normalized_event):
-                    continue
-
-                cur.execute(
+                cursor.execute(
                     """
-                    INSERT INTO user_achievements
-                        (user_email, achievement_id, name, description, tier, xp_awarded)
-                    VALUES
-                        (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (user_email, achievement_id) DO NOTHING;
-                    """,
-                    (email, achievement_id, name, description, rarity, _safe_int(xp_reward)),
+                    SELECT id, name, description, category, icon, xp_reward, rarity, unlock_criteria
+                    FROM achievements
+                    ORDER BY id;
+                    """
                 )
+                catalog_entries = cursor.fetchall()
 
-                inserted = cur.rowcount == 1
-                conn.commit()
-                if not inserted:
-                    continue
+                cursor.execute(
+                    """
+                    SELECT achievement_id
+                    FROM user_achievements
+                    WHERE user_email = %s;
+                    """,
+                    (email,),
+                )
+                unlocked_ids = {row[0] for row in cursor.fetchall()}
 
-                already_unlocked_ids.add(achievement_id)
-                unlocked_this_round += 1
+                unlocks_this_pass = 0
 
-                xp_added = 0
-                new_level = metrics.get("level", 1)
-                achievement_xp = max(0, _safe_int(xp_reward))
-                if achievement_xp > 0:
-                    xp_added, new_level = add_xp_to_user(
-                        email, achievement_xp, action=f"Achievement: {achievement_id}"
+                for entry in catalog_entries:
+                    achievement_id, name, description, category, icon, xp_reward, rarity, raw_rule = entry
+                    if achievement_id in unlocked_ids:
+                        continue
+
+                    rule = _to_criteria_dict(raw_rule)
+                    if not _rule_matches(rule, user_stats, normalized_event):
+                        continue
+
+                    achievement_xp = max(0, _as_int(xp_reward))
+
+                    cursor.execute(
+                        """
+                        INSERT INTO user_achievements
+                            (user_email, achievement_id, name, description, tier, xp_awarded)
+                        VALUES
+                            (%s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (user_email, achievement_id) DO NOTHING;
+                        """,
+                        (email, achievement_id, name, description, rarity, achievement_xp),
+                    )
+                    if cursor.rowcount != 1:
+                        continue
+
+                    connection.commit()
+                    unlocked_ids.add(achievement_id)
+                    unlocks_this_pass += 1
+
+                    xp_added = 0
+                    new_level = _as_int(user_stats.get("level"), 1)
+                    if achievement_xp > 0:
+                        xp_added, new_level = add_xp_to_user(
+                            email, achievement_xp, action=f"Achievement: {achievement_id}"
+                        )
+
+                    unlocked_achievements.append(
+                        {
+                            "id": achievement_id,
+                            "name": name,
+                            "description": description,
+                            "category": category,
+                            "icon": icon or "bi-award-fill",
+                            "rarity": rarity or "common",
+                            "xp_awarded": achievement_xp,
+                            "xp_added": _as_int(xp_added, 0),
+                            "new_level": _as_int(new_level, _as_int(user_stats.get("level"), 1)),
+                        }
                     )
 
-                unlocked_results.append(
-                    {
-                        "id": achievement_id,
-                        "name": name,
-                        "description": description,
-                        "category": category,
-                        "icon": icon or "bi-award-fill",
-                        "rarity": rarity or "common",
-                        "xp_awarded": achievement_xp,
-                        "xp_added": _safe_int(xp_added, 0),
-                        "new_level": _safe_int(new_level, metrics.get("level", 1)),
-                    }
-                )
+                if unlocks_this_pass == 0:
+                    break
 
-            if unlocked_this_round == 0:
-                break
+            return unlocked_achievements
 
-        return unlocked_results
-
-    except Exception as e:
-        conn.rollback()
-        print("Achievement engine error:", e)
+    except Exception as error:
+        print("Achievement engine error:", error)
         return []
-    finally:
-        cur.close()
-        conn.close()
 
 
 def get_user_achievements_payload(user_email: str) -> dict[str, Any]:
@@ -602,69 +359,66 @@ def get_user_achievements_payload(user_email: str) -> dict[str, Any]:
         return {"success": False, "unlocked": [], "locked": [], "total_unlocked": 0, "total_available": 0}
 
     ensure_achievement_catalog()
-    conn = get_db_connection()
-    cur = conn.cursor()
-
     try:
-        cur.execute(
-            """
-            SELECT
-                ua.achievement_id AS id,
-                COALESCE(a.name, ua.name, 'Achievement') AS name,
-                COALESCE(a.description, ua.description, '') AS description,
-                COALESCE(a.rarity, ua.tier, 'common') AS rarity,
-                COALESCE(NULLIF(a.icon, ''), 'bi-award-fill') AS icon,
-                COALESCE(a.xp_reward, ua.xp_awarded, 0) AS xp_reward,
-                COALESCE(ua.xp_awarded, 0) AS xp_awarded,
-                ua.earned_at
-            FROM user_achievements ua
-            LEFT JOIN achievements a
-                ON a.id = ua.achievement_id
-            WHERE ua.user_email = %s
-            ORDER BY ua.earned_at DESC;
-            """,
-            (email,),
-        )
+        with _db_session() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT
+                    ua.achievement_id AS id,
+                    COALESCE(a.name, ua.name, 'Achievement') AS name,
+                    COALESCE(a.description, ua.description, '') AS description,
+                    COALESCE(a.rarity, ua.tier, 'common') AS rarity,
+                    COALESCE(NULLIF(a.icon, ''), 'bi-award-fill') AS icon,
+                    COALESCE(a.xp_reward, ua.xp_awarded, 0) AS xp_reward,
+                    COALESCE(ua.xp_awarded, 0) AS xp_awarded,
+                    ua.earned_at
+                FROM user_achievements ua
+                LEFT JOIN achievements a
+                    ON a.id = ua.achievement_id
+                WHERE ua.user_email = %s
+                ORDER BY ua.earned_at DESC;
+                """,
+                (email,),
+            )
 
-        unlocked = []
-        for row in cur.fetchall():
-            unlocked.append(
+            unlocked = [
                 {
                     "id": row[0],
                     "name": row[1],
                     "description": row[2],
                     "rarity": row[3],
                     "icon": row[4],
-                    "xp_reward": _safe_int(row[5], 0),
-                    "xp_awarded": _safe_int(row[6], 0),
+                    "xp_reward": _as_int(row[5], 0),
+                    "xp_awarded": _as_int(row[6], 0),
                     "earned_at": row[7].isoformat() if row[7] else None,
                 }
-            )
+                for row in cursor.fetchall()
+            ]
 
-        cur.execute(
-            """
-            SELECT id, name, description, rarity, COALESCE(NULLIF(icon, ''), 'bi-award-fill'), COALESCE(xp_reward, 0)
-            FROM achievements
-            WHERE id NOT IN (
-                SELECT achievement_id
-                FROM user_achievements
-                WHERE user_email = %s
+            cursor.execute(
+                """
+                SELECT id, name, description, rarity, COALESCE(NULLIF(icon, ''), 'bi-award-fill'), COALESCE(xp_reward, 0)
+                FROM achievements
+                WHERE id NOT IN (
+                    SELECT achievement_id
+                    FROM user_achievements
+                    WHERE user_email = %s
+                )
+                ORDER BY id;
+                """,
+                (email,),
             )
-            ORDER BY id;
-            """,
-            (email,),
-        )
-        locked = [
-            {
-                "id": row[0],
-                "name": row[1],
-                "description": row[2],
-                "rarity": row[3],
-                "icon": row[4],
-                "xp_reward": _safe_int(row[5], 0),
-            }
-            for row in cur.fetchall()
-        ]
+            locked = [
+                {
+                    "id": row[0],
+                    "name": row[1],
+                    "description": row[2],
+                    "rarity": row[3],
+                    "icon": row[4],
+                    "xp_reward": _as_int(row[5], 0),
+                }
+                for row in cursor.fetchall()
+            ]
 
         return {
             "success": True,
@@ -673,9 +427,6 @@ def get_user_achievements_payload(user_email: str) -> dict[str, Any]:
             "total_unlocked": len(unlocked),
             "total_available": len(unlocked) + len(locked),
         }
-    except Exception as e:
-        print("Achievement payload error:", e)
+    except Exception as error:
+        print("Achievement payload error:", error)
         return {"success": False, "unlocked": [], "locked": [], "total_unlocked": 0, "total_available": 0}
-    finally:
-        cur.close()
-        conn.close()

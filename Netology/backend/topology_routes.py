@@ -1,304 +1,256 @@
 """
-Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
-
-Python (Flask)
--------------------------------------------
-Topology Routes – Save and Load Topologies
-
+topology_routes.py - Sandbox topology and lesson-session API routes.
 """
-from flask import Blueprint, request, jsonify
-from db import get_db_connection
+
+from contextlib import contextmanager
 import json
+
+from flask import Blueprint, jsonify, request
+
+from db import get_db_connection
 
 topology = Blueprint("topology", __name__)
 
-
-# AI Prompt: Explain the NEW (Part 3.2): section in clear, simple terms.
-# ---------------------------
-# NEW (Part 3.2):
-# Lesson session save/load (per lesson sandbox state)
-# Stores everything in DB (no localStorage dependency)
-# ---------------------------
-"""
-AI PROMPTED CODE BELOW
-"Can you create a table and routes that save/load the sandbox state for a specific course lesson
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                so the user can return to the exact same lesson session later?"
-"""
-
-# AI Prompt: Explain the Lesson session storage section in clear, simple terms.
-# =========================================================
-# Lesson session storage
-# =========================================================
-def ensure_lesson_sessions_table():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS lesson_sessions (
-            id SERIAL PRIMARY KEY,
-            user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
-            course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
-            lesson_number INTEGER NOT NULL,
-            devices JSONB NOT NULL,
-            connections JSONB NOT NULL,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_email, course_id, lesson_number)
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+# Architecture note:
+# This module only handles runtime API behavior. Database tables should be
+# managed by netology_schema.sql migrations, not created in request handlers.
 
 
-# AI Prompt: Explain the Lesson session save route section in clear, simple terms.
-# =========================================================
-# Lesson session save route
-# =========================================================
+@contextmanager
+def _db_cursor():
+    """Open a DB connection/cursor and always close both."""
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    try:
+        yield connection, cursor
+    finally:
+        try:
+            cursor.close()
+        finally:
+            connection.close()
+
+
+def _request_data():
+    return request.get_json(silent=True) or {}
+
+
+def _json_error(message, status_code):
+    return jsonify({"success": False, "message": message}), status_code
+
+
+def _to_int(value, default=None):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_email(value):
+    return str(value or "").strip().lower()
+
+
 @topology.route("/lesson-session/save", methods=["POST"])
 def save_lesson_session():
-    """
-    Saves a sandbox session for a specific lesson.
-    Expected JSON:
-      email, course_id, lesson_number, devices, connections
-    """
-    data = request.get_json(silent=True) or {}
-    email = data.get("email")
-    course_id = data.get("course_id")
-    lesson_number = data.get("lesson_number")
+    """Save sandbox state for one user/course/lesson tuple."""
+    data = _request_data()
+    email = _normalize_email(data.get("email"))
+    course_id = _to_int(data.get("course_id"))
+    lesson_number = _to_int(data.get("lesson_number"))
     devices = data.get("devices")
     connections = data.get("connections")
 
-    if not email or not course_id or lesson_number is None:
-        return jsonify({"success": False, "message": "email, course_id and lesson_number are required."}), 400
+    if not email or course_id is None or lesson_number is None:
+        return _json_error("email, course_id and lesson_number are required.", 400)
 
-    # Devices/connections can be empty arrays, but must exist
+    # Devices/connections can be empty arrays, but both keys must be present.
     if devices is None or connections is None:
-        return jsonify({"success": False, "message": "devices and connections are required (can be empty arrays)."}), 400
+        return _json_error("devices and connections are required (can be empty arrays).", 400)
 
     try:
-        ensure_lesson_sessions_table()
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Upsert per (user, course, lesson)
-        cur.execute("""
-            INSERT INTO lesson_sessions (user_email, course_id, lesson_number, devices, connections)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (user_email, course_id, lesson_number)
-            DO UPDATE SET
-                devices = EXCLUDED.devices,
-                connections = EXCLUDED.connections,
-                updated_at = CURRENT_TIMESTAMP;
-        """, (
-            email,
-            int(course_id),
-            int(lesson_number),
-            json.dumps(devices),
-            json.dumps(connections)
-        ))
-
-        conn.commit()
-        cur.close()
-        conn.close()
+        with _db_cursor() as (connection, cursor):
+            cursor.execute(
+                """
+                INSERT INTO lesson_sessions (user_email, course_id, lesson_number, devices, connections)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (user_email, course_id, lesson_number)
+                DO UPDATE SET
+                    devices = EXCLUDED.devices,
+                    connections = EXCLUDED.connections,
+                    updated_at = CURRENT_TIMESTAMP;
+                """,
+                (
+                    email,
+                    course_id,
+                    lesson_number,
+                    json.dumps(devices),
+                    json.dumps(connections),
+                ),
+            )
+            connection.commit()
 
         return jsonify({"success": True, "message": "Lesson session saved."})
+    except Exception as error:
+        print("save_lesson_session error:", error)
+        return _json_error("Could not save lesson session.", 500)
 
-    except Exception as e:
-        print("save_lesson_session error:", e)
-        return jsonify({"success": False, "message": "Could not save lesson session."}), 500
 
-
-# AI Prompt: Explain the Lesson session load route section in clear, simple terms.
-# =========================================================
-# Lesson session load route
-# =========================================================
 @topology.route("/lesson-session/load", methods=["GET"])
 def load_lesson_session():
-    """
-    Loads a sandbox session for a specific lesson.
-    Query params:
-      email, course_id, lesson_number
-    """
-    email = request.args.get("email")
-    course_id = request.args.get("course_id")
-    lesson_number = request.args.get("lesson_number")
+    """Load sandbox state for one user/course/lesson tuple."""
+    email = _normalize_email(request.args.get("email"))
+    course_id = _to_int(request.args.get("course_id"))
+    lesson_number = _to_int(request.args.get("lesson_number"))
 
-    if not email or not course_id or lesson_number is None:
-        return jsonify({"success": False, "message": "email, course_id and lesson_number are required."}), 400
+    if not email or course_id is None or lesson_number is None:
+        return _json_error("email, course_id and lesson_number are required.", 400)
 
     try:
-        ensure_lesson_sessions_table()
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT devices, connections, updated_at
+                FROM lesson_sessions
+                WHERE user_email = %s AND course_id = %s AND lesson_number = %s
+                LIMIT 1;
+                """,
+                (email, course_id, lesson_number),
+            )
+            row = cursor.fetchone()
 
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT devices, connections, updated_at
-            FROM lesson_sessions
-            WHERE user_email = %s AND course_id = %s AND lesson_number = %s
-            LIMIT 1;
-        """, (email, int(course_id), int(lesson_number)))
-
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
-
-        # If nothing saved yet, return empty session (still success)
+        # If nothing saved yet, return empty session (still success).
         if not row:
-            return jsonify({
+            return jsonify(
+                {
+                    "success": True,
+                    "found": False,
+                    "devices": [],
+                    "connections": [],
+                    "updated_at": None,
+                }
+            )
+
+        return jsonify(
+            {
                 "success": True,
-                "found": False,
-                "devices": [],
-                "connections": [],
-                "updated_at": None
-            })
-
-        return jsonify({
-            "success": True,
-            "found": True,
-            "devices": row[0] or [],
-            "connections": row[1] or [],
-            "updated_at": row[2]
-        })
-
-    except Exception as e:
-        print("load_lesson_session error:", e)
-        return jsonify({"success": False, "message": "Could not load lesson session."}), 500
+                "found": True,
+                "devices": row[0] or [],
+                "connections": row[1] or [],
+                "updated_at": row[2],
+            }
+        )
+    except Exception as error:
+        print("load_lesson_session error:", error)
+        return _json_error("Could not load lesson session.", 500)
 
 
-# saving and loading topologies
-# AI Prompt: Explain the Save topology route section in clear, simple terms.
-# =========================================================
-# Save topology route
-# =========================================================
 @topology.route("/save-topology", methods=["POST"])
 def save_topology():
-    data = request.get_json()
-
-    email = data.get("email")
+    """Save a named topology snapshot for a user."""
+    data = _request_data()
+    email = _normalize_email(data.get("email"))
     name = data.get("name")
     devices = data.get("devices")
     connections = data.get("connections")
 
-    if not email or not devices:
-        return jsonify({"success": False, "message": "Missing data"}), 400
+    # Keep existing behavior for devices (must be truthy) and also guard
+    # connections to avoid DB NOT NULL errors.
+    if not email or not devices or connections is None:
+        return _json_error("Missing data", 400)
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        cur.execute("""
-            INSERT INTO saved_topologies (user_email, name, devices, connections)
-            VALUES (%s, %s, %s, %s)
-        """, (email, name, json.dumps(devices), json.dumps(connections)))
-
-        conn.commit()
-        cur.close(); conn.close()
+        with _db_cursor() as (connection, cursor):
+            cursor.execute(
+                """
+                INSERT INTO saved_topologies (user_email, name, devices, connections)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (email, name, json.dumps(devices), json.dumps(connections)),
+            )
+            connection.commit()
 
         return jsonify({"success": True, "message": "Topology saved!"})
+    except Exception as error:
+        print("save_topology error:", error)
+        return _json_error("Save failed", 500)
 
-    except Exception as e:
-        print("Save error:", e)
-        return jsonify({"success": False, "message": "Save failed"}), 500
 
-# Loading saved topologies
-# AI Prompt: Explain the Load topologies list section in clear, simple terms.
-# =========================================================
-# Load topologies list
-# =========================================================
 @topology.route("/load-topologies", methods=["GET"])
 def load_topologies():
-    email = request.args.get("email")
+    """Load all saved topologies for one user."""
+    email = _normalize_email(request.args.get("email"))
     if not email:
-        return jsonify({"success": False, "message": "Email required."}), 400
+        return _json_error("Email required.", 400)
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT id, name, devices, connections, created_at
+                FROM saved_topologies
+                WHERE user_email = %s
+                ORDER BY created_at DESC
+                """,
+                (email,),
+            )
+            rows = cursor.fetchall()
 
-        cur.execute("""
-            SELECT id, name, devices, connections, created_at
-            FROM saved_topologies
-            WHERE user_email = %s
-            ORDER BY created_at DESC
-        """, (email,))
-
-        rows = cur.fetchall()
-        cur.close(); conn.close()
-
-        topologies = []
-        for r in rows:
-            topologies.append({
-                "id": r[0],
-                "name": r[1],
-                "devices": r[2],
-                "connections": r[3],
-                "created_at": r[4]
-            })
-
+        topologies = [
+            {
+                "id": row[0],
+                "name": row[1],
+                "devices": row[2],
+                "connections": row[3],
+                "created_at": row[4],
+            }
+            for row in rows
+        ]
         return jsonify({"success": True, "topologies": topologies})
+    except Exception as error:
+        print("load_topologies error:", error)
+        return _json_error("Could not load topologies.", 500)
 
-    except Exception as e:
-        print("Load topologies error:", e)
-        return jsonify({"success": False, "message": "Could not load topologies."}), 500
 
-# Loading a specific topology by ID
-# AI Prompt: Explain the Load single topology section in clear, simple terms.
-# =========================================================
-# Load single topology
-# =========================================================
 @topology.route("/load-topology/<int:tid>", methods=["GET"])
 def load_topology(tid):
-    conn = get_db_connection()
-    cur = conn.cursor()
+    """Load one saved topology by its ID."""
+    try:
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT devices, connections
+                FROM saved_topologies
+                WHERE id = %s
+                """,
+                (tid,),
+            )
+            row = cursor.fetchone()
 
-    cur.execute("""
-        SELECT devices, connections
-        FROM saved_topologies
-        WHERE id = %s
-    """, (tid,))
+        if not row:
+            return _json_error("Not found", 404)
 
-    row = cur.fetchone()
-    cur.close(); conn.close()
+        return jsonify({"success": True, "devices": row[0], "connections": row[1]})
+    except Exception as error:
+        print("load_topology error:", error)
+        return _json_error("Could not load topology.", 500)
 
-    if not row:
-        return jsonify({"success": False, "message": "Not found"}), 404
 
-    return jsonify({
-        "success": True,
-        "devices": row[0],
-        "connections": row[1]
-    })
-
-# Deleting a topology by ID
-# AI Prompt: Explain the Delete topology section in clear, simple terms.
-# =========================================================
-# Delete topology
-# =========================================================
 @topology.route("/delete-topology/<int:tid>", methods=["DELETE"])
 def delete_topology(tid):
-    data = request.get_json(silent=True) or {}
-    email = data.get("email")
+    """Delete one topology if it belongs to the requesting user."""
+    data = _request_data()
+    email = _normalize_email(data.get("email"))
     if not email:
-        return jsonify({"success": False, "message": "Email required."}), 400
+        return _json_error("Email required.", 400)
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Only delete if this topology belongs to the requesting user
-        cur.execute("DELETE FROM saved_topologies WHERE id = %s AND user_email = %s", (tid, email))
-        conn.commit()
-
-        cur.close(); conn.close()
+        with _db_cursor() as (connection, cursor):
+            cursor.execute(
+                "DELETE FROM saved_topologies WHERE id = %s AND user_email = %s",
+                (tid, email),
+            )
+            connection.commit()
 
         return jsonify({"success": True, "message": "Topology deleted."})
-
-    except Exception as e:
-        print("Delete error:", e)
-        return jsonify({"success": False, "message": "Delete failed"}), 500
+    except Exception as error:
+        print("delete_topology error:", error)
+        return _json_error("Delete failed", 500)

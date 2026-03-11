@@ -1,272 +1,172 @@
 """
-Student Number: C22320301
-Student Name: Jamie O’Neill
-Course Code: TU857/4
-Date: 10/11/2025
-
-Python (Flask)
--------------------------------------------
-course_routes.py – Handles all course backend logic.
-
-List all courses
-Get details for a single course
-Load course list with user progress
-Start a course
-Complete a lesson (updates progress + XP)
-Complete an entire course instantly
-
-UPDATED (Part 2):
-- Track lesson completion by lesson_number (optional, backwards compatible)
-- Award XP for quiz completion (once per lesson)
-- Award XP for sandbox challenge completion (once per lesson)
+course_routes.py — Course and progress API routes.
 """
 
-from flask import Blueprint, request, jsonify
-from db import get_db_connection
-from xp_system import add_xp_to_user
-from achievement_engine import evaluate_achievements_for_event
+from contextlib import contextmanager
 
-# Blueprint for all courseAPI routes
+from flask import Blueprint, jsonify, request
+
+from achievement_engine import evaluate_achievements_for_event
+from db import get_db_connection
+from xp_system import add_xp_to_user, DEFAULT_CHALLENGE_XP, DEFAULT_QUIZ_XP
+
 courses = Blueprint("courses", __name__)
 
+# Architecture note:
+# Routes decide when XP is awarded; xp_system.py is the source of XP math,
+# persistence, and fallback XP policy constants.
 
-# AI Prompt: Explain the XP payload helper section in clear, simple terms.
-# =========================================================
-# XP payload helpers
-# =========================================================
-def _coerce_xp(value, fallback, max_xp=None):
-    """Coerce XP payloads to a safe integer with optional cap."""
+
+@contextmanager
+def _db_cursor():
+    """Open a DB connection and cursor, always closing both."""
+    connection = get_db_connection()
+    cursor = connection.cursor()
     try:
-        xp_val = int(value)
-    except (TypeError, ValueError):
-        xp_val = None
-
-    if xp_val is None or xp_val < 0:
-        xp_val = int(fallback or 0)
-
-    if max_xp is not None:
+        yield connection, cursor
+    finally:
         try:
-            xp_val = min(int(xp_val), int(max_xp))
-        except (TypeError, ValueError):
-            pass
-
-    return int(xp_val)
+            cursor.close()
+        finally:
+            connection.close()
 
 
-"""
-AI PROMPTED CODE BELOW
-Can you write helper functions that create tables (if they do not exist) to store:
-- completed lessons per user per course
-- completed quizzes per user per course per lesson
-- completed challenges per user per course per lesson
-These tables should prevent duplicate completions using UNIQUE constraints.
-"""
-
-# AI Prompt: Explain the Completion tables setup section in clear, simple terms.
-# =========================================================
-# Completion tables setup
-# =========================================================
-def ensure_user_lessons_table():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_lessons (
-            id SERIAL PRIMARY KEY,
-            user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
-            course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
-            lesson_number INTEGER NOT NULL,
-            xp_awarded INTEGER DEFAULT 0,
-            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_email, course_id, lesson_number)
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+def _request_data():
+    return request.get_json(silent=True) or request.form or {}
 
 
-def ensure_user_quizzes_table():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_quizzes (
-            id SERIAL PRIMARY KEY,
-            user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
-            course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
-            lesson_number INTEGER NOT NULL,
-            xp_awarded INTEGER DEFAULT 0,
-            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_email, course_id, lesson_number)
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+def _json_error(message, status_code):
+    return jsonify({"success": False, "message": message}), status_code
 
 
-def ensure_user_challenges_table():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_challenges (
-            id SERIAL PRIMARY KEY,
-            user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
-            course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
-            lesson_number INTEGER NOT NULL,
-            xp_awarded INTEGER DEFAULT 0,
-            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_email, course_id, lesson_number)
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+def _to_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
 
 
-""""
-AI PROMPTED CODE BELOW
-Can you write a route that lists all courses from my PostgreSQL database
+def _coerce_xp(value, fallback, max_xp=None):
+    xp_value = _to_int(value, fallback)
+    if xp_value < 0:
+        xp_value = _to_int(fallback, 0)
+    if max_xp is not None:
+        xp_value = min(xp_value, _to_int(max_xp, xp_value))
+    return int(xp_value)
 
-List All Courses
----
-Returns a list of all active courses.
-"""
-# AI Prompt: Explain the Course catalog endpoints section in clear, simple terms.
-# =========================================================
-# Course catalog endpoints
-# =========================================================
+
+def _course_row_to_payload(row):
+    return {
+        "id": row[0],
+        "title": row[1],
+        "description": row[2],
+        "total_lessons": row[3],
+        "module_count": row[4],
+        "xp_reward": row[5],
+        "difficulty": row[6],
+        "category": row[7],
+        "required_level": row[8],
+        "estimated_time": row[9],
+    }
+
+
+def _achievement_result(email, event_name):
+    try:
+        unlocked = evaluate_achievements_for_event(email, event_name) or []
+    except Exception as error:
+        print(f"Achievement evaluation error ({event_name}):", error)
+        unlocked = []
+    xp_added = sum(_to_int(item.get("xp_added"), 0) for item in unlocked)
+    return unlocked, xp_added
+
+
+def _require_email_and_course(data):
+    email = (data.get("email") or "").strip().lower()
+    course_id = _to_int(data.get("course_id"), 0)
+    if not email or course_id <= 0:
+        return None, None, _json_error("Email and course_id required.", 400)
+    return email, course_id, None
+
+
 @courses.route("/courses", methods=["GET"])
 def list_courses():
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT id, title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time
-            FROM courses
-            WHERE is_active = TRUE
-            ORDER BY id;
-        """)
-
-        rows = cur.fetchall()
-        cur.close(); conn.close()
-
-        # Convert rows  into JSON objects
-        courses_list = [
-            {
-                "id": r[0],
-                "title": r[1],
-                "description": r[2],
-                "total_lessons": r[3],
-                "module_count": r[4],
-                "xp_reward": r[5],
-                "difficulty": r[6],
-                "category": r[7],
-                "required_level": r[8],
-                "estimated_time": r[9],
-            }
-            for r in rows
-        ]
-
-        return jsonify({"success": True, "courses": courses_list})
-
-    except Exception as e:
-        print("Error listing courses:", e)
-        return jsonify({"success": False, "message": "Could not load courses."}), 500
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT
+                    id, title, description, total_lessons, module_count,
+                    xp_reward, difficulty, category, required_level, estimated_time
+                FROM courses
+                WHERE is_active = TRUE
+                ORDER BY id
+                """
+            )
+            rows = cursor.fetchall()
+        return jsonify({"success": True, "courses": [_course_row_to_payload(row) for row in rows]})
+    except Exception as error:
+        print("List courses error:", error)
+        return _json_error("Could not load courses.", 500)
 
 
-""""
-AI PROMPTED CODE BELOW
-Can you write a route that gets course details of a single from my PostgreSQL database
-
-Get Course Details
----
-Returns details for one Course
-"""
 @courses.route("/course", methods=["GET"])
 def get_course():
-    course_id = request.args.get("id")
-    if not course_id:
-        return jsonify({"success": False, "message": "Course ID required."}), 400
+    course_id = _to_int(request.args.get("id"), 0)
+    if course_id <= 0:
+        return _json_error("Course ID required.", 400)
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT id, title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time
-            FROM courses
-            WHERE id = %s AND is_active = TRUE;
-        """, (course_id,))
-
-        row = cur.fetchone()
-        cur.close(); conn.close()
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT
+                    id, title, description, total_lessons, module_count,
+                    xp_reward, difficulty, category, required_level, estimated_time
+                FROM courses
+                WHERE id = %s AND is_active = TRUE
+                """,
+                (course_id,),
+            )
+            row = cursor.fetchone()
 
         if not row:
-            return jsonify({"success": False, "message": "Course not found."}), 404
+            return _json_error("Course not found.", 404)
 
-        return jsonify({
-            "success": True,
-            "id": row[0],
-            "title": row[1],
-            "description": row[2],
-            "total_lessons": row[3],
-            "module_count": row[4],
-            "xp_reward": row[5],
-            "difficulty": row[6],
-            "category": row[7],
-            "required_level": row[8],
-            "estimated_time": row[9],
-        })
-
-    except Exception as e:
-        print("Error loading course:", e)
-        return jsonify({"success": False, "message": "Error fetching course."}), 500
+        return jsonify({"success": True, **_course_row_to_payload(row)})
+    except Exception as error:
+        print("Get course error:", error)
+        return _json_error("Error fetching course.", 500)
 
 
-""""
-AI PROMPTED CODE BELOW
-Can you write me a route that shows all of the courses that are currently in progress for a user.
-
-Courses with User Progress
----
-Returns all courses with a user's progress (0–100%).
-"""
-# AI Prompt: Explain the User course tracking section in clear, simple terms.
-# =========================================================
-# User course tracking
-# =========================================================
 @courses.route("/user-courses", methods=["GET"])
 def user_courses():
-    email = request.args.get("email")
+    email = (request.args.get("email") or "").strip().lower()
     if not email:
-        return jsonify({"success": False, "message": "Email required."}), 400
+        return _json_error("Email required.", 400)
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT
+                    c.id, c.title, c.description, c.total_lessons, c.module_count, c.xp_reward,
+                    c.difficulty, c.category, c.required_level, c.estimated_time,
+                    COALESCE(uc.progress, 0),
+                    COALESCE(uc.completed, FALSE)
+                FROM courses c
+                LEFT JOIN user_courses uc
+                    ON uc.course_id = c.id AND uc.user_email = %s
+                WHERE c.is_active = TRUE
+                ORDER BY c.id
+                """,
+                (email,),
+            )
+            rows = cursor.fetchall()
 
-        cur.execute("""
-            SELECT
-                c.id, c.title, c.description, c.total_lessons, c.module_count, c.xp_reward,
-                c.difficulty, c.category, c.required_level, c.estimated_time,
-                COALESCE(uc.progress, 0),
-                COALESCE(uc.completed, FALSE)
-            FROM courses c
-            LEFT JOIN user_courses uc
-                ON uc.course_id = c.id AND uc.user_email = %s
-            WHERE c.is_active = TRUE
-            ORDER BY c.id;
-        """, (email,))
-
-        rows = cur.fetchall()
-        cur.close(); conn.close()
-
-        # Convert rows to  JSON objects
         course_list = []
-        for r in rows:
-            course_id, title, desc, lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time, progress, completed = r
-
+        for row in rows:
+            progress = _to_int(row[10], 0)
+            completed = bool(row[11])
             if completed:
                 status = "completed"
             elif progress > 0:
@@ -274,690 +174,535 @@ def user_courses():
             else:
                 status = "not-started"
 
-            course_list.append({
-                "id": course_id,
-                "title": title,
-                "description": desc,
-                "total_lessons": lessons,
-                "module_count": module_count,
-                "xp_reward": xp_reward,
-                "difficulty": difficulty,
-                "category": category,
-                "required_level": required_level,
-                "estimated_time": estimated_time,
-                "progress_pct": int(progress),
-                "status": status,
-            })
+            course_list.append(
+                {
+                    "id": row[0],
+                    "title": row[1],
+                    "description": row[2],
+                    "total_lessons": row[3],
+                    "module_count": row[4],
+                    "xp_reward": row[5],
+                    "difficulty": row[6],
+                    "category": row[7],
+                    "required_level": row[8],
+                    "estimated_time": row[9],
+                    "progress_pct": progress,
+                    "status": status,
+                }
+            )
 
         return jsonify({"success": True, "courses": course_list})
+    except Exception as error:
+        print("User courses error:", error)
+        return _json_error("Could not load user courses.", 500)
 
-    except Exception as e:
-        print("User course error:", e)
-        return jsonify({"success": False, "message": "Could not load user courses."}), 500
 
-
-""""
-AI PROMPTED CODE BELOW
-Can you write a route that allows a user to start a course in my PostgreSQL database
-
-Start Course
----
-Marks a course as started
-"""
-# AI Prompt: Explain the Course start section in clear, simple terms.
-# =========================================================
-# Course start
-# =========================================================
 @courses.route("/start-course", methods=["POST"])
 def start_course():
-    data = request.get_json(silent=True) or request.form
-    email = data.get("email")
-    course_id = data.get("course_id")
-
-    if not email or not course_id:
-        return jsonify({"success": False, "message": "Email and course_id required."}), 400
+    data = _request_data()
+    email, course_id, error_response = _require_email_and_course(data)
+    if error_response:
+        return error_response
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+        with _db_cursor() as (connection, cursor):
+            cursor.execute(
+                """
+                INSERT INTO user_courses (user_email, course_id, progress, completed)
+                VALUES (%s, %s, 1, FALSE)
+                ON CONFLICT (user_email, course_id)
+                DO UPDATE SET progress = 1, completed = FALSE, updated_at = CURRENT_TIMESTAMP
+                """,
+                (email, course_id),
+            )
+            connection.commit()
 
-        # Insert or reset progress
-        cur.execute("""
-            INSERT INTO user_courses (user_email, course_id, progress, completed)
-            VALUES (%s, %s, 1, FALSE)
-            ON CONFLICT (user_email, course_id)
-            DO UPDATE SET progress = 1, completed = FALSE, updated_at = CURRENT_TIMESTAMP;
-        """, (email, course_id))
-
-        conn.commit()
-        cur.close(); conn.close()
-
-        newly_unlocked = evaluate_achievements_for_event(email, "course_start")
-        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
-
-        return jsonify({
-            "success": True,
-            "message": "Course started.",
-            "newly_unlocked": newly_unlocked,
-            "achievement_xp_added": achievement_xp_added,
-        })
-
-    except Exception as e:
-        print("Start course error:", e)
-        return jsonify({"success": False, "message": "Could not start course."}), 500
+        unlocked, achievement_xp_added = _achievement_result(email, "course_start")
+        return jsonify(
+            {
+                "success": True,
+                "message": "Course started.",
+                "newly_unlocked": unlocked,
+                "achievement_xp_added": achievement_xp_added,
+            }
+        )
+    except Exception as error:
+        print("Start course error:", error)
+        return _json_error("Could not start course.", 500)
 
 
-""""
-AI PROMPTED CODE BELOW
-Can you write a route that allows a user to complete a lesson in my PostgreSQL database and uses the XP system to award XP from XP_system.py
-
-Update courses progress
----
-Increases lesson progress, makes course as complete and awards XP.
-
-UPDATED (Backwards Compatible):
-- If lesson_number is provided, we store a completion row in user_lessons to prevent duplicate XP.
-- If lesson_number is NOT provided, we use the original progress step logic (your existing behavior).
-"""
-# AI Prompt: Explain the Lesson completion + XP section in clear, simple terms.
-# =========================================================
-# Lesson completion + XP
-# =========================================================
 @courses.route("/complete-lesson", methods=["POST"])
 def complete_lesson():
-    """Increases lesson progress and awards XP."""
-    data = request.get_json(silent=True) or request.form
-    email = data.get("email")
-    course_id = data.get("course_id")
-    lesson_number = data.get("lesson_number")  # optional
+    data = _request_data()
+    email, course_id, error_response = _require_email_and_course(data)
+    if error_response:
+        return error_response
+
+    lesson_number_raw = data.get("lesson_number")
+    lesson_number = _to_int(lesson_number_raw, 0) if lesson_number_raw is not None else None
     earned_xp = data.get("earned_xp") or data.get("xp")
 
-    if not email or not course_id:
-        return jsonify({"success": False, "message": "Email and course_id required."}), 400
-
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+        with _db_cursor() as (connection, cursor):
+            cursor.execute(
+                """
+                SELECT
+                    c.total_lessons,
+                    c.xp_reward,
+                    COALESCE(uc.progress, 0),
+                    COALESCE(uc.completed, FALSE)
+                FROM courses c
+                LEFT JOIN user_courses uc
+                    ON uc.course_id = c.id AND uc.user_email = %s
+                WHERE c.id = %s
+                """,
+                (email, course_id),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return _json_error("Course not found.", 404)
 
-        # Fetch course and user progress
-        cur.execute("""
-            SELECT c.total_lessons, c.xp_reward,
-                   COALESCE(uc.progress, 0),
-                   COALESCE(uc.completed, FALSE)
-            FROM courses c
-            LEFT JOIN user_courses uc
-                ON uc.course_id = c.id AND uc.user_email = %s
-            WHERE c.id = %s;
-        """, (email, course_id))
+            total_lessons = max(1, _to_int(row[0], 1))
+            course_xp_reward = max(0, _to_int(row[1], 0))
+            current_progress = max(0, _to_int(row[2], 0))
+            xp_per_lesson = course_xp_reward // total_lessons
+            xp_award = _coerce_xp(earned_xp, xp_per_lesson, max_xp=course_xp_reward)
 
-        row = cur.fetchone()
+            cursor.execute(
+                """
+                INSERT INTO user_courses (user_email, course_id, progress, completed)
+                VALUES (%s, %s, 0, FALSE)
+                ON CONFLICT DO NOTHING
+                """,
+                (email, course_id),
+            )
 
-        if not row:
-            cur.close(); conn.close()
-            return jsonify({"success": False, "message": "Course not found."}), 404
+            if lesson_number is not None:
+                cursor.execute(
+                    """
+                    INSERT INTO user_lessons (user_email, course_id, lesson_number, xp_awarded)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING
+                    """,
+                    (email, course_id, lesson_number, xp_award),
+                )
+                newly_added = cursor.rowcount == 1
 
-        total_lessons, xp_reward, current_progress, completed = row
+                cursor.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM user_lessons
+                    WHERE user_email = %s AND course_id = %s
+                    """,
+                    (email, course_id),
+                )
+                completed_count = _to_int(cursor.fetchone()[0], 0)
+                progress_pct = min(100, int((completed_count / total_lessons) * 100))
+                completed_flag = completed_count >= total_lessons
 
-        # Ensure user_course row exists
-        cur.execute("""
-            INSERT INTO user_courses (user_email, course_id, progress, completed)
-            VALUES (%s, %s, 0, FALSE)
-            ON CONFLICT DO NOTHING;
-        """, (email, course_id))
+                cursor.execute(
+                    """
+                    UPDATE user_courses
+                    SET progress = %s, completed = %s, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_email = %s AND course_id = %s
+                    """,
+                    (progress_pct, completed_flag, email, course_id),
+                )
+                connection.commit()
 
-        xp_per_lesson = xp_reward // max(total_lessons, 1)
-        xp_award = _coerce_xp(earned_xp, xp_per_lesson, max_xp=xp_reward)
-
-        # --- NEW METHOD (lesson_number given): store completion and calculate progress from count ---
-        if lesson_number is not None:
-            ensure_user_lessons_table()
-
-            # Try insert (only once)
-            cur.execute("""
-                INSERT INTO user_lessons (user_email, course_id, lesson_number, xp_awarded)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING;
-            """, (email, course_id, int(lesson_number), int(xp_award)))
-
-            newly_added = (cur.rowcount == 1)
-
-            # Count completed lessons
-            cur.execute("""
-                SELECT COUNT(*)
-                FROM user_lessons
-                WHERE user_email = %s AND course_id = %s;
-            """, (email, course_id))
-            completed_count = cur.fetchone()[0]
-
-            new_progress = int((completed_count / max(total_lessons, 1)) * 100)
-            completed_flag = completed_count >= total_lessons
-
-            # Update progress
-            cur.execute("""
-                UPDATE user_courses
-                   SET progress = %s, completed = %s, updated_at = CURRENT_TIMESTAMP
-                 WHERE user_email = %s AND course_id = %s;
-            """, (new_progress, completed_flag, email, course_id))
-
-            conn.commit()
-            cur.close(); conn.close()
-
-            # Award XP only if new completion
-            if newly_added:
-                xp_added, new_level = add_xp_to_user(email, xp_award, action="Lesson Completed")
-            else:
                 xp_added, new_level = (0, 0)
+                if newly_added:
+                    xp_added, new_level = add_xp_to_user(email, xp_award, action="Lesson Completed")
 
-            newly_unlocked = evaluate_achievements_for_event(email, "lesson_complete")
-            achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+                unlocked, achievement_xp_added = _achievement_result(email, "lesson_complete")
+                return jsonify(
+                    {
+                        "success": True,
+                        "progress_pct": int(progress_pct),
+                        "completed": completed_flag,
+                        "xp_added": xp_added,
+                        "new_level": new_level,
+                        "already_completed": not newly_added,
+                        "newly_unlocked": unlocked,
+                        "achievement_xp_added": achievement_xp_added,
+                    }
+                )
 
-            return jsonify({
+            step = 100 / total_lessons
+            progress_pct = min(100, int(current_progress + step))
+            completed_flag = progress_pct >= 100
+
+            cursor.execute(
+                """
+                UPDATE user_courses
+                SET progress = %s, completed = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE user_email = %s AND course_id = %s
+                """,
+                (progress_pct, completed_flag, email, course_id),
+            )
+            connection.commit()
+
+        xp_added, new_level = add_xp_to_user(email, xp_award, action="Lesson Completed")
+        unlocked, achievement_xp_added = _achievement_result(email, "lesson_complete")
+        return jsonify(
+            {
                 "success": True,
-                "progress_pct": int(new_progress),
+                "progress_pct": int(progress_pct),
                 "completed": completed_flag,
                 "xp_added": xp_added,
                 "new_level": new_level,
-                "already_completed": (not newly_added),
-                "newly_unlocked": newly_unlocked,
+                "newly_unlocked": unlocked,
                 "achievement_xp_added": achievement_xp_added,
-            })
-
-        # --- ORIGINAL METHOD (no lesson_number): keep your existing step behavior ---
-        step = 100 / max(total_lessons, 1)
-        new_progress = min(100, current_progress + step)
-        completed_flag = new_progress >= 100
-
-        # Update progress
-        cur.execute("""
-            UPDATE user_courses
-               SET progress = %s, completed = %s, updated_at = CURRENT_TIMESTAMP
-             WHERE user_email = %s AND course_id = %s;
-        """, (new_progress, completed_flag, email, course_id))
-
-        conn.commit()
-        cur.close(); conn.close()
-
-        xp_added, new_level = add_xp_to_user(email, xp_award, action="Lesson Completed")
-        newly_unlocked = evaluate_achievements_for_event(email, "lesson_complete")
-        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
-
-        return jsonify({
-            "success": True,
-            "progress_pct": int(new_progress),
-            "completed": completed_flag,
-            "xp_added": xp_added,
-            "new_level": new_level,
-            "newly_unlocked": newly_unlocked,
-            "achievement_xp_added": achievement_xp_added,
-        })
-
-    except Exception as e:
-        print("Complete lesson error:", e)
-        return jsonify({"success": False, "message": "Could not update lesson."}), 500
+            }
+        )
+    except Exception as error:
+        print("Complete lesson error:", error)
+        return _json_error("Could not update lesson.", 500)
 
 
-""""
-AI PROMPTED CODE BELOW
-Can you write a route that awards XP when a user completes a quiz for a lesson.
-The completion should be stored in the database so XP cannot be earned twice for the same quiz.
-
-Complete Quiz
----
-Marks a quiz as completed for (user, course, lesson_number) and awards XP once.
-"""
-# AI Prompt: Explain the Quiz completion + XP section in clear, simple terms.
-# =========================================================
-# Quiz completion + XP
-# =========================================================
 @courses.route("/complete-quiz", methods=["POST"])
 def complete_quiz():
-    data = request.get_json(silent=True) or request.form
-    email = data.get("email")
-    course_id = data.get("course_id")
-    lesson_number = data.get("lesson_number")
-    earned_xp = data.get("earned_xp") or data.get("xp")
+    data = _request_data()
+    email, course_id, error_response = _require_email_and_course(data)
+    if error_response:
+        return error_response
 
-    if not email or not course_id or lesson_number is None:
-        return jsonify({"success": False, "message": "Email, course_id and lesson_number required."}), 400
+    lesson_number = _to_int(data.get("lesson_number"), -1)
+    if lesson_number < 0:
+        return _json_error("Email, course_id and lesson_number required.", 400)
+
+    earned_xp = data.get("earned_xp") or data.get("xp")
+    xp_award = _coerce_xp(earned_xp, DEFAULT_QUIZ_XP)
 
     try:
-        ensure_user_quizzes_table()
+        with _db_cursor() as (connection, cursor):
+            cursor.execute(
+                """
+                INSERT INTO user_quizzes (user_email, course_id, lesson_number, xp_awarded)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING
+                """,
+                (email, course_id, lesson_number, xp_award),
+            )
+            newly_added = cursor.rowcount == 1
+            connection.commit()
 
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Insert once
-        xp_award = _coerce_xp(earned_xp, 5)
-
-        cur.execute("""
-            INSERT INTO user_quizzes (user_email, course_id, lesson_number, xp_awarded)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING;
-        """, (email, course_id, int(lesson_number), int(xp_award)))
-
-        newly_added = (cur.rowcount == 1)
-
-        conn.commit()
-        cur.close(); conn.close()
-
-        # Simple XP amount for quiz
+        xp_added, new_level = (0, 0)
         if newly_added:
             xp_added, new_level = add_xp_to_user(email, xp_award, action="Quiz Completed")
-        else:
-            xp_added, new_level = (0, 0)
 
-        newly_unlocked = evaluate_achievements_for_event(email, "quiz_complete")
-        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
-
-        return jsonify({
-            "success": True,
-            "xp_added": xp_added,
-            "new_level": new_level,
-            "already_completed": (not newly_added),
-            "newly_unlocked": newly_unlocked,
-            "achievement_xp_added": achievement_xp_added,
-        })
-
-    except Exception as e:
-        print("Complete quiz error:", e)
-        return jsonify({"success": False, "message": "Could not complete quiz."}), 500
+        unlocked, achievement_xp_added = _achievement_result(email, "quiz_complete")
+        return jsonify(
+            {
+                "success": True,
+                "xp_added": xp_added,
+                "new_level": new_level,
+                "already_completed": not newly_added,
+                "newly_unlocked": unlocked,
+                "achievement_xp_added": achievement_xp_added,
+            }
+        )
+    except Exception as error:
+        print("Complete quiz error:", error)
+        return _json_error("Could not complete quiz.", 500)
 
 
-""""
-AI PROMPTED CODE BELOW
-Can you write a route that awards XP when a user completes a sandbox challenge for a lesson.
-The completion should be stored in the database so XP cannot be earned twice for the same challenge.
-
-Complete Challenge
----
-Marks a challenge as completed for (user, course, lesson_number) and awards XP once.
-"""
-# AI Prompt: Explain the Challenge completion + XP section in clear, simple terms.
-# =========================================================
-# Challenge completion + XP
-# =========================================================
 @courses.route("/complete-challenge", methods=["POST"])
 def complete_challenge():
-    data = request.get_json(silent=True) or request.form
-    email = data.get("email")
-    course_id = data.get("course_id")
-    lesson_number = data.get("lesson_number")
-    earned_xp = data.get("earned_xp") or data.get("xp")
+    data = _request_data()
+    email, course_id, error_response = _require_email_and_course(data)
+    if error_response:
+        return error_response
 
-    if not email or not course_id or lesson_number is None:
-        return jsonify({"success": False, "message": "Email, course_id and lesson_number required."}), 400
+    lesson_number = _to_int(data.get("lesson_number"), -1)
+    if lesson_number < 0:
+        return _json_error("Email, course_id and lesson_number required.", 400)
+
+    earned_xp = data.get("earned_xp") or data.get("xp")
+    xp_award = _coerce_xp(earned_xp, DEFAULT_CHALLENGE_XP)
 
     try:
-        ensure_user_challenges_table()
+        with _db_cursor() as (connection, cursor):
+            cursor.execute(
+                """
+                INSERT INTO user_challenges (user_email, course_id, lesson_number, xp_awarded)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING
+                """,
+                (email, course_id, lesson_number, xp_award),
+            )
+            newly_added = cursor.rowcount == 1
+            connection.commit()
 
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Insert once
-        xp_award = _coerce_xp(earned_xp, 15)
-
-        cur.execute("""
-            INSERT INTO user_challenges (user_email, course_id, lesson_number, xp_awarded)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (user_email, course_id, lesson_number) DO NOTHING;
-        """, (email, course_id, int(lesson_number), int(xp_award)))
-
-        newly_added = (cur.rowcount == 1)
-
-        conn.commit()
-        cur.close(); conn.close()
-
-        # Simple XP amount for challenge
+        xp_added, new_level = (0, 0)
         if newly_added:
             xp_added, new_level = add_xp_to_user(email, xp_award, action="Challenge Completed")
-        else:
-            xp_added, new_level = (0, 0)
 
-        newly_unlocked = evaluate_achievements_for_event(email, "challenge_complete")
-        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
-
-        return jsonify({
-            "success": True,
-            "xp_added": xp_added,
-            "new_level": new_level,
-            "already_completed": (not newly_added),
-            "newly_unlocked": newly_unlocked,
-            "achievement_xp_added": achievement_xp_added,
-        })
-
-    except Exception as e:
-        print("Complete challenge error:", e)
-        return jsonify({"success": False, "message": "Could not complete challenge."}), 500
+        unlocked, achievement_xp_added = _achievement_result(email, "challenge_complete")
+        return jsonify(
+            {
+                "success": True,
+                "xp_added": xp_added,
+                "new_level": new_level,
+                "already_completed": not newly_added,
+                "newly_unlocked": unlocked,
+                "achievement_xp_added": achievement_xp_added,
+            }
+        )
+    except Exception as error:
+        print("Complete challenge error:", error)
+        return _json_error("Could not complete challenge.", 500)
 
 
-""""
-AI PROMPTED CODE BELOW
-Can you write a route that allows a user to complete an entire course instantly in my PostgreSQL database and uses the XP system to award full XP from XP_system.py
-
-Complete Course
----
-Marks course as fully completed and awards full XP.
-"""
-# AI Prompt: Explain the Complete course (full override) section in clear, simple terms.
-# =========================================================
-# Complete course (full override)
-# =========================================================
 @courses.route("/complete-course", methods=["POST"])
 def complete_course():
-    """Marks course as fully completed and awards full XP."""
-    data = request.get_json(silent=True) or request.form
-    email = data.get("email")
-    course_id = data.get("course_id")
-
-    if not email or not course_id:
-        return jsonify({"success": False, "message": "Email and course_id required."}), 400
+    data = _request_data()
+    email, course_id, error_response = _require_email_and_course(data)
+    if error_response:
+        return error_response
 
     try:
-        # Fetch XP reward and check if already completed
-        conn = get_db_connection()
-        cur = conn.cursor()
+        with _db_cursor() as (connection, cursor):
+            cursor.execute(
+                "SELECT xp_reward FROM courses WHERE id = %s AND is_active = TRUE",
+                (course_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return _json_error("Course not found.", 404)
 
-        cur.execute("SELECT xp_reward FROM courses WHERE id = %s AND is_active = TRUE;", (course_id,))
-        row = cur.fetchone()
+            xp_reward = max(0, _to_int(row[0], 0))
 
-        if not row:
-            cur.close(); conn.close()
-            return jsonify({"success": False, "message": "Course not found."}), 404
+            cursor.execute(
+                """
+                SELECT completed
+                FROM user_courses
+                WHERE user_email = %s AND course_id = %s
+                """,
+                (email, course_id),
+            )
+            existing = cursor.fetchone()
+            already_completed = bool(existing and existing[0])
 
-        xp_reward = row[0]
+            cursor.execute(
+                """
+                INSERT INTO user_courses (user_email, course_id, progress, completed)
+                VALUES (%s, %s, 100, TRUE)
+                ON CONFLICT (user_email, course_id)
+                DO UPDATE SET progress = 100, completed = TRUE, updated_at = CURRENT_TIMESTAMP
+                """,
+                (email, course_id),
+            )
+            connection.commit()
 
-        # Check if already completed — only award XP once
-        cur.execute("""
-            SELECT completed FROM user_courses
-            WHERE user_email = %s AND course_id = %s;
-        """, (email, course_id))
-        existing = cur.fetchone()
-        already_done = existing and existing[0]
-
-        # Mark course completed (100%)
-        cur.execute("""
-            INSERT INTO user_courses (user_email, course_id, progress, completed)
-            VALUES (%s, %s, 100, TRUE)
-            ON CONFLICT (user_email, course_id)
-            DO UPDATE SET progress = 100, completed = TRUE, updated_at = CURRENT_TIMESTAMP;
-        """, (email, course_id))
-
-        conn.commit()
-        cur.close(); conn.close()
-
-        # Award full XP only if not previously completed
-        if not already_done:
+        xp_added, new_level = (0, 0)
+        if not already_completed:
             xp_added, new_level = add_xp_to_user(email, xp_reward, action="Course Completed")
-        else:
-            xp_added, new_level = (0, 0)
 
-        newly_unlocked = evaluate_achievements_for_event(email, "course_complete")
-        achievement_xp_added = sum(int(item.get("xp_added") or 0) for item in newly_unlocked)
+        unlocked, achievement_xp_added = _achievement_result(email, "course_complete")
+        return jsonify(
+            {
+                "success": True,
+                "progress_pct": 100,
+                "completed": True,
+                "xp_added": xp_added,
+                "new_level": new_level,
+                "already_completed": already_completed,
+                "newly_unlocked": unlocked,
+                "achievement_xp_added": achievement_xp_added,
+            }
+        )
+    except Exception as error:
+        print("Complete course error:", error)
+        return _json_error("Could not complete course.", 500)
 
-        return jsonify({
-            "success": True,
-            "progress_pct": 100,
-            "completed": True,
-            "xp_added": xp_added,
-            "new_level": new_level,
-            "already_completed": bool(already_done),
-            "newly_unlocked": newly_unlocked,
-            "achievement_xp_added": achievement_xp_added,
-        })
 
-    except Exception as e:
-        print("Complete course error:", e)
-        return jsonify({"success": False, "message": "Could not complete course."}), 500
-
-""""
-AI PROMPTED CODE BELOW
-Can you write me a route that returns a user's completion status for a course:
-- completed lesson numbers
-- completed quiz lesson numbers
-- completed challenge lesson numbers
-So the frontend can show badges beside each lesson like Khan Academy.
-
-User Course Status
----
-GET /user-course-status?email=...&course_id=...
-Returns lists of lesson_numbers the user has completed.
-"""
-# AI Prompt: Explain the User course status section in clear, simple terms.
-# =========================================================
-# User course status
-# =========================================================
 @courses.route("/user-course-status", methods=["GET"])
 def user_course_status():
-    email = request.args.get("email")
-    course_id = request.args.get("course_id")
-
-    if not email or not course_id:
-        return jsonify({"success": False, "message": "Email and course_id required."}), 400
+    email = (request.args.get("email") or "").strip().lower()
+    course_id = _to_int(request.args.get("course_id"), 0)
+    if not email or course_id <= 0:
+        return _json_error("Email and course_id required.", 400)
 
     try:
-        # Ensure tables exist (safe to call)
-        ensure_user_lessons_table()
-        ensure_user_quizzes_table()
-        ensure_user_challenges_table()
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT lesson_number
+                FROM user_lessons
+                WHERE user_email = %s AND course_id = %s
+                ORDER BY lesson_number
+                """,
+                (email, course_id),
+            )
+            lessons = [_to_int(row[0], 0) for row in cursor.fetchall()]
 
-        conn = get_db_connection()
-        cur = conn.cursor()
+            cursor.execute(
+                """
+                SELECT lesson_number
+                FROM user_quizzes
+                WHERE user_email = %s AND course_id = %s
+                ORDER BY lesson_number
+                """,
+                (email, course_id),
+            )
+            quizzes = [_to_int(row[0], 0) for row in cursor.fetchall()]
 
-        # Lessons
-        cur.execute("""
-            SELECT lesson_number
-            FROM user_lessons
-            WHERE user_email = %s AND course_id = %s
-            ORDER BY lesson_number;
-        """, (email, course_id))
-        lessons = [r[0] for r in cur.fetchall()]
+            cursor.execute(
+                """
+                SELECT lesson_number
+                FROM user_challenges
+                WHERE user_email = %s AND course_id = %s
+                ORDER BY lesson_number
+                """,
+                (email, course_id),
+            )
+            challenges = [_to_int(row[0], 0) for row in cursor.fetchall()]
 
-        # Quizzes
-        cur.execute("""
-            SELECT lesson_number
-            FROM user_quizzes
-            WHERE user_email = %s AND course_id = %s
-            ORDER BY lesson_number;
-        """, (email, course_id))
-        quizzes = [r[0] for r in cur.fetchall()]
-
-        # Challenges
-        cur.execute("""
-            SELECT lesson_number
-            FROM user_challenges
-            WHERE user_email = %s AND course_id = %s
-            ORDER BY lesson_number;
-        """, (email, course_id))
-        challenges = [r[0] for r in cur.fetchall()]
-
-        cur.close(); conn.close()
-
-        return jsonify({
-            "success": True,
-            "lessons": lessons,
-            "quizzes": quizzes,
-            "challenges": challenges
-        })
-
-    except Exception as e:
-        print("User course status error:", e)
-        return jsonify({"success": False, "message": "Could not load course status."}), 500
+        return jsonify({"success": True, "lessons": lessons, "quizzes": quizzes, "challenges": challenges})
+    except Exception as error:
+        print("User course status error:", error)
+        return _json_error("Could not load course status.", 500)
 
 
-"""
-Recent Activity
----
-GET /recent-activity?email=...&limit=...
-Returns recent lesson/quiz/challenge completions with course info.
-"""
-# AI Prompt: Explain the Recent activity feed section in clear, simple terms.
-# =========================================================
-# Recent activity feed
-# =========================================================
 @courses.route("/recent-activity", methods=["GET"])
 def recent_activity():
-    email = request.args.get("email")
-    limit = int(request.args.get("limit") or 8)
+    email = (request.args.get("email") or "").strip().lower()
+    limit = max(1, _to_int(request.args.get("limit"), 8))
     if not email:
-        return jsonify({"success": False, "message": "Email required."}), 400
+        return _json_error("Email required.", 400)
 
     try:
-        ensure_user_lessons_table()
-        ensure_user_quizzes_table()
-        ensure_user_challenges_table()
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT 'lesson' AS kind, ul.course_id, c.title, ul.lesson_number, ul.completed_at, ul.xp_awarded
-            FROM user_lessons ul
-            JOIN courses c ON c.id = ul.course_id
-            WHERE ul.user_email = %s
-            UNION ALL
-            SELECT 'quiz' AS kind, uq.course_id, c.title, uq.lesson_number, uq.completed_at, uq.xp_awarded
-            FROM user_quizzes uq
-            JOIN courses c ON c.id = uq.course_id
-            WHERE uq.user_email = %s
-            UNION ALL
-            SELECT 'challenge' AS kind, uc.course_id, c.title, uc.lesson_number, uc.completed_at, uc.xp_awarded
-            FROM user_challenges uc
-            JOIN courses c ON c.id = uc.course_id
-            WHERE uc.user_email = %s
-            ORDER BY completed_at DESC
-            LIMIT %s;
-        """, (email, email, email, limit))
-
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT 'lesson' AS kind, ul.course_id, c.title, ul.lesson_number, ul.completed_at, ul.xp_awarded
+                FROM user_lessons ul
+                JOIN courses c ON c.id = ul.course_id
+                WHERE ul.user_email = %s
+                UNION ALL
+                SELECT 'quiz' AS kind, uq.course_id, c.title, uq.lesson_number, uq.completed_at, uq.xp_awarded
+                FROM user_quizzes uq
+                JOIN courses c ON c.id = uq.course_id
+                WHERE uq.user_email = %s
+                UNION ALL
+                SELECT 'challenge' AS kind, uc.course_id, c.title, uc.lesson_number, uc.completed_at, uc.xp_awarded
+                FROM user_challenges uc
+                JOIN courses c ON c.id = uc.course_id
+                WHERE uc.user_email = %s
+                ORDER BY completed_at DESC
+                LIMIT %s
+                """,
+                (email, email, email, limit),
+            )
+            rows = cursor.fetchall()
 
         activity = []
-        for r in rows:
-            kind, course_id, title, lesson_number, completed_at, xp_awarded = r
-            item_type = kind or "lesson"
-            xp = int(xp_awarded or 0)
-
-            activity.append({
-                "type": item_type,
-                "course_id": course_id,
-                "course_title": title,
-                "lesson_number": lesson_number,
-                "xp": int(xp),
-                "completed_at": completed_at.isoformat() if completed_at else None
-            })
+        for row in rows:
+            completed_at = row[4]
+            activity.append(
+                {
+                    "type": row[0] or "lesson",
+                    "course_id": row[1],
+                    "course_title": row[2],
+                    "lesson_number": _to_int(row[3], 0),
+                    "xp": _to_int(row[5], 0),
+                    "completed_at": completed_at.isoformat() if completed_at else None,
+                }
+            )
 
         return jsonify({"success": True, "activity": activity})
+    except Exception as error:
+        print("Recent activity error:", error)
+        return _json_error("Could not load recent activity.", 500)
 
-    except Exception as e:
-        print("Recent activity error:", e)
-        return jsonify({"success": False, "message": "Could not load recent activity."}), 500
 
-
-"""
-Quiz History
----
-GET /quiz-history?email=...&limit=...
-Returns recent quiz completions with course info.
-"""
-# AI Prompt: Explain the Quiz history section in clear, simple terms.
-# =========================================================
-# Quiz history
-# =========================================================
 @courses.route("/quiz-history", methods=["GET"])
 def quiz_history():
-    email = request.args.get("email")
-    limit = int(request.args.get("limit") or 10)
+    email = (request.args.get("email") or "").strip().lower()
+    limit = max(1, _to_int(request.args.get("limit"), 10))
     if not email:
-        return jsonify({"success": False, "message": "Email required."}), 400
+        return _json_error("Email required.", 400)
 
     try:
-        ensure_user_quizzes_table()
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT uq.course_id, c.title, uq.lesson_number, uq.completed_at
-            FROM user_quizzes uq
-            JOIN courses c ON c.id = uq.course_id
-            WHERE uq.user_email = %s
-            ORDER BY uq.completed_at DESC
-            LIMIT %s;
-        """, (email, limit))
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute(
+                """
+                SELECT uq.course_id, c.title, uq.lesson_number, uq.completed_at
+                FROM user_quizzes uq
+                JOIN courses c ON c.id = uq.course_id
+                WHERE uq.user_email = %s
+                ORDER BY uq.completed_at DESC
+                LIMIT %s
+                """,
+                (email, limit),
+            )
+            rows = cursor.fetchall()
 
         history = []
-        for r in rows:
-            course_id, title, lesson_number, completed_at = r
-            history.append({
-                "course_id": course_id,
-                "course_title": title,
-                "lesson_number": lesson_number,
-                "completed_at": completed_at.isoformat() if completed_at else None
-            })
-
+        for row in rows:
+            completed_at = row[3]
+            history.append(
+                {
+                    "course_id": row[0],
+                    "course_title": row[1],
+                    "lesson_number": _to_int(row[2], 0),
+                    "completed_at": completed_at.isoformat() if completed_at else None,
+                }
+            )
         return jsonify({"success": True, "history": history})
-    except Exception as e:
-        print("Quiz history error:", e)
-        return jsonify({"success": False, "message": "Could not load quiz history."}), 500
+    except Exception as error:
+        print("Quiz history error:", error)
+        return _json_error("Could not load quiz history.", 500)
 
-"""
-User Progress Summary
----
-GET /user-progress-summary?email=...
-Returns total counts for lessons/quizzes/challenges and completed/in-progress courses.
-Used by dashboard/account for real progress from DB.
-"""
-# AI Prompt: Explain the Progress summary section in clear, simple terms.
-# =========================================================
-# Progress summary
-# =========================================================
+
 @courses.route("/user-progress-summary", methods=["GET"])
 def user_progress_summary():
-    email = request.args.get("email")
+    email = (request.args.get("email") or "").strip().lower()
     if not email:
-        return jsonify({"success": False, "message": "Email required."}), 400
+        return _json_error("Email required.", 400)
 
     try:
-        ensure_user_lessons_table()
-        ensure_user_quizzes_table()
-        ensure_user_challenges_table()
+        with _db_cursor() as (_connection, cursor):
+            cursor.execute("SELECT COUNT(*) FROM user_lessons WHERE user_email = %s", (email,))
+            lessons_done = _to_int(cursor.fetchone()[0], 0)
 
-        conn = get_db_connection()
-        cur = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM user_quizzes WHERE user_email = %s", (email,))
+            quizzes_done = _to_int(cursor.fetchone()[0], 0)
 
-        cur.execute("SELECT COUNT(*) FROM user_lessons WHERE user_email = %s", (email,))
-        lessons_done = cur.fetchone()[0] or 0
+            cursor.execute("SELECT COUNT(*) FROM user_challenges WHERE user_email = %s", (email,))
+            challenges_done = _to_int(cursor.fetchone()[0], 0)
 
-        cur.execute("SELECT COUNT(*) FROM user_quizzes WHERE user_email = %s", (email,))
-        quizzes_done = cur.fetchone()[0] or 0
+            cursor.execute(
+                "SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = TRUE",
+                (email,),
+            )
+            courses_done = _to_int(cursor.fetchone()[0], 0)
 
-        cur.execute("SELECT COUNT(*) FROM user_challenges WHERE user_email = %s", (email,))
-        challenges_done = cur.fetchone()[0] or 0
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                FROM user_courses
+                WHERE user_email = %s AND completed = FALSE AND progress > 0
+                """,
+                (email,),
+            )
+            in_progress = _to_int(cursor.fetchone()[0], 0)
 
-        cur.execute("SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = TRUE", (email,))
-        courses_done = cur.fetchone()[0] or 0
+            cursor.execute("SELECT COUNT(*) FROM courses WHERE is_active = TRUE")
+            total_courses = _to_int(cursor.fetchone()[0], 0)
 
-        cur.execute("SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = FALSE AND progress > 0", (email,))
-        in_progress = cur.fetchone()[0] or 0
-
-        cur.execute("SELECT COUNT(*) FROM courses WHERE is_active = TRUE")
-        total_courses = cur.fetchone()[0] or 0
-
-        cur.close()
-        conn.close()
-
-        return jsonify({
-            "success": True,
-            "lessons_done": int(lessons_done),
-            "quizzes_done": int(quizzes_done),
-            "challenges_done": int(challenges_done),
-            "courses_done": int(courses_done),
-            "in_progress": int(in_progress),
-            "total_courses": int(total_courses)
-        })
-
-    except Exception as e:
-        print("User progress summary error:", e)
-        return jsonify({"success": False, "message": "Could not load progress summary."}), 500
+        return jsonify(
+            {
+                "success": True,
+                "lessons_done": lessons_done,
+                "quizzes_done": quizzes_done,
+                "challenges_done": challenges_done,
+                "courses_done": courses_done,
+                "in_progress": in_progress,
+                "total_courses": total_courses,
+            }
+        )
+    except Exception as error:
+        print("User progress summary error:", error)
+        return _json_error("Could not load progress summary.", 500)

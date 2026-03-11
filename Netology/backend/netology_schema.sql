@@ -102,12 +102,58 @@ ALTER TABLE user_courses ADD COLUMN IF NOT EXISTS completed BOOLEAN DEFAULT FALS
 ALTER TABLE user_courses ADD COLUMN IF NOT EXISTS started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE user_courses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
--- De-duplicate (safe) before creating unique index for ON CONFLICT usage
-DELETE FROM user_courses a
-USING user_courses b
-WHERE a.id < b.id
-  AND a.user_email = b.user_email
-  AND a.course_id = b.course_id;
+-- Normalize duplicates before creating the unique index used by ON CONFLICT.
+-- We keep one row per (user_email, course_id), merge the best values into it,
+-- then remove extra rows.
+WITH duplicate_groups AS (
+    SELECT
+        user_email,
+        course_id,
+        MAX(progress) AS merged_progress,
+        BOOL_OR(completed) AS merged_completed,
+        MIN(started_at) AS merged_started_at,
+        MAX(updated_at) AS merged_updated_at
+    FROM user_courses
+    GROUP BY user_email, course_id
+    HAVING COUNT(*) > 1
+),
+rows_to_keep AS (
+    SELECT DISTINCT ON (uc.user_email, uc.course_id)
+        uc.id,
+        uc.user_email,
+        uc.course_id
+    FROM user_courses uc
+    JOIN duplicate_groups dg
+      ON dg.user_email = uc.user_email
+     AND dg.course_id = uc.course_id
+    ORDER BY uc.user_email, uc.course_id, uc.id ASC
+)
+UPDATE user_courses uc
+SET
+    progress = dg.merged_progress,
+    completed = dg.merged_completed,
+    started_at = COALESCE(dg.merged_started_at, uc.started_at),
+    updated_at = COALESCE(dg.merged_updated_at, uc.updated_at)
+FROM rows_to_keep rtk
+JOIN duplicate_groups dg
+  ON dg.user_email = rtk.user_email
+ AND dg.course_id = rtk.course_id
+WHERE uc.id = rtk.id;
+
+WITH rows_to_keep AS (
+    SELECT
+        MIN(id) AS keep_id,
+        user_email,
+        course_id
+    FROM user_courses
+    GROUP BY user_email, course_id
+    HAVING COUNT(*) > 1
+)
+DELETE FROM user_courses uc
+USING rows_to_keep rtk
+WHERE uc.user_email = rtk.user_email
+  AND uc.course_id = rtk.course_id
+  AND uc.id <> rtk.keep_id;
 
 CREATE UNIQUE INDEX IF NOT EXISTS user_courses_user_email_course_id_key
 ON user_courses(user_email, course_id);
@@ -428,6 +474,26 @@ ON CONFLICT (id) DO UPDATE SET
     unlock_criteria = EXCLUDED.unlock_criteria;
 
 -- SEED SAMPLE CHALLENGES (5 daily + 5 weekly + 1 event)
+WITH challenge_rows_to_keep AS (
+    SELECT
+        MIN(id) AS keep_id,
+        title,
+        challenge_type
+    FROM challenges
+    WHERE title IS NOT NULL
+      AND challenge_type IS NOT NULL
+    GROUP BY title, challenge_type
+    HAVING COUNT(*) > 1
+)
+DELETE FROM challenges c
+USING challenge_rows_to_keep crk
+WHERE c.title = crk.title
+  AND c.challenge_type = crk.challenge_type
+  AND c.id <> crk.keep_id;
+
+CREATE UNIQUE INDEX IF NOT EXISTS challenges_title_challenge_type_key
+ON challenges (title, challenge_type);
+
 INSERT INTO challenges (title, description, challenge_type, difficulty, xp_reward, required_action) VALUES
 ('Learn IP Addressing', 'Complete the IP Addressing course lesson', 'daily', 'easy', 25, 'complete_lesson'),
 ('Build a Topology', 'Create a network topology in the sandbox', 'daily', 'medium', 50, 'sandbox_practice'),
@@ -440,7 +506,11 @@ INSERT INTO challenges (title, description, challenge_type, difficulty, xp_rewar
 ('Network Architect', 'Build 3 different network topologies', 'weekly', 'hard', 120, 'sandbox_topologies'),
 ('Knowledge Sprint', 'Complete 5 lessons across any courses', 'weekly', 'medium', 80, 'complete_lessons'),
 ('All Star', 'Complete 3 courses', 'event', 'hard', 200, 'complete_courses')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (title, challenge_type) DO UPDATE SET
+    description = EXCLUDED.description,
+    difficulty = EXCLUDED.difficulty,
+    xp_reward = EXCLUDED.xp_reward,
+    required_action = EXCLUDED.required_action;
 
 -- AI Prompt: Explain the LEGACY COMPLETION TABLES (SAFE TO KEEP) section in clear, simple terms.
 -- =========================================================
@@ -473,9 +543,9 @@ CREATE TABLE IF NOT EXISTS challenge_completions (
     UNIQUE (user_email, course_id, lesson_number)
 );
 
--- AI Prompt: Explain the SAMPLE COURSES (SAFE INSERT + SAFE UPDATE BY TITLE) section in clear, simple terms.
+-- AI Prompt: Explain the SAMPLE COURSES (SAFE INSERT ONLY) section in clear, simple terms.
 -- =========================================================
--- SAMPLE COURSES (SAFE INSERT + SAFE UPDATE BY TITLE)
+-- SAMPLE COURSES (SAFE INSERT ONLY)
 -- =========================================================
 INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
 SELECT 'Networking Foundations',
@@ -530,57 +600,3 @@ SELECT 'WAN & BGP Design',
        'Explore WAN technologies and the basics of BGP routing.',
        3, 1, 520, 'Advanced', 'WAN', 5, '1.9 hrs'
 WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'WAN & BGP Design');
-
-UPDATE courses
-SET description = 'Build core networking knowledge from scratch: devices, Ethernet, and IP basics.',
-    total_lessons = 12, module_count = 3, xp_reward = 800,
-    difficulty = 'Novice', category = 'Core', required_level = 1, estimated_time = '5.5 hrs'
-WHERE title = 'Networking Foundations';
-
-UPDATE courses
-SET description = 'Learn switching behavior and build your first switched network.',
-    total_lessons = 3, module_count = 1, xp_reward = 350,
-    difficulty = 'Novice', category = 'Switching', required_level = 1, estimated_time = '1.2 hrs'
-WHERE title = 'Ethernet & Switching Basics';
-
-UPDATE courses
-SET description = 'Understand private vs public IPs and basic subnetting concepts.',
-    total_lessons = 3, module_count = 1, xp_reward = 360,
-    difficulty = 'Novice', category = 'IP', required_level = 1, estimated_time = '1.4 hrs'
-WHERE title = 'IP Addressing Essentials';
-
-UPDATE courses
-SET description = 'Learn how routers move traffic between networks and how routing protocols work.',
-    total_lessons = 3, module_count = 1, xp_reward = 420,
-    difficulty = 'Intermediate', category = 'Routing', required_level = 3, estimated_time = '1.6 hrs'
-WHERE title = 'Routing Fundamentals';
-
-UPDATE courses
-SET description = 'Design efficient subnets, segment networks with VLANs, and connect them securely.',
-    total_lessons = 12, module_count = 3, xp_reward = 950,
-    difficulty = 'Intermediate', category = 'Routing', required_level = 3, estimated_time = '6 hrs'
-WHERE title = 'Subnetting & VLANs';
-
-UPDATE courses
-SET description = 'Understand Wi‑Fi standards and essential services like DHCP and DNS.',
-    total_lessons = 3, module_count = 1, xp_reward = 450,
-    difficulty = 'Intermediate', category = 'Services', required_level = 3, estimated_time = '1.8 hrs'
-WHERE title = 'Wireless & Network Services';
-
-UPDATE courses
-SET description = 'Automate routine tasks and monitor networks at scale.',
-    total_lessons = 3, module_count = 1, xp_reward = 560,
-    difficulty = 'Advanced', category = 'Automation', required_level = 5, estimated_time = '2.1 hrs'
-WHERE title = 'Automation & Monitoring';
-
-UPDATE courses
-SET description = 'Secure networks with hardening, firewalls, ACLs, and monitoring best practices.',
-    total_lessons = 12, module_count = 3, xp_reward = 1050,
-    difficulty = 'Advanced', category = 'Security', required_level = 5, estimated_time = '6.5 hrs'
-WHERE title = 'Network Security & Hardening';
-
-UPDATE courses
-SET description = 'Explore WAN technologies and the basics of BGP routing.',
-    total_lessons = 3, module_count = 1, xp_reward = 520,
-    difficulty = 'Advanced', category = 'WAN', required_level = 5, estimated_time = '1.9 hrs'
-WHERE title = 'WAN & BGP Design';

@@ -26,10 +26,10 @@ Purpose:
 - Challenge completion overlay with confetti and XP earned
 
 Notes:
-- Topology data saved to / loaded from backend API via sandbox.js
-- Challenge objectives validated client-side in sandbox.js
-- Console engine is managed in sandbox.js
-- Scripts: config.js → app.js → sandbox.js → Bootstrap JS
+- Topology data is saved and loaded by the sandbox runtime files in `docs/js/`
+- Challenge objectives are validated client-side by the sandbox learning runtime
+- Console commands are handled by the sandbox console runtime
+- Scripts: config.js → app.js → sandbox-core.js → sandbox modules → sandbox.js → Bootstrap JS
 -->
 
 <!doctype html>
@@ -804,6 +804,14 @@ Notes:
   <script src="js/ui-toasts.js"></script>
   <script src="js/app.js"></script>
   <script src="js/onboarding-tour.js"></script>
+  <script src="js/course_content.js"></script>
+  <script src="js/sandbox-core.js"></script>
+  <script src="js/sandbox-learning.js"></script>
+  <script src="js/sandbox-render.js"></script>
+  <script src="js/sandbox-network.js"></script>
+  <script src="js/sandbox-console.js"></script>
+  <script src="js/sandbox-actions.js"></script>
+  <script src="js/sandbox-extras.js"></script>
   <script src="js/sandbox.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
