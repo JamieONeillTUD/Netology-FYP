@@ -49,7 +49,8 @@ onboarding handoff, and daily login sync.
   // Safely parses JSON and returns a fallback value if parsing fails.
   function parseJson(value, fallbackValue = null) {
     try {
-      return JSON.parse(value);
+      const parsedValue = JSON.parse(value);
+      return parsedValue === null ? fallbackValue : parsedValue;
     } catch {
       return fallbackValue;
     }
@@ -748,7 +749,10 @@ onboarding handoff, and daily login sync.
 
         const pendingTier = normalizeTier(localStorage.getItem(STORAGE_KEYS.unlockTierPending), "");
         const existingUser = parseJson(localStorage.getItem(STORAGE_KEYS.user), {});
-        const existingTier = normalizeTier(existingUser.unlock_tier || existingUser.unlock_level || existingUser.unlockTier, "");
+        const existingTier = normalizeTier(
+          existingUser?.unlock_tier || existingUser?.unlock_level || existingUser?.unlockTier,
+          ""
+        );
         const serverTier = normalizeTier(responseData.start_level, "");
 
         const unlockTier = normalizeTier(serverTier || existingTier || pendingTier || "novice");
