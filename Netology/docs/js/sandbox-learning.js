@@ -363,7 +363,8 @@ function getAvailableTutorials() {
     if (requiredLevel > accessLevel) return;
 
     let lessonCounter = 1;
-    (course.units || []).forEach((unit) => {
+    (course.units || []).forEach((unit, unitIndex) => {
+      const moduleId = String(unit?.id || `module-${unitIndex + 1}`);
       const unitItems = [];
       const pushUnitItem = (type, data) => {
         unitItems.push({
@@ -434,6 +435,7 @@ function getAvailableTutorials() {
           id: `${course.id || "course"}:${item.lessonNumber}:${item.title || "tutorial"}`,
           courseId: String(course.id || ""),
           contentId: String(course.id || ""),
+          moduleId,
           courseTitle: course.title || "Course",
           unitTitle: item.unitTitle || "",
           lesson: Number(item.lessonNumber || 0),
@@ -606,6 +608,8 @@ function launchCourseTutorial(tutorial) {
 
   const payload = {
     courseId: tutorial.courseId,
+    contentId: tutorial.contentId || tutorial.courseId,
+    moduleId: tutorial.moduleId || null,
     courseTitle: tutorial.courseTitle || "Course",
     unitTitle: tutorial.unitTitle || "",
     lesson: tutorial.lesson,
@@ -902,13 +906,13 @@ function completeTutorialStep(meta, steps, index) {
   const allDone = steps.every((_, i) => progress.checked[i]);
   if (allDone) {
     showWellDoneToast(
-      "Tutorial Complete! 🎉",
-      "Amazing work! Returning you to the lesson now…"
+      "Tutorial Complete!",
+      "Amazing work! Returning you to the module now…"
     );
-    // For lesson-linked tutorials, redirect back after 3 s
+    // For lesson-linked tutorials, redirect back after 3 s.
     if (meta?.courseId && meta?.lesson != null && meta.courseId !== 0) {
       setTimeout(() => {
-        window.location.href = `lesson.html?course_id=${meta.courseId}&lesson=${meta.lesson}`;
+        window.location.href = buildReturnToModuleUrl(meta);
       }, 3000);
     }
   } else {
@@ -945,12 +949,12 @@ function updateTutorialGuidance() {
       renderObjectives();
       updateObjectivesBanner();
       showWellDoneToast(
-        "Tutorial Complete! 🎉",
-        "Amazing work — every step is done! Returning you to the lesson…"
+        "Tutorial Complete!",
+        "Amazing work — every step is done! Returning you to the module…"
       );
       if (meta?.courseId && meta?.lesson != null && meta.courseId !== 0) {
         setTimeout(() => {
-          window.location.href = `lesson.html?course_id=${meta.courseId}&lesson=${meta.lesson}`;
+          window.location.href = buildReturnToModuleUrl(meta);
         }, 3000);
       }
       return;
@@ -1161,6 +1165,8 @@ const lessonSession = {
   enabled: false,
   email: "",
   course_id: null,
+  content_id: null,
+  module_id: null,
   lesson_number: null,
   saving: false,
   lastSaveAt: 0,
@@ -1255,6 +1261,19 @@ async function loadLessonSessionFromDb() {
 function getLoggedInUser() {
   const raw = localStorage.getItem("user") || localStorage.getItem("netology_user") || "{}";
   return parseJsonSafe(raw) || {};
+}
+
+function buildReturnToModuleUrl(context = null) {
+  const courseId = Number(context?.courseId || lessonSession?.course_id || 0);
+  if (!courseId) return "courses.html";
+  const contentId = context?.contentId || lessonSession?.content_id || courseId;
+  const moduleId = context?.moduleId || lessonSession?.module_id || null;
+
+  const query = new URLSearchParams();
+  query.set("id", String(courseId));
+  query.set("content_id", String(contentId));
+  if (moduleId) query.set("module", String(moduleId));
+  return `course.html?${query.toString()}`;
 }
 
 async function refreshUserFromServer(email) {
@@ -1429,8 +1448,9 @@ function showChallengeCompleteOverlay(xpGained, alreadyDone) {
 
   // Set return-to-module link
   const returnBtn = getById("sbxCompleteReturn");
-  if (returnBtn && lessonSession?.course_id) {
-    returnBtn.href = `lesson.html?course_id=${lessonSession.course_id}&lesson=${lessonSession.lesson_number}`;
+  if (returnBtn) {
+    returnBtn.textContent = "Return to module";
+    returnBtn.href = buildReturnToModuleUrl();
   }
 
   // Show XP badge
@@ -1533,8 +1553,8 @@ async function handleChallengeValidate() {
 
     if (returnBox) {
       clearChildren(returnBox);
-      const link = makeEl("a", "btn btn-outline-secondary btn-sm w-100", "Return to lesson");
-      link.href = `lesson.html?course_id=${lessonSession.course_id}&lesson=${lessonSession.lesson_number}`;
+      const link = makeEl("a", "btn btn-outline-secondary btn-sm w-100", "Return to module");
+      link.href = buildReturnToModuleUrl();
       returnBox.appendChild(link);
     }
   } catch (e) {
@@ -1575,6 +1595,8 @@ async function initChallenge() {
   lessonSession.enabled = true;
   lessonSession.email = user.email;
   lessonSession.course_id = Number(data.courseId);
+  lessonSession.content_id = Number(data.contentId || data.courseId);
+  lessonSession.module_id = data.moduleId || null;
   lessonSession.lesson_number = Number(data.lesson);
 
   state.challengeMeta = {
@@ -1623,11 +1645,15 @@ async function initTutorial() {
     lessonSession.enabled = true;
     lessonSession.email = user.email;
     lessonSession.course_id = Number(data.courseId);
+    lessonSession.content_id = Number(data.contentId || data.courseId);
+    lessonSession.module_id = data.moduleId || null;
     lessonSession.lesson_number = Number(data.lesson);
   }
 
   state.tutorialMeta = {
     courseId: Number(data.courseId),
+    contentId: Number(data.contentId || data.courseId),
+    moduleId: data.moduleId || null,
     lesson: Number(data.lesson),
     email: user?.email || "guest",
     steps: data.tutorial?.steps || data.steps || [],

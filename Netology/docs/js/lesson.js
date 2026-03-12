@@ -74,14 +74,18 @@ function resolveCourseContent(courseId, contentId) {
 
 function getLessonByNumber(course, lessonNumber) {
   if (!course?.units) return null;
+  const targetLesson = Number(lessonNumber);
+  if (!Number.isFinite(targetLesson) || targetLesson <= 0) return null;
+
   let lessonIndex = 0;
   for (const unit of course.units) {
     if (!Array.isArray(unit.lessons)) continue;
     for (const lesson of unit.lessons) {
       lessonIndex += 1;
-      if (lessonIndex === Number(lessonNumber)) return { ...lesson, unit_title: unit.title || "Module" };
+      if (lessonIndex === targetLesson) return { ...lesson, unit_title: unit.title || "Module" };
     }
   }
+
   return null;
 }
 
@@ -1462,33 +1466,6 @@ class LessonEngine {
     if (this.els.lesXpCount) this.els.lesXpCount.textContent = String(this.xpEarned);
   }
 
-  syncProgressRemote(payload, reason) {
-    const base = getLessonAPI();
-    if (!base || !this.userEmail) return;
-    const template = ENDPOINTS.slides?.progress || ENDPOINTS.progress?.userProgress || "";
-    if (!template) return;
-    const lessonId =
-      this.lesson?.id ||
-      this.lesson?.lesson_id ||
-      this.lesson?.lessonId ||
-      this.lessonNumber ||
-      `${payload.course_id}-${payload.lesson_number}`;
-    const path = template.includes(":lessonId")
-      ? template.replace(":lessonId", encodeURIComponent(lessonId))
-      : template;
-    const body = {
-      ...payload,
-      user_email: this.userEmail,
-      lesson_id: lessonId,
-      reason: reason || "progress"
-    };
-    fetch(`${base}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    }).catch(() => {});
-  }
-
   persistProgress({ completedSteps, resumeIndex, silent = false, reason = "progress" } = {}) {
     if (!this.courseId || !this.lessonNumber) return;
     const total = this.progressTotalSteps || this.steps.length || 1;
@@ -1522,7 +1499,6 @@ class LessonEngine {
 
     writeLessonProgress(this.userEmail, this.courseId, this.lessonNumber, payload);
 
-    if (!silent) this.syncProgressRemote(payload, reason);
   }
 
   saveProgressSnapshot({ reason = "snapshot", silent = false } = {}) {

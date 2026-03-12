@@ -1805,6 +1805,8 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
       if (item) {
         const payload = {
           courseId: state.courseId,
+          contentId: contentId,
+          moduleId: item.module_id || null,
           courseTitle: state.course.title,
           unitTitle: item.unit_title || "",
           lesson: lessonNumber,
@@ -1827,6 +1829,8 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
       if (item) {
         const payload = {
           courseId: state.courseId,
+          contentId: contentId,
+          moduleId: item.module_id || null,
           courseTitle: state.course.title,
           unitTitle: item.unit_title || "",
           lesson: lessonNumber,
@@ -1851,7 +1855,7 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
     for (const m of (state.course.modules || [])) {
       for (const it of (m.items || [])) {
         if (String(it.type) === t && Number(it.lesson_number) === Number(lessonNumber)) {
-          return it;
+          return { ...it, module_id: String(m.id) };
         }
       }
     }
