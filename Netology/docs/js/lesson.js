@@ -1627,12 +1627,17 @@ class LessonEngine {
   }
 
   animateStepIn(rendererElement, container) {
-    requestAnimationFrame(() => {
-      rendererElement.classList.add("les-step-enter");
-    });
+    if (!rendererElement) return;
+
+    // Fail-safe: make the step visible immediately, then animate if available.
+    rendererElement.classList.add("les-step-enter");
 
     if (container) container.scrollTop = 0;
-    window.scrollTo({ top: 0, behavior: this.prefersReducedMotion ? "auto" : "smooth" });
+    try {
+      window.scrollTo({ top: 0, behavior: this.prefersReducedMotion ? "auto" : "smooth" });
+    } catch {
+      window.scrollTo(0, 0);
+    }
   }
 
   loadStep(index) {
@@ -1649,11 +1654,27 @@ class LessonEngine {
     this.prepareStepUi(container, checkButton);
     this.updateStepProgressFill(index);
 
-    const renderer = this.buildRendererForStep(step, checkButton);
+    let renderer = null;
+    try {
+      renderer = this.buildRendererForStep(step, checkButton);
+    } catch (error) {
+      console.error("Step renderer failed:", error, step);
+      renderer = renderLearnStep({
+        type: "learn",
+        title: step?.title || "Step",
+        content: ["This step could not be rendered. Continue to move on."],
+        icon: "bi-exclamation-circle"
+      });
+      if (checkButton) {
+        checkButton.textContent = "Continue";
+        checkButton.disabled = false;
+      }
+      this.setSkipButtonVisible(false);
+    }
 
     this.currentRenderer = renderer;
-    if (container) container.appendChild(renderer.el);
-    this.animateStepIn(renderer.el, container);
+    if (container && renderer?.el) container.appendChild(renderer.el);
+    this.animateStepIn(renderer?.el, container);
   }
 
   handlePassiveStepCheck(renderer) {
