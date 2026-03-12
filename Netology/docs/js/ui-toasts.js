@@ -364,11 +364,73 @@ Notes: Merged toast behavior into one API and removed duplicate local builders.
     });
   }
 
+  // Escape text for achievement toast HTML.
+  function escapeAchievementHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // Build icon markup for an achievement toast.
+  function achievementIconHtml(unlock = {}) {
+    const rawIcon = String(unlock.icon || "").trim();
+    if (rawIcon.startsWith("bi-")) {
+      return `<i class="bi ${escapeAchievementHtml(rawIcon)}"></i>`;
+    }
+    return escapeAchievementHtml(rawIcon || "⭐");
+  }
+
+  // Create a dedicated host for stacked achievement toasts.
+  function ensureAchievementToastHost() {
+    if (!document.body) return null;
+
+    let host = document.getElementById("globalAchievementToastHost");
+    if (host) return host;
+
+    host = document.createElement("div");
+    host.id = "globalAchievementToastHost";
+    host.className = "net-achievement-toast-host";
+    document.body.appendChild(host);
+    return host;
+  }
+
+  // Render one achievement toast.
+  function showAchievementToast(unlock = {}) {
+    const host = ensureAchievementToastHost();
+    if (!host) return null;
+
+    const xpValue = Number(unlock.xp_added || unlock.xp_awarded || unlock.xp_reward || 0);
+    const toast = document.createElement("div");
+    toast.className = "net-achievement-toast";
+    toast.innerHTML = `
+      <div class="net-achievement-toast-icon">${achievementIconHtml(unlock)}</div>
+      <div class="net-achievement-toast-copy">
+        <div class="net-achievement-toast-title">Achievement unlocked</div>
+        <div class="net-achievement-toast-name">${escapeAchievementHtml(unlock.name || "Achievement")}</div>
+      </div>
+      <div class="net-achievement-toast-xp">${xpValue > 0 ? `+${xpValue} XP` : ""}</div>
+    `;
+
+    host.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("is-visible"));
+
+    window.setTimeout(() => {
+      toast.classList.remove("is-visible");
+      window.setTimeout(() => toast.remove(), 250);
+    }, 2800);
+
+    return toast;
+  }
+
   window.NetologyToast = {
     show,
     showCelebrateToast,
     showMessageToast,
     showSandboxToast,
+    showAchievementToast,
     showInlineBanner,
     hideInlineBanner
   };

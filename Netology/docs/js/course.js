@@ -2104,8 +2104,11 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
     if (!msg) return;
 
     const decoded = decodeURIComponent(msg);
-    if (typeof window.showPopup === "function") window.showPopup(decoded, "success");
-    else showAria(decoded);
+    if (window.NetologyToast?.showMessageToast) {
+      window.NetologyToast.showMessageToast(decoded, "success", 3200);
+    } else {
+      alert(decoded);
+    }
   }
 
   function showCourseProgressToast(progress) {
@@ -2133,8 +2136,8 @@ Notes: Cleaned comments, simplified naming, and kept full page behavior.
       return;
     }
 
-    if (typeof window.showPopup === "function") {
-      window.showPopup(progressMessage, "success");
+    if (window.NetologyToast?.showMessageToast) {
+      window.NetologyToast.showMessageToast(progressMessage, "success", 3200);
       return;
     }
 

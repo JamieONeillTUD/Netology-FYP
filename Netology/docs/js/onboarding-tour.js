@@ -182,8 +182,8 @@ Notes: Contains built-in default flow/URL/step config used across onboarding pag
   }
 
   function showInfoMessage(message, type = "info") {
-    if (typeof window.showPopup === "function") {
-      window.showPopup(message, type);
+    if (window.NetologyToast?.showMessageToast) {
+      window.NetologyToast.showMessageToast(String(message || ""), type, 3200);
       return;
     }
     alert(String(message || ""));

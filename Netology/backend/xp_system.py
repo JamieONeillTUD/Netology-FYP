@@ -75,7 +75,6 @@ def add_xp_to_user(email: str, xp_amount: int, action: str = DEFAULT_XP_ACTION) 
 
     try:
         with _db_cursor() as (db_connection, db_cursor):
-            # Atomic update so concurrent requests stay consistent.
             db_cursor.execute(
                 """
                 UPDATE users

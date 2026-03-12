@@ -1345,18 +1345,16 @@ Notes: Rebuilt with simpler structure, removed old/unused sections, and kept das
       // Ignore storage errors.
     }
 
-    if (typeof window.showPopup === "function") {
-      window.showPopup("Challenges are temporarily unavailable. We’ll keep trying in the background.", "warning");
-      return;
-    }
-
     if (window.NetologyToast?.showMessageToast) {
       window.NetologyToast.showMessageToast(
         "Challenges are temporarily unavailable. We’ll keep trying in the background.",
         "warning",
         4200
       );
+      return;
     }
+
+    alert("Challenges are temporarily unavailable. We’ll keep trying in the background.");
   }
 
   function clearChallengesToastFlag() {

@@ -124,12 +124,12 @@ onboarding handoff, and daily login sync.
     forgot: { id: "forgotBanner", timer: "forgot", timeoutMs: 4500 }
   });
 
-  // Displays a popup message using the shared popup helper when available.
+  // Displays a message toast using the shared UI toast API.
   // Falls back to alert if the helper is missing.
   function showToast(message, type = "info") {
     if (!message) return;
-    if (typeof window.showPopup === "function") {
-      window.showPopup(String(message), type);
+    if (window.NetologyToast?.showMessageToast) {
+      window.NetologyToast.showMessageToast(String(message), type, 3200);
       return;
     }
     alert(String(message));

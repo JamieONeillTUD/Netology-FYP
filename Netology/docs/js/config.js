@@ -1,8 +1,8 @@
 /*
 ---------------------------------------------------------
-Student: C22320301 - Jamie O’Neill
+Student: C22320301 - Jamie O'Neill
 File: config.js
-Purpose: Stores API config and shared client helpers used across the site.
+Purpose: Stores API config and shared helpers used across the site.
 Notes: Theme application is handled in ui-theme.js.
 ---------------------------------------------------------
 */
@@ -99,60 +99,56 @@ window.ENDPOINTS = {
   }
 };
 
-// Shared XP helper so all pages use one math definition.
+// Shared XP math.
 (() => {
   "use strict";
 
   if (window.NetologyXP) return;
 
-  function toInt(value, fallback = 0) {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) ? parsed : fallback;
+  function toInt(rawValue, fallbackValue = 0) {
+    const parsedNumber = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsedNumber) ? parsedNumber : fallbackValue;
   }
 
-  function toNonNegativeInt(value, fallback = 0) {
-    return Math.max(0, toInt(value, fallback));
-  }
-
-  function normalizeLevel(level) {
-    return Math.max(1, toInt(level, 1));
+  function safeLevel(levelValue) {
+    return Math.max(1, toInt(levelValue, 1));
   }
 
   function totalXpForLevel(level) {
-    const safeLevel = normalizeLevel(level);
-    return (100 * (safeLevel - 1) * safeLevel) / 2;
+    const normalizedLevel = safeLevel(level);
+    return (100 * (normalizedLevel - 1) * normalizedLevel) / 2;
   }
 
   function levelFromTotalXp(totalXp) {
+    let remainingXp = Math.max(0, toInt(totalXp, 0));
     let level = 1;
-    let xpRemaining = toNonNegativeInt(totalXp, 0);
-    let xpNeeded = 100;
+    let xpRequiredForNextLevel = 100;
 
-    while (xpRemaining >= xpNeeded) {
-      xpRemaining -= xpNeeded;
+    while (remainingXp >= xpRequiredForNextLevel) {
+      remainingXp -= xpRequiredForNextLevel;
       level += 1;
-      xpNeeded += 100;
+      xpRequiredForNextLevel += 100;
     }
 
     return level;
   }
 
   function xpForNextLevel(level) {
-    return 100 * normalizeLevel(level);
+    return 100 * safeLevel(level);
   }
 
   function rankForLevel(level) {
-    const numericLevel = normalizeLevel(level);
-    if (numericLevel >= 5) return "Advanced";
-    if (numericLevel >= 3) return "Intermediate";
+    const normalizedLevel = safeLevel(level);
+    if (normalizedLevel >= 5) return "Advanced";
+    if (normalizedLevel >= 3) return "Intermediate";
     return "Novice";
   }
 
   function getLevelProgress(totalXp) {
-    const safeTotalXp = toNonNegativeInt(totalXp, 0);
-    const level = levelFromTotalXp(safeTotalXp);
+    const totalXpValue = Math.max(0, toInt(totalXp, 0));
+    const level = levelFromTotalXp(totalXpValue);
     const levelStartXp = totalXpForLevel(level);
-    const xpIntoLevel = Math.max(0, safeTotalXp - levelStartXp);
+    const xpIntoLevel = Math.max(0, totalXpValue - levelStartXp);
     const nextLevelXp = xpForNextLevel(level);
     const progressPercent = Math.max(
       0,
@@ -161,7 +157,7 @@ window.ENDPOINTS = {
 
     return {
       level,
-      totalXp: safeTotalXp,
+      totalXp: totalXpValue,
       xpIntoLevel,
       nextLevelXp,
       toNextXp: Math.max(0, nextLevelXp - xpIntoLevel),
@@ -171,53 +167,48 @@ window.ENDPOINTS = {
 
   function applyXpToUser(userData, xpDelta) {
     const baseUser = userData && typeof userData === "object" ? userData : {};
-    const delta = toNonNegativeInt(xpDelta, 0);
-    const nextTotalXp = toNonNegativeInt(baseUser.xp, 0) + delta;
-    const progress = getLevelProgress(nextTotalXp);
+    const xpToAdd = Math.max(0, toInt(xpDelta, 0));
+    const nextTotalXp = Math.max(0, toInt(baseUser.xp, 0)) + xpToAdd;
+    const nextProgress = getLevelProgress(nextTotalXp);
 
     return {
       ...baseUser,
-      xp: progress.totalXp,
-      numeric_level: progress.level,
-      xp_into_level: progress.xpIntoLevel,
-      next_level_xp: progress.nextLevelXp,
-      level: rankForLevel(progress.level),
-      rank: rankForLevel(progress.level)
+      xp: nextProgress.totalXp,
+      numeric_level: nextProgress.level,
+      xp_into_level: nextProgress.xpIntoLevel,
+      next_level_xp: nextProgress.nextLevelXp,
+      level: rankForLevel(nextProgress.level),
+      rank: rankForLevel(nextProgress.level)
     };
   }
 
   function resolveUserProgress(userData) {
     const baseUser = userData && typeof userData === "object" ? userData : {};
-    const totalXp = toNonNegativeInt(baseUser.xp, 0);
-    const computed = getLevelProgress(totalXp);
+    const totalXpValue = Math.max(0, toInt(baseUser.xp, 0));
+    const computedProgress = getLevelProgress(totalXpValue);
 
-    const serverLevel = toInt(baseUser.numeric_level, computed.level);
-    const serverXpInto = toInt(baseUser.xp_into_level, computed.xpIntoLevel);
-    const serverNextXp = toInt(baseUser.next_level_xp, computed.nextLevelXp);
+    const serverLevel = safeLevel(toInt(baseUser.numeric_level, computedProgress.level));
+    const serverXpIntoLevel = Math.max(0, toInt(baseUser.xp_into_level, computedProgress.xpIntoLevel));
+    const serverNextLevelXp = Math.max(0, toInt(baseUser.next_level_xp, computedProgress.nextLevelXp));
 
-    const normalizedServerLevel = normalizeLevel(serverLevel);
-    const expectedTotal = totalXpForLevel(normalizedServerLevel) + Math.max(0, serverXpInto);
-    const serverLooksConsistent =
-      serverNextXp > 0 &&
-      Math.abs(expectedTotal - totalXp) <= 1;
+    const expectedTotalXp = totalXpForLevel(serverLevel) + serverXpIntoLevel;
+    const serverProgressLooksConsistent = serverNextLevelXp > 0 && Math.abs(expectedTotalXp - totalXpValue) <= 1;
 
-    if (serverLooksConsistent) {
-      const xpIntoLevel = Math.max(0, serverXpInto);
-      const nextLevelXp = Math.max(1, serverNextXp);
+    if (serverProgressLooksConsistent) {
       return {
-        level: normalizedServerLevel,
-        totalXp,
-        xpIntoLevel,
-        nextLevelXp,
-        toNextXp: Math.max(0, nextLevelXp - xpIntoLevel),
-        progressPercent: Math.max(0, Math.min(100, Math.round((xpIntoLevel / nextLevelXp) * 100))),
-        rank: rankForLevel(normalizedServerLevel)
+        level: serverLevel,
+        totalXp: totalXpValue,
+        xpIntoLevel: serverXpIntoLevel,
+        nextLevelXp: serverNextLevelXp,
+        toNextXp: Math.max(0, serverNextLevelXp - serverXpIntoLevel),
+        progressPercent: Math.max(0, Math.min(100, Math.round((serverXpIntoLevel / serverNextLevelXp) * 100))),
+        rank: rankForLevel(serverLevel)
       };
     }
 
     return {
-      ...computed,
-      rank: rankForLevel(computed.level)
+      ...computedProgress,
+      rank: rankForLevel(computedProgress.level)
     };
   }
 
@@ -232,222 +223,190 @@ window.ENDPOINTS = {
   };
 })();
 
-// Shared achievement helpers: pending unlock queue + seen tracking.
+// Shared achievement queue + popup handling.
 (() => {
   "use strict";
 
   if (window.NetologyAchievements) return;
 
-  function normEmail(email) {
-    return String(email || "").trim().toLowerCase();
+  function normalizeEmail(emailValue) {
+    return String(emailValue || "").trim().toLowerCase();
   }
 
-  function parseArray(rawValue) {
+  function pendingKey(emailAddress) {
+    return `netology_achievement_pending:${normalizeEmail(emailAddress)}`;
+  }
+
+  function seenKey(emailAddress) {
+    return `netology_achievement_seen:${normalizeEmail(emailAddress)}`;
+  }
+
+  function readArrayFromStorage(storageKey) {
     try {
-      const parsed = rawValue ? JSON.parse(rawValue) : [];
-      return Array.isArray(parsed) ? parsed : [];
+      const parsedValue = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      return Array.isArray(parsedValue) ? parsedValue : [];
     } catch {
       return [];
     }
   }
 
-  function pendingKey(email) {
-    return `netology_achievement_pending:${normEmail(email)}`;
-  }
+  function normalizeUnlock(unlockValue) {
+    if (!unlockValue || typeof unlockValue !== "object") return null;
 
-  function seenKey(email) {
-    return `netology_achievement_seen:${normEmail(email)}`;
-  }
-
-  function normalizeUnlock(unlock) {
-    if (!unlock || typeof unlock !== "object") return null;
-    const id = String(unlock.id || "").trim();
-    if (!id) return null;
+    const unlockId = String(unlockValue.id || "").trim();
+    if (!unlockId) return null;
 
     return {
-      id,
-      name: String(unlock.name || "Achievement"),
-      description: String(unlock.description || ""),
-      icon: String(unlock.icon || "bi-award-fill"),
-      rarity: String(unlock.rarity || "common"),
-      xp_added: Number(unlock.xp_added || unlock.xp_awarded || 0),
-      earned_at: unlock.earned_at || new Date().toISOString()
+      id: unlockId,
+      name: String(unlockValue.name || "Achievement"),
+      description: String(unlockValue.description || ""),
+      icon: String(unlockValue.icon || "bi-award-fill"),
+      rarity: String(unlockValue.rarity || "common"),
+      xp_added: Number(unlockValue.xp_added || unlockValue.xp_awarded || 0),
+      earned_at: unlockValue.earned_at || new Date().toISOString()
     };
   }
 
-  function queueUnlocks(email, unlocks) {
-    const safeEmail = normEmail(email);
-    if (!safeEmail || !Array.isArray(unlocks) || unlocks.length === 0) return [];
+  function getSeenIds(emailAddress) {
+    const normalizedEmail = normalizeEmail(emailAddress);
+    if (!normalizedEmail) return [];
 
-    const key = pendingKey(safeEmail);
-    const current = parseArray(localStorage.getItem(key));
-    const byId = new Map();
-    const incoming = [];
+    return readArrayFromStorage(seenKey(normalizedEmail)).map((achievementId) => String(achievementId));
+  }
 
-    current.forEach((entry) => {
-      const normalized = normalizeUnlock(entry);
-      if (normalized) byId.set(normalized.id, normalized);
+  function setSeenIds(emailAddress, achievementIds) {
+    const normalizedEmail = normalizeEmail(emailAddress);
+    if (!normalizedEmail) return [];
+
+    const mergedSeenIds = new Set(getSeenIds(normalizedEmail));
+
+    achievementIds.forEach((achievementId) => {
+      const safeAchievementId = String(achievementId || "").trim();
+      if (safeAchievementId) mergedSeenIds.add(safeAchievementId);
     });
 
-    unlocks.forEach((entry) => {
-      const normalized = normalizeUnlock(entry);
-      if (!normalized) return;
-      byId.set(normalized.id, normalized);
-      incoming.push(normalized);
+    const seenIdsList = Array.from(mergedSeenIds.values());
+    localStorage.setItem(seenKey(normalizedEmail), JSON.stringify(seenIdsList));
+    return seenIdsList;
+  }
+
+  function removePendingByIds(emailAddress, achievementIds) {
+    const normalizedEmail = normalizeEmail(emailAddress);
+    if (!normalizedEmail || !Array.isArray(achievementIds) || !achievementIds.length) return;
+
+    const idsToRemove = new Set(
+      achievementIds
+        .map((achievementId) => String(achievementId || "").trim())
+        .filter(Boolean)
+    );
+
+    if (!idsToRemove.size) return;
+
+    const storageKey = pendingKey(normalizedEmail);
+    const pendingUnlocks = readArrayFromStorage(storageKey);
+    if (!pendingUnlocks.length) return;
+
+    const filteredUnlocks = pendingUnlocks.filter((unlockEntry) => {
+      const unlockId = String(unlockEntry?.id || "").trim();
+      return unlockId && !idsToRemove.has(unlockId);
     });
 
-    const merged = Array.from(byId.values());
-    localStorage.setItem(key, JSON.stringify(merged));
+    if (filteredUnlocks.length) localStorage.setItem(storageKey, JSON.stringify(filteredUnlocks));
+    else localStorage.removeItem(storageKey);
+  }
 
-    if (incoming.length) {
-      showUnlockPopups(safeEmail, incoming);
+  function showUnlockPopups(emailAddress, unlockList) {
+    const normalizedEmail = normalizeEmail(emailAddress);
+    if (!normalizedEmail || !Array.isArray(unlockList) || !unlockList.length || !document.body) return [];
+
+    const seenAchievementIds = new Set(getSeenIds(normalizedEmail));
+    const unlockIdsAlreadyQueued = new Set();
+    const unlocksToDisplay = [];
+
+    unlockList.forEach((unlockEntry) => {
+      const normalizedUnlock = normalizeUnlock(unlockEntry);
+      if (!normalizedUnlock) return;
+      if (seenAchievementIds.has(normalizedUnlock.id)) return;
+      if (unlockIdsAlreadyQueued.has(normalizedUnlock.id)) return;
+
+      unlockIdsAlreadyQueued.add(normalizedUnlock.id);
+      unlocksToDisplay.push(normalizedUnlock);
+    });
+
+    if (!unlocksToDisplay.length) return [];
+
+    unlocksToDisplay.forEach((unlockEntry, unlockIndex) => {
+      window.setTimeout(() => {
+        if (window.NetologyToast?.showAchievementToast) {
+          window.NetologyToast.showAchievementToast(unlockEntry);
+          return;
+        }
+
+        if (window.NetologyToast?.showMessageToast) {
+          window.NetologyToast.showMessageToast(`${unlockEntry.name || "Achievement"} unlocked`, "success", 3200);
+          return;
+        }
+
+        alert(`${unlockEntry.name || "Achievement"} unlocked`);
+      }, unlockIndex * 220);
+    });
+
+    const displayedUnlockIds = unlocksToDisplay.map((unlockEntry) => unlockEntry.id);
+    setSeenIds(normalizedEmail, displayedUnlockIds);
+    removePendingByIds(normalizedEmail, displayedUnlockIds);
+
+    return unlocksToDisplay;
+  }
+
+  function queueUnlocks(emailAddress, unlockList) {
+    const normalizedEmail = normalizeEmail(emailAddress);
+    if (!normalizedEmail || !Array.isArray(unlockList) || !unlockList.length) return [];
+
+    const storageKey = pendingKey(normalizedEmail);
+    const currentPendingUnlocks = readArrayFromStorage(storageKey);
+    const unlocksById = new Map();
+    const incomingUnlocks = [];
+
+    currentPendingUnlocks.forEach((unlockEntry) => {
+      const normalizedUnlock = normalizeUnlock(unlockEntry);
+      if (normalizedUnlock) unlocksById.set(normalizedUnlock.id, normalizedUnlock);
+    });
+
+    unlockList.forEach((unlockEntry) => {
+      const normalizedUnlock = normalizeUnlock(unlockEntry);
+      if (!normalizedUnlock) return;
+      unlocksById.set(normalizedUnlock.id, normalizedUnlock);
+      incomingUnlocks.push(normalizedUnlock);
+    });
+
+    const mergedPendingUnlocks = Array.from(unlocksById.values());
+    localStorage.setItem(storageKey, JSON.stringify(mergedPendingUnlocks));
+
+    if (incomingUnlocks.length) {
+      showUnlockPopups(normalizedEmail, incomingUnlocks);
     }
 
-    return merged;
-  }
-
-  function getPendingUnlocks(email) {
-    const safeEmail = normEmail(email);
-    if (!safeEmail) return [];
-    return parseArray(localStorage.getItem(pendingKey(safeEmail)));
-  }
-
-  function getSeenIds(email) {
-    const safeEmail = normEmail(email);
-    if (!safeEmail) return [];
-    return parseArray(localStorage.getItem(seenKey(safeEmail))).map((id) => String(id));
-  }
-
-  function markSeen(email, achievementIds) {
-    const safeEmail = normEmail(email);
-    if (!safeEmail || !Array.isArray(achievementIds)) return [];
-
-    const merged = new Set(getSeenIds(safeEmail));
-    achievementIds.forEach((id) => {
-      const safeId = String(id || "").trim();
-      if (safeId) merged.add(safeId);
-    });
-
-    const ids = Array.from(merged.values());
-    localStorage.setItem(seenKey(safeEmail), JSON.stringify(ids));
-    return ids;
+    return mergedPendingUnlocks;
   }
 
   function currentUserEmail() {
     try {
-      const primary = localStorage.getItem("netology_user") || localStorage.getItem("user");
-      const parsed = primary ? JSON.parse(primary) : null;
-      return normEmail(parsed?.email || "");
+      const rawUserData = localStorage.getItem("netology_user") || localStorage.getItem("user") || "null";
+      const parsedUserData = JSON.parse(rawUserData);
+      return normalizeEmail(parsedUserData?.email || "");
     } catch {
       return "";
     }
   }
 
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function iconHtml(unlock) {
-    const raw = String(unlock?.icon || "").trim();
-    if (raw.startsWith("bi-")) return `<i class="bi ${escapeHtml(raw)}"></i>`;
-    return escapeHtml(raw || "⭐");
-  }
-
-  function ensureToastHost() {
-    if (!document.body) return null;
-    let host = document.getElementById("globalAchievementToastHost");
-    if (host) return host;
-
-    host = document.createElement("div");
-    host.id = "globalAchievementToastHost";
-    host.className = "net-achievement-toast-host";
-    document.body.appendChild(host);
-    return host;
-  }
-
-  function showAchievementToast(unlock) {
-    const host = ensureToastHost();
-    if (!host) return;
-
-    const xpValue = Number(unlock?.xp_added || unlock?.xp_awarded || unlock?.xp_reward || 0);
-    const toast = document.createElement("div");
-    toast.className = "net-achievement-toast";
-    toast.innerHTML = `
-      <div class="net-achievement-toast-icon">${iconHtml(unlock)}</div>
-      <div class="net-achievement-toast-copy">
-        <div class="net-achievement-toast-title">Achievement unlocked</div>
-        <div class="net-achievement-toast-name">${escapeHtml(unlock?.name || "Achievement")}</div>
-      </div>
-      <div class="net-achievement-toast-xp">${xpValue > 0 ? `+${xpValue} XP` : ""}</div>
-    `;
-
-    host.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add("is-visible"));
-    window.setTimeout(() => {
-      toast.classList.remove("is-visible");
-      window.setTimeout(() => toast.remove(), 250);
-    }, 2800);
-  }
-
-  function removePendingIds(email, achievementIds) {
-    const safeEmail = normEmail(email);
-    if (!safeEmail || !Array.isArray(achievementIds) || !achievementIds.length) return;
-
-    const removeSet = new Set(achievementIds.map((id) => String(id || "").trim()).filter(Boolean));
-    if (!removeSet.size) return;
-
-    const key = pendingKey(safeEmail);
-    const pending = parseArray(localStorage.getItem(key));
-    if (!pending.length) return;
-
-    const filtered = pending.filter((entry) => {
-      const id = String(entry?.id || "").trim();
-      return id && !removeSet.has(id);
-    });
-
-    if (filtered.length) localStorage.setItem(key, JSON.stringify(filtered));
-    else localStorage.removeItem(key);
-  }
-
-  function showUnlockPopups(email, unlocks) {
-    const safeEmail = normEmail(email);
-    if (!safeEmail || !Array.isArray(unlocks) || !unlocks.length || !document.body) return [];
-
-    const seen = new Set(getSeenIds(safeEmail));
-    const displayList = [];
-    const displayIds = new Set();
-
-    unlocks.forEach((entry) => {
-      const normalized = normalizeUnlock(entry);
-      if (!normalized) return;
-      if (seen.has(normalized.id) || displayIds.has(normalized.id)) return;
-      displayIds.add(normalized.id);
-      displayList.push(normalized);
-    });
-
-    if (!displayList.length) return [];
-
-    displayList.forEach((unlock, index) => {
-      window.setTimeout(() => showAchievementToast(unlock), index * 220);
-    });
-
-    const ids = displayList.map((unlock) => unlock.id);
-    markSeen(safeEmail, ids);
-    removePendingIds(safeEmail, ids);
-    return displayList;
-  }
-
   function showPendingForCurrentUser() {
-    const email = currentUserEmail();
-    if (!email) return [];
-    const pending = getPendingUnlocks(email);
-    if (!pending.length) return [];
-    return showUnlockPopups(email, pending);
+    const emailAddress = currentUserEmail();
+    if (!emailAddress) return [];
+
+    const pendingUnlocks = readArrayFromStorage(pendingKey(emailAddress));
+    if (!pendingUnlocks.length) return [];
+
+    return showUnlockPopups(emailAddress, pendingUnlocks);
   }
 
   window.NetologyAchievements = {

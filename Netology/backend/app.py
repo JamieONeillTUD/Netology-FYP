@@ -21,17 +21,8 @@ app = Flask(
     static_url_path="",
 )
 
-CORS(
-    app,
-    resources={
-        r"/*": {
-            "origins": [
-                "https://jamieoneilltud.github.io",
-                "https://netology-fyp.onrender.com",
-            ]
-        }
-    },
-)
+CORS(app, resources={r"/*": {"origins": ["https://jamieoneilltud.github.io", "https://netology-fyp.onrender.com"]}})
+
 
 auth_bcrypt.init_app(app)
 

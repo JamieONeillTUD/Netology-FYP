@@ -249,7 +249,7 @@ def _rule_matches(rule: dict[str, Any], stats: dict[str, Any], event_name: str) 
 
 def evaluate_achievements_for_event(user_email: str, event_name: str | None = None) -> list[dict[str, Any]]:
     """
-    Evaluate all achievement rules for one user and award any newly satisfied badges.
+    Looks all achievement rules for one user and award any newly satisfied badges.
     Returns a list of newly unlocked achievements.
     """
     email = str(user_email or "").strip().lower()
