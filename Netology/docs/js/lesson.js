@@ -1629,7 +1629,9 @@ class LessonEngine {
   animateStepIn(rendererElement, container) {
     if (!rendererElement) return;
 
-    // Fail-safe: make the step visible immediately, then animate if available.
+    // Fail-safe: ensure the step cannot remain hidden if animations are disabled.
+    rendererElement.style.opacity = "1";
+    rendererElement.style.transform = "none";
     rendererElement.classList.add("les-step-enter");
 
     if (container) container.scrollTop = 0;

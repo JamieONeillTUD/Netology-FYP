@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic.css');
+
 /* ═══════════════════════════════════════════════════════════
    NETOLOGY – THEME TOKENS  (updated 2026 palette overhaul)
    ═══════════════════════════════════════════════════════════ */
@@ -3950,8 +3953,6 @@ body:has(#slideSidebar.is-open) .net-hambtn .net-hambtn-bars span:nth-child(3) {
    ═══════════════════════════════════════════════════════════ */
 
 /* -- Font & Global Overrides -- */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-@import url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic.css');
 
 :root {
   --net-font-main: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
@@ -12116,7 +12117,7 @@ net-lesson-outline-grid .mb-2 {
 /* ── Animations ────────────────────────────────────────── */
 @keyframes les-fadeUp {
   from { opacity: 0; transform: translateY(16px); }
-  
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes les-shake {
@@ -12128,21 +12129,21 @@ net-lesson-outline-grid .mb-2 {
 }
 
 @keyframes les-correctPop {
-  
+  0% { transform: scale(1); }
   50% { transform: scale(1.05); }
-  
+  100% { transform: scale(1); }
 }
 
 @keyframes les-pulse {
-  
+  0% { transform: scale(1); }
   50% { transform: scale(1.15); }
-  
+  100% { transform: scale(1); }
 }
 
 @keyframes les-bounce {
   0% { transform: scale(0.5); opacity: 0; }
   60% { transform: scale(1.15); opacity: 1; }
-  
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes les-confettiFall {
@@ -12152,6 +12153,11 @@ net-lesson-outline-grid .mb-2 {
 
 /* ── Reduced Motion ────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  .les-step {
+    opacity: 1;
+    transform: none;
+  }
+
   .les-step,
   .les-intro-card,
   .les-complete-card,
