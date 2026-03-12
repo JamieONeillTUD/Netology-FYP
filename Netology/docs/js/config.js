@@ -7,11 +7,18 @@ Notes: Theme application is handled in ui-theme.js.
 ---------------------------------------------------------
 */
 
-// Local development option:
-// window.API_BASE = "http://localhost:5001";
+// API base resolution:
+// 1) Keep an existing value if one was injected before this script.
+// 2) Otherwise use the production backend.
+(() => {
+  const preconfiguredBase = String(window.API_BASE || "").trim();
+  if (preconfiguredBase) {
+    window.API_BASE = preconfiguredBase.replace(/\/$/, "");
+    return;
+  }
 
-// Production default:
-window.API_BASE = window.API_BASE || "https://netology-fyp.onrender.com";
+  window.API_BASE = "https://netology-fyp.onrender.com";
+})();
 
 // Central API route map.
 window.ENDPOINTS = {

@@ -728,11 +728,21 @@ onboarding handoff, and daily login sync.
           body: new FormData(formElement)
         });
 
-        const responseData = await response.json();
-        if (!responseData?.success) {
-          setInvalidState(emailInput, true);
-          setInvalidState(passwordInput, true);
-          showLoginBanner(responseData?.message || "Incorrect email or password. Please try again.", "error");
+        const responseData = await response.json().catch(() => null);
+        if (!response.ok || !responseData?.success) {
+          const isInvalidCredentials = response.status === 401;
+          if (isInvalidCredentials) {
+            setInvalidState(emailInput, true);
+            setInvalidState(passwordInput, true);
+          }
+
+          showLoginBanner(
+            responseData?.message ||
+              (isInvalidCredentials
+                ? "Incorrect email or password. Please try again."
+                : "Login failed. Please try again in a moment."),
+            "error"
+          );
           return;
         }
 
@@ -776,7 +786,13 @@ onboarding handoff, and daily login sync.
         setTimeout(() => {
           window.location.href = "dashboard.html";
         }, overlayShown ? 2200 : 900);
-      } catch {
+      } catch (error) {
+        console.error("Login request failed", {
+          error,
+          loginUrl: apiUrl(authPath("login", "/login")),
+          apiBase: API_BASE,
+          online: navigator.onLine
+        });
         showLoginBanner("Cannot reach the server right now. Please check your connection and try again.", "error");
       }
     });
