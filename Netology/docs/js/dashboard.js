@@ -777,21 +777,46 @@
     if (!window.dashboardRender) {
       window.dashboardRender = {
         fillUserChrome: (user) => {
+          // Update user info in sidebar and top nav
           if (user?.first_name) {
-            const nameEl = document.querySelector('[data-role="user-name"]');
-            if (nameEl) nameEl.textContent = user.first_name;
+            // Sidebar user name
+            const sideName = document.getElementById("sideUserName");
+            if (sideName) sideName.textContent = user.first_name;
+            
+            // Top nav dropdown name
+            const topName = document.getElementById("topUserName");
+            if (topName) topName.textContent = user.first_name;
           }
-        },
-        renderProgressWidgets: (user) => {
-          // Basic progress display
+          
+          if (user?.email) {
+            // Sidebar user email
+            const sideEmail = document.getElementById("sideUserEmail");
+            if (sideEmail) sideEmail.textContent = user.email;
+          }
+          
           if (user?.level) {
-            const levelEl = document.querySelector('[data-role="user-level"]');
-            if (levelEl) levelEl.textContent = user.level || 'Level 1';
+            // Sidebar level badge
+            const levelBadge = document.getElementById("sideLevelBadge");
+            if (levelBadge) levelBadge.textContent = `Lv ${user.level}`;
+            
+            // Hero level display
+            const heroLevel = document.getElementById("heroLevel");
+            if (heroLevel) heroLevel.textContent = `Level ${user.level}`;
           }
         },
-        renderContinueLearning: async (user) => {
-          // Async rendering - can be empty if data loads separately
+        
+        renderProgressWidgets: (user) => {
+          // This is called but actual progress rendering happens in renderStatsCarousel
+          // since progress data comes from fetchProgressFromServer, not user object
+          renderStatsCarousel();
+          renderRankAndLevel();
+          renderStreakCalendar();
         },
+        
+        renderContinueLearning: async (user) => {
+          // Continue learning section - handled separately
+        },
+        
         renderAchievements: () => {
           // Render achievements from dashboardState.achievementCatalog
           const scrollerEl = document.getElementById("achieveScroller");
@@ -824,6 +849,7 @@
 
           scrollerEl.innerHTML = html || '<div class="small text-muted">No achievements yet.</div>';
         },
+        
         renderChallengeList: (el, challenges, type) => {
           if (!el) return;
           
@@ -847,6 +873,77 @@
           el.innerHTML = html || '<div class="small text-muted">No challenges available.</div>';
         }
       };
+    }
+  }
+
+  // Helper: Render stats carousel with progress data
+  function renderStatsCarousel() {
+    const progress = dashboardState.progressSummary;
+    if (!progress) return;
+
+    // Update carousel slides with actual data
+    const heroActive = document.getElementById("heroActive");
+    if (heroActive) heroActive.textContent = progress.inProgress || 0;
+
+    const statLessons = document.getElementById("statLessons");
+    if (statLessons) statLessons.textContent = progress.lessonsDone || 0;
+
+    const statQuizzes = document.getElementById("statQuizzes");
+    if (statQuizzes) statQuizzes.textContent = progress.quizzesDone || 0;
+
+    const statChallenges = document.getElementById("statChallenges");
+    if (statChallenges) statChallenges.textContent = progress.challengesDone || 0;
+  }
+
+  // Helper: Render rank and level cards
+  function renderRankAndLevel() {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    const heroRank = document.getElementById("heroRank");
+    if (heroRank && user.level) {
+      heroRank.textContent = user.rank || `Rank ${user.level}`;
+    }
+
+    const heroLevel = document.getElementById("heroLevel");
+    if (heroLevel && user.level) {
+      heroLevel.textContent = `Level ${user.level}`;
+    }
+
+    // XP arc gauge - for now just show the number
+    const heroXP = document.getElementById("heroXP");
+    if (heroXP && user.xp_current !== undefined) {
+      heroXP.textContent = `${user.xp_current}/${user.xp_for_next_level || 100}`;
+    }
+  }
+
+  // Helper: Render streak calendar (7 day activity)
+  function renderStreakCalendar() {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    const calendarEl = document.getElementById("streakCalendar");
+    if (!calendarEl) return;
+
+    // For now, just show static calendar - streak calculation happens on server
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    
+    let html = '';
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dayLabel = dayLabels[date.getDay()];
+      
+      html += `<div class="streak-day" title="${date.toLocaleDateString()}">${dayLabel.charAt(0)}</div>`;
+    }
+    
+    calendarEl.innerHTML = html;
+
+    // Update streak count from progress data
+    const heroStreak = document.getElementById("heroStreak");
+    if (heroStreak && dashboardState.progressSummary?.loginStreak !== undefined) {
+      heroStreak.textContent = dashboardState.progressSummary.loginStreak || 0;
     }
   }
 
