@@ -755,10 +755,41 @@
     }
   }
 
+  // Fallback rendering functions if dashboardRender not available
+  function ensureRenderingFunctions() {
+    if (!window.dashboardRender) {
+      window.dashboardRender = {
+        fillUserChrome: (user) => {
+          if (user?.first_name) {
+            const nameEl = document.querySelector('[data-role="user-name"]');
+            if (nameEl) nameEl.textContent = user.first_name;
+          }
+        },
+        renderProgressWidgets: (user) => {
+          // Basic progress display
+          if (user?.level) {
+            const levelEl = document.querySelector('[data-role="user-level"]');
+            if (levelEl) levelEl.textContent = user.level || 'Level 1';
+          }
+        },
+        renderContinueLearning: async (user) => {
+          // Async rendering - can be empty if data loads separately
+        },
+        renderAchievements: () => {
+          // Achievements will load when data arrives
+        },
+        renderChallengeList: (el, challenges, type) => {
+          // Challenge rendering
+        }
+      };
+    }
+  }
+
   // START THE APP
 
   // Initialize dashboard when page is ready
   onDOMReady(() => {
+    ensureRenderingFunctions();
     initializeLoginDay();
     initializeDashboard();
   });
