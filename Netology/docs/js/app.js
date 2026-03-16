@@ -1,4 +1,4 @@
-// Shared config: API endpoints, XP system, and achievements
+// App: Unified config, endpoints, XP system, achievements, and login tracking
 
 // Set up API base URL (backend server address)
 // Use pre-configured value if available, otherwise use production
@@ -9,7 +9,7 @@
     return;
   }
   window.API_BASE = "https://netology-fyp.onrender.com";
-});
+})();
 
 // Central location for all backend API routes used across the app
 window.ENDPOINTS = {
@@ -242,7 +242,6 @@ window.ENDPOINTS = {
     return String(emailValue || "").trim().toLowerCase();
   }
 
-
   // Get localStorage key for pending achievements
   function pendingKey(emailAddress) {
     return `netology_achievement_pending:${normalizeEmail(emailAddress)}`;
@@ -252,7 +251,6 @@ window.ENDPOINTS = {
   function seenKey(emailAddress) {
     return `netology_achievement_seen:${normalizeEmail(emailAddress)}`;
   }
-
 
   // Read array from localStorage safely
   function readArrayFromStorage(storageKey) {
@@ -282,7 +280,6 @@ window.ENDPOINTS = {
     };
   }
 
-
   // Get list of achievement IDs already shown to user
   function getSeenIds(emailAddress) {
     const normalizedEmail = normalizeEmail(emailAddress);
@@ -305,7 +302,6 @@ window.ENDPOINTS = {
     localStorage.setItem(seenKey(normalizedEmail), JSON.stringify(seenIdsList));
     return seenIdsList;
   }
-
 
   // Remove specific achievements from pending queue
   function removePendingByIds(emailAddress, achievementIds) {
@@ -332,7 +328,6 @@ window.ENDPOINTS = {
     if (filteredUnlocks.length) localStorage.setItem(storageKey, JSON.stringify(filteredUnlocks));
     else localStorage.removeItem(storageKey);
   }
-
 
   // Show achievement popups with staggered timing
   function showUnlockPopups(emailAddress, unlockList) {
@@ -379,7 +374,6 @@ window.ENDPOINTS = {
     return unlocksToDisplay;
   }
 
-
   // Add new achievements to pending queue and show them
   function queueUnlocks(emailAddress, unlockList) {
     const normalizedEmail = normalizeEmail(emailAddress);
@@ -412,7 +406,6 @@ window.ENDPOINTS = {
 
     return mergedPendingUnlocks;
   }
-
 
   // Get current user email from localStorage
   function currentUserEmail() {
@@ -447,4 +440,141 @@ window.ENDPOINTS = {
   } else {
     showPendingForCurrentUser();
   }
+})();
+
+// Login day tracking and XP management
+(() => {
+  "use strict";
+
+  const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
+  const ENDPOINTS = window.ENDPOINTS || {};
+  const XP = window.NetologyXP || null;
+
+  // Local storage keys
+  const STORAGE_KEYS = {
+    user: "user",
+    netologyUser: "netology_user"
+  };
+
+  // Safely parse JSON
+  function parseJson(value, fallbackValue = null) {
+    try {
+      const parsedValue = JSON.parse(value);
+      return parsedValue === null ? fallbackValue : parsedValue;
+    } catch {
+      return fallbackValue;
+    }
+  }
+
+  // Build full API URL
+  function apiUrl(path) {
+    return API_BASE ? `${API_BASE}${path}` : path;
+  }
+
+  // Normalize email
+  function normalizeEmail(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  // Prefix for login log storage
+  const LOGIN_LOG_KEY_PREFIX = "netology_login_log:";
+
+  // Convert date to YYYY-MM-DD
+  function dateToKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  // Get login log storage key
+  function getLoginLogKey(email) {
+    return `${LOGIN_LOG_KEY_PREFIX}${email}`;
+  }
+
+  // Read login log
+  function readLoginLog(email) {
+    try {
+      return JSON.parse(localStorage.getItem(getLoginLogKey(email)) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  // Write login log
+  function writeLoginLog(email, logDays) {
+    localStorage.setItem(getLoginLogKey(email), JSON.stringify(logDays));
+  }
+
+  // Apply XP to user
+  function applyXpToUser(userData, additionalXp) {
+    if (XP?.applyXpToUser) return XP.applyXpToUser(userData, additionalXp);
+    const nextTotalXp = Math.max(0, Number(userData?.xp || 0) + Number(additionalXp || 0));
+    return { ...(userData || {}), xp: nextTotalXp };
+  }
+
+  // Add XP to stored users
+  function addXpToStoredUser(email, deltaXp) {
+    if (!deltaXp) return;
+
+    [STORAGE_KEYS.user, STORAGE_KEYS.netologyUser].forEach((storageKey) => {
+      const currentUser = parseJson(localStorage.getItem(storageKey), null);
+      if (!currentUser || normalizeEmail(currentUser.email) !== normalizeEmail(email)) return;
+
+      const updatedUser = applyXpToUser(currentUser, deltaXp);
+      localStorage.setItem(storageKey, JSON.stringify(updatedUser));
+    });
+  }
+
+  // Sync login day to server
+  function syncLoginDayToServer(normalizedEmail) {
+    if (!API_BASE) return;
+
+    const recordLoginPath = ENDPOINTS.auth?.recordLogin || "/record-login";
+    fetch(apiUrl(recordLoginPath), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail })
+    }).then(async (response) => {
+      const data = await response.json().catch(() => null);
+      if (!data || !data.success) return;
+
+      if (Array.isArray(data.log) && data.log.length) {
+        writeLoginLog(normalizedEmail, data.log);
+      }
+
+      const unlocks = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
+      if (unlocks.length && window.NetologyAchievements?.queueUnlocks) {
+        window.NetologyAchievements.queueUnlocks(normalizedEmail, unlocks);
+      }
+
+      const achievementXp = Number(data.achievement_xp_added || 0);
+      if (achievementXp > 0) {
+        addXpToStoredUser(normalizedEmail, achievementXp);
+      }
+    }).catch(() => {
+      // Network errors ignored - local tracking already updated
+    });
+  }
+
+  // Record login day
+  function recordLoginDay(email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return [];
+
+    const loginLog = readLoginLog(normalizedEmail);
+    const todayKey = dateToKey();
+
+    if (!loginLog.includes(todayKey)) {
+      loginLog.push(todayKey);
+      loginLog.sort();
+      writeLoginLog(normalizedEmail, loginLog);
+    }
+
+    syncLoginDayToServer(normalizedEmail);
+    return loginLog;
+  }
+
+  // Expose globally
+  window.recordLoginDay = recordLoginDay;
 })();

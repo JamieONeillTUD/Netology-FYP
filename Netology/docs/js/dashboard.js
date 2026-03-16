@@ -747,116 +747,11 @@
     await window.dashboardRender?.renderContinueLearning(user);
   }
 
-  // LOGIN DAY TRACKING
-
-  // Prefix used for storing local login-day history per user
-  const LOGIN_LOG_KEY_PREFIX = "netology_login_log:";
-
-  // Convert date to YYYY-MM-DD key
-  function dateToKey(date = new Date()) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  // Get storage key for user's login history
-  function getLoginLogKey(email) {
-    return `${LOGIN_LOG_KEY_PREFIX}${email}`;
-  }
-
-  // Read login history from localStorage
-  function readLoginLog(email) {
-    try {
-      return JSON.parse(localStorage.getItem(getLoginLogKey(email)) || "[]");
-    } catch {
-      return [];
-    }
-  }
-
-  // Write login history to localStorage
-  function writeLoginLog(email, logDays) {
-    localStorage.setItem(getLoginLogKey(email), JSON.stringify(logDays));
-  }
-
-  // Add XP to user from login rewards
-  function addXpToStoredUser(email, deltaXp) {
-    if (!deltaXp) return;
-
-    ["user", "netology_user"].forEach((storageKey) => {
-      const currentUser = parseJsonSafely(localStorage.getItem(storageKey));
-      if (!currentUser || normalizeEmail(currentUser.email) !== normalizeEmail(email)) return;
-
-      const xpSystem = window.NetologyXP || null;
-      let updatedUser;
-
-      if (xpSystem?.applyXpToUser) {
-        updatedUser = xpSystem.applyXpToUser(currentUser, deltaXp);
-      } else {
-        const nextTotalXp = Math.max(0, Number(currentUser?.xp || 0) + Number(deltaXp || 0));
-        updatedUser = { ...currentUser, xp: nextTotalXp };
-      }
-
-      localStorage.setItem(storageKey, JSON.stringify(updatedUser));
-    });
-  }
-
-  // Sync login day to server for streaks and rewards
-  function syncLoginDayToServer(normalizedEmail) {
-    if (!API_BASE) return;
-
-    const recordLoginPath = ENDPOINTS.auth?.recordLogin || "/record-login";
-    fetch(`${API_BASE}${recordLoginPath}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: normalizedEmail })
-    }).then(async (response) => {
-      const data = await response.json().catch(() => null);
-      if (!data || !data.success) return;
-
-      if (Array.isArray(data.log) && data.log.length) {
-        writeLoginLog(normalizedEmail, data.log);
-      }
-
-      const unlocks = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
-      if (unlocks.length && window.NetologyAchievements?.queueUnlocks) {
-        window.NetologyAchievements.queueUnlocks(normalizedEmail, unlocks);
-      }
-
-      const achievementXp = Number(data.achievement_xp_added || 0);
-      if (achievementXp > 0) {
-        addXpToStoredUser(normalizedEmail, achievementXp);
-      }
-    }).catch(() => {
-      // Network errors ignored - local tracking already done
-    });
-  }
-
-  // Record today's login locally and sync to server
-  function recordLoginDay(email) {
-    const normalizedEmail = normalizeEmail(email);
-    if (!normalizedEmail) return [];
-
-    const loginLog = readLoginLog(normalizedEmail);
-    const todayKey = dateToKey();
-
-    if (!loginLog.includes(todayKey)) {
-      loginLog.push(todayKey);
-      loginLog.sort();
-      writeLoginLog(normalizedEmail, loginLog);
-    }
-
-    // Sync to server in background
-    syncLoginDayToServer(normalizedEmail);
-
-    return loginLog;
-  }
-
-  // Record login on dashboard initialization
+  // Record login on dashboard initialization (uses app.js global function)
   function initializeLoginDay() {
     const user = getCurrentUser();
-    if (user?.email) {
-      recordLoginDay(user.email);
+    if (user?.email && typeof window.recordLoginDay === "function") {
+      window.recordLoginDay(user.email);
     }
   }
 
