@@ -266,23 +266,26 @@
       const endpoint = ENDPOINTS.courses?.userProgressSummary || "/user-progress-summary";
       const data = await apiGet(endpoint, { email: userEmail });
 
-      if (!data?.success) {
+      // Be more forgiving - if we got a response with any progress data, use it
+      if (data && (data.lessons_done !== undefined || data.quizzes_done !== undefined || data.total_xp !== undefined)) {
+        // Store in dashboard state
+        dashboardState.progressSummary = {
+          email: userEmail,
+          lessonsDone: Number(data.lessons_done || 0),
+          quizzesDone: Number(data.quizzes_done || 0),
+          challengesDone: Number(data.challenges_done || 0),
+          coursesDone: Number(data.courses_done || 0),
+          inProgress: Number(data.in_progress || 0),
+          totalCourses: Number(data.total_courses || 0),
+          totalXp: Number(data.total_xp || 0),
+          level: Number(data.level || 1)
+        };
+
+        return dashboardState.progressSummary;
+      } else {
         dashboardState.progressSummary = null;
         return null;
       }
-
-      // Store in dashboard state
-      dashboardState.progressSummary = {
-        email: userEmail,
-        lessonsDone: Number(data.lessons_done || 0),
-        quizzesDone: Number(data.quizzes_done || 0),
-        challengesDone: Number(data.challenges_done || 0),
-        coursesDone: Number(data.courses_done || 0),
-        inProgress: Number(data.in_progress || 0),
-        totalCourses: Number(data.total_courses || 0)
-      };
-
-      return dashboardState.progressSummary;
 
     } catch (error) {
       console.warn("Could not fetch progress:", error);
@@ -314,21 +317,20 @@
       const endpoint = ENDPOINTS.achievements?.list || "/api/user/achievements";
       const data = await apiGet(endpoint, { user_email: userEmail });
 
-      if (!data?.success) {
+      // If no success indicator, still process the data if it has achievement info
+      if (data && (data.unlocked || data.locked || data.achievements)) {
+        const unlockedAchievements = (data.unlocked || []).map(achievement => ({ ...achievement, unlocked: true }));
+        const lockedAchievements = (data.locked || []).map(achievement => ({ ...achievement, unlocked: false }));
+
+        dashboardState.achievementCatalog = {
+          all: [...unlockedAchievements, ...lockedAchievements],
+          unlocked: unlockedAchievements,
+          locked: lockedAchievements
+        };
+        dashboardState.achievementsFetchedAtTime = Date.now();
+      } else {
         dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
-        return dashboardState.achievementCatalog;
       }
-
-      // Separate unlocked and locked achievements
-      const unlockedAchievements = (data.unlocked || []).map(achievement => ({ ...achievement, unlocked: true }));
-      const lockedAchievements = (data.locked || []).map(achievement => ({ ...achievement, unlocked: false }));
-
-      dashboardState.achievementCatalog = {
-        all: [...unlockedAchievements, ...lockedAchievements],
-        unlocked: unlockedAchievements,
-        locked: lockedAchievements
-      };
-      dashboardState.achievementsFetchedAtTime = Date.now();
 
       return dashboardState.achievementCatalog;
 
@@ -406,9 +408,13 @@
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const data = await response.json();
+      
+      // Be more forgiving - if we got an array or have challenges property, use it
+      const challenges = Array.isArray(data) ? data : (data.challenges || []);
+      
       return {
-        success: true,
-        challenges: data.challenges || []
+        success: challenges.length > 0 || data.challenges !== undefined,
+        challenges: challenges
       };
 
     } catch (error) {
