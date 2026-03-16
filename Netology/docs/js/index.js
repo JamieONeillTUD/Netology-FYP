@@ -1,23 +1,7 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: index.js
-Purpose: Landing page - smooth scroll and basic interactions
-Simplified From: index.js (386 lines)
----------------------------------------------------------
-
-OVERVIEW: This is a simple public marketing page.
-No user data is displayed on this page.
-Just basic page setup and smooth animations.
----------------------------------------------------------
-*/
+// Landing page with smooth scroll animations
 
 (() => {
   "use strict";
-
-  // ============================================================
-  // SETUP - Run on page load
-  // ============================================================
 
   function initializeLandingPage() {
     console.log("Landing page loaded");

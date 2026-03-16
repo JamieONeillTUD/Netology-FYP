@@ -1,17 +1,9 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: signup.js
-Purpose: Handle signup wizard and account creation
----------------------------------------------------------
-*/
+// Signup wizard and account creation
 
 (() => {
   "use strict";
 
-  // ============================================================
   // CONFIGURATION
-  // ============================================================
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   const ENDPOINTS = window.ENDPOINTS || {};
@@ -45,9 +37,7 @@ Purpose: Handle signup wizard and account creation
     { reviewId: "reviewDob", inputId: "dob" }
   ];
 
-  // ============================================================
   // UTILITIES
-  // ============================================================
 
   function getById(elementId) {
     return document.getElementById(elementId);
@@ -88,9 +78,7 @@ Purpose: Handle signup wizard and account creation
     inputElement.classList.toggle("is-invalid", Boolean(isInvalid));
   }
 
-  // ============================================================
   // BANNER & TOAST HELPERS
-  // ============================================================
 
   function showToast(message, type = "info") {
     if (!message) return;
@@ -129,9 +117,7 @@ Purpose: Handle signup wizard and account creation
     if (banner) banner.classList.add("d-none");
   }
 
-  // ============================================================
   // PASSWORD TOGGLE
-  // ============================================================
 
   function initPasswordToggles() {
     const toggleButtons = document.querySelectorAll('[data-toggle="password"]');
@@ -154,9 +140,7 @@ Purpose: Handle signup wizard and account creation
     });
   }
 
-  // ============================================================
   // FORM HELPERS
-  // ============================================================
 
   function getSignupFieldRefs() {
     const refs = {};
@@ -221,9 +205,7 @@ Purpose: Handle signup wizard and account creation
       .map((inputElement) => inputElement.value);
   }
 
-  // ============================================================
   // OVERLAY & CONFETTI
-  // ============================================================
 
   function openOverlay(overlayId) {
     const overlay = getById(overlayId);
@@ -259,9 +241,7 @@ Purpose: Handle signup wizard and account creation
     }
   }
 
-  // ============================================================
   // AUTO-LOGIN AFTER SIGNUP
-  // ============================================================
 
   async function tryAutoLoginAfterSignup(email, password, selectedTier) {
     const loginFormData = new FormData();
@@ -308,9 +288,7 @@ Purpose: Handle signup wizard and account creation
     return true;
   }
 
-  // ============================================================
   // WIZARD
-  // ============================================================
 
   function initSignupWizard(formElement) {
     const signupPages = Array.from(document.querySelectorAll(".net-step-page"));
@@ -515,9 +493,7 @@ Purpose: Handle signup wizard and account creation
     });
   }
 
-  // ============================================================
   // INITIALIZATION
-  // ============================================================
 
   function initSignupPage() {
     const signupFormElement = getById("signupForm");

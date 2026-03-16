@@ -1,24 +1,14 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: login.js
-Purpose: Handle login form submission and session setup
----------------------------------------------------------
-*/
+// Login form and session setup
 
 (() => {
   "use strict";
 
-  // ============================================================
   // CONFIGURATION
-  // ============================================================
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   const ENDPOINTS = window.ENDPOINTS || {};
 
-  // ============================================================
   // UTILITIES
-  // ============================================================
 
   function getById(elementId) {
     return document.getElementById(elementId);
@@ -53,9 +43,7 @@ Purpose: Handle login form submission and session setup
     inputElement.classList.toggle("is-invalid", Boolean(isInvalid));
   }
 
-  // ============================================================
   // BANNER & TOAST HELPERS
-  // ============================================================
 
   function showToast(message, type = "info") {
     if (!message) return;
@@ -84,9 +72,7 @@ Purpose: Handle login form submission and session setup
     showToast(message, type === "success" ? "success" : "error");
   }
 
-  // ============================================================
   // PASSWORD TOGGLE
-  // ============================================================
 
   function initPasswordToggles() {
     const toggleButtons = document.querySelectorAll('[data-toggle="password"]');
@@ -109,9 +95,7 @@ Purpose: Handle login form submission and session setup
     });
   }
 
-  // ============================================================
   // OVERLAY & SESSION
-  // ============================================================
 
   function openOverlay(overlayId) {
     const overlay = getById(overlayId);
@@ -161,9 +145,7 @@ Purpose: Handle login form submission and session setup
     };
   }
 
-  // ============================================================
   // ONBOARDING
-  // ============================================================
 
   function getOnboardingApi() {
     return window.NetologyOnboarding || null;
@@ -187,9 +169,7 @@ Purpose: Handle login form submission and session setup
     return Boolean(onboardingApi.isUserDone(email));
   }
 
-  // ============================================================
   // LOGIN HANDLER
-  // ============================================================
 
   function handleLoginSubmit(formElement) {
     if (!formElement) return;
@@ -296,9 +276,7 @@ Purpose: Handle login form submission and session setup
     });
   }
 
-  // ============================================================
   // INITIALIZATION
-  // ============================================================
 
   function initLoginPage() {
     const loginFormElement = getById("loginForm");

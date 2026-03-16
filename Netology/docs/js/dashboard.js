@@ -1,29 +1,9 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: dashboard-simplified.js
-Purpose: Main dashboard initialization and orchestration
-Simplified From: dashboard.js (1,775 lines)
----------------------------------------------------------
-
-OVERVIEW: This file handles the main flow of the dashboard page:
-  1. Initialize the page when DOM is ready
-  2. Load user data from local storage and API
-  3. Fetch progress, achievements, and challenges
-  4. Render everything to the page
-  5. Set up event listeners for user interactions
-
-The actual helpers have been separated into dashboard-helpers.js
-and rendering code is in dashboard-render.js for clarity.
----------------------------------------------------------
-*/
+// User dashboard with progress tracking and achievements
 
 (() => {
   "use strict";
 
-  // ============================================================
   // CONFIGURATION & SETUP
-  // ============================================================
 
   // Get API endpoints from the shared config
   const ENDPOINTS = window.ENDPOINTS || {};
@@ -78,9 +58,7 @@ and rendering code is in dashboard-render.js for clarity.
     speed_learner: "bi-lightning-charge-fill"
   };
 
-  // ============================================================
   // HELPER: Get API or use fallback
-  // ============================================================
 
   // Get the API helper function (from config.js or use fallback)
   const apiGet = typeof window.apiGet === "function"
@@ -107,9 +85,7 @@ and rendering code is in dashboard-render.js for clarity.
     };
   }
 
-  // ============================================================
   // UTILITY FUNCTIONS
-  // ============================================================
 
   // Get element by ID (shorthand)
   function getById(elementId) {
@@ -134,9 +110,11 @@ and rendering code is in dashboard-render.js for clarity.
     }
   }
 
-  // ============================================================
+  function normalizeEmail(emailValue) {
+    return String(emailValue || "").trim().toLowerCase();
+  }
+
   // USER DATA FUNCTIONS
-  // ============================================================
 
   // Get the currently logged-in user from local storage
   function getCurrentUser() {
@@ -153,9 +131,7 @@ and rendering code is in dashboard-render.js for clarity.
     localStorage.setItem("netology_user", JSON.stringify(userObject));
   }
 
-  // ============================================================
   // MAIN DASHBOARD INITIALIZATION
-  // ============================================================
 
   async function initializeDashboard() {
     console.log("Initializing dashboard...");
@@ -232,9 +208,7 @@ and rendering code is in dashboard-render.js for clarity.
     console.log("Dashboard initialization complete!");
   }
 
-  // ============================================================
   // REFRESH USER DATA FROM SERVER
-  // ============================================================
 
   // Fetch fresh user data from the API
   async function refreshUserFromServer() {
@@ -279,9 +253,7 @@ and rendering code is in dashboard-render.js for clarity.
     }
   }
 
-  // ============================================================
   // FETCH PROGRESS DATA
-  // ============================================================
 
   // Fetch progress summary from server
   async function fetchProgressFromServer(userEmail) {
@@ -319,9 +291,7 @@ and rendering code is in dashboard-render.js for clarity.
     }
   }
 
-  // ============================================================
   // FETCH ACHIEVEMENTS
-  // ============================================================
 
   // Fetch achievement catalog from server
   async function fetchAchievementsFromServer(userEmail, options = {}) {
@@ -369,9 +339,7 @@ and rendering code is in dashboard-render.js for clarity.
     }
   }
 
-  // ============================================================
   // FETCH CHALLENGES
-  // ============================================================
 
   // Load challenges from server
   async function loadChallengesFromServer(userEmail, options = {}) {
@@ -453,9 +421,7 @@ and rendering code is in dashboard-render.js for clarity.
     }
   }
 
-  // ============================================================
   // RECORD LOGIN
-  // ============================================================
 
   // Record that user logged in today (for streaks)
   function recordLoginToday(userEmail) {
@@ -464,9 +430,7 @@ and rendering code is in dashboard-render.js for clarity.
     }
   }
 
-  // ============================================================
   // UI SETUP FUNCTIONS
-  // ============================================================
 
   // Setup brand logo routing to dashboard or home
   function setupBrandRouting() {
@@ -693,9 +657,7 @@ and rendering code is in dashboard-render.js for clarity.
     });
   }
 
-  // ============================================================
   // ONBOARDING
-  // ============================================================
 
   // Prepare first-time user for onboarding
   function prepareFirstTimeUser(user) {
@@ -731,9 +693,7 @@ and rendering code is in dashboard-render.js for clarity.
     window.maybeStartOnboardingTour("dashboard", user.email);
   }
 
-  // ============================================================
   // AUTO-REFRESH ON VISIBILITY
-  // ============================================================
 
   // Setup auto-refresh when user returns to page
   function setupAutoRefresh() {
@@ -787,9 +747,7 @@ and rendering code is in dashboard-render.js for clarity.
     await window.dashboardRender?.renderContinueLearning(user);
   }
 
-  // ============================================================
   // LOGIN DAY TRACKING
-  // ============================================================
 
   // Prefix used for storing local login-day history per user
   const LOGIN_LOG_KEY_PREFIX = "netology_login_log:";
@@ -902,9 +860,7 @@ and rendering code is in dashboard-render.js for clarity.
     }
   }
 
-  // ============================================================
   // START THE APP
-  // ============================================================
 
   // Initialize dashboard when page is ready
   onDOMReady(() => {

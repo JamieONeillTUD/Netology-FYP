@@ -1,26 +1,17 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: config.js
-Purpose: Stores API config and shared helpers used across the site.
-Notes: Theme application is handled in ui-theme.js.
----------------------------------------------------------
-*/
+// Shared config: API endpoints, XP system, and achievements
 
-// API base resolution:
-// 1) Keep an existing value if one was injected before this script.
-// 2) Otherwise use the production backend.
+// Set up API base URL (backend server address)
+// Use pre-configured value if available, otherwise use production
 (() => {
   const preconfiguredBase = String(window.API_BASE || "").trim();
   if (preconfiguredBase) {
     window.API_BASE = preconfiguredBase.replace(/\/$/, "");
     return;
   }
-
   window.API_BASE = "https://netology-fyp.onrender.com";
-})();
+});
 
-// Central API route map.
+// Central location for all backend API routes used across the app
 window.ENDPOINTS = {
   auth: {
     register: "/register",
@@ -106,26 +97,30 @@ window.ENDPOINTS = {
   }
 };
 
-// Shared XP math.
+// XP system: calculates user levels, progress, and ranks from XP points
 (() => {
   "use strict";
 
   if (window.NetologyXP) return;
 
+  // Convert value to integer safely
   function toInt(rawValue, fallbackValue = 0) {
     const parsedNumber = Number.parseInt(rawValue, 10);
     return Number.isFinite(parsedNumber) ? parsedNumber : fallbackValue;
   }
 
+  // Ensure level is at least 1
   function safeLevel(levelValue) {
     return Math.max(1, toInt(levelValue, 1));
   }
 
+  // Get total XP required to reach a specific level
   function totalXpForLevel(level) {
     const normalizedLevel = safeLevel(level);
     return (100 * (normalizedLevel - 1) * normalizedLevel) / 2;
   }
 
+  // Convert total XP to level number
   function levelFromTotalXp(totalXp) {
     let remainingXp = Math.max(0, toInt(totalXp, 0));
     let level = 1;
@@ -140,10 +135,12 @@ window.ENDPOINTS = {
     return level;
   }
 
+  // Get XP points required for next level
   function xpForNextLevel(level) {
     return 100 * safeLevel(level);
   }
 
+  // Convert level number to rank name (Novice, Intermediate, Advanced)
   function rankForLevel(level) {
     const normalizedLevel = safeLevel(level);
     if (normalizedLevel >= 5) return "Advanced";
@@ -151,6 +148,7 @@ window.ENDPOINTS = {
     return "Novice";
   }
 
+  // Calculate detailed XP progress information
   function getLevelProgress(totalXp) {
     const totalXpValue = Math.max(0, toInt(totalXp, 0));
     const level = levelFromTotalXp(totalXpValue);
@@ -172,6 +170,7 @@ window.ENDPOINTS = {
     };
   }
 
+  // Add XP to user and return updated user object
   function applyXpToUser(userData, xpDelta) {
     const baseUser = userData && typeof userData === "object" ? userData : {};
     const xpToAdd = Math.max(0, toInt(xpDelta, 0));
@@ -189,6 +188,7 @@ window.ENDPOINTS = {
     };
   }
 
+  // Calculate and validate user progress (handles server/client sync)
   function resolveUserProgress(userData) {
     const baseUser = userData && typeof userData === "object" ? userData : {};
     const totalXpValue = Math.max(0, toInt(baseUser.xp, 0));
@@ -219,6 +219,7 @@ window.ENDPOINTS = {
     };
   }
 
+  // Export XP system functions
   window.NetologyXP = {
     totalXpForLevel,
     levelFromTotalXp,
@@ -230,24 +231,30 @@ window.ENDPOINTS = {
   };
 })();
 
-// Shared achievement queue + popup handling.
+// Achievement system: manages popups and tracks pending achievements
 (() => {
   "use strict";
 
   if (window.NetologyAchievements) return;
 
+  // Normalize email to lowercase and trim
   function normalizeEmail(emailValue) {
     return String(emailValue || "").trim().toLowerCase();
   }
 
+
+  // Get localStorage key for pending achievements
   function pendingKey(emailAddress) {
     return `netology_achievement_pending:${normalizeEmail(emailAddress)}`;
   }
 
+  // Get localStorage key for seen achievements
   function seenKey(emailAddress) {
     return `netology_achievement_seen:${normalizeEmail(emailAddress)}`;
   }
 
+
+  // Read array from localStorage safely
   function readArrayFromStorage(storageKey) {
     try {
       const parsedValue = JSON.parse(localStorage.getItem(storageKey) || "[]");
@@ -257,6 +264,7 @@ window.ENDPOINTS = {
     }
   }
 
+  // Validate and normalize achievement data
   function normalizeUnlock(unlockValue) {
     if (!unlockValue || typeof unlockValue !== "object") return null;
 
@@ -274,19 +282,20 @@ window.ENDPOINTS = {
     };
   }
 
+
+  // Get list of achievement IDs already shown to user
   function getSeenIds(emailAddress) {
     const normalizedEmail = normalizeEmail(emailAddress);
     if (!normalizedEmail) return [];
-
     return readArrayFromStorage(seenKey(normalizedEmail)).map((achievementId) => String(achievementId));
   }
 
+  // Mark achievements as seen
   function setSeenIds(emailAddress, achievementIds) {
     const normalizedEmail = normalizeEmail(emailAddress);
     if (!normalizedEmail) return [];
 
     const mergedSeenIds = new Set(getSeenIds(normalizedEmail));
-
     achievementIds.forEach((achievementId) => {
       const safeAchievementId = String(achievementId || "").trim();
       if (safeAchievementId) mergedSeenIds.add(safeAchievementId);
@@ -297,6 +306,8 @@ window.ENDPOINTS = {
     return seenIdsList;
   }
 
+
+  // Remove specific achievements from pending queue
   function removePendingByIds(emailAddress, achievementIds) {
     const normalizedEmail = normalizeEmail(emailAddress);
     if (!normalizedEmail || !Array.isArray(achievementIds) || !achievementIds.length) return;
@@ -322,6 +333,8 @@ window.ENDPOINTS = {
     else localStorage.removeItem(storageKey);
   }
 
+
+  // Show achievement popups with staggered timing
   function showUnlockPopups(emailAddress, unlockList) {
     const normalizedEmail = normalizeEmail(emailAddress);
     if (!normalizedEmail || !Array.isArray(unlockList) || !unlockList.length || !document.body) return [];
@@ -342,6 +355,7 @@ window.ENDPOINTS = {
 
     if (!unlocksToDisplay.length) return [];
 
+    // Show each popup with 220ms delay between them
     unlocksToDisplay.forEach((unlockEntry, unlockIndex) => {
       window.setTimeout(() => {
         if (window.NetologyToast?.showAchievementToast) {
@@ -365,6 +379,8 @@ window.ENDPOINTS = {
     return unlocksToDisplay;
   }
 
+
+  // Add new achievements to pending queue and show them
   function queueUnlocks(emailAddress, unlockList) {
     const normalizedEmail = normalizeEmail(emailAddress);
     if (!normalizedEmail || !Array.isArray(unlockList) || !unlockList.length) return [];
@@ -374,6 +390,7 @@ window.ENDPOINTS = {
     const unlocksById = new Map();
     const incomingUnlocks = [];
 
+    // Merge current pending with new unlocks
     currentPendingUnlocks.forEach((unlockEntry) => {
       const normalizedUnlock = normalizeUnlock(unlockEntry);
       if (normalizedUnlock) unlocksById.set(normalizedUnlock.id, normalizedUnlock);
@@ -396,6 +413,8 @@ window.ENDPOINTS = {
     return mergedPendingUnlocks;
   }
 
+
+  // Get current user email from localStorage
   function currentUserEmail() {
     try {
       const rawUserData = localStorage.getItem("netology_user") || localStorage.getItem("user") || "null";
@@ -406,6 +425,7 @@ window.ENDPOINTS = {
     }
   }
 
+  // Show any pending achievements for current user when page loads
   function showPendingForCurrentUser() {
     const emailAddress = currentUserEmail();
     if (!emailAddress) return [];
@@ -416,10 +436,12 @@ window.ENDPOINTS = {
     return showUnlockPopups(emailAddress, pendingUnlocks);
   }
 
+  // Export public API
   window.NetologyAchievements = {
     queueUnlocks
   };
 
+  // Auto-show pending achievements when DOM is ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", showPendingForCurrentUser, { once: true });
   } else {

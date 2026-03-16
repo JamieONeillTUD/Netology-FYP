@@ -1,51 +1,16 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: courses.js
-Purpose: Display all available courses with progress tracking and difficulty filtering
-Simplified From: courses.js (771 lines)
----------------------------------------------------------
-
-OVERVIEW: This page shows all courses grouped by difficulty level (Novice, Intermediate, Advanced).
-Main responsibilities:
-  1. Load courses from API or COURSE_CONTENT
-  2. Track user progress on each course
-  3. Display course cards with progress bars
-  4. Filter courses by difficulty level
-  5. Handle course locking based on user level
-  6. Navigate to individual course pages
-
-All code uses full variable names, clear comments, and logical sections
-to make it easy to understand and modify.
----------------------------------------------------------
-*/
+// Courses page: display all courses, track progress, filter by difficulty
 
 (() => {
   "use strict";
 
-  // ============================================================
-  // CONFIGURATION & SETUP
-  // ============================================================
-
-  // Course difficulty levels
   const DIFFICULTY_LEVELS = ["novice", "intermediate", "advanced"];
-
-  // API endpoints
   const ENDPOINTS = window.ENDPOINTS || {};
-
-  // XP system for user level calculations
   const XP_SYSTEM = window.NetologyXP || null;
 
-  // ============================================================
-  // API HELPER
-  // ============================================================
-
-  // Shared API helper from config.js, or fallback to simple fetch
   const apiGet = typeof window.apiGet === "function"
     ? window.apiGet
     : createFallbackApiHelper();
 
-  // Create fallback API helper if none provided
   function createFallbackApiHelper() {
     return async function apiGetFallback(apiPath, queryParameters = {}) {
       const baseUrl = String(window.API_BASE || "").trim();
@@ -64,7 +29,6 @@ to make it easy to understand and modify.
     };
   }
 
-  // Helper to extract arrays from various API response shapes
   const getArrayFromResponse = window.API_HELPERS?.list || function getArrayFromResponseFallback(data, ...keys) {
     if (Array.isArray(data)) return data;
     for (const keyName of keys) {
@@ -73,16 +37,10 @@ to make it easy to understand and modify.
     return [];
   };
 
-  // ============================================================
-  // UTILITY FUNCTIONS
-  // ============================================================
-
-  // Get element by ID
   function getById(elementId) {
     return document.getElementById(elementId);
   }
 
-  // Set text content of element by ID
   function setTextById(elementId, textContent) {
     const element = getById(elementId);
     if (element) {
@@ -90,7 +48,6 @@ to make it easy to understand and modify.
     }
   }
 
-  // Safely parse JSON
   function parseJsonSafely(jsonString) {
     try {
       return jsonString ? JSON.parse(jsonString) : null;
@@ -99,23 +56,16 @@ to make it easy to understand and modify.
     }
   }
 
-  // Escape HTML to prevent injection
   function escapeHtmlString(textValue) {
     const tempDiv = document.createElement("div");
     tempDiv.textContent = String(textValue || "");
     return tempDiv.innerHTML;
   }
 
-  // Get user level from XP
   function getLevelFromXP(totalXP) {
     return XP_SYSTEM?.levelFromTotalXp ? XP_SYSTEM.levelFromTotalXp(totalXP) : 1;
   }
 
-  // ============================================================
-  // USER DATA FUNCTIONS
-  // ============================================================
-
-  // Get current user from localStorage
   function getCurrentUser() {
     return (
       parseJsonSafely(localStorage.getItem("netology_user")) ||
@@ -124,16 +74,10 @@ to make it easy to understand and modify.
     );
   }
 
-  // Get user's level based on XP
   function getUserLevel(user) {
     return Number(user?.numeric_level) || getLevelFromXP(Number(user?.xp || 0)) || 1;
   }
 
-  // ============================================================
-  // COURSE DATA FUNCTIONS
-  // ============================================================
-
-  // Fetch all available courses
   async function fetchCourseList() {
     // Try to get from API first
     try {
@@ -147,7 +91,6 @@ to make it easy to understand and modify.
       console.warn("Could not fetch courses from API:", error);
     }
 
-    // Fallback to COURSE_CONTENT
     if (typeof window.COURSE_CONTENT === "undefined" || !window.COURSE_CONTENT) {
       return [];
     }
@@ -160,7 +103,6 @@ to make it easy to understand and modify.
     });
   }
 
-  // Merge API data with static course content
   function enrichCourseData(apiCourse) {
     const courseId = String(apiCourse?.id || "");
     const staticCourse = getStaticCourseData(courseId);
@@ -185,7 +127,6 @@ to make it easy to understand and modify.
     };
   }
 
-  // Get static course data from COURSE_CONTENT
   function getStaticCourseData(courseId) {
     if (typeof window.COURSE_CONTENT === "undefined" || !window.COURSE_CONTENT) {
       return {};
@@ -193,7 +134,6 @@ to make it easy to understand and modify.
     return window.COURSE_CONTENT[String(courseId)] || {};
   }
 
-  // Count total lessons in course
   function countCourseLessons(apiCourse, staticCourse) {
     const apiLessonCount = Number(apiCourse?.total_lessons);
     if (Number.isFinite(apiLessonCount) && apiLessonCount > 0) {
@@ -210,7 +150,6 @@ to make it easy to understand and modify.
     return staticLessonCount;
   }
 
-  // Count modules in course
   function countCourseModules(apiCourse, staticCourse) {
     const apiModuleCount = Number(apiCourse?.module_count);
     if (Number.isFinite(apiModuleCount) && apiModuleCount > 0) {
@@ -225,7 +164,6 @@ to make it easy to understand and modify.
     return 1;
   }
 
-  // Calculate total and per-module objectives
   function calculateObjectiveStats(staticCourse) {
     const staticUnits = Array.isArray(staticCourse?.units) ? staticCourse.units : [];
     if (!staticUnits.length) {
@@ -238,7 +176,6 @@ to make it easy to understand and modify.
     return { totalObjectives, moduleObjectiveCounts };
   }
 
-  // Count objectives in a single unit
   function countUnitObjectives(unit) {
     let objectiveCount = 0;
     const lessons = Array.isArray(unit?.lessons) ? unit.lessons : [];
@@ -251,7 +188,6 @@ to make it easy to understand and modify.
         return;
       }
 
-      // Method 2: Count interactive blocks
       const blocks = Array.isArray(lesson?.blocks) ? lesson.blocks : [];
       const interactiveBlockCount = blocks.filter((block) => {
         const blockType = String(block?.type || "").toLowerCase();
@@ -260,7 +196,6 @@ to make it easy to understand and modify.
       objectiveCount += interactiveBlockCount;
     });
 
-    // Method 3: Count from sections
     if (objectiveCount === 0) {
       const sections = Array.isArray(unit?.sections) ? unit.sections : [];
       sections.forEach((section) => {
@@ -281,23 +216,16 @@ to make it easy to understand and modify.
     return objectiveCount;
   }
 
-  // Normalize difficulty level string
   function normalizeDifficultyLevel(rawDifficulty) {
     const normalized = String(rawDifficulty || "novice").toLowerCase();
     return DIFFICULTY_LEVELS.includes(normalized) ? normalized : "novice";
   }
 
-  // ============================================================
-  // COURSE PROGRESS FUNCTIONS
-  // ============================================================
-
-  // Fetch user's progress on all courses
   async function fetchUserProgressMap(userEmail) {
     try {
       const progressResponse = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: userEmail });
       const courseProgressList = getArrayFromResponse(progressResponse, "courses");
 
-      // Build map for quick lookup by course ID
       const progressMap = new Map();
       courseProgressList.forEach((courseProgress) => {
         const courseId = String(courseProgress.id || courseProgress.course_id || "");
@@ -313,7 +241,6 @@ to make it easy to understand and modify.
     }
   }
 
-  // Group courses by difficulty level
   function groupCoursesByDifficulty(courseList) {
     const grouped = {};
 
@@ -331,11 +258,6 @@ to make it easy to understand and modify.
     return grouped;
   }
 
-  // ============================================================
-  // UI RENDERING FUNCTIONS
-  // ============================================================
-
-  // Load and render all courses
   async function loadAndRenderCourses(currentUser) {
     try {
       console.log("Loading courses...");
@@ -371,7 +293,6 @@ to make it easy to understand and modify.
     }
   }
 
-  // Create a course card element
   function createCourseCard(courseData, progressMap, userLevel) {
     const card = document.createElement("div");
     card.className = "net-course-card";
@@ -383,12 +304,10 @@ to make it easy to understand and modify.
     const isCompleted = progressPercent >= 100;
     const isInProgress = progressPercent > 0 && progressPercent < 100;
 
-    // Add state classes
     if (isLocked) card.classList.add("locked");
     if (isInProgress) card.classList.add("in-progress");
     if (isCompleted) card.classList.add("completed");
 
-    // Build card HTML
     const moduleChips = buildModuleChips(courseData.module_objective_counts || []);
     const xpDisplay = courseData.xp_reward > 0 ? `
       <div class="net-course-xp">
@@ -457,7 +376,6 @@ to make it easy to understand and modify.
       ${isLocked ? `<div class="net-course-lock"><i class="bi bi-lock"></i></div>` : ""}
     `;
 
-    // Add click handlers
     if (!isLocked) {
       const courseUrl = `course.html?course_id=${encodeURIComponent(courseId)}`;
 
@@ -478,7 +396,6 @@ to make it easy to understand and modify.
     return card;
   }
 
-  // Build module objective chips
   function buildModuleChips(moduleCounts) {
     if (!Array.isArray(moduleCounts) || moduleCounts.length === 0) return "";
 
@@ -490,7 +407,6 @@ to make it easy to understand and modify.
     return chips;
   }
 
-  // Get icon for difficulty level
   function getDifficultyIcon(difficulty) {
     const level = normalizeDifficultyLevel(difficulty);
     if (level === "advanced") return '<i class="bi bi-diamond-fill"></i>';
@@ -498,11 +414,6 @@ to make it easy to understand and modify.
     return '<i class="bi bi-circle-fill"></i>';
   }
 
-  // ============================================================
-  // DIFFICULTY FILTER UI
-  // ============================================================
-
-  // Setup course difficulty filter buttons
   function setupDifficultyFilters() {
     const filterButtons = Array.from(document.querySelectorAll("[data-path]"));
     if (!filterButtons.length) return;
@@ -523,7 +434,6 @@ to make it easy to understand and modify.
         button.setAttribute("aria-selected", String(isActive));
       });
 
-      // Show/hide course sections
       document.querySelectorAll(".net-course-section").forEach((section) => {
         if (activePath === "all") {
           section.style.display = "block";
@@ -534,7 +444,6 @@ to make it easy to understand and modify.
       });
     };
 
-    // Wire up filter buttons
     filterButtons.forEach((button) => {
       button.addEventListener("click", (event) => {
         event.preventDefault();
@@ -542,20 +451,13 @@ to make it easy to understand and modify.
       });
     });
 
-    // Show all courses by default
     applyFilter("all");
 
-    // Reset on browser back/forward
     window.addEventListener("pageshow", () => {
       applyFilter("all");
     });
   }
 
-  // ============================================================
-  // PAGE CHROME (Navigation, User Display, etc.)
-  // ============================================================
-
-  // Setup page header and navigation
   function setupPageChrome(currentUser) {
     setupBrandRouting();
     setupSidebar();
@@ -564,7 +466,6 @@ to make it easy to understand and modify.
     updateUserDisplay(currentUser);
   }
 
-  // Setup brand logo routing
   function setupBrandRouting() {
     const topBrand = getById("topBrand");
     const sideBrand = getById("sideBrand");
@@ -575,7 +476,6 @@ to make it easy to understand and modify.
     if (sideBrand) sideBrand.setAttribute("href", targetPage);
   }
 
-  // Setup sidebar toggle
   function setupSidebar() {
     const openButton = getById("openSidebarBtn");
     const closeButton = getById("closeSidebarBtn");
@@ -607,7 +507,6 @@ to make it easy to understand and modify.
     });
   }
 
-  // Setup user dropdown
   function setupUserDropdown() {
     const userButton = getById("userBtn");
     const userDropdown = getById("userDropdown");
@@ -626,7 +525,6 @@ to make it easy to understand and modify.
     });
   }
 
-  // Setup logout buttons
   function setupLogoutButtons() {
     const topLogoutButton = getById("topLogoutBtn");
     const sideLogoutButton = getById("sideLogoutBtn");
@@ -642,7 +540,6 @@ to make it easy to understand and modify.
     if (sideLogoutButton) sideLogoutButton.addEventListener("click", logout);
   }
 
-  // Update user info display
   function updateUserDisplay(currentUser) {
     const fullName = [currentUser?.first_name, currentUser?.last_name]
       .filter(Boolean)
@@ -663,11 +560,6 @@ to make it easy to understand and modify.
     setTextById("sideLevelBadge", `Lv ${userLevel}`);
   }
 
-  // ============================================================
-  // MAIN INITIALIZATION
-  // ============================================================
-
-  // Initialize the courses page
   async function initializeCoursesPage() {
     console.log("Initializing courses page...");
 
@@ -678,18 +570,14 @@ to make it easy to understand and modify.
       return;
     }
 
-    // Setup UI
     setupPageChrome(currentUser);
     setupDifficultyFilters();
 
-    // Load and render courses
     await loadAndRenderCourses(currentUser);
 
-    // Mark page as loaded
     document.body.classList.remove("net-loading");
     document.body.classList.add("net-loaded");
 
-    // Show onboarding tour if needed
     if (typeof window.maybeStartOnboardingTour === "function") {
       window.maybeStartOnboardingTour("courses", currentUser.email);
     }
@@ -697,7 +585,6 @@ to make it easy to understand and modify.
     console.log("Courses page initialization complete!");
   }
 
-  // Start when DOM is ready
   document.addEventListener("DOMContentLoaded", () => {
     initializeCoursesPage();
   });

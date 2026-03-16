@@ -1,76 +1,15 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: course-simplified.js
-Purpose: Manage course details page, module list, and user progress tracking
-Simplified From: course.js (2,187 lines)
----------------------------------------------------------
-
-OVERVIEW: This file displays a single course with all its modules and lessons.
-Main responsibilities:
-  1. Load course data from COURSE_CONTENT and merge with API data
-  2. Track user progress (which lessons completed, XP earned, etc.)
-  3. Display modules and lessons with completion status
-  4. Handle lesson preview modal
-  5. Show streak and progress tracking
-
-The rendering code has been organized into clear sections with
-full English variable names instead of single letters (x → currentNumber, etc.)
----------------------------------------------------------
-*/
+// Course page: load, render, and track progress for course modules and lessons
 
 (() => {
   "use strict";
 
-  // ============================================================
-  // CONFIGURATION & SETUP
-  // ============================================================
-
-  // API base URL from global config
   const getApiBaseUrl = () => (window.API_BASE || "").replace(/\/$/, "");
-
-  // XP system for calculations
   const XP_SYSTEM = window.NetologyXP || null;
-
-  // Shared API helper from config.js
   const apiGet = window.apiGet || createFallbackApiHelper();
-
-  // API endpoints from global config
   const ENDPOINTS = window.ENDPOINTS || {};
-
-  // Common API paths
   const API_PATHS = {
-    userInfo: ENDPOINTS.auth?.userInfo || "/user-info",
-    userCourseStatus: ENDPOINTS.courses?.userCourseStatus || "/user-course-status"
+    userInfo: ENDPOINTS.auth?.userInfo || "/user-info"
   };
-
-  // ============================================================
-  // STORAGE KEY BUILDERS
-  // ============================================================
-
-  // Build storage key for course completions per user
-  function getCompletionStorageKey(userEmail, courseId) {
-    return `netology_completions:${userEmail}:${courseId}`;
-  }
-
-  // Build storage key for lesson progress
-  function getLessonProgressStorageKey(userEmail, courseId, lessonNumber) {
-    return `netology_lesson_progress:${userEmail || "guest"}:${courseId}:${lessonNumber}`;
-  }
-
-  // Build storage key for started courses list
-  function getStartedCoursesStorageKey(userEmail) {
-    return `netology_started_courses:${userEmail}`;
-  }
-
-  // Build storage key for login progress log
-  function getProgressLogStorageKey(userEmail) {
-    return `netology_progress_log:${userEmail}`;
-  }
-
-  // ============================================================
-  // UTILITY HELPERS
-  // ============================================================
 
   // Get element by ID
   function getById(elementId) {
@@ -142,7 +81,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     }
   }
 
-  // Create fallback API helper if none exists
   function createFallbackApiHelper() {
     return async function apiGetFallback(apiPath, queryParameters = {}) {
       const baseUrl = getApiBaseUrl();
@@ -161,20 +99,10 @@ full English variable names instead of single letters (x → currentNumber, etc.
     };
   }
 
-  // ============================================================
-  // PAGE STATE
-  // ============================================================
-
-  // Centralized state for entire page
   const pageState = {
-    // Current logged-in user
     currentUser: null,
-
-    // Course and content IDs
     courseId: null,
     contentId: null,
-
-    // Course model
     courseData: {
       id: null,
       title: "",
@@ -184,27 +112,16 @@ full English variable names instead of single letters (x → currentNumber, etc.
       estimatedTime: "—",
       totalXP: 0,
       totalLessons: 0,
-      modules: [] // [{id, title, description, items: [...]}]
+      modules: []
     },
-
-    // Completion tracking sets
     completionStatus: {
-      lesson: new Set(),      // lesson_number
-      quiz: new Set(),        // lesson_number
-      challenge: new Set(),   // lesson_number
-      tutorial: new Set()     // lesson_number (sandbox)
+      lesson: new Set(),
+      quiz: new Set(),
+      challenge: new Set(),
+      tutorial: new Set()
     },
-
-    // UI state
-    expandedModules: new Set(),
-    scrollToModuleId: null,
-
-    // Lesson modal state
-    lessonsList: [],
     currentLessonIndex: -1,
     currentLesson: null,
-
-    // User statistics
     userStats: {
       level: 1,
       rank: "Novice",
@@ -212,18 +129,9 @@ full English variable names instead of single letters (x → currentNumber, etc.
       currentLevelXP: 0,
       xpProgressPercent: 0,
       accessLevel: 1
-    },
-
-    // Course access
-    isCourseLocked: false,
-    lockReason: ""
+    }
   };
 
-  // ============================================================
-  // USER DATA FUNCTIONS
-  // ============================================================
-
-  // Get current user from localStorage
   function getCurrentUser() {
     return (
       parseJsonSafely(localStorage.getItem("netology_user")) ||
@@ -232,12 +140,10 @@ full English variable names instead of single letters (x → currentNumber, etc.
     );
   }
 
-  // Check if user is logged in
   function isUserLoggedIn(user) {
     return !!(user && (user.email || user.username));
   }
 
-  // Refresh user data from API
   async function refreshUserFromServer() {
     const cachedUser = getCurrentUser();
     const userEmail = cachedUser?.email || localStorage.getItem("netology_last_email") || "";
@@ -253,7 +159,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
         return cachedUser;
       }
 
-      // Merge API data with cached
       const mergedUser = {
         ...(cachedUser || {}),
         email: userEmail,
@@ -273,7 +178,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
           : cachedUser?.isFirstLogin
       };
 
-      // Save merged data
       localStorage.setItem("user", JSON.stringify(mergedUser));
       localStorage.setItem("netology_user", JSON.stringify(mergedUser));
       return mergedUser;
@@ -284,11 +188,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     }
   }
 
-  // ============================================================
-  // COURSE DATA LOADING
-  // ============================================================
-
-  // Load course from COURSE_CONTENT
   function loadCourseFromContent(courseId) {
     if (!window.COURSE_CONTENT) {
       return null;
@@ -299,7 +198,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
       return null;
     }
 
-    // Normalize the course structure
     const normalizedCourse = {
       id: String(courseId),
       title: rawCourse.title || "Untitled Course",
@@ -312,7 +210,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
       modules: []
     };
 
-    // Load modules
     if (Array.isArray(rawCourse.units)) {
       let lessonCounter = 1;
 
@@ -332,15 +229,13 @@ full English variable names instead of single letters (x → currentNumber, etc.
     return normalizedCourse;
   }
 
-  // Convert various course item shapes to standard format
   function normalizeCourseItems(unit, startingLessonNumber) {
     const items = [];
     let lessonCounter = startingLessonNumber;
 
-    // Push an item to the list
     const addItem = (itemType, itemData) => {
       items.push({
-        type: itemType, // learn | quiz | sandbox | challenge
+        type: itemType,
         title: itemData.title || itemData.name || capitalize(itemType),
         content: itemData.content || itemData.learn || itemData.text || "",
         duration: itemData.duration || itemData.time || "—",
@@ -355,7 +250,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
       });
     };
 
-    // Handle shape A: sections array
     if (Array.isArray(unit.sections)) {
       unit.sections.forEach((section) => {
         const sectionType = String(section.type || section.kind || section.title || "").toLowerCase();
@@ -370,7 +264,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
       });
     }
 
-    // Handle shape B: sections object
     if (!items.length && unit.sections && typeof unit.sections === "object" && !Array.isArray(unit.sections)) {
       const sectionsObject = unit.sections;
       (sectionsObject.learn || sectionsObject.lesson || sectionsObject.lessons || []).forEach((item) =>
@@ -383,7 +276,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
       );
     }
 
-    // Handle shape C: unit lessons array
     if (!items.length && Array.isArray(unit.lessons)) {
       unit.lessons.forEach((lessonItem) => {
         const typeString = String(lessonItem.type || "learn").toLowerCase();
@@ -399,7 +291,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
       });
     }
 
-    // Assign lesson numbers if missing
     let lastLearnLessonNumber = lessonCounter - 1;
 
     items.forEach((item) => {
@@ -418,7 +309,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
         }
       }
 
-      // Set default XP if missing
       if (!item.xpReward) {
         item.xpReward =
           item.type === "quiz"
@@ -430,7 +320,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
             : 40;
       }
 
-      // Set default duration if missing
       if (!item.duration || item.duration === "—") {
         item.duration =
           item.type === "quiz"
@@ -446,7 +335,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     return items;
   }
 
-  // Map section type to item type
   function mapSectionTypeToItemType(sectionType, item) {
     if (sectionType.includes("quiz") || sectionType.includes("test")) return "quiz";
     if (sectionType.includes("sandbox") || sectionType.includes("practice")) return "sandbox";
@@ -457,86 +345,11 @@ full English variable names instead of single letters (x → currentNumber, etc.
     return "learn";
   }
 
-  // Capitalize first letter of string
   function capitalize(string) {
     const str = String(string || "");
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  // ============================================================
-  // PROGRESS TRACKING
-  // ============================================================
-
-  // Get lesson progress percentage
-  function getLessonProgressPercent(userEmail, courseId, lessonNumber) {
-    const lessonNum = Number(lessonNumber || 0);
-    if (!lessonNum) return 0;
-
-    // Check if fully completed
-    if (pageState.completionStatus.lesson.has(lessonNum)) {
-      return 100;
-    }
-
-    // Get progress record from storage
-    const storageKey = getLessonProgressStorageKey(userEmail, courseId, lessonNum);
-    const progressData = parseJsonSafely(localStorage.getItem(storageKey), null);
-
-    if (!progressData) return 0;
-
-    const totalSteps = Math.max(1, Number(progressData.total_steps || 0) || 1);
-    const completedSteps = clamp(Number(progressData.completed_steps || 0), 0, totalSteps);
-    const percentFromSteps = Math.round((completedSteps / totalSteps) * 100);
-    const storedPercent = clamp(Number(progressData.progress_percent || percentFromSteps), 0, 100);
-
-    return Math.max(storedPercent, percentFromSteps);
-  }
-
-  // Check if lesson is soft-completed (40%+)
-  function isLessonSoftCompleted(userEmail, courseId, lessonNumber) {
-    const progressPercent = getLessonProgressPercent(userEmail, courseId, lessonNumber);
-    return progressPercent >= 40;
-  }
-
-  // Calculate total course progress
-  function calculateCourseProgress() {
-    if (!pageState.courseData.modules || !pageState.courseData.modules.length) {
-      return { done: 0, total: 0, percent: 0 };
-    }
-
-    let completedItemCount = 0;
-    let requiredItemCount = 0;
-
-    pageState.courseData.modules.forEach((module) => {
-      module.items.forEach((item) => {
-        // Only count core types
-        if (
-          item.type === "learn" ||
-          item.type === "quiz" ||
-          item.type === "challenge" ||
-          item.type === "sandbox"
-        ) {
-          requiredItemCount++;
-          if (pageState.completionStatus.lesson.has(item.lessonNumber)) {
-            completedItemCount++;
-          }
-        }
-      });
-    });
-
-    const progressPercent = requiredItemCount > 0 ? Math.round((completedItemCount / requiredItemCount) * 100) : 0;
-
-    return {
-      done: completedItemCount,
-      total: requiredItemCount,
-      percent: progressPercent
-    };
-  }
-
-  // ============================================================
-  // UI SETUP FUNCTIONS
-  // ============================================================
-
-  // Setup brand logo routing
   function setupBrandRouting() {
     const user = getCurrentUser();
     const targetPage = isUserLoggedIn(user) ? "dashboard.html" : "index.html";
@@ -550,7 +363,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     if (backLink) backLink.setAttribute("href", targetPage);
   }
 
-  // Setup sidebar toggle
   function setupSidebar() {
     const openButton = getById("openSidebarBtn");
     const closeButton = getById("closeSidebarBtn");
@@ -583,7 +395,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     });
   }
 
-  // Setup user dropdown
   function setupUserDropdown() {
     const userButton = getById("userBtn");
     const userDropdown = getById("userDropdown");
@@ -613,7 +424,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     });
   }
 
-  // Setup logout buttons
   function setupLogoutButtons() {
     const topLogoutButton = getById("topLogoutBtn");
     const sideLogoutButton = getById("sideLogoutBtn");
@@ -629,7 +439,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     if (sideLogoutButton) sideLogoutButton.addEventListener("click", logout);
   }
 
-  // Update user display info
   function updateUserDisplay(user) {
     let displayName =
       user?.name ||
@@ -674,11 +483,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     }
   }
 
-  // ============================================================
-  // MAIN INITIALIZATION
-  // ============================================================
-
-  // Initialize the course page
   async function initializeCoursePage() {
     console.log("Initializing course page...");
 
@@ -733,7 +537,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     console.log("Course page initialization complete!");
   }
 
-  // Render course header
   function renderCourseHeader() {
     const course = pageState.courseData;
     setTextById("courseTitle", course.title || "Course");
@@ -756,7 +559,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     });
   }
 
-  // Render single module
   function renderModule(module, moduleNumber) {
     const moduleContainer = createElement("div", "net-module");
     const moduleHeader = createElement("div", "net-module-header");
@@ -783,7 +585,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     return moduleContainer;
   }
 
-  // Render single lesson item
   function renderLesson(item) {
     const isCompleted = pageState.completionStatus.lesson.has(item.lessonNumber);
 
@@ -817,7 +618,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     return lessonElement;
   }
 
-  // Get icon for lesson based on type and completion
   function getLessonIcon(item, isCompleted) {
     const iconContainer = document.createElement("div");
     iconContainer.className = "net-ico-pill";
@@ -845,11 +645,8 @@ full English variable names instead of single letters (x → currentNumber, etc.
     return iconContainer;
   }
 
-  // ============================================================
-  // LESSON MODAL
-  // ============================================================
+  // Lesson modal handling
 
-  // Open lesson in modal
   function openLessonModal(item) {
     pageState.currentLesson = item;
     pageState.currentLessonIndex = pageState.lessonsList.indexOf(item);
@@ -862,7 +659,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     }
   }
 
-  // Update modal content
   function updateLessonModalContent(item) {
     setTextById("lessonModalTitle", item.title);
     setTextById("lessonModalDuration", item.duration);
@@ -875,19 +671,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     }
   }
 
-  // Close lesson modal
-  function closeLessonModal() {
-    const modal = getById("lessonModal");
-    if (modal) {
-      modal.classList.remove("is-open");
-    }
-  }
-
-  // ============================================================
-  // PAGE INITIALIZATION
-  // ============================================================
-
-  // Start when DOM is ready
   function onDOMReady(callback) {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", callback);
@@ -896,7 +679,6 @@ full English variable names instead of single letters (x → currentNumber, etc.
     }
   }
 
-  // Initialize on page load
   onDOMReady(() => {
     initializeCoursePage();
   });

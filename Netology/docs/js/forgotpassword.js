@@ -1,24 +1,14 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: forgotpassword.js
-Purpose: Handle password reset form
----------------------------------------------------------
-*/
+// Password reset form handler
 
 (() => {
   "use strict";
 
-  // ============================================================
   // CONFIGURATION
-  // ============================================================
 
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   const ENDPOINTS = window.ENDPOINTS || {};
 
-  // ============================================================
   // UTILITIES
-  // ============================================================
 
   function getById(elementId) {
     return document.getElementById(elementId);
@@ -41,9 +31,7 @@ Purpose: Handle password reset form
     inputElement.classList.toggle("is-invalid", Boolean(isInvalid));
   }
 
-  // ============================================================
   // BANNER & TOAST HELPERS
-  // ============================================================
 
   function showToast(message, type = "info") {
     if (!message) return;
@@ -82,9 +70,7 @@ Purpose: Handle password reset form
     if (banner) banner.classList.add("d-none");
   }
 
-  // ============================================================
   // PASSWORD TOGGLE
-  // ============================================================
 
   function initPasswordToggles() {
     const toggleButtons = document.querySelectorAll('[data-toggle="password"]');
@@ -107,9 +93,7 @@ Purpose: Handle password reset form
     });
   }
 
-  // ============================================================
   // FORGOT PASSWORD HANDLER
-  // ============================================================
 
   function handleForgotPasswordSubmit(formElement) {
     if (!formElement) return;
@@ -175,9 +159,7 @@ Purpose: Handle password reset form
     });
   }
 
-  // ============================================================
   // INITIALIZATION
-  // ============================================================
 
   function initForgotPasswordPage() {
     const forgotFormElement = getById("forgotForm");
