@@ -258,13 +258,16 @@
   // Fetch progress summary from server
   async function fetchProgressFromServer(userEmail) {
     if (!userEmail) {
+      console.log("No email provided to fetchProgressFromServer");
       dashboardState.progressSummary = null;
       return null;
     }
 
     try {
       const endpoint = ENDPOINTS.courses?.userProgressSummary || "/user-progress-summary";
+      console.log("Fetching progress from:", endpoint);
       const data = await apiGet(endpoint, { email: userEmail });
+      console.log("Got progress response:", data);
 
       // Be more forgiving - if we got a response with any progress data, use it
       if (data && (data.lessons_done !== undefined || data.quizzes_done !== undefined || data.total_xp !== undefined)) {
@@ -280,15 +283,17 @@
           totalXp: Number(data.total_xp || 0),
           level: Number(data.level || 1)
         };
+        console.log("Stored progress:", dashboardState.progressSummary);
 
         return dashboardState.progressSummary;
       } else {
+        console.log("No progress data in response");
         dashboardState.progressSummary = null;
         return null;
       }
 
     } catch (error) {
-      console.warn("Could not fetch progress:", error);
+      console.error("ERROR fetching progress:", error);
       dashboardState.progressSummary = null;
       return null;
     }
@@ -301,6 +306,7 @@
     const shouldForceRefresh = options.forceRefresh === true;
     
     if (!userEmail) {
+      console.log("No email provided to fetchAchievementsFromServer");
       dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
       return dashboardState.achievementCatalog;
     }
@@ -309,13 +315,16 @@
     if (!shouldForceRefresh && dashboardState.achievementCatalog.all.length > 0) {
       const ageMs = Date.now() - Number(dashboardState.achievementsFetchedAtTime || 0);
       if (ageMs < 60000) { // Less than 60 seconds old
+        console.log("Using cached achievements");
         return dashboardState.achievementCatalog;
       }
     }
 
     try {
       const endpoint = ENDPOINTS.achievements?.list || "/api/user/achievements";
+      console.log("Fetching achievements from:", endpoint, "for email:", userEmail);
       const data = await apiGet(endpoint, { user_email: userEmail });
+      console.log("Got achievements response:", data);
 
       // If no success indicator, still process the data if it has achievement info
       if (data && (data.unlocked || data.locked || data.achievements)) {
@@ -328,14 +337,16 @@
           locked: lockedAchievements
         };
         dashboardState.achievementsFetchedAtTime = Date.now();
+        console.log("Stored achievements. Total:", dashboardState.achievementCatalog.all.length, "Unlocked:", unlockedAchievements.length);
       } else {
+        console.log("No achievement data in response");
         dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
       }
 
       return dashboardState.achievementCatalog;
 
     } catch (error) {
-      console.warn("Could not fetch achievements:", error);
+      console.error("ERROR fetching achievements:", error);
       dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
       return dashboardState.achievementCatalog;
     }
@@ -782,10 +793,58 @@
           // Async rendering - can be empty if data loads separately
         },
         renderAchievements: () => {
-          // Achievements will load when data arrives
+          // Render achievements from dashboardState.achievementCatalog
+          const scrollerEl = document.getElementById("achieveScroller");
+          if (!scrollerEl) return;
+
+          const catalog = dashboardState.achievementCatalog;
+          if (!catalog || !catalog.all || catalog.all.length === 0) {
+            scrollerEl.innerHTML = '<div class="small text-muted">No achievements yet. Start learning!</div>';
+            return;
+          }
+
+          // Show unlocked first (if any), then first few locked
+          const toShow = [
+            ...(catalog.unlocked || []).slice(0, 3),
+            ...(catalog.locked || []).slice(0, 3)
+          ];
+
+          const html = toShow.map(achievement => `
+            <div class="achievement-badge ${achievement.unlocked ? 'unlocked' : 'locked'}" 
+                 title="${achievement.name}: ${achievement.description}">
+              <div class="badge-icon">
+                <i class="bi ${achievement.icon}"></i>
+              </div>
+              <div class="badge-info">
+                <div class="badge-name">${achievement.name}</div>
+                <div class="badge-xp">+${achievement.xp_reward} XP</div>
+              </div>
+            </div>
+          `).join('');
+
+          scrollerEl.innerHTML = html || '<div class="small text-muted">No achievements yet.</div>';
         },
         renderChallengeList: (el, challenges, type) => {
-          // Challenge rendering
+          if (!el) return;
+          
+          if (!challenges || challenges.length === 0) {
+            el.innerHTML = '<div class="small text-muted">No challenges available.</div>';
+            return;
+          }
+
+          const html = challenges.map(challenge => `
+            <div class="challenge-item mb-2 pb-2 border-bottom">
+              <div class="d-flex align-items-start">
+                <div class="flex-grow-1">
+                  <div class="fw-semibold">${challenge.title || challenge.name || 'Challenge'}</div>
+                  <div class="small text-muted">${challenge.description || ''}</div>
+                  ${challenge.xp_reward ? `<div class="small text-warning"><i class="bi bi-gem me-1"></i>${challenge.xp_reward} XP</div>` : ''}
+                </div>
+              </div>
+            </div>
+          `).join('');
+
+          el.innerHTML = html || '<div class="small text-muted">No challenges available.</div>';
         }
       };
     }
