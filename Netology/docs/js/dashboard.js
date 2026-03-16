@@ -910,11 +910,84 @@
       heroLevel.textContent = `Level ${user.level}`;
     }
 
-    // XP arc gauge - for now just show the number
-    const heroXP = document.getElementById("heroXP");
-    if (heroXP && user.xp_current !== undefined) {
-      heroXP.textContent = `${user.xp_current}/${user.xp_for_next_level || 100}`;
-    }
+    // Render XP arc gauge
+    renderXpArcGauge();
+  }
+
+  // Helper: Create and render SVG arc gauge for XP progress
+  function renderXpArcGauge() {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    const container = document.getElementById("heroXP");
+    if (!container) return;
+
+    const currentXp = Number(user.xp_current || 0);
+    const nextLevelXp = Number(user.xp_for_next_level || 100);
+    const progress = Math.min(100, Math.max(0, (currentXp / nextLevelXp) * 100));
+
+    // Create SVG arc gauge
+    const size = 120;
+    const center = size / 2;
+    const radius = 45;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference * (1 - progress / 100);
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+    svg.setAttribute("width", size);
+    svg.setAttribute("height", size);
+    svg.style.cssText = "max-width: 120px; height: auto;";
+
+    // Background circle
+    const bgCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    bgCircle.setAttribute("cx", center);
+    bgCircle.setAttribute("cy", center);
+    bgCircle.setAttribute("r", radius);
+    bgCircle.setAttribute("fill", "none");
+    bgCircle.setAttribute("stroke", "#e9ecef");
+    bgCircle.setAttribute("stroke-width", "6");
+    svg.appendChild(bgCircle);
+
+    // Progress circle (arc)
+    const progressCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    progressCircle.setAttribute("cx", center);
+    progressCircle.setAttribute("cy", center);
+    progressCircle.setAttribute("r", radius);
+    progressCircle.setAttribute("fill", "none");
+    progressCircle.setAttribute("stroke", "#0d6efd");
+    progressCircle.setAttribute("stroke-width", "6");
+    progressCircle.setAttribute("stroke-dasharray", circumference);
+    progressCircle.setAttribute("stroke-dashoffset", offset);
+    progressCircle.setAttribute("stroke-linecap", "round");
+    progressCircle.style.cssText = "transform: rotate(-90deg); transform-origin: 50% 50%;";
+    svg.appendChild(progressCircle);
+
+    // Center text with level and XP
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", center);
+    text.setAttribute("y", center - 5);
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("font-size", "20");
+    text.setAttribute("font-weight", "700");
+    text.setAttribute("fill", "#212529");
+    text.textContent = user.level || "1";
+    svg.appendChild(text);
+
+    // XP text below
+    const xpText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    xpText.setAttribute("x", center);
+    xpText.setAttribute("y", center + 12);
+    xpText.setAttribute("text-anchor", "middle");
+    xpText.setAttribute("font-size", "10");
+    xpText.setAttribute("fill", "#6c757d");
+    xpText.textContent = `${currentXp}/${nextLevelXp}`;
+    svg.appendChild(xpText);
+
+    // Clear and insert
+    container.innerHTML = "";
+    container.classList.remove("visually-hidden");
+    container.appendChild(svg);
   }
 
   // Helper: Render streak calendar (7 day activity)
