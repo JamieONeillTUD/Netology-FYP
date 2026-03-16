@@ -21,37 +21,17 @@ app = Flask(
     static_url_path="",
 )
 
-production_cors_origins = [
-    "https://jamieoneilltud.github.io",
-    "https://netology-fyp.onrender.com",
-]
-
-local_dev_cors_origins = [
-    "http://localhost",
-    "http://127.0.0.1",
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
-    "http://localhost:5001",
-    "http://127.0.0.1:5001",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5500",
-    "http://127.0.0.1:5500",
-    "null",
-]
-
-allowed_cors_origins = [*production_cors_origins]
-if os.environ.get("ENABLE_LOCAL_DEV_CORS", "1").strip() == "1":
-    allowed_cors_origins.extend(local_dev_cors_origins)
-
-extra_cors_origins = [
-    origin.strip()
-    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
-    if origin.strip()
-]
-
-CORS(app, resources={r"/*": {"origins": [*allowed_cors_origins, *extra_cors_origins]}})
-
+CORS(
+    app,
+    resources={
+        r"/*": {
+            "origins": [
+                "https://jamieoneilltud.github.io",
+                "https://netology-fyp.onrender.com",
+            ]
+        }
+    },
+)
 
 auth_bcrypt.init_app(app)
 

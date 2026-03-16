@@ -35,7 +35,6 @@ function replaceTopology(devices, connections) {
   rebuildMacTables();
 }
 
-// Most topology edits need the same follow-up work.
 function finishTopologyChange({ refreshTutorial = true } = {}) {
   rebuildMacTables();
   pushHistory();

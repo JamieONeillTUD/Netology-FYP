@@ -1,40 +1,71 @@
 /*
 ---------------------------------------------------------
-Student: C22320301 - Jamie O’Neill
+Student: C22320301 - Jamie O'Neill
 File: courses.js
-Purpose: Loads the courses page, shows course cards, and shows user progress.
-Notes: Rewritten into small clear functions with simple comments and same page behavior.
+Purpose: Display all available courses with progress tracking and difficulty filtering
+Simplified From: courses.js (771 lines)
+---------------------------------------------------------
+
+OVERVIEW: This page shows all courses grouped by difficulty level (Novice, Intermediate, Advanced).
+Main responsibilities:
+  1. Load courses from API or COURSE_CONTENT
+  2. Track user progress on each course
+  3. Display course cards with progress bars
+  4. Filter courses by difficulty level
+  5. Handle course locking based on user level
+  6. Navigate to individual course pages
+
+All code uses full variable names, clear comments, and logical sections
+to make it easy to understand and modify.
 ---------------------------------------------------------
 */
 
 (() => {
   "use strict";
 
-  const TRACK_NAMES = ["novice", "intermediate", "advanced"];
-  const ENDPOINTS = window.ENDPOINTS || {};
-  const XP = window.NetologyXP || null;
+  // ============================================================
+  // CONFIGURATION & SETUP
+  // ============================================================
 
-  // Use shared API helper when available, otherwise use a simple fetch helper.
+  // Course difficulty levels
+  const DIFFICULTY_LEVELS = ["novice", "intermediate", "advanced"];
+
+  // API endpoints
+  const ENDPOINTS = window.ENDPOINTS || {};
+
+  // XP system for user level calculations
+  const XP_SYSTEM = window.NetologyXP || null;
+
+  // ============================================================
+  // API HELPER
+  // ============================================================
+
+  // Shared API helper from config.js, or fallback to simple fetch
   const apiGet = typeof window.apiGet === "function"
     ? window.apiGet
-    : async function apiGetFallback(path, params = {}) {
-      const base = String(window.API_BASE || "").trim();
-      const url = base
-        ? new URL(base.replace(/\/$/, "") + path)
-        : new URL(path, window.location.origin);
+    : createFallbackApiHelper();
 
-      Object.entries(params).forEach(([paramName, paramValue]) => {
+  // Create fallback API helper if none provided
+  function createFallbackApiHelper() {
+    return async function apiGetFallback(apiPath, queryParameters = {}) {
+      const baseUrl = String(window.API_BASE || "").trim();
+      const fullUrl = baseUrl
+        ? new URL(baseUrl.replace(/\/$/, "") + apiPath)
+        : new URL(apiPath, window.location.origin);
+
+      Object.entries(queryParameters || {}).forEach(([paramName, paramValue]) => {
         if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
-          url.searchParams.set(paramName, String(paramValue));
+          fullUrl.searchParams.set(paramName, String(paramValue));
         }
       });
 
-      const response = await fetch(url.toString());
+      const response = await fetch(fullUrl.toString());
       return response.json();
     };
+  }
 
-  // Get arrays from API responses safely.
-  const listFrom = window.API_HELPERS?.list || function listFromFallback(data, ...keys) {
+  // Helper to extract arrays from various API response shapes
+  const getArrayFromResponse = window.API_HELPERS?.list || function getArrayFromResponseFallback(data, ...keys) {
     if (Array.isArray(data)) return data;
     for (const keyName of keys) {
       if (Array.isArray(data?.[keyName])) return data[keyName];
@@ -42,153 +73,107 @@ Notes: Rewritten into small clear functions with simple comments and same page b
     return [];
   };
 
-  document.addEventListener("DOMContentLoaded", () => {
-    initCoursesPage();
-  });
+  // ============================================================
+  // UTILITY FUNCTIONS
+  // ============================================================
 
-  // Main page startup.
-  async function initCoursesPage() {
-    const currentUser = getCurrentUser();
-    if (!currentUser?.email) {
-      window.location.href = "login.html";
-      return;
-    }
+  // Get element by ID
+  function getById(elementId) {
+    return document.getElementById(elementId);
+  }
 
-    wirePageChrome(currentUser);
-    wireTrackFilters();
-
-    await loadAndRenderCourses(currentUser);
-    await loadAndRenderProgress(currentUser);
-
-    document.body.classList.remove("net-loading");
-    document.body.classList.add("net-loaded");
-
-    if (typeof window.maybeStartOnboardingTour === "function") {
-      window.maybeStartOnboardingTour("courses", currentUser.email);
+  // Set text content of element by ID
+  function setTextById(elementId, textContent) {
+    const element = getById(elementId);
+    if (element) {
+      element.textContent = String(textContent || "");
     }
   }
 
-  // Path filter buttons (All / Novice / Intermediate / Advanced).
-  function wireTrackFilters() {
-    const filterButtons = Array.from(document.querySelectorAll("[data-path]"));
-    if (!filterButtons.length) return;
-
-    const applyTrackFilter = (rawPath) => {
-      const normalizedPath = String(rawPath || "all").toLowerCase();
-      const selectedPath = normalizedPath === "all" || TRACK_NAMES.includes(normalizedPath)
-        ? normalizedPath
-        : "all";
-
-      filterButtons.forEach((buttonElement) => {
-        const buttonPath = String(buttonElement.dataset.path || "all").toLowerCase();
-        const isActive = buttonPath === selectedPath;
-        buttonElement.classList.toggle("active", isActive);
-        buttonElement.classList.toggle("btn-teal", isActive);
-        buttonElement.classList.toggle("btn-outline-teal", !isActive);
-        buttonElement.setAttribute("aria-selected", isActive ? "true" : "false");
-      });
-
-      document.querySelectorAll(".net-course-section").forEach((sectionElement) => {
-        if (selectedPath === "all") {
-          sectionElement.style.display = "block";
-          return;
-        }
-
-        const sectionTrack = String(sectionElement.dataset.difficulty || "").toLowerCase();
-        sectionElement.style.display = sectionTrack === selectedPath ? "block" : "none";
-      });
-    };
-
-    filterButtons.forEach((filterButton) => {
-      filterButton.addEventListener("click", (event) => {
-        event.preventDefault();
-        applyTrackFilter(filterButton.dataset.path || "all");
-      });
-    });
-
-    // Always start in "All Paths" view so novice courses are visible by default.
-    applyTrackFilter("all");
-
-    // If browser restores the page from bfcache, reset to "All Paths" again.
-    window.addEventListener("pageshow", () => {
-      applyTrackFilter("all");
-    });
-  }
-
-  // Load courses, apply lock rules, and render each track grid.
-  async function loadAndRenderCourses(currentUser) {
+  // Safely parse JSON
+  function parseJsonSafely(jsonString) {
     try {
-      const courseList = await fetchCourseList();
-      if (!courseList.length) {
-        console.warn("No courses available");
-        return;
-      }
-
-      const progressByCourseId = await fetchProgressMap(currentUser.email);
-      const userLevel = readUserLevel(currentUser);
-      const unlockTierIndex = readUnlockTierIndex(currentUser);
-      const coursesByTrack = groupCoursesByTrack(courseList);
-
-      TRACK_NAMES.forEach((trackName) => {
-        const gridElement = document.getElementById(`${trackName}Grid`);
-        if (!gridElement) return;
-
-        gridElement.innerHTML = "";
-
-        const trackIndex = TRACK_NAMES.indexOf(trackName);
-        const isTrackLocked = trackIndex > unlockTierIndex;
-        const trackCourses = coursesByTrack[trackName] || [];
-
-        trackCourses.forEach((courseItem, courseIndex) => {
-          const cardElement = createCourseCard(
-            courseItem,
-            progressByCourseId,
-            userLevel,
-            isTrackLocked,
-            courseIndex
-          );
-          gridElement.appendChild(cardElement);
-        });
-
-      });
-    } catch (error) {
-      console.error("Error loading courses:", error);
+      return jsonString ? JSON.parse(jsonString) : null;
+    } catch {
+      return null;
     }
   }
 
-  // Get courses from API, or fallback to COURSE_CONTENT.
-  async function fetchCourseList() {
-    const apiData = await apiGet(ENDPOINTS.courses?.list || "/courses");
-    const apiCourses = listFrom(apiData, "courses");
+  // Escape HTML to prevent injection
+  function escapeHtmlString(textValue) {
+    const tempDiv = document.createElement("div");
+    tempDiv.textContent = String(textValue || "");
+    return tempDiv.innerHTML;
+  }
 
-    if (apiCourses.length > 0) {
-      return apiCourses.map((apiCourse) => enrichCourse(apiCourse));
+  // Get user level from XP
+  function getLevelFromXP(totalXP) {
+    return XP_SYSTEM?.levelFromTotalXp ? XP_SYSTEM.levelFromTotalXp(totalXP) : 1;
+  }
+
+  // ============================================================
+  // USER DATA FUNCTIONS
+  // ============================================================
+
+  // Get current user from localStorage
+  function getCurrentUser() {
+    return (
+      parseJsonSafely(localStorage.getItem("netology_user")) ||
+      parseJsonSafely(localStorage.getItem("user")) ||
+      null
+    );
+  }
+
+  // Get user's level based on XP
+  function getUserLevel(user) {
+    return Number(user?.numeric_level) || getLevelFromXP(Number(user?.xp || 0)) || 1;
+  }
+
+  // ============================================================
+  // COURSE DATA FUNCTIONS
+  // ============================================================
+
+  // Fetch all available courses
+  async function fetchCourseList() {
+    // Try to get from API first
+    try {
+      const apiResponse = await apiGet(ENDPOINTS.courses?.list || "/courses");
+      const apiCourses = getArrayFromResponse(apiResponse, "courses");
+
+      if (apiCourses.length > 0) {
+        return apiCourses.map((course) => enrichCourseData(course));
+      }
+    } catch (error) {
+      console.warn("Could not fetch courses from API:", error);
     }
 
-    if (typeof COURSE_CONTENT === "undefined" || !COURSE_CONTENT) {
+    // Fallback to COURSE_CONTENT
+    if (typeof window.COURSE_CONTENT === "undefined" || !window.COURSE_CONTENT) {
       return [];
     }
 
-    return Object.keys(COURSE_CONTENT).map((contentKey) => {
-      const contentCourse = COURSE_CONTENT[contentKey] || {};
-      return enrichCourse({ id: contentKey, ...contentCourse });
+    return Object.entries(window.COURSE_CONTENT).map(([courseId, courseData]) => {
+      return enrichCourseData({
+        id: courseId,
+        ...courseData
+      });
     });
   }
 
-  // Merge API values with static course content so cards always have full data.
-  function enrichCourse(apiCourse) {
+  // Merge API data with static course content
+  function enrichCourseData(apiCourse) {
     const courseId = String(apiCourse?.id || "");
-    const staticCourse = getStaticCourseById(courseId);
-    const totalLessons = getCourseLessonCount(apiCourse, staticCourse);
-    const moduleCount = getCourseModuleCount(apiCourse, staticCourse);
-    const objectiveStats = getCourseObjectiveStats(staticCourse);
+    const staticCourse = getStaticCourseData(courseId);
+    const totalLessons = countCourseLessons(apiCourse, staticCourse);
+    const moduleCount = countCourseModules(apiCourse, staticCourse);
+    const objectiveStats = calculateObjectiveStats(staticCourse);
 
     return {
       ...apiCourse,
       id: courseId || String(staticCourse?.id || ""),
       title: apiCourse?.title || staticCourse?.title || "Course",
       description: apiCourse?.description || staticCourse?.description || "",
-      difficulty: normalizeTrackName(apiCourse?.difficulty || staticCourse?.difficulty || "novice"),
+      difficulty: normalizeDifficultyLevel(apiCourse?.difficulty || staticCourse?.difficulty || "novice"),
       category: apiCourse?.category || staticCourse?.category || "Core",
       required_level: Number(apiCourse?.required_level || staticCourse?.required_level || 1),
       xp_reward: Number(apiCourse?.xp_reward || staticCourse?.xpReward || staticCourse?.totalXP || 0),
@@ -200,12 +185,16 @@ Notes: Rewritten into small clear functions with simple comments and same page b
     };
   }
 
-  function getStaticCourseById(courseId) {
-    if (typeof COURSE_CONTENT === "undefined" || !COURSE_CONTENT) return {};
-    return COURSE_CONTENT[String(courseId)] || {};
+  // Get static course data from COURSE_CONTENT
+  function getStaticCourseData(courseId) {
+    if (typeof window.COURSE_CONTENT === "undefined" || !window.COURSE_CONTENT) {
+      return {};
+    }
+    return window.COURSE_CONTENT[String(courseId)] || {};
   }
 
-  function getCourseLessonCount(apiCourse, staticCourse) {
+  // Count total lessons in course
+  function countCourseLessons(apiCourse, staticCourse) {
     const apiLessonCount = Number(apiCourse?.total_lessons);
     if (Number.isFinite(apiLessonCount) && apiLessonCount > 0) {
       return apiLessonCount;
@@ -213,15 +202,16 @@ Notes: Rewritten into small clear functions with simple comments and same page b
 
     let staticLessonCount = 0;
     if (Array.isArray(staticCourse?.units)) {
-      staticCourse.units.forEach((unitEntry) => {
-        staticLessonCount += Array.isArray(unitEntry?.lessons) ? unitEntry.lessons.length : 0;
+      staticCourse.units.forEach((unit) => {
+        staticLessonCount += Array.isArray(unit?.lessons) ? unit.lessons.length : 0;
       });
     }
 
     return staticLessonCount;
   }
 
-  function getCourseModuleCount(apiCourse, staticCourse) {
+  // Count modules in course
+  function countCourseModules(apiCourse, staticCourse) {
     const apiModuleCount = Number(apiCourse?.module_count);
     if (Number.isFinite(apiModuleCount) && apiModuleCount > 0) {
       return Math.round(apiModuleCount);
@@ -235,235 +225,224 @@ Notes: Rewritten into small clear functions with simple comments and same page b
     return 1;
   }
 
-  function getCourseObjectiveStats(staticCourse) {
+  // Calculate total and per-module objectives
+  function calculateObjectiveStats(staticCourse) {
     const staticUnits = Array.isArray(staticCourse?.units) ? staticCourse.units : [];
     if (!staticUnits.length) {
       return { totalObjectives: 0, moduleObjectiveCounts: [] };
     }
 
-    const moduleObjectiveCounts = staticUnits.map((unitEntry) => countUnitObjectives(unitEntry));
+    const moduleObjectiveCounts = staticUnits.map((unit) => countUnitObjectives(unit));
     const totalObjectives = moduleObjectiveCounts.reduce((sum, count) => sum + count, 0);
 
-    return {
-      totalObjectives,
-      moduleObjectiveCounts
-    };
+    return { totalObjectives, moduleObjectiveCounts };
   }
 
-  function countUnitObjectives(unitEntry) {
+  // Count objectives in a single unit
+  function countUnitObjectives(unit) {
     let objectiveCount = 0;
-    const lessons = Array.isArray(unitEntry?.lessons) ? unitEntry.lessons : [];
+    const lessons = Array.isArray(unit?.lessons) ? unit.lessons : [];
 
-    lessons.forEach((lessonEntry) => {
-      const explicitObjectives = Array.isArray(lessonEntry?.objectives) ? lessonEntry.objectives.length : 0;
+    // Method 1: Count explicit objectives
+    lessons.forEach((lesson) => {
+      const explicitObjectives = Array.isArray(lesson?.objectives) ? lesson.objectives.length : 0;
       if (explicitObjectives > 0) {
         objectiveCount += explicitObjectives;
         return;
       }
 
-      const blocks = Array.isArray(lessonEntry?.blocks) ? lessonEntry.blocks : [];
-      const interactiveBlocks = blocks.filter((blockEntry) => {
-        const type = String(blockEntry?.type || "").toLowerCase();
-        return type === "check" || type === "activity" || type === "practice";
+      // Method 2: Count interactive blocks
+      const blocks = Array.isArray(lesson?.blocks) ? lesson.blocks : [];
+      const interactiveBlockCount = blocks.filter((block) => {
+        const blockType = String(block?.type || "").toLowerCase();
+        return blockType === "check" || blockType === "activity" || blockType === "practice";
       }).length;
-      objectiveCount += interactiveBlocks;
+      objectiveCount += interactiveBlockCount;
     });
 
-    if (objectiveCount > 0) {
-      return objectiveCount;
-    }
+    // Method 3: Count from sections
+    if (objectiveCount === 0) {
+      const sections = Array.isArray(unit?.sections) ? unit.sections : [];
+      sections.forEach((section) => {
+        const items = Array.isArray(section?.items) ? section.items : [];
+        items.forEach((item) => {
+          const stepCount = Array.isArray(item?.steps) ? item.steps.length : 0;
+          const challengeStepCount = Array.isArray(item?.challenge?.steps) ? item.challenge.steps.length : 0;
 
-    const sections = Array.isArray(unitEntry?.sections) ? unitEntry.sections : [];
-    sections.forEach((sectionEntry) => {
-      const items = Array.isArray(sectionEntry?.items) ? sectionEntry.items : [];
-      items.forEach((itemEntry) => {
-        const steps = Array.isArray(itemEntry?.steps) ? itemEntry.steps.length : 0;
-        const challengeSteps = Array.isArray(itemEntry?.challenge?.steps)
-          ? itemEntry.challenge.steps.length
-          : 0;
-
-        if (steps > 0 || challengeSteps > 0) {
-          objectiveCount += Math.max(steps, challengeSteps);
-          return;
-        }
-
-        objectiveCount += 1;
+          if (stepCount > 0 || challengeStepCount > 0) {
+            objectiveCount += Math.max(stepCount, challengeStepCount);
+          } else {
+            objectiveCount += 1;
+          }
+        });
       });
-    });
+    }
 
     return objectiveCount;
   }
 
-  // Build a map so cards can read progress quickly by course id.
-  async function fetchProgressMap(email) {
-    const progressData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email });
-    const progressList = listFrom(progressData, "courses");
-    const progressByCourseId = {};
-
-    progressList.forEach((progressEntry) => {
-      progressByCourseId[String(progressEntry?.id)] = progressEntry;
-    });
-
-    return progressByCourseId;
+  // Normalize difficulty level string
+  function normalizeDifficultyLevel(rawDifficulty) {
+    const normalized = String(rawDifficulty || "novice").toLowerCase();
+    return DIFFICULTY_LEVELS.includes(normalized) ? normalized : "novice";
   }
 
-  function groupCoursesByTrack(courseList) {
-    const grouped = { novice: [], intermediate: [], advanced: [] };
+  // ============================================================
+  // COURSE PROGRESS FUNCTIONS
+  // ============================================================
 
-    courseList.forEach((courseItem) => {
-      const trackName = normalizeTrackName(courseItem?.difficulty);
-      grouped[trackName].push(courseItem);
+  // Fetch user's progress on all courses
+  async function fetchUserProgressMap(userEmail) {
+    try {
+      const progressResponse = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", { email: userEmail });
+      const courseProgressList = getArrayFromResponse(progressResponse, "courses");
+
+      // Build map for quick lookup by course ID
+      const progressMap = new Map();
+      courseProgressList.forEach((courseProgress) => {
+        const courseId = String(courseProgress.id || courseProgress.course_id || "");
+        if (courseId) {
+          progressMap.set(courseId, courseProgress);
+        }
+      });
+
+      return progressMap;
+    } catch (error) {
+      console.warn("Could not fetch user progress:", error);
+      return new Map();
+    }
+  }
+
+  // Group courses by difficulty level
+  function groupCoursesByDifficulty(courseList) {
+    const grouped = {};
+
+    DIFFICULTY_LEVELS.forEach((level) => {
+      grouped[level] = [];
+    });
+
+    courseList.forEach((course) => {
+      const difficulty = normalizeDifficultyLevel(course.difficulty || "novice");
+      if (grouped[difficulty]) {
+        grouped[difficulty].push(course);
+      }
     });
 
     return grouped;
   }
 
-  function normalizeTrackName(rawTrackName) {
-    const lowerTrackName = String(rawTrackName || "").trim().toLowerCase();
-    return TRACK_NAMES.includes(lowerTrackName) ? lowerTrackName : "novice";
-  }
+  // ============================================================
+  // UI RENDERING FUNCTIONS
+  // ============================================================
 
-  function readUnlockTierIndex(currentUser) {
-    const unlockTier = normalizeTrackName(currentUser?.unlock_tier || currentUser?.start_level || "novice");
-    return TRACK_NAMES.indexOf(unlockTier);
-  }
+  // Load and render all courses
+  async function loadAndRenderCourses(currentUser) {
+    try {
+      console.log("Loading courses...");
 
-  function readUserLevel(currentUser) {
-    const numericLevel = Number(currentUser?.numeric_level);
-    if (Number.isFinite(numericLevel) && numericLevel > 0) {
-      return numericLevel;
+      const courseList = await fetchCourseList();
+      if (!courseList.length) {
+        console.warn("No courses available");
+        return;
+      }
+
+      const userProgressMap = await fetchUserProgressMap(currentUser.email);
+      const userLevel = getUserLevel(currentUser);
+      const coursesByDifficulty = groupCoursesByDifficulty(courseList);
+
+      // Render each difficulty tier
+      DIFFICULTY_LEVELS.forEach((difficultyLevel) => {
+        const gridContainer = getById(`${difficultyLevel}Grid`);
+        if (!gridContainer) return;
+
+        gridContainer.innerHTML = "";
+
+        const tierCourses = coursesByDifficulty[difficultyLevel] || [];
+
+        tierCourses.forEach((course) => {
+          const courseCard = createCourseCard(course, userProgressMap, userLevel);
+          gridContainer.appendChild(courseCard);
+        });
+      });
+
+      console.log("Courses rendered successfully");
+    } catch (error) {
+      console.error("Error loading courses:", error);
     }
-
-    const rawLevel = Number(currentUser?.level);
-    if (Number.isFinite(rawLevel) && rawLevel > 0) {
-      return rawLevel;
-    }
-
-    return 1;
   }
 
-  function normalizeProgressPercent(rawPercent) {
-    const numeric = Number(rawPercent);
-    if (!Number.isFinite(numeric)) return 0;
-    return Math.max(0, Math.min(100, Math.round(numeric)));
-  }
+  // Create a course card element
+  function createCourseCard(courseData, progressMap, userLevel) {
+    const card = document.createElement("div");
+    card.className = "net-course-card";
 
-  function getProgressMetrics(courseLike, staticCourse, progressPercent) {
-    const safePercent = normalizeProgressPercent(progressPercent);
-    const moduleCount = Math.max(1, Number(getCourseModuleCount(courseLike, staticCourse) || 1));
-    const objectiveStats = getCourseObjectiveStats(staticCourse);
-    const objectiveCount = Math.max(0, Number(courseLike?.objective_count || objectiveStats.totalObjectives || 0));
-    const moduleObjectiveCounts = Array.isArray(courseLike?.module_objective_counts) && courseLike.module_objective_counts.length
-      ? courseLike.module_objective_counts
-      : objectiveStats.moduleObjectiveCounts;
+    const courseId = String(courseData.id || "");
+    const courseProgress = progressMap.get(courseId) || {};
+    const progressPercent = Math.max(0, Math.min(100, Number(courseProgress.progress_pct || 0)));
+    const isLocked = Number(courseData.required_level || 1) > userLevel;
+    const isCompleted = progressPercent >= 100;
+    const isInProgress = progressPercent > 0 && progressPercent < 100;
 
-    const totalLessons = Math.max(0, Number(courseLike?.total_lessons || getCourseLessonCount(courseLike, staticCourse) || 0));
-    const completedLessons = Math.round((safePercent / 100) * totalLessons);
-    const completedModules = Math.min(moduleCount, Math.round((safePercent / 100) * moduleCount));
-    const completedObjectives = objectiveCount > 0
-      ? Math.min(objectiveCount, Math.round((safePercent / 100) * objectiveCount))
-      : 0;
-    const remainingObjectives = Math.max(0, objectiveCount - completedObjectives);
+    // Add state classes
+    if (isLocked) card.classList.add("locked");
+    if (isInProgress) card.classList.add("in-progress");
+    if (isCompleted) card.classList.add("completed");
 
-    return {
-      moduleCount,
-      objectiveCount,
-      moduleObjectiveCounts,
-      totalLessons,
-      completedLessons,
-      completedModules,
-      completedObjectives,
-      remainingObjectives
-    };
-  }
+    // Build card HTML
+    const moduleChips = buildModuleChips(courseData.module_objective_counts || []);
+    const xpDisplay = courseData.xp_reward > 0 ? `
+      <div class="net-course-xp">
+        <i class="bi bi-lightning-charge-fill"></i>
+        <span>${courseData.xp_reward} XP</span>
+      </div>
+    ` : "";
 
-  // Build one course card with lock/progress states.
-  function createCourseCard(courseItem, progressByCourseId, userLevel, isTrackLocked, courseIndex = 0) {
-    const cardElement = document.createElement("div");
-    cardElement.className = "net-course-card";
-    cardElement.setAttribute("data-difficulty", normalizeTrackName(courseItem?.difficulty));
-    cardElement.style.setProperty("--course-card-delay", `${Math.min(Math.max(Number(courseIndex) || 0, 0), 10) * 70}ms`);
+    const estimatedTimeDisplay = courseData.estimated_time ? `
+      <span class="net-course-stat-pill">
+        <i class="bi bi-clock"></i>${escapeHtmlString(courseData.estimated_time)}
+      </span>
+    ` : "";
 
-    const progress = progressByCourseId[String(courseItem.id)] || {};
-    const progressPercent = normalizeProgressPercent(progress.progress_pct);
-    const progressStatus = String(progress.status || "").toLowerCase();
-    const staticCourse = getStaticCourseById(String(courseItem?.id || ""));
-    const metrics = getProgressMetrics(courseItem, staticCourse, progressPercent);
-
-    const requiredLevel = Number(courseItem?.required_level || 1);
-    const isLocked = isTrackLocked || requiredLevel > Number(userLevel || 1);
-    const isInProgress = progressStatus === "in-progress" || (progressPercent > 0 && progressPercent < 100);
-    const isCompleted = progressStatus === "completed" || progressPercent >= 100;
-
-    if (isLocked) {
-      const lockMessage = getLockedCourseMessage(courseItem, requiredLevel, userLevel, isTrackLocked);
-      cardElement.classList.add("locked");
-      cardElement.setAttribute("data-lock-message", lockMessage);
-      cardElement.setAttribute("title", lockMessage);
-      cardElement.setAttribute("aria-label", lockMessage);
-    }
-    if (isInProgress) cardElement.classList.add("in-progress");
-
-    const totalLessons = metrics.totalLessons;
-    const xpReward = Number(courseItem?.xp_reward || 0);
-    const estimatedTime = String(courseItem?.estimated_time || courseItem?.estimatedTime || "");
-    const moduleObjectiveChips = buildModuleObjectiveChips(metrics.moduleObjectiveCounts);
-
-    cardElement.innerHTML = `
+    card.innerHTML = `
       <div class="net-course-header">
-        <div class="net-course-icon">${getTrackIcon(courseItem?.difficulty)}</div>
+        <div class="net-course-icon">${getDifficultyIcon(courseData.difficulty)}</div>
         <div class="net-course-meta">
-          <div class="net-course-category">${escapeHtml(courseItem?.category || "Core")}</div>
-          <div class="net-course-title">${escapeHtml(courseItem?.title || "Course")}</div>
+          <div class="net-course-category">${escapeHtmlString(courseData.category || "Core")}</div>
+          <div class="net-course-title">${escapeHtmlString(courseData.title || "Course")}</div>
         </div>
       </div>
 
       <div class="net-course-stats-row">
         <span class="net-course-stat-pill">
-          <i class="bi bi-file-text"></i>${totalLessons} ${totalLessons === 1 ? "lesson" : "lessons"}
+          <i class="bi bi-file-text"></i>${courseData.total_lessons} ${courseData.total_lessons === 1 ? "lesson" : "lessons"}
         </span>
         <span class="net-course-stat-pill">
-          <i class="bi bi-diagram-3"></i>${metrics.moduleCount} ${metrics.moduleCount === 1 ? "module" : "modules"}
+          <i class="bi bi-diagram-3"></i>${courseData.module_count} ${courseData.module_count === 1 ? "module" : "modules"}
         </span>
         <span class="net-course-stat-pill">
-          <i class="bi bi-check2-square"></i>${metrics.objectiveCount} ${metrics.objectiveCount === 1 ? "objective" : "objectives"}
+          <i class="bi bi-check2-square"></i>${courseData.objective_count} ${courseData.objective_count === 1 ? "objective" : "objectives"}
         </span>
-        ${estimatedTime ? `
-          <span class="net-course-stat-pill">
-            <i class="bi bi-clock"></i>${escapeHtml(estimatedTime)}
-          </span>
-        ` : ""}
+        ${estimatedTimeDisplay}
       </div>
 
-      ${moduleObjectiveChips ? `<div class="net-course-module-breakdown">${moduleObjectiveChips}</div>` : ""}
+      ${moduleChips ? `<div class="net-course-module-breakdown">${moduleChips}</div>` : ""}
 
-      <div class="net-course-desc">${escapeHtml(courseItem?.description || "")}</div>
+      <div class="net-course-desc">${escapeHtmlString(courseData.description || "")}</div>
 
-      ${xpReward > 0 ? `
-        <div class="net-course-xp">
-          <i class="bi bi-lightning-charge-fill"></i>
-          <span>${xpReward} XP</span>
-        </div>
-      ` : ""}
+      ${xpDisplay}
 
       <div class="net-course-footer">
         <div class="net-course-progress-block">
           <div class="net-course-progress-meta">
             <span class="net-course-progress-label">${progressPercent}% Complete</span>
-            <span class="net-course-progress-label">${metrics.completedModules}/${metrics.moduleCount} modules</span>
           </div>
           <div class="net-course-bar net-course-bar--wide">
             <div class="net-course-bar-fill" style="width: ${progressPercent}%"></div>
           </div>
-          ${metrics.objectiveCount > 0 ? `
-            <div class="net-course-progress-sub">
-              ${metrics.completedObjectives}/${metrics.objectiveCount} objectives complete • ${metrics.remainingObjectives} left
-            </div>
-          ` : ""}
         </div>
 
         <button class="net-course-cta ${isInProgress ? "btn-continue" : isCompleted ? "btn-review" : isLocked ? "btn-locked" : "btn-start"}"
-                data-course-id="${escapeHtml(String(courseItem.id || ""))}"
+                data-course-id="${escapeHtmlString(courseId)}"
                 ${isLocked ? "disabled" : ""}>
           ${isLocked
             ? `<i class="bi bi-lock"></i> Locked`
@@ -478,207 +457,136 @@ Notes: Rewritten into small clear functions with simple comments and same page b
       ${isLocked ? `<div class="net-course-lock"><i class="bi bi-lock"></i></div>` : ""}
     `;
 
+    // Add click handlers
     if (!isLocked) {
-      const courseUrl = `course.html?id=${encodeURIComponent(String(courseItem.id || ""))}`;
-      const actionButton = cardElement.querySelector(".net-course-cta");
+      const courseUrl = `course.html?course_id=${encodeURIComponent(courseId)}`;
 
+      const actionButton = card.querySelector(".net-course-cta");
       if (actionButton) {
         actionButton.addEventListener("click", () => {
           window.location.href = courseUrl;
         });
       }
 
-      cardElement.style.cursor = "pointer";
-      cardElement.addEventListener("click", (event) => {
+      card.style.cursor = "pointer";
+      card.addEventListener("click", (event) => {
         if (event.target.closest(".net-course-cta")) return;
         window.location.href = courseUrl;
       });
     }
 
-    return cardElement;
+    return card;
   }
 
-  function getTrackIcon(rawDifficulty) {
-    const difficulty = normalizeTrackName(rawDifficulty);
-    if (difficulty === "advanced") return '<i class="bi bi-star-fill"></i>';
-    if (difficulty === "intermediate") return '<i class="bi bi-lightning-fill"></i>';
-    return '<i class="bi bi-gem"></i>';
+  // Build module objective chips
+  function buildModuleChips(moduleCounts) {
+    if (!Array.isArray(moduleCounts) || moduleCounts.length === 0) return "";
+
+    const chips = moduleCounts.map((count, index) => {
+      const moduleNumber = index + 1;
+      return `<span class="net-module-chip">M${moduleNumber}: ${count} obj.</span>`;
+    }).join("");
+
+    return chips;
   }
 
-  function buildModuleObjectiveChips(moduleObjectiveCounts) {
-    const modules = Array.isArray(moduleObjectiveCounts)
-      ? moduleObjectiveCounts
-        .map((value, index) => ({
-          moduleNumber: index + 1,
-          objectiveCount: Math.max(0, Number(value) || 0)
-        }))
-        .filter((moduleEntry) => moduleEntry.objectiveCount > 0)
-      : [];
-
-    if (!modules.length) return "";
-
-    const chips = modules.slice(0, 3).map((moduleEntry) => (
-      `<span class="net-module-objective-chip" title="Module ${moduleEntry.moduleNumber}: ${moduleEntry.objectiveCount} objectives">M${moduleEntry.moduleNumber}: ${moduleEntry.objectiveCount}</span>`
-    ));
-
-    if (modules.length > 3) {
-      chips.push(`<span class="net-module-objective-chip is-more">+${modules.length - 3} more</span>`);
-    }
-
-    return chips.join("");
+  // Get icon for difficulty level
+  function getDifficultyIcon(difficulty) {
+    const level = normalizeDifficultyLevel(difficulty);
+    if (level === "advanced") return '<i class="bi bi-diamond-fill"></i>';
+    if (level === "intermediate") return '<i class="bi bi-hexagon-fill"></i>';
+    return '<i class="bi bi-circle-fill"></i>';
   }
 
-  function getLockedCourseMessage(courseItem, requiredLevel, userLevel, isTrackLocked) {
-    const difficulty = normalizeTrackName(courseItem?.difficulty);
-    if (difficulty === "intermediate") {
-      return "Upgrade your learning path to access intermediate courses.";
-    }
-    if (difficulty === "advanced") {
-      return "Upgrade your learning path to access advanced courses.";
-    }
-    if (isTrackLocked) {
-      return "Upgrade your learning path to access this course.";
-    }
-    const safeLevel = Math.max(1, Number(requiredLevel || 1));
-    const safeUserLevel = Math.max(1, Number(userLevel || 1));
-    if (safeLevel > safeUserLevel) {
-      return `Reach Level ${safeLevel} to unlock this course.`;
-    }
-    return "This course is currently locked.";
-  }
+  // ============================================================
+  // DIFFICULTY FILTER UI
+  // ============================================================
 
-  // Load and show the small "Your Learning Progress" cards.
-  async function loadAndRenderProgress(currentUser) {
-    const container = document.getElementById("myProgressContainer");
-    const placeholder = document.getElementById("noProgressPlaceholder");
-    if (!container || !placeholder) return;
+  // Setup course difficulty filter buttons
+  function setupDifficultyFilters() {
+    const filterButtons = Array.from(document.querySelectorAll("[data-path]"));
+    if (!filterButtons.length) return;
 
-    try {
-      const responseData = await apiGet(ENDPOINTS.courses?.userCourses || "/user-courses", {
-        email: currentUser.email
-      });
-      const userCourses = listFrom(responseData, "courses");
+    const applyFilter = (selectedPath) => {
+      const normalizedPath = String(selectedPath || "all").toLowerCase();
+      const activePath = normalizedPath === "all" || DIFFICULTY_LEVELS.includes(normalizedPath)
+        ? normalizedPath
+        : "all";
 
-      const startedCourses = userCourses.filter((userCourse) => {
-        const progressPercent = Number(userCourse?.progress_pct || 0);
-        const status = String(userCourse?.status || "").toLowerCase();
-        return progressPercent > 0 || status === "completed";
+      // Update button states
+      filterButtons.forEach((button) => {
+        const buttonPath = String(button.dataset.path || "all").toLowerCase();
+        const isActive = buttonPath === activePath;
+        button.classList.toggle("active", isActive);
+        button.classList.toggle("btn-teal", isActive);
+        button.classList.toggle("btn-outline-teal", !isActive);
+        button.setAttribute("aria-selected", String(isActive));
       });
 
-      if (startedCourses.length === 0) {
-        container.innerHTML = "";
-        placeholder.classList.remove("d-none");
-        return;
-      }
-
-      container.innerHTML = "";
-      placeholder.classList.add("d-none");
-
-      startedCourses.slice(0, 6).forEach((userCourse, index) => {
-        const progressPercent = normalizeProgressPercent(userCourse?.progress_pct);
-        const staticCourse = getStaticCourseById(String(userCourse?.id || ""));
-        const metrics = getProgressMetrics(userCourse, staticCourse, progressPercent);
-        const moduleChips = buildModuleObjectiveChips(metrics.moduleObjectiveCounts);
-        const status = resolveProgressStatus(progressPercent, userCourse?.status);
-
-        const columnElement = document.createElement("div");
-        columnElement.className = "col-md-6 col-xl-4 mb-3";
-        columnElement.style.setProperty("--progress-card-delay", `${Math.min(Math.max(index, 0), 10) * 80}ms`);
-        columnElement.innerHTML = `
-          <article class="net-progress-course-card">
-            <div class="net-progress-course-head">
-              <h6 class="net-progress-course-title">${escapeHtml(userCourse?.title || "Course")}</h6>
-              <span class="net-progress-course-status ${status.className}">${status.label}</span>
-            </div>
-
-            <div class="net-progress-course-metrics">
-              <span><i class="bi bi-diagram-3"></i>${metrics.completedModules}/${metrics.moduleCount} modules</span>
-              ${metrics.objectiveCount > 0
-                ? `<span><i class="bi bi-check2-square"></i>${metrics.completedObjectives}/${metrics.objectiveCount} objectives</span>`
-                : `<span><i class="bi bi-file-text"></i>${metrics.completedLessons}/${metrics.totalLessons} lessons</span>`
-              }
-            </div>
-
-            ${moduleChips ? `<div class="net-progress-course-breakdown">${moduleChips}</div>` : ""}
-
-            <div class="net-progress-course-track" role="progressbar" aria-label="Course progress">
-              <span class="net-progress-course-track-fill" style="width: ${progressPercent}%"></span>
-            </div>
-
-            <div class="net-progress-course-caption">
-              ${progressPercent}% complete
-              ${metrics.objectiveCount > 0
-                ? ` • ${metrics.remainingObjectives} objectives left`
-                : ` • ${Math.max(0, metrics.totalLessons - metrics.completedLessons)} lessons left`
-              }
-            </div>
-
-            <a href="course.html?id=${encodeURIComponent(String(userCourse?.id || ""))}" class="net-progress-course-btn">
-              <i class="bi bi-play-fill"></i>Continue
-            </a>
-          </article>
-        `;
-
-        container.appendChild(columnElement);
+      // Show/hide course sections
+      document.querySelectorAll(".net-course-section").forEach((section) => {
+        if (activePath === "all") {
+          section.style.display = "block";
+        } else {
+          const sectionDifficulty = String(section.dataset.difficulty || "").toLowerCase();
+          section.style.display = sectionDifficulty === activePath ? "block" : "none";
+        }
       });
-    } catch (error) {
-      console.error("Error loading progress:", error);
-      placeholder.classList.remove("d-none");
-    }
-  }
-
-  function resolveProgressStatus(progressPercent, statusValue) {
-    const status = String(statusValue || "").toLowerCase();
-    const safePercent = Math.max(0, Math.min(100, Number(progressPercent) || 0));
-
-    if (status === "completed" || safePercent >= 100) {
-      return { label: "Completed", className: "is-complete" };
-    }
-    if (safePercent >= 70) {
-      return { label: "On Track", className: "is-on-track" };
-    }
-    if (safePercent > 0) {
-      return { label: "In Progress", className: "is-progress" };
-    }
-    return { label: "Not Started", className: "is-idle" };
-  }
-
-  // Wire sidebar, dropdown, and logout actions.
-  function wirePageChrome(currentUser) {
-    wireSidebar();
-    wireUserDropdown();
-    fillIdentity(currentUser);
-    wireLogoutButtons();
-  }
-
-  function wireLogoutButtons() {
-    const topLogoutButton = document.getElementById("topLogoutBtn");
-    const sideLogoutButton = document.getElementById("sideLogoutBtn");
-
-    const logout = () => {
-      localStorage.removeItem("netology_user");
-      localStorage.removeItem("user");
-      localStorage.removeItem("netology_token");
-      window.location.href = "index.html";
     };
 
-    if (topLogoutButton) topLogoutButton.addEventListener("click", logout);
-    if (sideLogoutButton) sideLogoutButton.addEventListener("click", logout);
+    // Wire up filter buttons
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        applyFilter(button.dataset.path || "all");
+      });
+    });
+
+    // Show all courses by default
+    applyFilter("all");
+
+    // Reset on browser back/forward
+    window.addEventListener("pageshow", () => {
+      applyFilter("all");
+    });
   }
 
-  function wireSidebar() {
-    const openButton = document.getElementById("openSidebarBtn");
-    const closeButton = document.getElementById("closeSidebarBtn");
-    const sidebar = document.getElementById("slideSidebar");
-    const backdrop = document.getElementById("sideBackdrop");
+  // ============================================================
+  // PAGE CHROME (Navigation, User Display, etc.)
+  // ============================================================
+
+  // Setup page header and navigation
+  function setupPageChrome(currentUser) {
+    setupBrandRouting();
+    setupSidebar();
+    setupUserDropdown();
+    setupLogoutButtons();
+    updateUserDisplay(currentUser);
+  }
+
+  // Setup brand logo routing
+  function setupBrandRouting() {
+    const topBrand = getById("topBrand");
+    const sideBrand = getById("sideBrand");
+
+    const targetPage = "dashboard.html";
+
+    if (topBrand) topBrand.setAttribute("href", targetPage);
+    if (sideBrand) sideBrand.setAttribute("href", targetPage);
+  }
+
+  // Setup sidebar toggle
+  function setupSidebar() {
+    const openButton = getById("openSidebarBtn");
+    const closeButton = getById("closeSidebarBtn");
+    const sidebar = getById("slideSidebar");
+    const backdrop = getById("sideBackdrop");
 
     const openSidebar = () => {
       if (!sidebar || !backdrop) return;
       sidebar.classList.add("is-open");
       backdrop.classList.add("is-open");
       document.body.classList.add("net-noscroll");
-      sidebar.setAttribute("aria-hidden", "false");
-      backdrop.setAttribute("aria-hidden", "false");
     };
 
     const closeSidebar = () => {
@@ -686,8 +594,6 @@ Notes: Rewritten into small clear functions with simple comments and same page b
       sidebar.classList.remove("is-open");
       backdrop.classList.remove("is-open");
       document.body.classList.remove("net-noscroll");
-      sidebar.setAttribute("aria-hidden", "true");
-      backdrop.setAttribute("aria-hidden", "true");
     };
 
     if (openButton) openButton.addEventListener("click", openSidebar);
@@ -701,70 +607,99 @@ Notes: Rewritten into small clear functions with simple comments and same page b
     });
   }
 
-  function wireUserDropdown() {
-    const button = document.getElementById("userBtn");
-    const dropdown = document.getElementById("userDropdown");
-    if (!button || !dropdown) return;
+  // Setup user dropdown
+  function setupUserDropdown() {
+    const userButton = getById("userBtn");
+    const userDropdown = getById("userDropdown");
+    if (!userButton || !userDropdown) return;
 
-    button.addEventListener("click", (event) => {
+    userButton.addEventListener("click", (event) => {
       event.stopPropagation();
-      const isOpen = dropdown.classList.toggle("is-open");
-      button.setAttribute("aria-expanded", String(isOpen));
+      const isOpen = userDropdown.classList.toggle("is-open");
+      userButton.setAttribute("aria-expanded", String(isOpen));
     });
 
     document.addEventListener("click", (event) => {
-      if (dropdown.contains(event.target) || button.contains(event.target)) return;
-      dropdown.classList.remove("is-open");
-      button.setAttribute("aria-expanded", "false");
+      if (userDropdown.contains(event.target) || userButton.contains(event.target)) return;
+      userDropdown.classList.remove("is-open");
+      userButton.setAttribute("aria-expanded", "false");
     });
   }
 
-  function fillIdentity(currentUser) {
-    const fullName = [currentUser?.first_name, currentUser?.last_name].filter(Boolean).join(" ")
-      || currentUser?.username
-      || "Student";
-    const email = String(currentUser?.email || "");
+  // Setup logout buttons
+  function setupLogoutButtons() {
+    const topLogoutButton = getById("topLogoutBtn");
+    const sideLogoutButton = getById("sideLogoutBtn");
+
+    const logout = () => {
+      localStorage.removeItem("netology_user");
+      localStorage.removeItem("user");
+      localStorage.removeItem("netology_token");
+      window.location.href = "index.html";
+    };
+
+    if (topLogoutButton) topLogoutButton.addEventListener("click", logout);
+    if (sideLogoutButton) sideLogoutButton.addEventListener("click", logout);
+  }
+
+  // Update user info display
+  function updateUserDisplay(currentUser) {
+    const fullName = [currentUser?.first_name, currentUser?.last_name]
+      .filter(Boolean)
+      .join(" ") || currentUser?.username || "Student";
+
+    const userEmail = String(currentUser?.email || "");
     const avatarInitial = (fullName.charAt(0) || "S").toUpperCase();
-    const xp = Number(currentUser?.xp || 0);
-    const level = levelFromXP(xp);
+    const userXP = Number(currentUser?.xp || 0);
+    const userLevel = getLevelFromXP(userXP);
 
     setTextById("topAvatar", avatarInitial);
     setTextById("ddName", fullName);
-    setTextById("ddEmail", email);
+    setTextById("ddEmail", userEmail);
 
     setTextById("sideAvatar", avatarInitial);
     setTextById("sideUserName", fullName);
-    setTextById("sideUserEmail", email);
-    setTextById("sideLevelBadge", `Lv ${level}`);
+    setTextById("sideUserEmail", userEmail);
+    setTextById("sideLevelBadge", `Lv ${userLevel}`);
   }
 
-  function setTextById(elementId, text) {
-    const element = document.getElementById(elementId);
-    if (element) element.textContent = text;
-  }
+  // ============================================================
+  // MAIN INITIALIZATION
+  // ============================================================
 
-  function levelFromXP(totalXp) {
-    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
-  }
+  // Initialize the courses page
+  async function initializeCoursesPage() {
+    console.log("Initializing courses page...");
 
-  function getCurrentUser() {
-    return parseJson(localStorage.getItem("netology_user"))
-      || parseJson(localStorage.getItem("user"))
-      || null;
-  }
-
-  function parseJson(rawValue) {
-    try {
-      return rawValue ? JSON.parse(rawValue) : null;
-    } catch {
-      return null;
+    // Check if user is logged in
+    const currentUser = getCurrentUser();
+    if (!currentUser?.email) {
+      window.location.href = "login.html";
+      return;
     }
+
+    // Setup UI
+    setupPageChrome(currentUser);
+    setupDifficultyFilters();
+
+    // Load and render courses
+    await loadAndRenderCourses(currentUser);
+
+    // Mark page as loaded
+    document.body.classList.remove("net-loading");
+    document.body.classList.add("net-loaded");
+
+    // Show onboarding tour if needed
+    if (typeof window.maybeStartOnboardingTour === "function") {
+      window.maybeStartOnboardingTour("courses", currentUser.email);
+    }
+
+    console.log("Courses page initialization complete!");
   }
 
-  // Escape text before inserting into HTML templates.
-  function escapeHtml(value) {
-    const div = document.createElement("div");
-    div.textContent = String(value || "");
-    return div.innerHTML;
-  }
+  // Start when DOM is ready
+  document.addEventListener("DOMContentLoaded", () => {
+    initializeCoursesPage();
+  });
+
 })();

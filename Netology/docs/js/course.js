@@ -1,2188 +1,904 @@
 /*
 ---------------------------------------------------------
 Student: C22320301 - Jamie O'Neill
-File: course.js
-Purpose: Runs the course details page, module list, completion state, and course actions.
-Notes: Cleaned comments, simplified naming, and kept full page behavior.
+File: course-simplified.js
+Purpose: Manage course details page, module list, and user progress tracking
+Simplified From: course.js (2,187 lines)
+---------------------------------------------------------
+
+OVERVIEW: This file displays a single course with all its modules and lessons.
+Main responsibilities:
+  1. Load course data from COURSE_CONTENT and merge with API data
+  2. Track user progress (which lessons completed, XP earned, etc.)
+  3. Display modules and lessons with completion status
+  4. Handle lesson preview modal
+  5. Show streak and progress tracking
+
+The rendering code has been organized into clear sections with
+full English variable names instead of single letters (x → currentNumber, etc.)
 ---------------------------------------------------------
 */
 
-(function () {
+(() => {
   "use strict";
 
-  // API and storage keys.
+  // ============================================================
+  // CONFIGURATION & SETUP
+  // ============================================================
 
-  const getApiBase = () => (window.API_BASE || "").replace(/\/$/, "");
-  const XP = window.NetologyXP || null;
-  const apiGet = window.apiGet || (async (path, params = {}) => {
-    const base = getApiBase();
-    const url = base ? new URL(base.replace(/\/$/, "") + path) : new URL(path, window.location.origin);
-    Object.entries(params || {}).forEach(([paramName, paramValue]) => {
-      if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
-        url.searchParams.set(paramName, String(paramValue));
+  // API base URL from global config
+  const getApiBaseUrl = () => (window.API_BASE || "").replace(/\/$/, "");
+
+  // XP system for calculations
+  const XP_SYSTEM = window.NetologyXP || null;
+
+  // Shared API helper from config.js
+  const apiGet = window.apiGet || createFallbackApiHelper();
+
+  // API endpoints from global config
+  const ENDPOINTS = window.ENDPOINTS || {};
+
+  // Common API paths
+  const API_PATHS = {
+    userInfo: ENDPOINTS.auth?.userInfo || "/user-info",
+    userCourseStatus: ENDPOINTS.courses?.userCourseStatus || "/user-course-status"
+  };
+
+  // ============================================================
+  // STORAGE KEY BUILDERS
+  // ============================================================
+
+  // Build storage key for course completions per user
+  function getCompletionStorageKey(userEmail, courseId) {
+    return `netology_completions:${userEmail}:${courseId}`;
+  }
+
+  // Build storage key for lesson progress
+  function getLessonProgressStorageKey(userEmail, courseId, lessonNumber) {
+    return `netology_lesson_progress:${userEmail || "guest"}:${courseId}:${lessonNumber}`;
+  }
+
+  // Build storage key for started courses list
+  function getStartedCoursesStorageKey(userEmail) {
+    return `netology_started_courses:${userEmail}`;
+  }
+
+  // Build storage key for login progress log
+  function getProgressLogStorageKey(userEmail) {
+    return `netology_progress_log:${userEmail}`;
+  }
+
+  // ============================================================
+  // UTILITY HELPERS
+  // ============================================================
+
+  // Get element by ID
+  function getById(elementId) {
+    return document.getElementById(elementId);
+  }
+
+  // Clear all children from an element
+  function clearChildren(parentNode) {
+    if (parentNode) {
+      parentNode.replaceChildren();
+    }
+  }
+
+  // Create a new element with optional class and text
+  function createElement(tagName, className, textContent) {
+    const element = document.createElement(tagName);
+    if (className) {
+      element.className = className;
+    }
+    if (typeof textContent !== "undefined") {
+      element.textContent = textContent;
+    }
+    return element;
+  }
+
+  // Create an icon element (Bootstrap Icons)
+  function createIcon(iconClassName) {
+    const iconElement = document.createElement("i");
+    iconElement.className = iconClassName;
+    return iconElement;
+  }
+
+  // Add text to element with line breaks preserved
+  function appendTextWithLineBreaks(parentNode, textContent) {
+    if (!parentNode) return;
+
+    const lines = String(textContent || "").split(/\n/);
+    lines.forEach((line, index) => {
+      parentNode.appendChild(document.createTextNode(line));
+      if (index < lines.length - 1) {
+        parentNode.appendChild(document.createElement("br"));
       }
     });
-    const res = await fetch(url.toString());
-    return res.json();
-  });
-  const ENDPOINTS = window.ENDPOINTS || {};
-  const PATHS = {
-    userInfo: ENDPOINTS.auth?.userInfo || "/user-info",
-    getCompletions: ENDPOINTS.courses?.userCourseStatus || "/user-course-status"
-  };
-
-  // localStorage fallback key
-  const LS_KEY = (email, courseId) => `netology_completions:${email}:${courseId}`;
-  const LESSON_PROGRESS_KEY = (email, courseId, lessonNumber) =>
-    `netology_lesson_progress:${email || "guest"}:${courseId}:${lessonNumber}`;
-  const STARTED_KEY = (email) => `netology_started_courses:${email}`;
-  const LOG_KEY = (email) => `netology_progress_log:${email}`;
-
-  // Small shared helpers.
-
-  const getById = (id) => document.getElementById(id);
-  const clearChildren = (node) => { if (node) node.replaceChildren(); };
-  const makeEl = (tag, className, text) => {
-    const el = document.createElement(tag);
-    if (className) el.className = className;
-    if (typeof text !== "undefined") el.textContent = text;
-    return el;
-  };
-  const makeIcon = (className) => {
-    const icon = document.createElement("i");
-    icon.className = className;
-    return icon;
-  };
-
-  function appendTextWithBreaks(node, text) {
-    if (!node) return;
-    const parts = String(text || "").split(/\n/);
-    parts.forEach((part, idx) => {
-      node.appendChild(document.createTextNode(part));
-      if (idx < parts.length - 1) node.appendChild(document.createElement("br"));
-    });
   }
 
-  function setText(id, text) {
-    const n = getById(id);
-    if (n) n.textContent = String(text ?? "");
-  }
-
-  function clamp(n, min, max) {
-    const x = Number(n);
-    if (Number.isNaN(x)) return min;
-    return Math.min(max, Math.max(min, x));
-  }
-
-  function getLessonProgressRecord(email, courseId, lessonNumber) {
-    if (!courseId || !lessonNumber) return null;
-    const key = LESSON_PROGRESS_KEY(email, courseId, lessonNumber);
-    const data = parseJsonSafe(localStorage.getItem(key), null);
-    return data && typeof data === "object" ? data : null;
-  }
-
-  function getLessonProgressPct(email, courseId, lessonNumber) {
-    const n = Number(lessonNumber || 0);
-    if (!n) return 0;
-    if (state.completed.lesson.has(n)) return 100;
-    const rec = getLessonProgressRecord(email, courseId, n);
-    if (!rec) return 0;
-    const total = Math.max(1, Number(rec.total_steps || 0) || 1);
-    const completed = clamp(Number(rec.completed_steps || 0), 0, total);
-    const pctFromSteps = Math.round((completed / total) * 100);
-    const pct = clamp(Number(rec.progress_pct || pctFromSteps), 0, 100);
-    return Math.max(pct, pctFromSteps);
-  }
-
-  function isLessonSoftCompleted(email, courseId, lessonNumber) {
-    const pct = getLessonProgressPct(email, courseId, lessonNumber);
-    return pct >= 40;
-  }
-
-  function getLessonXPEarned(email, courseId, lessonNumber, totalXP) {
-    const pct = getLessonProgressPct(email, courseId, lessonNumber);
-    if (pct <= 0) return 0;
-    const xp = Math.max(0, Number(totalXP || 0) || 0);
-    return Math.min(xp, Math.floor((xp * pct) / 100));
-  }
-
-  function totalXpForLevel(level) {
-    return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
-  }
-
-  function levelFromXP(totalXP) {
-    return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXP) : 1;
-  }
-
-  function xpForNextLevel(level) {
-    return XP?.xpForNextLevel ? XP.xpForNextLevel(level) : 100;
-  }
-
-  function unlockLevelFromTier(tier) {
-    const t = String(tier || "").toLowerCase();
-    if (t.includes("advanced")) return 5;
-    if (t.includes("intermediate")) return 3;
-    return 1;
-  }
-
-  function computeXPFromTotal(totalXP) {
-    if (XP?.getLevelProgress) {
-      const progress = XP.getLevelProgress(totalXP);
-      return {
-        level: progress.level,
-        currentLevelXP: progress.xpIntoLevel,
-        xpNext: progress.nextLevelXp,
-        xpProgressPct: progress.progressPercent,
-        toNext: progress.toNextXp
-      };
+  // Set text of element by ID
+  function setTextById(elementId, textContent) {
+    const element = getById(elementId);
+    if (element) {
+      element.textContent = String(textContent ?? "");
     }
-    const level = levelFromXP(totalXP);
-    const levelStart = totalXpForLevel(level);
-    const currentLevelXP = Math.max(0, totalXP - levelStart);
-    const xpNext = xpForNextLevel(level);
-    const xpProgressPct = Math.max(0, Math.min(100, (currentLevelXP / Math.max(xpNext, 1)) * 100));
-    const toNext = Math.max(0, xpNext - currentLevelXP);
-    return { level, currentLevelXP, xpNext, xpProgressPct, toNext };
   }
 
-  function rankForLevel(level) {
-    return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
+  // Clamp number between min and max
+  function clamp(numberValue, minimumValue, maximumValue) {
+    const numericValue = Number(numberValue);
+    if (Number.isNaN(numericValue)) {
+      return minimumValue;
+    }
+    return Math.min(maximumValue, Math.max(minimumValue, numericValue));
   }
 
-  function applyXpToUser(user, addXP) {
-    if (XP?.applyXpToUser) return XP.applyXpToUser(user, addXP);
-    const nextTotal = Math.max(0, Number(user?.xp || 0) + Number(addXP || 0));
-    const progress = computeXPFromTotal(nextTotal);
-    return {
-      ...user,
-      xp: nextTotal,
-      numeric_level: progress.level,
-      level: rankForLevel(progress.level),
-      rank: rankForLevel(progress.level),
-      xp_into_level: progress.currentLevelXP,
-      next_level_xp: progress.xpNext
-    };
-  }
-
-  function parseJsonSafe(rawValue, fallbackValue = null) {
-    // Avoid crashes if a localStorage value is missing or invalid JSON.
+  // Safely parse JSON
+  function parseJsonSafely(jsonString, fallbackValue = null) {
     try {
-      return rawValue ? JSON.parse(rawValue) : fallbackValue;
+      return jsonString ? JSON.parse(jsonString) : fallbackValue;
     } catch {
       return fallbackValue;
     }
   }
 
-  function getQuizScore(email, courseId, lessonNumber) {
-    if (!email || !courseId || !lessonNumber) return null;
-    const key = `netology_quiz_attempt:${email}:${courseId}:${lessonNumber}`;
-    const data = parseJsonSafe(localStorage.getItem(key));
-    if (!data) return null;
-    const correct = Number(data.correctCount);
-    const total = Number(data.total);
-    if (!Number.isFinite(correct) || !Number.isFinite(total) || total <= 0) return null;
-    return { correct, total };
-  }
+  // Create fallback API helper if none exists
+  function createFallbackApiHelper() {
+    return async function apiGetFallback(apiPath, queryParameters = {}) {
+      const baseUrl = getApiBaseUrl();
+      const fullUrl = baseUrl
+        ? new URL(baseUrl.replace(/\/$/, "") + apiPath)
+        : new URL(apiPath, window.location.origin);
 
-  function cssEscapeAttr(str) {
-    // minimal escape for attribute selectors
-    return String(str ?? "").replace(/"/g, '\\"');
-  }
-
-  function capitalize(s) {
-    const t = String(s || "");
-    return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
-  }
-
-  function showAria(text) {
-    const aria = getById("ariaStatus");
-    if (aria) aria.textContent = String(text || "");
-  }
-
-  async function fetchCourseMeta(courseId) {
-    const base = getApiBase();
-    if (!base || !courseId) return null;
-    try {
-      const res = await fetch(`${base}/course?id=${encodeURIComponent(courseId)}`);
-      const data = await res.json();
-      if (!data || !data.success) return null;
-      return data;
-    } catch {
-      return null;
-    }
-  }
-
-  function getProgressLog(email) {
-    if (!email) return [];
-    return parseJsonSafe(localStorage.getItem(LOG_KEY(email))) || [];
-  }
-
-  function computeStreak(log) {
-    if (!Array.isArray(log) || !log.length) return 0;
-    const days = new Set(log.map((e) => e?.date).filter(Boolean));
-    let streak = 0;
-    const d = new Date();
-    for (; ;) {
-      const key = d.toISOString().slice(0, 10);
-      if (!days.has(key)) break;
-      streak += 1;
-      d.setDate(d.getDate() - 1);
-    }
-    return streak;
-  }
-
-  function trackCourseStart(email, courseId, lessonNumber) {
-    if (!email || !courseId) return;
-    const raw = localStorage.getItem(STARTED_KEY(email));
-    const list = parseJsonSafe(raw) || [];
-    const existing = list.find((c) => String(c.id) === String(courseId));
-    const payload = {
-      id: String(courseId),
-      lastViewed: Date.now(),
-      lastLesson: Number(lessonNumber || 0) || undefined
-    };
-
-    if (existing) {
-      existing.lastViewed = payload.lastViewed;
-      if (payload.lastLesson) existing.lastLesson = payload.lastLesson;
-    } else {
-      list.push(payload);
-    }
-    localStorage.setItem(STARTED_KEY(email), JSON.stringify(list));
-    startCourseBackend(email, courseId);
-  }
-
-  function getStartedLessonNumber(email, courseId) {
-    if (!email || !courseId) return null;
-    const list = parseJsonSafe(localStorage.getItem(STARTED_KEY(email))) || [];
-    const entry = list.find((c) => String(c.id) === String(courseId));
-    return entry ? Number(entry.lastLesson || 0) : null;
-  }
-
-  async function startCourseBackend(email, courseId) {
-    if (!email || !courseId) return;
-    try {
-      const response = await fetch(`${getApiBase()}/start-course`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, course_id: Number(courseId) })
+      Object.entries(queryParameters || {}).forEach(([paramName, paramValue]) => {
+        if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
+          fullUrl.searchParams.set(paramName, String(paramValue));
+        }
       });
 
-      const data = await response.json().catch(() => null);
-      if (!data || !data.success) return;
-
-      const newlyUnlocked = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
-      if (newlyUnlocked.length && window.NetologyAchievements?.queueUnlocks) {
-        window.NetologyAchievements.queueUnlocks(email, newlyUnlocked);
-      }
-
-      const achievementXp = Number(data.achievement_xp_added || 0);
-      if (achievementXp > 0 && state.user?.email) {
-        state.user = applyXpToUser(state.user, achievementXp);
-        ["user", "netology_user"].forEach((storageKey) => {
-          const current = parseJsonSafe(localStorage.getItem(storageKey), null);
-          if (!current || String(current.email || "").toLowerCase() !== String(email).toLowerCase()) return;
-          localStorage.setItem(storageKey, JSON.stringify(applyXpToUser(current, achievementXp)));
-        });
-      }
-    } catch {
-      // best effort
-    }
+      const response = await fetch(fullUrl.toString());
+      return response.json();
+    };
   }
 
-  // Accept both keys (older + newer)
-  function getCurrentUser() {
-    return (
-      parseJsonSafe(localStorage.getItem("netology_user")) ||
-      parseJsonSafe(localStorage.getItem("user")) ||
-      null
-    );
-  }
+  // ============================================================
+  // PAGE STATE
+  // ============================================================
 
-  function isLoggedIn(user) {
-    return !!(user && (user.email || user.username));
-  }
+  // Centralized state for entire page
+  const pageState = {
+    // Current logged-in user
+    currentUser: null,
 
-  // Page state.
-
-  const state = {
-    user: null,
+    // Course and content IDs
     courseId: null,
-    courseContentId: null,
+    contentId: null,
 
-    // normalized course model
-    course: {
+    // Course model
+    courseData: {
       id: null,
       title: "",
       description: "",
-      difficulty: "novice",  // novice/intermediate/advanced
-      required_level: 1,
+      difficulty: "novice",
+      requiredLevel: 1,
       estimatedTime: "—",
       totalXP: 0,
-      total_lessons: 0,
-      modules: [],           // [{ id, title, description, items:[...] }]
+      totalLessons: 0,
+      modules: [] // [{id, title, description, items: [...]}]
     },
 
-    // completion sets
-    completed: {
-      lesson: new Set(),     // lesson_number
-      quiz: new Set(),       // lesson_number
-      challenge: new Set(),  // lesson_number
-      tutorial: new Set(),   // lesson_number (sandbox tutorial)
+    // Completion tracking sets
+    completionStatus: {
+      lesson: new Set(),      // lesson_number
+      quiz: new Set(),        // lesson_number
+      challenge: new Set(),   // lesson_number
+      tutorial: new Set()     // lesson_number (sandbox)
     },
 
+    // UI state
     expandedModules: new Set(),
     scrollToModuleId: null,
 
-    learnItemsFlat: [],
-    activeLearnIndex: -1,
-    activeLearn: null,
+    // Lesson modal state
+    lessonsList: [],
+    currentLessonIndex: -1,
+    currentLesson: null,
 
-    stats: {
+    // User statistics
+    userStats: {
       level: 1,
       rank: "Novice",
       xp: 0,
       currentLevelXP: 0,
-      xpProgressPct: 0,
-      accessLevel: 1,
+      xpProgressPercent: 0,
+      accessLevel: 1
     },
 
-    courseLocked: false,
-    courseCompleted: false,
+    // Course access
+    isCourseLocked: false,
+    lockReason: ""
   };
 
-  // Page boot.
+  // ============================================================
+  // USER DATA FUNCTIONS
+  // ============================================================
 
-  document.addEventListener("DOMContentLoaded", async () => {
-    // user (can be null -> guest)
-    const u = getCurrentUser();
-    state.user = isLoggedIn(u) ? u : null;
+  // Get current user from localStorage
+  function getCurrentUser() {
+    return (
+      parseJsonSafely(localStorage.getItem("netology_user")) ||
+      parseJsonSafely(localStorage.getItem("user")) ||
+      null
+    );
+  }
 
-    // Brand routing (dashboard if logged in else index)
-    wireBrandRouting();
+  // Check if user is logged in
+  function isUserLoggedIn(user) {
+    return !!(user && (user.email || user.username));
+  }
 
-    // Chrome
-    if (!state.user) wireChromeGuest();
-    else wireChrome(state.user);
+  // Refresh user data from API
+  async function refreshUserFromServer() {
+    const cachedUser = getCurrentUser();
+    const userEmail = cachedUser?.email || localStorage.getItem("netology_last_email") || "";
 
-    // course id from URL (?id=) with fallbacks
-    const params = new URLSearchParams(window.location.search);
-    let courseId = params.get("id") || params.get("course_id") || params.get("course") || "1";
-    const contentIdParam = params.get("content_id") || params.get("content");
+    if (!userEmail) {
+      return cachedUser;
+    }
 
-    // Resolve by title if a non-numeric id was provided
-    if (typeof window.COURSE_CONTENT !== "undefined") {
-      const content = window.COURSE_CONTENT || {};
-      if (!content[String(courseId)]) {
-        const list = Object.values(content);
-        const byId = list.find((c) => String(c?.id || "") === String(courseId));
-        const target = String(courseId || "").trim().toLowerCase();
-        const byTitle = target
-          ? list.find((c) => String(c?.title || "").trim().toLowerCase() === target)
-          : null;
-        const resolved = byId || byTitle;
-        if (resolved?.id) courseId = String(resolved.id);
+    try {
+      const userData = await apiGet(API_PATHS.userInfo, { email: userEmail });
+
+      if (!userData?.success) {
+        return cachedUser;
       }
+
+      // Merge API data with cached
+      const mergedUser = {
+        ...(cachedUser || {}),
+        email: userEmail,
+        first_name: userData.first_name || cachedUser?.first_name,
+        last_name: userData.last_name || cachedUser?.last_name,
+        username: userData.username || cachedUser?.username,
+        xp: Number.isFinite(Number(userData.xp ?? userData.total_xp))
+          ? Number(userData.xp ?? userData.total_xp)
+          : Number(cachedUser?.xp || 0),
+        numeric_level: Number.isFinite(Number(userData.numeric_level))
+          ? Number(userData.numeric_level)
+          : cachedUser?.numeric_level,
+        rank: userData.rank || userData.level || cachedUser?.rank,
+        level: userData.level || userData.rank || cachedUser?.level,
+        isFirstLogin: typeof userData.is_first_login !== "undefined"
+          ? Boolean(userData.is_first_login)
+          : cachedUser?.isFirstLogin
+      };
+
+      // Save merged data
+      localStorage.setItem("user", JSON.stringify(mergedUser));
+      localStorage.setItem("netology_user", JSON.stringify(mergedUser));
+      return mergedUser;
+
+    } catch (error) {
+      console.warn("Could not refresh user data:", error);
+      return cachedUser;
+    }
+  }
+
+  // ============================================================
+  // COURSE DATA LOADING
+  // ============================================================
+
+  // Load course from COURSE_CONTENT
+  function loadCourseFromContent(courseId) {
+    if (!window.COURSE_CONTENT) {
+      return null;
     }
 
-    // Normalize URL to use ?id=
-    if (params.get("id") !== courseId) {
-      params.set("id", courseId);
-      params.delete("course_id");
-      params.delete("course");
-      history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    const rawCourse = window.COURSE_CONTENT[String(courseId)];
+    if (!rawCourse) {
+      return null;
     }
 
-    state.courseId = courseId || "1";
-    state.courseContentId = contentIdParam ? String(contentIdParam) : null;
-    state.course.id = state.courseId;
+    // Normalize the course structure
+    const normalizedCourse = {
+      id: String(courseId),
+      title: rawCourse.title || "Untitled Course",
+      description: rawCourse.description || "",
+      difficulty: String(rawCourse.difficulty || "novice").toLowerCase(),
+      requiredLevel: Number(rawCourse.required_level || 1),
+      estimatedTime: rawCourse.estimated_time || "—",
+      totalXP: Number(rawCourse.total_xp || 0),
+      totalLessons: Number(rawCourse.total_lessons || 0),
+      modules: []
+    };
 
-    const lessonParam = new URLSearchParams(window.location.search).get("lesson");
-    if (state.user?.email) {
-      trackCourseStart(state.user.email, state.courseId, lessonParam);
+    // Load modules
+    if (Array.isArray(rawCourse.units)) {
+      let lessonCounter = 1;
+
+      rawCourse.units.forEach((unit) => {
+        const moduleItems = normalizeCourseItems(unit, lessonCounter);
+        lessonCounter += moduleItems.length;
+
+        normalizedCourse.modules.push({
+          id: unit.id || `module-${normalizedCourse.modules.length}`,
+          title: unit.title || "Module",
+          description: unit.about || "",
+          items: moduleItems
+        });
+      });
     }
 
-    // load course meta (from DB) + structure (from COURSE_CONTENT)
-    const apiMeta = await fetchCourseMeta(state.courseId);
-    hydrateCourseFromContent(state.courseId, apiMeta, state.courseContentId);
+    return normalizedCourse;
+  }
 
-    if (state.courseContentId && params.get("content_id") !== state.courseContentId) {
-      params.set("content_id", state.courseContentId);
-      history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  // Convert various course item shapes to standard format
+  function normalizeCourseItems(unit, startingLessonNumber) {
+    const items = [];
+    let lessonCounter = startingLessonNumber;
+
+    // Push an item to the list
+    const addItem = (itemType, itemData) => {
+      items.push({
+        type: itemType, // learn | quiz | sandbox | challenge
+        title: itemData.title || itemData.name || capitalize(itemType),
+        content: itemData.content || itemData.learn || itemData.text || "",
+        duration: itemData.duration || itemData.time || "—",
+        xpReward: Number(itemData.xp || itemData.xpReward || itemData.xp_reward || 0),
+        lessonNumber: Number(itemData.lesson_number || itemData.lessonNumber || 0),
+        unitTitle: unit.title || "",
+        unitDescription: unit.about || "",
+        challengeRules: itemData.challenge || itemData.rules || null,
+        steps: itemData.steps || [],
+        tips: itemData.tips || "",
+        isAutoAssigned: false
+      });
+    };
+
+    // Handle shape A: sections array
+    if (Array.isArray(unit.sections)) {
+      unit.sections.forEach((section) => {
+        const sectionType = String(section.type || section.kind || section.title || "").toLowerCase();
+        const sectionItems = section.items || section.lessons || [];
+
+        if (Array.isArray(sectionItems)) {
+          sectionItems.forEach((lessonItem) => {
+            const itemType = mapSectionTypeToItemType(sectionType, lessonItem);
+            addItem(itemType, lessonItem);
+          });
+        }
+      });
     }
 
-    // load user stats + completions (if logged in)
-    if (state.user?.email) {
-      await loadUserStats(state.user.email);
-      await loadCompletions(state.user.email, state.courseId);
-    } else {
-      // Guest defaults
-      state.stats.level = 1;
-      state.stats.xp = 0;
-      state.stats.currentLevelXP = 0;
-      state.stats.xpProgressPct = 0;
-      state.stats.xpNext = xpForNextLevel(1);
+    // Handle shape B: sections object
+    if (!items.length && unit.sections && typeof unit.sections === "object" && !Array.isArray(unit.sections)) {
+      const sectionsObject = unit.sections;
+      (sectionsObject.learn || sectionsObject.lesson || sectionsObject.lessons || []).forEach((item) =>
+        addItem("learn", item)
+      );
+      (sectionsObject.quiz || sectionsObject.quizzes || []).forEach((item) => addItem("quiz", item));
+      (sectionsObject.practice || sectionsObject.sandbox || []).forEach((item) => addItem("sandbox", item));
+      (sectionsObject.challenge || sectionsObject.challenges || []).forEach((item) =>
+        addItem("challenge", item)
+      );
     }
 
-    // lock logic
-    computeLockState();
-    refreshTutorialCompletions();
-
-    // derived
-    buildLearnFlatList();
-    const appliedModule = applyModuleParam();
-    if (!appliedModule) restoreLastModule();
-
-    // render
-    renderAll();
-    document.body.classList.remove("net-loading");
-    document.body.classList.add("net-loaded");
-
-    // Seed toast flags so existing completions don't spam on first load
-    seedCompletionToastFlags();
-
-    // wire after render
-    wireCourseActions();
-
-    // if returning from quiz/sandbox completion, support toast via URL params
-    maybeShowReturnToast();
-
-    if (state.user?.email && typeof window.maybeStartOnboardingTour === "function") {
-      window.maybeStartOnboardingTour("course", state.user.email);
-    }
-  });
-
-  async function refreshCourseState(options = {}) {
-    const before = computeProgress();
-    if (!state.courseId) return;
-    if (state.user?.email) {
-      await loadUserStats(state.user.email);
-      await loadCompletions(state.user.email, state.courseId);
-    }
-    refreshTutorialCompletions();
-    computeLockState();
-    renderAll();
-    const after = computeProgress();
-    if (options.showToast && (after.pct !== before.pct || after.done !== before.done)) {
-      showCourseProgressToast(after);
+    // Handle shape C: unit lessons array
+    if (!items.length && Array.isArray(unit.lessons)) {
+      unit.lessons.forEach((lessonItem) => {
+        const typeString = String(lessonItem.type || "learn").toLowerCase();
+        const normalizedType =
+          typeString === "quiz"
+            ? "quiz"
+            : typeString === "sandbox" || typeString === "practice"
+            ? "sandbox"
+            : typeString === "challenge"
+            ? "challenge"
+            : "learn";
+        addItem(normalizedType, lessonItem);
+      });
     }
 
-    if (state.user?.email) {
-      state.course.modules.forEach((m) => {
-        if (computeModuleCompletion(m).completed) {
-          const key = moduleToastKey(m);
-          if (localStorage.getItem(key) !== "1") {
-            showCompletionToast({
-              title: "Module completed",
-              message: m.title || "Module finished"
-            });
-            localStorage.setItem(key, "1");
+    // Assign lesson numbers if missing
+    let lastLearnLessonNumber = lessonCounter - 1;
+
+    items.forEach((item) => {
+      if (item.type === "learn") {
+        if (!item.lessonNumber) {
+          item.lessonNumber = lessonCounter++;
+          item.isAutoAssigned = true;
+        } else {
+          lessonCounter = Math.max(lessonCounter, item.lessonNumber + 1);
+        }
+        lastLearnLessonNumber = item.lessonNumber;
+      } else {
+        if (!item.lessonNumber) {
+          item.lessonNumber = Math.max(1, lastLearnLessonNumber || 1);
+          item.isAutoAssigned = true;
+        }
+      }
+
+      // Set default XP if missing
+      if (!item.xpReward) {
+        item.xpReward =
+          item.type === "quiz"
+            ? 60
+            : item.type === "challenge"
+            ? 80
+            : item.type === "sandbox"
+            ? 30
+            : 40;
+      }
+
+      // Set default duration if missing
+      if (!item.duration || item.duration === "—") {
+        item.duration =
+          item.type === "quiz"
+            ? "5–10 min"
+            : item.type === "challenge"
+            ? "10–15 min"
+            : item.type === "sandbox"
+            ? "10 min"
+            : "8–12 min";
+      }
+    });
+
+    return items;
+  }
+
+  // Map section type to item type
+  function mapSectionTypeToItemType(sectionType, item) {
+    if (sectionType.includes("quiz") || sectionType.includes("test")) return "quiz";
+    if (sectionType.includes("sandbox") || sectionType.includes("practice")) return "sandbox";
+    if (sectionType.includes("challenge")) return "challenge";
+    if (item?.type === "quiz") return "quiz";
+    if (item?.type === "sandbox" || item?.type === "practice") return "sandbox";
+    if (item?.type === "challenge") return "challenge";
+    return "learn";
+  }
+
+  // Capitalize first letter of string
+  function capitalize(string) {
+    const str = String(string || "");
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  // ============================================================
+  // PROGRESS TRACKING
+  // ============================================================
+
+  // Get lesson progress percentage
+  function getLessonProgressPercent(userEmail, courseId, lessonNumber) {
+    const lessonNum = Number(lessonNumber || 0);
+    if (!lessonNum) return 0;
+
+    // Check if fully completed
+    if (pageState.completionStatus.lesson.has(lessonNum)) {
+      return 100;
+    }
+
+    // Get progress record from storage
+    const storageKey = getLessonProgressStorageKey(userEmail, courseId, lessonNum);
+    const progressData = parseJsonSafely(localStorage.getItem(storageKey), null);
+
+    if (!progressData) return 0;
+
+    const totalSteps = Math.max(1, Number(progressData.total_steps || 0) || 1);
+    const completedSteps = clamp(Number(progressData.completed_steps || 0), 0, totalSteps);
+    const percentFromSteps = Math.round((completedSteps / totalSteps) * 100);
+    const storedPercent = clamp(Number(progressData.progress_percent || percentFromSteps), 0, 100);
+
+    return Math.max(storedPercent, percentFromSteps);
+  }
+
+  // Check if lesson is soft-completed (40%+)
+  function isLessonSoftCompleted(userEmail, courseId, lessonNumber) {
+    const progressPercent = getLessonProgressPercent(userEmail, courseId, lessonNumber);
+    return progressPercent >= 40;
+  }
+
+  // Calculate total course progress
+  function calculateCourseProgress() {
+    if (!pageState.courseData.modules || !pageState.courseData.modules.length) {
+      return { done: 0, total: 0, percent: 0 };
+    }
+
+    let completedItemCount = 0;
+    let requiredItemCount = 0;
+
+    pageState.courseData.modules.forEach((module) => {
+      module.items.forEach((item) => {
+        // Only count core types
+        if (
+          item.type === "learn" ||
+          item.type === "quiz" ||
+          item.type === "challenge" ||
+          item.type === "sandbox"
+        ) {
+          requiredItemCount++;
+          if (pageState.completionStatus.lesson.has(item.lessonNumber)) {
+            completedItemCount++;
           }
         }
       });
+    });
 
-      if (after.pct === 100) {
-        const key = courseToastKey();
-        if (localStorage.getItem(key) !== "1") {
-          showCompletionToast({
-            title: "Course completed",
-            message: state.course?.title || "Course finished",
-            mini: false,
-            duration: 20000
-          });
-          localStorage.setItem(key, "1");
-        }
-      }
-    }
+    const progressPercent = requiredItemCount > 0 ? Math.round((completedItemCount / requiredItemCount) * 100) : 0;
+
+    return {
+      done: completedItemCount,
+      total: requiredItemCount,
+      percent: progressPercent
+    };
   }
 
-  // Ensure back/forward navigation refreshes progress (bfcache-safe)
-  window.addEventListener("pageshow", (event) => {
-    if (event.persisted) {
-      refreshCourseState({ showToast: true }).catch(() => { });
-    }
-  });
+  // ============================================================
+  // UI SETUP FUNCTIONS
+  // ============================================================
 
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) {
-      refreshCourseState({ showToast: true }).catch(() => { });
-    }
-  });
+  // Setup brand logo routing
+  function setupBrandRouting() {
+    const user = getCurrentUser();
+    const targetPage = isUserLoggedIn(user) ? "dashboard.html" : "index.html";
 
-  // Shared chrome: sidebar, dropdown, and identity.
-
-  function wireBrandRouting() {
-    const brand = getById("brandHome");
+    const topBrand = getById("brandHome");
     const sideBrand = getById("sideBrandHome");
-    const back = getById("backLink");
+    const backLink = getById("backLink");
 
-    const loggedIn = !!(state.user && state.user.email);
-    const href = loggedIn ? "dashboard.html" : "index.html";
-
-    if (brand) brand.setAttribute("href", href);
-    if (sideBrand) sideBrand.setAttribute("href", href);
-    if (back) back.setAttribute("href", href);
+    if (topBrand) topBrand.setAttribute("href", targetPage);
+    if (sideBrand) sideBrand.setAttribute("href", targetPage);
+    if (backLink) backLink.setAttribute("href", targetPage);
   }
 
-  function wireChromeGuest() {
-    // identity
-    setText("topUserName", "Guest");
-    setText("ddName", "Guest");
-    setText("ddEmail", "Sign in to track progress");
-    setText("topAvatar", "G");
-
-    setText("sideAvatar", "G");
-    setText("sideUserName", "Guest");
-    setText("sideUserEmail", "Sign in to save progress");
-    setText("sideLevelBadge", "Lv —");
-    setText("sideXPText", "—");
-    const bar = getById("sideXPBar");
-    if (bar) bar.style.width = "0%";
-
-    // hide logout buttons
-    const topLogout = getById("topLogoutBtn");
-    const sideLogout = getById("sideLogoutBtn");
-    if (topLogout) topLogout.style.display = "none";
-    if (sideLogout) sideLogout.style.display = "none";
-
-    wireSidebar();
-    wireUserDropdown();
-  }
-
-  function wireChrome(user) {
-    wireSidebar();
-    wireUserDropdown();
-    fillIdentity(user);
-
-    // logout
-    const topLogout = getById("topLogoutBtn");
-    const sideLogout = getById("sideLogoutBtn");
-    if (topLogout) topLogout.addEventListener("click", logout);
-    if (sideLogout) sideLogout.addEventListener("click", logout);
-  }
-
-  function wireSidebar() {
-    const openBtn = getById("openSidebarBtn");
-    const closeBtn = getById("closeSidebarBtn");
+  // Setup sidebar toggle
+  function setupSidebar() {
+    const openButton = getById("openSidebarBtn");
+    const closeButton = getById("closeSidebarBtn");
     const sidebar = getById("slideSidebar");
     const backdrop = getById("sideBackdrop");
 
-    const open = () => {
+    const openSidebar = () => {
       if (!sidebar || !backdrop) return;
       sidebar.classList.add("is-open");
       backdrop.classList.add("is-open");
       document.body.classList.add("net-noscroll");
-      sidebar.setAttribute("aria-hidden", "false");
-      backdrop.setAttribute("aria-hidden", "false");
     };
 
-    const close = () => {
+    const closeSidebar = () => {
       if (!sidebar || !backdrop) return;
       sidebar.classList.remove("is-open");
       backdrop.classList.remove("is-open");
       document.body.classList.remove("net-noscroll");
-      sidebar.setAttribute("aria-hidden", "true");
-      backdrop.setAttribute("aria-hidden", "true");
     };
 
-    openBtn?.addEventListener("click", open);
-    closeBtn?.addEventListener("click", close);
-    backdrop?.addEventListener("click", close);
+    if (openButton) openButton.addEventListener("click", openSidebar);
+    if (closeButton) closeButton.addEventListener("click", closeSidebar);
+    if (backdrop) backdrop.addEventListener("click", closeSidebar);
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        close();
-        toggleDropdown(false);
+    // Close on Escape key
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && sidebar?.classList.contains("is-open")) {
+        closeSidebar();
       }
     });
   }
 
-  function wireUserDropdown() {
-    const userBtn = getById("userBtn");
-    const dd = getById("userDropdown");
-    if (!userBtn || !dd) return;
+  // Setup user dropdown
+  function setupUserDropdown() {
+    const userButton = getById("userBtn");
+    const userDropdown = getById("userDropdown");
+    if (!userButton || !userDropdown) return;
 
-    userBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleDropdown();
+    const closeDropdown = () => {
+      userDropdown.classList.remove("is-open");
+      userButton.setAttribute("aria-expanded", "false");
+    };
+
+    userButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const isOpen = userDropdown.classList.toggle("is-open");
+      userButton.setAttribute("aria-expanded", String(isOpen));
     });
 
-    dd.addEventListener("click", (e) => e.stopPropagation());
-
-    document.addEventListener("click", (e) => {
-      const t = e.target;
-      if (dd.contains(t) || userBtn.contains(t)) return;
-      toggleDropdown(false);
+    // Close when clicking outside
+    document.addEventListener("click", (event) => {
+      if (!userDropdown.contains(event.target) && !userButton.contains(event.target)) {
+        closeDropdown();
+      }
     });
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") toggleDropdown(false);
+    // Close on Escape
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeDropdown();
     });
   }
 
-  function toggleDropdown(force) {
-    const dd = getById("userDropdown");
-    const userBtn = getById("userBtn");
-    if (!dd) return;
+  // Setup logout buttons
+  function setupLogoutButtons() {
+    const topLogoutButton = getById("topLogoutBtn");
+    const sideLogoutButton = getById("sideLogoutBtn");
 
-    const open = typeof force === "boolean" ? force : !dd.classList.contains("is-open");
-    dd.classList.toggle("is-open", open);
-    if (userBtn) userBtn.setAttribute("aria-expanded", String(open));
+    const logout = () => {
+      localStorage.removeItem("netology_user");
+      localStorage.removeItem("user");
+      localStorage.removeItem("netology_token");
+      window.location.href = "index.html";
+    };
+
+    if (topLogoutButton) topLogoutButton.addEventListener("click", logout);
+    if (sideLogoutButton) sideLogoutButton.addEventListener("click", logout);
   }
 
-  function fillIdentity(user) {
-    const fullName =
+  // Update user display info
+  function updateUserDisplay(user) {
+    let displayName =
       user?.name ||
       `${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
       user?.username ||
       "Student";
 
-    const initial = (fullName || "S").trim().charAt(0).toUpperCase();
+    const firstInitial = (displayName || "S").trim().charAt(0).toUpperCase();
 
-    setText("topAvatar", initial);
-    setText("topUserName", fullName);
-    setText("ddName", fullName);
-    setText("ddEmail", user?.email || "");
+    // Update top navbar
+    setTextById("topAvatar", firstInitial);
+    setTextById("topUserName", displayName);
+    setTextById("ddName", displayName);
+    setTextById("ddEmail", user?.email || "");
 
-    setText("sideAvatar", initial);
-    setText("sideUserName", fullName);
-    setText("sideUserEmail", user?.email || "");
+    // Update sidebar
+    setTextById("sideAvatar", firstInitial);
+    setTextById("sideUserName", displayName);
+    setTextById("sideUserEmail", user?.email || "");
   }
 
-  function logout() {
-    localStorage.removeItem("netology_user");
-    localStorage.removeItem("netology_token");
-    localStorage.removeItem("user"); // backwards-compat
-    window.location.href = "index.html";
-  }
+  // Update user stats display
+  function updateUserStats(user) {
+    const level = user?.numeric_level || user?.level || 1;
+    const xp = Number(user?.xp || 0);
 
-  // Load user stats and completion state.
+    if (XP_SYSTEM) {
+      const levelInfo = XP_SYSTEM.getLevelInfo?.(level) || {};
+      const levelXP = levelInfo.xpToLevel || 0;
+      const nextLevelXP = levelInfo.xpToNext || 1000;
+      const progressInLevel = xp - levelXP;
+      const progressPercent = Math.round((progressInLevel / nextLevelXP) * 100);
 
-  async function loadUserStats(email) {
-    try {
-      // If no API base, just fallback
-      if (!getApiBase()) throw new Error("no api");
-
-      const data = await apiGet(PATHS.userInfo, { email });
-      if (!data || data.success === false) throw new Error("user-info failed");
-
-      const serverXP = Number(data.xp ?? data.total_xp);
-      const xp = Number.isFinite(serverXP) ? serverXP : Number(state.user?.xp || 0);
-      const serverLevel = Number(data.numeric_level);
-      const xpInto = Number(data.xp_into_level);
-      const nextXp = Number(data.next_level_xp);
-      const { level, currentLevelXP, xpNext, xpProgressPct } = computeXPFromTotal(xp);
-      const rank = String(data.rank || data.level_name || data.level || "Novice");
-      const unlockTier = String(data.start_level || state.user?.unlock_tier || "novice").toLowerCase();
-
-      state.stats.level = level;
-      state.stats.xp = xp;
-      state.stats.rank = rank;
-      state.stats.accessLevel = Math.max(level, unlockLevelFromTier(unlockTier));
-
-      state.stats.currentLevelXP = Number.isFinite(xpInto) ? xpInto : currentLevelXP;
-      state.stats.xpProgressPct = Number.isFinite(xpInto) && Number.isFinite(nextXp) && nextXp > 0
-        ? clamp((xpInto / nextXp) * 100, 0, 100)
-        : xpProgressPct;
-      state.stats.xpNext = Number.isFinite(nextXp) && nextXp > 0 ? nextXp : xpNext;
-
-      if (state.user) {
-        state.user.unlock_tier = ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice";
-        state.user.xp = xp;
-        if (Number.isFinite(serverLevel) && serverLevel > 0) state.user.numeric_level = serverLevel;
-        if (Number.isFinite(xpInto)) state.user.xp_into_level = xpInto;
-        if (Number.isFinite(nextXp) && nextXp > 0) state.user.next_level_xp = nextXp;
-        if (data.rank || data.level) {
-          state.user.rank = data.rank || data.level;
-          state.user.level = data.level || data.rank;
-        }
-        localStorage.setItem("user", JSON.stringify(state.user));
-        localStorage.setItem("netology_user", JSON.stringify(state.user));
-      }
-
-      // Sidebar stats
-      setText("sideLevelBadge", `Lv ${level}`);
-      setText("sideXPText", `${currentLevelXP}/${xpNext}`);
-      const sideXPBar = getById("sideXPBar");
-      if (sideXPBar) sideXPBar.style.width = `${clamp(xpProgressPct, 0, 100)}%`;
-
-    } catch (_) {
-      // Safe fallback; do not break UI
-      const localXP = Number(state.user?.xp || 0) || 0;
-      const fallback = computeXPFromTotal(localXP);
-      state.stats.level = fallback.level;
-      state.stats.rank = "Novice";
-      state.stats.xp = localXP;
-      state.stats.currentLevelXP = fallback.currentLevelXP;
-      state.stats.xpProgressPct = fallback.xpProgressPct;
-      state.stats.xpNext = fallback.xpNext;
-      state.stats.accessLevel = Math.max(state.stats.level, unlockLevelFromTier(state.user?.unlock_tier));
-
-      setText("sideLevelBadge", `Lv ${state.stats.level}`);
-      setText("sideXPText", `${state.stats.currentLevelXP}/${state.stats.xpNext}`);
-      const sideXPBar = getById("sideXPBar");
-      if (sideXPBar) sideXPBar.style.width = `${clamp(state.stats.xpProgressPct, 0, 100)}%`;
-    }
-  }
-
-  async function loadCompletions(email, courseId) {
-    // 1) Try backend (source of truth if available).
-    try {
-      if (getApiBase()) {
-        const data = await apiGet(PATHS.getCompletions, { email, course_id: courseId });
-        if (data && data.success !== false) {
-          if (data.completions) {
-            applyCompletionsPayload(data.completions);
-            mergeLocalCompletions(email, courseId);
-            cacheCompletionsToLS(email, courseId);
-            refreshTutorialCompletions();
-            return;
-          }
-          if (data.lessons || data.quizzes || data.challenges) {
-            applyCompletionsPayload({
-              lessons: data.lessons || [],
-              quizzes: data.quizzes || [],
-              challenges: data.challenges || []
-            });
-            mergeLocalCompletions(email, courseId);
-            cacheCompletionsToLS(email, courseId);
-            refreshTutorialCompletions();
-            return;
-          }
-        }
-      }
-    } catch (_) {
-      // ignore
-    }
-
-    // 2) Fallback to localStorage for offline mode.
-    const cached = parseJsonSafe(localStorage.getItem(LS_KEY(email, courseId)));
-    if (cached) applyCompletionsPayload(cached);
-    mergeLocalCompletions(email, courseId);
-    refreshTutorialCompletions();
-  }
-
-  function applyCompletionsPayload(payload) {
-    const lessonArr = payload.lesson || payload.lessons || payload.learn || [];
-    const quizArr = payload.quiz || payload.quizzes || [];
-    const chArr = payload.challenge || payload.challenges || [];
-
-    state.completed.lesson = new Set((lessonArr || []).map(Number));
-    state.completed.quiz = new Set((quizArr || []).map(Number));
-    state.completed.challenge = new Set((chArr || []).map(Number));
-  }
-
-  function cacheCompletionsToLS(email, courseId) {
-    const payload = {
-      lesson: Array.from(state.completed.lesson),
-      quiz: Array.from(state.completed.quiz),
-      challenge: Array.from(state.completed.challenge),
-    };
-    localStorage.setItem(LS_KEY(email, courseId), JSON.stringify(payload));
-  }
-
-  function mergeLocalCompletions(email, courseId) {
-    const local = parseJsonSafe(localStorage.getItem(LS_KEY(email, courseId))) || {};
-    const lessonArr = local.lesson || local.lessons || local.learn || [];
-    const quizArr = local.quiz || local.quizzes || [];
-    const chArr = local.challenge || local.challenges || [];
-
-    lessonArr.forEach((n) => state.completed.lesson.add(Number(n)));
-    quizArr.forEach((n) => state.completed.quiz.add(Number(n)));
-    chArr.forEach((n) => state.completed.challenge.add(Number(n)));
-  }
-
-  // Normalize course content into one consistent shape.
-
-  function difficultyRequiredLevel(diff) {
-    if (diff === "novice") return 1;
-    if (diff === "intermediate") return 3;
-    if (diff === "advanced") return 5;
-    return 1;
-  }
-
-  function hydrateCourseFromContent(courseId, apiMeta, contentId) {
-    const contentKey = contentId ? String(contentId) : String(courseId);
-    let raw = (typeof window.COURSE_CONTENT !== "undefined")
-      ? window.COURSE_CONTENT[contentKey]
-      : null;
-
-    if (!raw && apiMeta?.title && typeof window.COURSE_CONTENT !== "undefined") {
-      const target = String(apiMeta.title || "").trim().toLowerCase();
-      const list = Object.values(window.COURSE_CONTENT || {});
-      raw = list.find((c) => String(c?.title || "").trim().toLowerCase() === target) || null;
-    }
-
-    if (!apiMeta && !raw) {
-      // Neither API data nor local content available — show error
-      state.course = {
-        id: courseId,
-        title: "Course unavailable",
-        description: "We couldn't load this course. Please try again.",
-        difficulty: "novice",
-        required_level: 1,
-        estimatedTime: "—",
-        totalXP: 0,
-        total_lessons: 0,
-        modules: [],
+      pageState.userStats = {
+        level: level,
+        rank: levelInfo.rank || "Novice",
+        xp: xp,
+        currentLevelXP: progressInLevel,
+        xpProgressPercent: Math.min(100, Math.max(0, progressPercent)),
+        accessLevel: levelInfo.level || 1
       };
-      return;
-    }
-
-    const applyApiMeta = (meta) => {
-      if (!meta) return;
-      if (meta.title) state.course.title = meta.title;
-      if (meta.description) state.course.description = meta.description;
-      if (meta.difficulty) state.course.difficulty = String(meta.difficulty).toLowerCase();
-      if (meta.estimated_time || meta.estimatedTime) {
-        state.course.estimatedTime = meta.estimated_time || meta.estimatedTime;
-      }
-      state.course.required_level = Number(meta.required_level || state.course.required_level || 0)
-        || difficultyRequiredLevel(state.course.difficulty);
-      if (typeof meta.total_lessons !== "undefined") {
-        state.course.total_lessons = Number(meta.total_lessons || 0);
-      }
-      const apiXP = Number(meta.xp_reward ?? meta.totalXP ?? meta.xpReward);
-      if (!Number.isNaN(apiXP) && apiXP > 0) state.course.totalXP = apiXP;
-    };
-
-    if (!raw) {
-      state.course = {
-        id: courseId,
-        title: apiMeta?.title || "Course",
-        description: apiMeta?.description || "No content found for this course yet.",
-        difficulty: String(apiMeta?.difficulty || "novice").toLowerCase(),
-        required_level: Number(apiMeta?.required_level || difficultyRequiredLevel(String(apiMeta?.difficulty || "novice").toLowerCase())) || 1,
-        estimatedTime: "—",
-        totalXP: Number(apiMeta?.xp_reward || 0),
-        total_lessons: Number(apiMeta?.total_lessons || 0),
-        modules: [],
-      };
-      return;
-    }
-
-    state.courseContentId = String(raw.id || contentKey || courseId);
-
-    state.course.title = raw.title || raw.name || "Course";
-    state.course.description = raw.description || raw.about || "No description yet.";
-    state.course.difficulty = String(raw.difficulty || "novice").toLowerCase();
-    state.course.required_level = Number(raw.required_level || difficultyRequiredLevel(state.course.difficulty)) || 1;
-    state.course.estimatedTime = raw.estimatedTime || raw.estimated_time || "—";
-
-    const units = raw.units || raw.modules || [];
-    const modules = [];
-
-    let lessonCounter = 1;
-    let totalXP = 0;
-
-    units.forEach((u, i) => {
-      const moduleId = u.id || `module-${i + 1}`;
-      const module = {
-        id: moduleId,
-        index: i,
-        title: u.title || `Module ${i + 1}`,
-        description: u.about || u.description || "",
-        items: [],
-      };
-
-      const normalized = normalizeUnitItems(u, lessonCounter);
-      module.items = normalized.items;
-      lessonCounter = normalized.nextLessonCounter;
-
-      module.items.forEach((it) => { totalXP += Number(it.xp || 0); });
-
-      modules.push(module);
-    });
-
-    state.course.modules = modules;
-    state.course.totalXP = totalXP;
-    state.course.total_lessons = Number(state.course.total_lessons || 0) || modules.length;
-
-    // DB meta wins for title/desc/difficulty/xp if provided
-    applyApiMeta(apiMeta);
-  }
-
-  function normalizeUnitItems(unit, startingLessonNumber) {
-    // Accept multiple content shapes (sections array, sections object, or lessons array).
-    const items = [];
-    let lessonCounter = startingLessonNumber;
-
-    const pushItem = (type, data) => {
-      items.push({
-        type, // learn|quiz|sandbox|challenge
-        title: data.title || data.name || capitalize(type),
-        content: data.content || data.learn || data.text || "",
-        duration: data.duration || data.time || "—",
-        xp: Number(data.xp || data.xpReward || data.xp_reward || 0),
-        lesson_number: Number(data.lesson_number || data.lessonNumber || 0),
-        unit_title: unit.title || "",
-        unit_about: unit.about || "",
-        challenge: data.challenge || data.rules || null,
-        steps: data.steps || [],
-        tips: data.tips || "",
-        assigned: false,
-      });
-    };
-
-    // Shape A: array sections
-    if (Array.isArray(unit.sections)) {
-      unit.sections.forEach((sec) => {
-        const t = String(sec.type || sec.kind || sec.title || "").toLowerCase();
-        const secItems = sec.items || sec.lessons || [];
-        if (!Array.isArray(secItems)) return;
-
-        secItems.forEach((li) => {
-          const type = mapSectionTypeToItemType(t, li);
-          pushItem(type, li);
-        });
-      });
-    }
-
-    // Shape B: object sections
-    if (!items.length && unit.sections && typeof unit.sections === "object" && !Array.isArray(unit.sections)) {
-      const obj = unit.sections;
-      (obj.learn || obj.lesson || obj.lessons || []).forEach((li) => pushItem("learn", li));
-      (obj.quiz || obj.quizzes || []).forEach((li) => pushItem("quiz", li));
-      (obj.practice || obj.sandbox || []).forEach((li) => pushItem("sandbox", li));
-      (obj.challenge || obj.challenges || []).forEach((li) => pushItem("challenge", li));
-    }
-
-    // Shape C: unit.lessons
-    if (!items.length && Array.isArray(unit.lessons)) {
-      unit.lessons.forEach((li) => {
-        const t = String(li.type || "learn").toLowerCase();
-        pushItem(
-          t === "quiz" ? "quiz" :
-            t === "sandbox" || t === "practice" ? "sandbox" :
-              t === "challenge" ? "challenge" :
-                "learn",
-          li
-        );
-      });
-    }
-
-    // Assign lesson_number if missing:
-    // - learn items increment the lesson counter
-    // - quiz/practice/challenge attach to the most recent learn item
-    let lastLearn = lessonCounter - 1;
-
-    items.forEach((it) => {
-      if (it.type === "learn") {
-        if (!it.lesson_number) {
-          it.lesson_number = lessonCounter++;
-          it.assigned = true;
-        } else {
-          lessonCounter = Math.max(lessonCounter, it.lesson_number + 1);
-        }
-        lastLearn = it.lesson_number;
-      } else {
-        if (!it.lesson_number) {
-          it.lesson_number = Math.max(1, lastLearn || 1);
-          it.assigned = true;
-        }
-      }
-
-      // Defaults
-      if (!it.xp) {
-        it.xp =
-          it.type === "quiz" ? 60 :
-            it.type === "challenge" ? 80 :
-              it.type === "sandbox" ? 30 :
-                40;
-      }
-      if (!it.duration || it.duration === "—") {
-        it.duration =
-          it.type === "quiz" ? "5–10 min" :
-            it.type === "challenge" ? "10–15 min" :
-              it.type === "sandbox" ? "10 min" :
-                "8–12 min";
-      }
-    });
-
-    // Sort in learning flow, grouped by lesson_number
-    items.sort((a, b) => {
-      if (a.lesson_number !== b.lesson_number) return a.lesson_number - b.lesson_number;
-      const order = { learn: 1, quiz: 2, sandbox: 3, challenge: 4 };
-      return (order[a.type] || 9) - (order[b.type] || 9);
-    });
-
-    return { items, nextLessonCounter: lessonCounter };
-  }
-
-  function mapSectionTypeToItemType(sectionType, item) {
-    const t = String(item.type || "").toLowerCase();
-    if (t === "quiz") return "quiz";
-    if (t === "challenge") return "challenge";
-    if (t === "sandbox" || t === "practice") return "sandbox";
-    if (t === "learn") return "learn";
-
-    if (sectionType.includes("quiz")) return "quiz";
-    if (sectionType.includes("challenge")) return "challenge";
-    if (sectionType.includes("practice") || sectionType.includes("sandbox") || sectionType.includes("hands-on")) return "sandbox";
-    return "learn";
-  }
-
-  // Locking, completion checks, and progress totals.
-
-  function computeLockState() {
-    const userLevel = state.user ? Number(state.stats.accessLevel || state.stats.level || 1) : 0;
-    state.courseLocked = userLevel < Number(state.course.required_level || 1);
-  }
-
-  function getRequiredItems() {
-    const required = [];
-    state.course.modules.forEach((m) => {
-      m.items.forEach((it) => {
-        if (it.type === "learn" || it.type === "quiz" || it.type === "challenge" || it.type === "sandbox") {
-          required.push(it);
-        }
-      });
-    });
-    return required;
-  }
-
-  function tutorialProgressKey(email, courseId, lessonNumber) {
-    if (!courseId || !lessonNumber) return null;
-    const who = email || "guest";
-    return `netology_tutorial_progress:${who}:${courseId}:${lessonNumber}`;
-  }
-
-  function isTutorialCompleted(it) {
-    const lessonNum = Number(it.lesson_number || 0);
-    if (!lessonNum) return false;
-    const steps = Array.isArray(it.steps) ? it.steps : [];
-    if (!steps.length) return false;
-    const key = tutorialProgressKey(state.user?.email, state.courseId, lessonNum);
-    if (!key) return false;
-    const stored = parseJsonSafe(localStorage.getItem(key), null) || {};
-    const checked = Array.isArray(stored.checked) ? stored.checked : [];
-    for (let i = 0; i < steps.length; i += 1) {
-      if (!checked[i]) return false;
-    }
-    return true;
-  }
-
-  function refreshTutorialCompletions() {
-    state.completed.tutorial = new Set();
-    state.course.modules.forEach((m) => {
-      m.items.forEach((it) => {
-        if (it.type !== "sandbox") return;
-        const lessonNum = Number(it.lesson_number || 0);
-        if (!lessonNum) return;
-        if (isTutorialCompleted(it)) state.completed.tutorial.add(lessonNum);
-      });
-    });
-  }
-
-  function isItemCompleted(it) {
-    const n = Number(it.lesson_number || 0);
-    if (!n) return false;
-
-    if (it.type === "learn") {
-      return state.completed.lesson.has(n) || isLessonSoftCompleted(state.user?.email, state.courseId, n);
-    }
-    if (it.type === "quiz") return state.completed.quiz.has(n);
-    if (it.type === "challenge") return state.completed.challenge.has(n);
-    if (it.type === "sandbox" || it.type === "practice") return state.completed.tutorial.has(n);
-    return false;
-  }
-
-  function computeProgress() {
-    const required = getRequiredItems();
-    const total = required.length || 1;
-    const done = required.filter(isItemCompleted).length;
-    const pct = Math.round((done / total) * 100);
-
-    state.courseCompleted = (required.length > 0 && done === required.length);
-    return { done, total: required.length, pct };
-  }
-
-  function computeModuleCompletion(module) {
-    const required = module.items.filter((it) =>
-      it.type === "learn" || it.type === "quiz" || it.type === "challenge" || it.type === "sandbox"
-    );
-    const done = required.filter(isItemCompleted).length;
-    const total = required.length || 0;
-    return { done, total, completed: total > 0 && done === total };
-  }
-
-  function getModuleTutorialStatus(module) {
-    const tutorials = module.items.filter((it) => it.type === "sandbox");
-    const total = tutorials.length;
-    const done = tutorials.filter(isItemCompleted).length;
-    return { total, done, completed: total > 0 && done === total };
-  }
-
-  function moduleToastKey(module) {
-    const email = state.user?.email || "guest";
-    return `netology_module_done:${email}:${state.courseId}:${module.id}`;
-  }
-
-  function courseToastKey() {
-    const email = state.user?.email || "guest";
-    return `netology_course_done:${email}:${state.courseId}`;
-  }
-
-  function lastModuleKey() {
-    const email = state.user?.email || "guest";
-    return `netology_course_last_module:${email}:${state.courseId}`;
-  }
-
-  function restoreLastModule() {
-    const last = localStorage.getItem(lastModuleKey());
-    if (last) {
-      state.expandedModules.clear();
-      state.expandedModules.add(last);
     }
   }
 
-  function applyModuleParam() {
-    const params = new URLSearchParams(window.location.search);
-    const raw = params.get("module");
-    if (!raw) return false;
+  // ============================================================
+  // MAIN INITIALIZATION
+  // ============================================================
 
-    const target = resolveModuleParam(raw);
-    if (!target) return false;
+  // Initialize the course page
+  async function initializeCoursePage() {
+    console.log("Initializing course page...");
 
-    if (raw !== target) {
-      params.set("module", target);
-      history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    // STEP 1: Parse URL parameters
+    console.log("Step 1: Getting course ID from URL...");
+    const urlParams = new URLSearchParams(window.location.search);
+    pageState.courseId = urlParams.get("course_id") || "1";
+    pageState.contentId = urlParams.get("content_id") || pageState.courseId;
+
+    // STEP 2: Load cached user and show UI
+    console.log("Step 2: Loading cached user...");
+    const cachedUser = getCurrentUser();
+    pageState.currentUser = cachedUser;
+
+    if (cachedUser && isUserLoggedIn(cachedUser)) {
+      setupBrandRouting();
+      setupSidebar();
+      setupUserDropdown();
+      setupLogoutButtons();
+      updateUserDisplay(cachedUser);
+      updateUserStats(cachedUser);
+    } else {
+      setupBrandRouting();
+      setupSidebar();
+      setupUserDropdown();
     }
 
-    state.expandedModules.clear();
-    state.expandedModules.add(target);
-    persistLastModule(target);
-    state.scrollToModuleId = target;
-    return true;
-  }
-
-  function resolveModuleParam(raw) {
-    const value = String(raw || "").trim();
-    if (!value) return null;
-    const modules = state.course.modules || [];
-
-    const exact = modules.find((m) => String(m.id) === value);
-    if (exact) return String(exact.id);
-
-    const exactLower = modules.find((m) => String(m.id).toLowerCase() === value.toLowerCase());
-    if (exactLower) return String(exactLower.id);
-
-    const numeric = Number.parseInt(value, 10);
-    if (Number.isFinite(numeric)) {
-      const idx = numeric - 1;
-      if (modules[idx]) return String(modules[idx].id);
+    // STEP 3: Load course from COURSE_CONTENT
+    console.log("Step 3: Loading course from COURSE_CONTENT...");
+    const courseData = loadCourseFromContent(pageState.courseId);
+    if (courseData) {
+      pageState.courseData = courseData;
+    } else {
+      console.warn("Could not load course data");
     }
 
-    return null;
-  }
+    // STEP 4: Refresh user from API
+    console.log("Step 4: Refreshing user from API...");
+    const freshUser = await refreshUserFromServer();
+    pageState.currentUser = freshUser;
 
-  function persistLastModule(id) {
-    if (!id) return;
-    localStorage.setItem(lastModuleKey(), String(id));
-  }
-
-  function showCompletionToast({ title, message, mini = true, duration = 4200 }) {
-    if (typeof window.showCelebrateToast !== "function") return;
-    window.showCelebrateToast({
-      title,
-      message,
-      sub: "Great work staying consistent.",
-      mini,
-      confetti: !mini,
-      duration
-    });
-  }
-
-  function seedCompletionToastFlags() {
-    if (!state.user?.email) return;
-    state.course.modules.forEach((m) => {
-      if (computeModuleCompletion(m).completed) {
-        localStorage.setItem(moduleToastKey(m), "1");
-      }
-    });
-    if (computeProgress().pct === 100) {
-      localStorage.setItem(courseToastKey(), "1");
+    if (freshUser) {
+      updateUserDisplay(freshUser);
+      updateUserStats(freshUser);
     }
-  }
 
-  function buildLearnFlatList() {
-    const list = [];
-    state.course.modules.forEach((m) => m.items.forEach((it) => { if (it.type === "learn") list.push(it); }));
-    state.learnItemsFlat = list;
-
-    const idx = list.findIndex((it) => !isItemCompleted(it));
-    state.activeLearnIndex = idx >= 0 ? idx : (list.length ? 0 : -1);
-    state.activeLearn = state.activeLearnIndex >= 0 ? list[state.activeLearnIndex] : null;
-  }
-
-  // Render functions.
-
-  function renderAll() {
-    renderHero();
+    // STEP 5: Render course to page
+    console.log("Step 5: Rendering course...");
+    renderCourseHeader();
     renderModules();
-    renderSidebarCards();
+
+    console.log("Course page initialization complete!");
   }
 
-  function renderHero() {
-    setText("courseTitle", state.course.title);
-    setText("courseDescription", state.course.description);
-    setText("breadcrumbCourse", state.course.title || "Course");
+  // Render course header
+  function renderCourseHeader() {
+    const course = pageState.courseData;
+    setTextById("courseTitle", course.title || "Course");
+    setTextById("courseDescription", course.description || "");
 
-    const moduleCount = state.course.modules.length || 0;
-    const totalItems = getRequiredItems().length;
-    setText("metaModules", `${moduleCount} module${moduleCount === 1 ? "" : "s"} · ${totalItems} items`);
-    setText("metaTime", state.course.estimatedTime || "—");
-    setText("metaXP", `${state.course.totalXP} XP`);
-
-    // streak + XP hint (hidden elements kept for compat)
-    const streakBadge = getById("courseStreakBadge");
-    if (streakBadge) {
-      const streak = computeStreak(getProgressLog(state.user?.email || ""));
-      streakBadge.replaceChildren(
-        makeIcon("bi bi-fire"),
-        document.createTextNode(` Streak: ${streak} day${streak === 1 ? "" : "s"}`)
-      );
-    }
-    const xpHint = getById("courseXpHint");
-    if (xpHint) {
-      const toNext = Math.max(0, Number(state.stats.xpNext || 0));
-      xpHint.replaceChildren(
-        makeIcon("bi bi-lightning-charge-fill"),
-        document.createTextNode(` ${toNext} XP to next level`)
-      );
-    }
-
-    // difficulty pill class
-    const pill = getById("difficultyPill");
-    if (pill) {
-      pill.textContent = capitalize(state.course.difficulty);
-      pill.classList.remove("net-diff-novice", "net-diff-intermediate", "net-diff-advanced");
-      pill.classList.add(`net-diff-${state.course.difficulty}`);
-    }
-
-    // locked?
-    const lockedPill = getById("courseLockedPill");
-    const lockedExplainer = getById("lockedExplainer");
-    const lockedText = getById("lockedText");
-
-    if (state.courseLocked) {
-      lockedPill?.classList.remove("d-none");
-      lockedExplainer?.classList.remove("d-none");
-      if (lockedText) lockedText.textContent = `Locked — requires Level ${state.course.required_level}.`;
-      const continueBtn = getById("continueBtn");
-      continueBtn && (continueBtn.disabled = true);
-    } else {
-      lockedPill?.classList.add("d-none");
-      lockedExplainer?.classList.add("d-none");
-      const continueBtn = getById("continueBtn");
-      continueBtn && (continueBtn.disabled = false);
-    }
-
-    // completed?
-    const completedPill = getById("courseCompletedPill");
-    const activePill = getById("courseActivePill");
-    const reviewBtn = getById("reviewBtn");
-    const continueBtn = getById("continueBtn");
-
-    if (state.courseCompleted) {
-      completedPill?.classList.remove("d-none");
-      activePill?.classList.add("d-none");
-      reviewBtn?.classList.remove("d-none");
-      if (continueBtn) {
-        continueBtn.replaceChildren();
-        continueBtn.append(
-          document.createTextNode("Review "),
-          makeIcon("bi bi-arrow-repeat ms-1")
-        );
-      }
-    } else {
-      completedPill?.classList.add("d-none");
-      reviewBtn?.classList.add("d-none");
-      if (activePill) {
-        const prog = computeProgress();
-        activePill.classList.toggle("d-none", !(prog.done > 0));
-      }
-      if (continueBtn) {
-        const prog = computeProgress();
-        const label = prog.done > 0 ? "Resume" : "Start";
-        continueBtn.replaceChildren();
-        continueBtn.append(
-          document.createTextNode(label + " "),
-          makeIcon("bi bi-arrow-right ms-1")
-        );
-      }
-    }
-
-    // progress ring
-    const prog = computeProgress();
-
-    setText("progressPct", `${prog.pct}%`);
-    setText("progressText", `${prog.pct}%`);
-    setText("progressCount", `${prog.done}/${prog.total}`);
-
-    const ring = getById("progressRing");
-    if (ring) {
-      const CIRC = 2 * Math.PI * 58;
-      const offset = CIRC * (1 - prog.pct / 100);
-      ring.style.strokeDasharray = `${CIRC.toFixed(2)}`;
-      ring.style.strokeDashoffset = `${offset.toFixed(2)}`;
-    }
-
-    const bar = getById("progressBar");
-    if (bar) bar.style.width = `${clamp(prog.pct, 0, 100)}%`;
-
-    // preview drawer ring
-    const previewRing = getById("previewRing");
-    const previewPct = getById("previewRingPct");
-    if (previewPct) previewPct.textContent = `${prog.pct}%`;
-    if (previewRing) {
-      const CIRC = 2 * Math.PI * 26;
-      const offset = CIRC * (1 - prog.pct / 100);
-      previewRing.style.strokeDasharray = `${CIRC.toFixed(2)}`;
-      previewRing.style.strokeDashoffset = `${offset.toFixed(2)}`;
-    }
-
-    // sandbox buttons carry course context
-    const contentId = state.courseContentId || state.courseId;
-    const q = `course_id=${encodeURIComponent(state.courseId)}&content_id=${encodeURIComponent(contentId)}`;
-    const topSandbox = getById("topSandboxLink");
-    const sidebarSandboxBtn = getById("sidebarSandboxBtn");
-
-    if (topSandbox) {
-      topSandbox.setAttribute("href", `sandbox.html?${q}`);
-      topSandbox.setAttribute("title", "Open the sandbox to build and test a network simulation");
-    }
-    if (sidebarSandboxBtn) {
-      sidebarSandboxBtn.setAttribute("title", "Open the sandbox to build and test a network simulation");
-      sidebarSandboxBtn.onclick = () => { window.location.href = `sandbox.html?${q}`; };
-    }
+    const progress = calculateCourseProgress();
+    setTextById("courseProgress", `${progress.percent}%`);
   }
 
-  function getSelectedModuleId() {
-    const toModuleId = (value) => String(value ?? "");
+  // Render all modules
+  function renderModules() {
+    const modulesContainer = getById("modulesContainer");
+    if (!modulesContainer) return;
 
-    if (!state.expandedModules.size && state.course.modules[0]) {
-      state.expandedModules.add(toModuleId(state.course.modules[0].id));
-    }
-    const selected = Array.from(state.expandedModules)[state.expandedModules.size - 1];
-    return selected ? toModuleId(selected) : null;
+    clearChildren(modulesContainer);
+
+    pageState.courseData.modules.forEach((module, index) => {
+      const moduleElement = renderModule(module, index + 1);
+      modulesContainer.appendChild(moduleElement);
+    });
   }
 
-  function buildModuleTab(module, index, selectedId) {
-    const moduleProgress = computeModuleCompletion(module);
-    const moduleId = String(module.id);
-    const isSelected = selectedId === moduleId;
+  // Render single module
+  function renderModule(module, moduleNumber) {
+    const moduleContainer = createElement("div", "net-module");
+    const moduleHeader = createElement("div", "net-module-header");
 
-    const tabButton = document.createElement("button");
-    tabButton.className = `net-module-tab ${isSelected ? "is-active" : ""}`;
-    tabButton.type = "button";
-    tabButton.dataset.action = "toggle-module";
-    tabButton.dataset.module = moduleId;
-    tabButton.setAttribute("aria-expanded", isSelected ? "true" : "false");
-    tabButton.title = module.title || `Module ${index + 1}`;
-
-    const number = makeEl("div", "net-module-tab-num", String(index + 1));
-    const title = makeEl("div", "net-module-tab-title", module.title || `Module ${index + 1}`);
-    const progress = makeEl("div", "net-module-tab-prog");
-
-    if (moduleProgress.completed) {
-      progress.className = "net-module-tab-prog net-module-tab-prog--done";
-      progress.append(makeIcon("bi bi-check-circle-fill"));
-    } else {
-      progress.textContent = `${moduleProgress.done}/${moduleProgress.total}`;
-    }
-
-    tabButton.append(number, title, progress);
-    return tabButton;
-  }
-
-  function buildModuleDetailHeader(module, moduleIndex) {
-    const header = makeEl("div", "net-module-detail-head");
-    const moduleProgress = computeModuleCompletion(module);
-    const tutorialStatus = getModuleTutorialStatus(module);
-
-    const left = document.createElement("div");
-    const label = makeEl("span", "small text-teal fw-semibold text-uppercase", `Module ${moduleIndex + 1}`);
-    label.style.letterSpacing = ".04em";
-    const title = makeEl("div", "fw-semibold fs-5", module.title || "");
-    left.append(label, title);
+    const moduleTitle = createElement("h3", "net-module-title", `Module ${moduleNumber}: ${module.title}`);
+    moduleHeader.appendChild(moduleTitle);
 
     if (module.description) {
-      left.appendChild(makeEl("div", "text-muted small mt-1", module.description));
+      const moduleDescription = createElement("p", "net-module-description", module.description);
+      moduleHeader.appendChild(moduleDescription);
     }
 
-    const right = document.createElement("div");
-    right.className = "d-flex align-items-center gap-2";
-    right.appendChild(buildModuleStatusBadge(moduleProgress));
+    moduleContainer.appendChild(moduleHeader);
 
-    if (tutorialStatus.completed) {
-      const tutorialBadge = document.createElement("span");
-      tutorialBadge.className = "net-status-chip net-status-chip--completed net-status-chip--mini";
-      tutorialBadge.append(makeIcon("bi bi-diagram-3"), document.createTextNode(" Tutorial done"));
-      right.appendChild(tutorialBadge);
-    }
-
-    header.append(left, right);
-    return header;
-  }
-
-  function buildModuleStatusBadge(moduleProgress) {
-    const statusBadge = document.createElement("span");
-
-    if (moduleProgress.completed) {
-      statusBadge.className = "net-status-chip net-status-chip--completed";
-      statusBadge.append(makeIcon("bi bi-check2-circle"), document.createTextNode(" Completed"));
-      return statusBadge;
-    }
-
-    if (moduleProgress.done > 0) {
-      statusBadge.className = "net-status-chip net-status-chip--progress";
-      statusBadge.append(
-        makeIcon("bi bi-arrow-repeat"),
-        document.createTextNode(` ${moduleProgress.done}/${moduleProgress.total}`)
-      );
-      return statusBadge;
-    }
-
-    statusBadge.className = "net-status-chip net-status-chip--active";
-    statusBadge.append(makeIcon("bi bi-grid-1x2"), document.createTextNode(` ${moduleProgress.total} items`));
-    return statusBadge;
-  }
-
-  function buildModuleDetail(module, moduleIndex) {
-    const moduleId = String(module.id);
-    const detail = document.createElement("div");
-    detail.className = "net-module-detail";
-    detail.dataset.moduleBody = moduleId;
-    detail.dataset.moduleId = moduleId;
-
-    detail.appendChild(buildModuleDetailHeader(module, moduleIndex));
-
-    const body = makeEl("div", "net-module-detail-body");
-    body.appendChild(renderModuleItems(module));
-    detail.appendChild(body);
-
-    return detail;
-  }
-
-  function scrollToPendingModule(wrap) {
-    if (!state.scrollToModuleId) return;
-    const target = wrap.querySelector(`[data-module-id="${cssEscapeAttr(state.scrollToModuleId)}"]`);
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-    state.scrollToModuleId = null;
-  }
-
-  function renderModules() {
-    const wrap = getById("modulesWrap");
-    const empty = getById("modulesEmpty");
-    if (!wrap) return;
-
-    if (!state.course.modules.length) {
-      clearChildren(wrap);
-      empty?.classList.remove("d-none");
-      return;
-    }
-    empty?.classList.add("d-none");
-
-    clearChildren(wrap);
-
-    const countLabel = getById("moduleCountLabel");
-    if (countLabel) countLabel.textContent = `(${state.course.modules.length})`;
-
-    const selectedId = getSelectedModuleId();
-    const strip = makeEl("div", "net-module-strip");
-    state.course.modules.forEach((module, index) => {
-      strip.appendChild(buildModuleTab(module, index, selectedId));
-    });
-
-    wrap.appendChild(strip);
-
-    const selectedModule = state.course.modules.find((module) => String(module.id) === selectedId);
-    if (selectedModule) {
-      const selectedModuleIndex = state.course.modules.indexOf(selectedModule);
-      wrap.appendChild(buildModuleDetail(selectedModule, selectedModuleIndex));
-    }
-
-    scrollToPendingModule(wrap);
-  }
-
-  function groupModuleItemsByLesson(module) {
-    const grouped = new Map();
+    // Add items
+    const itemsContainer = createElement("div", "net-module-items");
     module.items.forEach((item) => {
-      const lessonNumber = Number(item.lesson_number || 0) || 0;
-      if (!grouped.has(lessonNumber)) grouped.set(lessonNumber, []);
-      grouped.get(lessonNumber).push(item);
-    });
-    return grouped;
-  }
-
-  function getCourseItemTypeLabel(itemType) {
-    if (itemType === "quiz") return "Quiz";
-    if (itemType === "challenge") return "Challenge";
-    if (itemType === "sandbox" || itemType === "practice") return "Tutorial";
-    return "Lesson";
-  }
-
-  function buildCourseItemMeta(item) {
-    const meta = makeEl("div", "small text-muted d-flex flex-wrap gap-2 align-items-center mt-1");
-
-    const typeTag = makeEl("span", `net-type-tag net-type-tag--${item.type}`, getCourseItemTypeLabel(item.type));
-    meta.appendChild(typeTag);
-
-    const xp = makeEl("span", "d-inline-flex align-items-center gap-1 net-xp-accent fw-semibold");
-    xp.append(makeIcon("bi bi-lightning-charge-fill"), document.createTextNode(` ${Number(item.xp)} XP`));
-    meta.appendChild(xp);
-
-    if (item.duration) {
-      const time = makeEl("span", "d-inline-flex align-items-center gap-1");
-      time.append(makeIcon("bi bi-clock"), document.createTextNode(` ${item.duration}`));
-      meta.appendChild(time);
-    }
-
-    if (item.type === "quiz" && state.user?.email) {
-      const score = getQuizScore(state.user.email, state.courseId, item.lesson_number);
-      if (score) {
-        const scoreBadge = makeEl("span", "badge text-bg-light border net-quiz-score");
-        scoreBadge.append(
-          makeIcon("bi bi-clipboard-check me-1"),
-          document.createTextNode(`${score.correct}/${score.total}`)
-        );
-        meta.appendChild(scoreBadge);
-      }
-    }
-
-    return meta;
-  }
-
-  function buildCourseItemRightActions(item, completed) {
-    const right = makeEl("div", "d-flex align-items-center gap-2");
-
-    if (item.type === "learn") {
-      const preview = makeEl("span", "net-preview-btn");
-      preview.setAttribute("role", "button");
-      preview.setAttribute("tabindex", "0");
-      preview.dataset.action = "preview-lesson";
-      preview.dataset.lesson = String(Number(item.lesson_number));
-      preview.title = "Quick preview";
-      preview.appendChild(makeIcon("bi bi-eye"));
-      right.appendChild(preview);
-    }
-
-    if (completed) {
-      const done = makeEl("span", "badge bg-success");
-      done.append(makeIcon("bi bi-check2-circle me-1"), document.createTextNode("Done"));
-      right.appendChild(done);
-      return right;
-    }
-
-    const play = makeIcon("bi bi-play-fill text-teal");
-    play.setAttribute("aria-hidden", "true");
-    right.appendChild(play);
-    return right;
-  }
-
-  function buildCourseItemRow(item) {
-    const completed = isItemCompleted(item);
-    const locked = state.courseLocked;
-
-    const row = document.createElement("button");
-    row.className = `net-lesson-row net-lesson-row--clean px-3 py-3 rounded-3 border d-flex align-items-center justify-content-between gap-3 ${locked ? "is-locked" : ""} ${completed ? "is-complete" : ""}`.trim();
-    row.type = "button";
-    row.dataset.action = "open-item";
-    row.dataset.type = item.type;
-    row.dataset.lesson = String(Number(item.lesson_number));
-    row.dataset.title = String(item.title || "");
-
-    if (locked) {
-      row.disabled = true;
-      row.setAttribute("aria-disabled", "true");
-    }
-
-    const left = makeEl("div", "d-flex align-items-center gap-3");
-    const iconWrap = makeEl("div", "net-lesson-ico");
-    iconWrap.appendChild(lessonIcon(item, completed, locked));
-
-    const textWrap = document.createElement("div");
-    const title = makeEl("div", "fw-semibold text-dark", item.title || "");
-    const meta = buildCourseItemMeta(item);
-    textWrap.append(title, meta);
-    left.append(iconWrap, textWrap);
-
-    const right = buildCourseItemRightActions(item, completed);
-    row.append(left, right);
-    return row;
-  }
-
-  function renderModuleItems(module) {
-    const groupedItems = groupModuleItemsByLesson(module);
-    const lessonNumbers = Array.from(groupedItems.keys()).sort((firstLesson, secondLesson) => firstLesson - secondLesson);
-    const grid = makeEl("div", "d-grid gap-2");
-
-    lessonNumbers.forEach((lessonNumber) => {
-      const itemsForLesson = groupedItems.get(lessonNumber) || [];
-      itemsForLesson.forEach((item) => {
-        grid.appendChild(buildCourseItemRow(item));
-      });
-    });
-    return grid;
-  }
-
-  function renderSidebarCards() {
-    const prog = computeProgress();
-    setText("sidePct", `${prog.pct}%`);
-
-    let modulesDone = 0;
-    state.course.modules.forEach((m) => { if (computeModuleCompletion(m).completed) modulesDone++; });
-    const totalModules = state.course.modules.length || state.course.total_lessons || 0;
-    setText("sideModules", `${modulesDone}/${totalModules}`);
-
-    let xpEarned = 0;
-    getRequiredItems().forEach((it) => {
-      if (it.type === "learn") {
-        const earned = getLessonXPEarned(state.user?.email, state.courseId, it.lesson_number, it.xp || 0);
-        if (earned > 0) xpEarned += earned;
-        else if (state.completed.lesson.has(Number(it.lesson_number))) xpEarned += Number(it.xp || 0);
-        return;
-      }
-      if (isItemCompleted(it)) xpEarned += Number(it.xp || 0);
-    });
-    setText("sideXPEarned", xpEarned);
-
-    const next = getRequiredItems().find((it) => !isItemCompleted(it));
-    const nextStepEl = getById("nextStepText");
-    if (nextStepEl) {
-      if (next) {
-        nextStepEl.textContent = `${capitalize(next.type)}: ${next.title}`;
-      } else {
-        clearChildren(nextStepEl);
-        const icon = makeIcon("bi bi-check2-circle me-1");
-        icon.setAttribute("aria-hidden", "true");
-        nextStepEl.append(icon, document.createTextNode("All done"));
-      }
-    }
-
-    const nextBtn = getById("nextStepBtn");
-    const jumpBtn = getById("jumpToFirstIncompleteBtn");
-
-    if (nextBtn) nextBtn.disabled = !next || state.courseLocked;
-    if (jumpBtn) jumpBtn.disabled = !next || state.courseLocked;
-  }
-
-  // Buttons and interaction handlers.
-
-  function wireCourseActions() {
-    // expand / collapse
-    const expandAllBtn = getById("expandAllBtn");
-    const collapseAllBtn = getById("collapseAllBtn");
-
-    expandAllBtn?.addEventListener("click", () => {
-      state.course.modules.forEach((module) => state.expandedModules.add(String(module.id)));
-      renderModules();
-      wireDynamicHandlers();
+      const itemElement = renderLesson(item);
+      itemsContainer.appendChild(itemElement);
     });
 
-    collapseAllBtn?.addEventListener("click", () => {
-      state.expandedModules.clear();
-      renderModules();
-      wireDynamicHandlers();
+    moduleContainer.appendChild(itemsContainer);
+
+    return moduleContainer;
+  }
+
+  // Render single lesson item
+  function renderLesson(item) {
+    const isCompleted = pageState.completionStatus.lesson.has(item.lessonNumber);
+
+    const lessonElement = createElement("div", "net-lesson");
+    if (isCompleted) {
+      lessonElement.classList.add("is-completed");
+    }
+
+    // Icon
+    const iconContainer = createElement("div", "net-lesson-icon");
+    iconContainer.appendChild(getLessonIcon(item, isCompleted));
+    lessonElement.appendChild(iconContainer);
+
+    // Content
+    const contentContainer = createElement("div", "net-lesson-content");
+
+    const titleElement = createElement("h4", "net-lesson-title", item.title);
+    contentContainer.appendChild(titleElement);
+
+    const metaElement = createElement("div", "net-lesson-meta");
+    metaElement.textContent = `${item.duration} · ${item.xpReward} XP`;
+    contentContainer.appendChild(metaElement);
+
+    lessonElement.appendChild(contentContainer);
+
+    // Click to open lesson
+    lessonElement.addEventListener("click", () => {
+      openLessonModal(item);
     });
 
-    // continue button
-    const continueBtn = getById("continueBtn");
-    continueBtn?.addEventListener("click", () => {
-      if (state.courseLocked) return;
-
-      const next = getRequiredItems().find((it) => !isItemCompleted(it));
-      if (!next) {
-        // review: open first learn
-        if (state.learnItemsFlat[0]) openLearnModalByLessonNumber(state.learnItemsFlat[0].lesson_number);
-        return;
-      }
-      openItem(next.type, next.lesson_number);
-    });
-
-    // review button
-    const reviewBtn = getById("reviewBtn");
-    reviewBtn?.addEventListener("click", () => {
-      if (state.learnItemsFlat[0]) openLearnModalByLessonNumber(state.learnItemsFlat[0].lesson_number);
-    });
-
-    // next step buttons
-    const nextStepBtn = getById("nextStepBtn");
-    const jumpBtn = getById("jumpToFirstIncompleteBtn");
-    const clickNext = () => {
-      if (state.courseLocked) return;
-      const next = getRequiredItems().find((it) => !isItemCompleted(it));
-      if (next) openItem(next.type, next.lesson_number);
-    };
-    nextStepBtn?.addEventListener("click", clickNext);
-    jumpBtn?.addEventListener("click", clickNext);
-
-    // dynamic handlers (module toggles + item open)
-    wireDynamicHandlers();
-
-    // lesson modal controls
-    wireLessonModalControls();
+    return lessonElement;
   }
 
-  function wireDynamicHandlers() {
-    document.querySelectorAll('[data-action="toggle-module"]').forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const id = btn.getAttribute("data-module");
-        if (!id) return;
+  // Get icon for lesson based on type and completion
+  function getLessonIcon(item, isCompleted) {
+    const iconContainer = document.createElement("div");
+    iconContainer.className = "net-ico-pill";
 
-        // Select this module (single-select for horizontal tabs)
-        state.expandedModules.clear();
-        state.expandedModules.add(String(id));
-        persistLastModule(id);
-
-        // Re-render modules to show selected detail panel
-        renderModules();
-        wireDynamicHandlers();
-      });
-    });
-
-    document.querySelectorAll('[data-action="open-item"]').forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (state.courseLocked) return;
-
-        const type = btn.getAttribute("data-type");
-        const lesson = Number(btn.getAttribute("data-lesson") || "0");
-        if (!type || !lesson) return;
-        openItem(type, lesson);
-      });
-    });
-
-    document.querySelectorAll('[data-action="preview-lesson"]').forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (state.courseLocked) return;
-        const lesson = Number(btn.getAttribute("data-lesson") || "0");
-        if (!lesson) return;
-        openLearnModalByLessonNumber(lesson);
-      });
-      btn.addEventListener("keydown", (e) => {
-        if (e.key !== "Enter" && e.key !== " ") return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (state.courseLocked) return;
-        const lesson = Number(btn.getAttribute("data-lesson") || "0");
-        if (!lesson) return;
-        openLearnModalByLessonNumber(lesson);
-      });
-      btn.addEventListener("mouseenter", () => schedulePreviewTooltip(btn));
-      btn.addEventListener("mouseleave", () => hidePreviewTooltip(btn));
-      btn.addEventListener("focus", () => schedulePreviewTooltip(btn));
-      btn.addEventListener("blur", () => hidePreviewTooltip(btn));
-    });
-  }
-
-  function openItem(type, lessonNumber) {
-    const t = String(type).toLowerCase();
-    if (state.user?.email) {
-      trackCourseStart(state.user.email, state.courseId, lessonNumber);
+    if (isCompleted) {
+      iconContainer.classList.add("net-ico-success");
+      iconContainer.appendChild(createIcon("bi bi-check2-circle"));
+      return iconContainer;
     }
 
-    const contentId = state.courseContentId || state.courseId;
-    const contentQuery = `&content_id=${encodeURIComponent(contentId)}`;
-
-    if (t === "learn") {
-      window.location.href =
-        `lesson.html?course_id=${encodeURIComponent(state.courseId)}${contentQuery}&lesson=${encodeURIComponent(lessonNumber)}`;
-      return;
-    }
-
-    if (t === "quiz") {
-      window.location.href =
-        `quiz.html?course=${encodeURIComponent(state.courseId)}${contentQuery}&lesson=${encodeURIComponent(lessonNumber)}`;
-      return;
-    }
-
-    if (t === "sandbox" || t === "practice") {
-      const item = findItem("sandbox", lessonNumber) || findItem("practice", lessonNumber);
-      if (item) {
-        const payload = {
-          courseId: state.courseId,
-          contentId: contentId,
-          moduleId: item.module_id || null,
-          courseTitle: state.course.title,
-          unitTitle: item.unit_title || "",
-          lesson: lessonNumber,
-          lessonTitle: item.title || "",
-          tutorial: {
-            steps: item.steps || (item.tutorial && item.tutorial.steps) || [],
-            tips: item.tips || (item.tutorial && item.tutorial.tips) || "",
-            xp: Number(item.xp || 0)
-          }
-        };
-        localStorage.setItem("netology_active_tutorial", JSON.stringify(payload));
-      }
-      window.location.href =
-        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}${contentQuery}&lesson=${encodeURIComponent(lessonNumber)}&mode=practice`;
-      return;
-    }
-
-    if (t === "challenge") {
-      const item = findItem(t, lessonNumber);
-      if (item) {
-        const payload = {
-          courseId: state.courseId,
-          contentId: contentId,
-          moduleId: item.module_id || null,
-          courseTitle: state.course.title,
-          unitTitle: item.unit_title || "",
-          lesson: lessonNumber,
-          lessonTitle: item.title || "",
-          challenge: {
-            rules: (item.challenge && item.challenge.rules) || item.rules || item.challenge || null,
-            steps: (item.challenge && item.challenge.steps) || item.steps || [],
-            tips: (item.challenge && item.challenge.tips) || item.tips || "",
-            xp: Number(item.xp || 0)
-          }
-        };
-        localStorage.setItem("netology_active_challenge", JSON.stringify(payload));
-      }
-      window.location.href =
-        `sandbox.html?course_id=${encodeURIComponent(state.courseId)}${contentQuery}&lesson=${encodeURIComponent(lessonNumber)}&mode=challenge&challenge=1`;
-      return;
-    }
-  }
-
-  function findItem(type, lessonNumber) {
-    const t = String(type).toLowerCase();
-    for (const m of (state.course.modules || [])) {
-      for (const it of (m.items || [])) {
-        if (String(it.type) === t && Number(it.lesson_number) === Number(lessonNumber)) {
-          return { ...it, module_id: String(m.id) };
-        }
-      }
-    }
-    return null;
-  }
-
-  // Lesson preview modal.
-
-  function wireLessonModalControls() {
-    const prevBtn = getById("lessonPrevBtn");
-    const nextBtn = getById("lessonNextBtn");
-
-    prevBtn?.addEventListener("click", () => moveLearn(-1));
-    nextBtn?.addEventListener("click", () => moveLearn(1));
-  }
-
-  function openLearnModalByLessonNumber(lessonNumber) {
-    const idx = state.learnItemsFlat.findIndex((it) => Number(it.lesson_number) === Number(lessonNumber));
-    if (idx < 0) return;
-
-    state.activeLearnIndex = idx;
-    state.activeLearn = state.learnItemsFlat[idx];
-
-    fillLessonModal(state.activeLearn);
-
-    const drawerEl = getById("lessonPreviewDrawer");
-    if (!drawerEl) return;
-
-    // Bootstrap 5 Offcanvas
-    const drawer = bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
-    drawer.show();
-    animatePreviewRing();
-  }
-
-  function fillLessonModal(item) {
-    setText("lessonPreviewLabel", item.title);
-    setText("lessonMetaTime", item.duration || "—");
-    setText("lessonMetaXP", Number(item.xp || 0));
-
-    const body = getById("lessonPreviewBody");
-    if (body) {
-      const c = item.content;
-      clearChildren(body);
-      if (Array.isArray(c)) {
-        const preview = c.slice(0, 2);
-        preview.forEach((p) => {
-          const para = document.createElement("p");
-          para.textContent = String(p ?? "");
-          body.appendChild(para);
-        });
-        if (c.length > 2) {
-          body.appendChild(makeEl("p", "text-muted small mb-0", "Open the full lesson to continue."));
-        }
-      } else if (typeof c === "string" && c.trim()) {
-        const trimmed = c.split("\n").slice(0, 3).join("\n");
-        appendTextWithBreaks(body, trimmed);
-      } else {
-        body.append(
-          makeEl("p", "text-muted mb-2", "Lesson content not added yet."),
-          makeEl("p", "text-muted small mb-0", "We can plug your in-depth content here from COURSE_CONTENT next.")
-        );
-      }
-    }
-
-    const resEl = getById("lessonPreviewResources");
-    if (resEl) {
-      const resources = Array.isArray(item.resources) && item.resources.length
-        ? item.resources
-        : buildDefaultResources(item.title || "", state.course.title || "");
-      const previewRes = resources.slice(0, 2);
-      clearChildren(resEl);
-      previewRes.forEach((r) => {
-        const link = document.createElement("a");
-        link.className = "net-resource-item";
-        link.href = r.url || "#";
-        link.target = "_blank";
-        link.rel = "noopener";
-
-        const icoWrap = document.createElement("span");
-        icoWrap.className = "net-resource-ico";
-        icoWrap.appendChild(makeIcon("bi bi-book"));
-
-        const label = document.createElement("span");
-        label.textContent = String(r.label || "");
-
-        const ext = makeIcon("bi bi-box-arrow-up-right ms-auto text-muted");
-
-        link.append(icoWrap, label, ext);
-        resEl.appendChild(link);
-      });
-    }
-
-    const openBtn = getById("lessonOpenBtn");
-    if (openBtn) {
-      openBtn.setAttribute(
-        "href",
-        `lesson.html?course_id=${encodeURIComponent(state.courseId)}&content_id=${encodeURIComponent(state.courseContentId || state.courseId)}&lesson=${encodeURIComponent(item.lesson_number)}`
-      );
-      const started = getStartedLessonNumber(state.user?.email, state.courseId);
-      const progressPct = getLessonProgressPct(state.user?.email, state.courseId, item.lesson_number);
-      const inProgress = progressPct > 0 && progressPct < 100;
-      const done = isLessonSoftCompleted(state.user?.email, state.courseId, item.lesson_number);
-      if (inProgress || (started && Number(started) === Number(item.lesson_number) && !done)) {
-        openBtn.textContent = "Continue lesson";
-        openBtn.classList.remove("btn-outline-secondary");
-        openBtn.classList.add("btn-teal");
-      } else if (progressPct >= 100) {
-        openBtn.textContent = "Review lesson";
-        openBtn.classList.remove("btn-teal");
-        openBtn.classList.add("btn-outline-secondary");
-      } else {
-        openBtn.textContent = "Open lesson";
-        openBtn.classList.remove("btn-teal");
-        openBtn.classList.add("btn-outline-secondary");
-      }
-    }
-
-    updateLessonModalButtons();
-  }
-
-  function buildDefaultResources(title, courseTitle) {
-    const t = `${title || ""} ${courseTitle || ""}`.toLowerCase();
-    const list = [];
-    const add = (label, url) => {
-      if (!list.find((r) => r.url === url)) list.push({ label, url });
-    };
-
-    if (t.includes("network")) add("Computer network overview", "https://en.wikipedia.org/wiki/Computer_network");
-    if (t.includes("lan")) add("Local area network", "https://en.wikipedia.org/wiki/Local_area_network");
-    if (t.includes("wan")) add("Wide area network", "https://en.wikipedia.org/wiki/Wide_area_network");
-    if (t.includes("ethernet")) add("Ethernet basics", "https://en.wikipedia.org/wiki/Ethernet");
-    if (t.includes("mac")) add("MAC address", "https://en.wikipedia.org/wiki/MAC_address");
-    if (t.includes("ip")) add("IP address", "https://en.wikipedia.org/wiki/IP_address");
-    if (t.includes("subnet")) add("Subnetting", "https://en.wikipedia.org/wiki/Subnetting");
-    if (t.includes("gateway")) add("Default gateway", "https://en.wikipedia.org/wiki/Default_gateway");
-    if (t.includes("vlan")) add("Virtual LAN", "https://en.wikipedia.org/wiki/Virtual_LAN");
-    if (t.includes("trunk")) add("IEEE 802.1Q", "https://en.wikipedia.org/wiki/IEEE_802.1Q");
-    if (t.includes("routing") || t.includes("ospf")) add("Routing (overview)", "https://en.wikipedia.org/wiki/Routing");
-    if (t.includes("firewall")) add("Firewall", "https://en.wikipedia.org/wiki/Firewall_(computing)");
-    if (t.includes("acl")) add("Access control list", "https://en.wikipedia.org/wiki/Access_control_list");
-    if (t.includes("siem") || t.includes("logging")) add("SIEM", "https://en.wikipedia.org/wiki/Security_information_and_event_management");
-    if (t.includes("bgp")) add("BGP", "https://en.wikipedia.org/wiki/Border_Gateway_Protocol");
-    if (t.includes("automation")) add("Network automation", "https://en.wikipedia.org/wiki/Network_automation");
-    if (t.includes("snmp")) add("SNMP", "https://en.wikipedia.org/wiki/Simple_Network_Management_Protocol");
-
-    if (list.length < 3) {
-      add("Internet protocol suite", "https://en.wikipedia.org/wiki/Internet_protocol_suite");
-      add("OSI model", "https://en.wikipedia.org/wiki/OSI_model");
-      add("Computer network topologies", "https://en.wikipedia.org/wiki/Network_topology");
-    }
-
-    return list.slice(0, 4);
-  }
-
-  function animatePreviewRing() {
-    const ring = getById("previewRing");
-    if (!ring) return;
-    const prog = computeProgress();
-    const CIRC = 2 * Math.PI * 26;
-    ring.style.transition = "none";
-    ring.style.strokeDasharray = `${CIRC.toFixed(2)}`;
-    ring.style.strokeDashoffset = `${CIRC.toFixed(2)}`;
-    requestAnimationFrame(() => {
-      ring.style.transition = "stroke-dashoffset .6s ease";
-      ring.style.strokeDashoffset = `${(CIRC * (1 - prog.pct / 100)).toFixed(2)}`;
-    });
-  }
-
-  // Delayed tooltip for preview buttons.
-
-  let __previewTooltip = null;
-
-  function ensurePreviewTooltip() {
-    if (__previewTooltip) return __previewTooltip;
-    const tip = document.createElement("div");
-    tip.className = "net-tooltip";
-    tip.textContent = "Preview";
-    document.body.appendChild(tip);
-    __previewTooltip = tip;
-    return tip;
-  }
-
-  function schedulePreviewTooltip(target) {
-    if (!target) return;
-    clearPreviewTooltipTimer(target);
-    const t = setTimeout(() => showPreviewTooltip(target), 1000);
-    target.dataset.previewTipTimer = String(t);
-  }
-
-  function clearPreviewTooltipTimer(target) {
-    const handle = Number(target?.dataset?.previewTipTimer || 0);
-    if (handle) clearTimeout(handle);
-    if (target?.dataset) delete target.dataset.previewTipTimer;
-  }
-
-  function showPreviewTooltip(target) {
-    const tip = ensurePreviewTooltip();
-    const lesson = target?.getAttribute("data-lesson");
-    const base = target?.getAttribute("title") || "Preview";
-    tip.textContent = lesson ? `${base} lesson ${lesson}` : base;
-    tip.classList.add("is-open");
-
-    const rect = target.getBoundingClientRect();
-    const pad = 8;
-    const w = tip.offsetWidth;
-    const h = tip.offsetHeight;
-    let left = rect.left + rect.width / 2 - w / 2;
-    let top = rect.top - h - 10;
-    left = Math.max(pad, Math.min(left, window.innerWidth - w - pad));
-    if (top < pad) top = rect.bottom + 10;
-
-    tip.style.left = `${left}px`;
-    tip.style.top = `${top}px`;
-  }
-
-  function hidePreviewTooltip(target) {
-    clearPreviewTooltipTimer(target);
-    if (__previewTooltip) __previewTooltip.classList.remove("is-open");
-  }
-
-  function moveLearn(dir) {
-    if (!state.learnItemsFlat.length) return;
-
-    let next = state.activeLearnIndex + dir;
-    next = clamp(next, 0, state.learnItemsFlat.length - 1);
-
-    state.activeLearnIndex = next;
-    state.activeLearn = state.learnItemsFlat[next];
-
-    fillLessonModal(state.activeLearn);
-  }
-
-  function updateLessonModalButtons() {
-    const prevBtn = getById("lessonPrevBtn");
-    const nextBtn = getById("lessonNextBtn");
-
-    if (prevBtn) prevBtn.disabled = state.activeLearnIndex <= 0;
-    if (nextBtn) nextBtn.disabled = state.activeLearnIndex >= state.learnItemsFlat.length - 1;
-  }
-
-  // Show toast when returning from another page.
-
-  function maybeShowReturnToast() {
-    const params = new URLSearchParams(window.location.search);
-    const msg = params.get("toast");
-    if (!msg) return;
-
-    const decoded = decodeURIComponent(msg);
-    if (window.NetologyToast?.showMessageToast) {
-      window.NetologyToast.showMessageToast(decoded, "success", 3200);
+    if (item.type === "quiz") {
+      iconContainer.classList.add("net-ico-quiz");
+      iconContainer.appendChild(createIcon("bi bi-patch-question"));
+    } else if (item.type === "sandbox") {
+      iconContainer.classList.add("net-ico-sandbox");
+      iconContainer.appendChild(createIcon("bi bi-diagram-3"));
+    } else if (item.type === "challenge") {
+      iconContainer.classList.add("net-ico-challenge");
+      iconContainer.appendChild(createIcon("bi bi-flag"));
     } else {
-      alert(decoded);
+      iconContainer.classList.add("net-ico-learn");
+      iconContainer.appendChild(createIcon("bi bi-file-text"));
+    }
+
+    return iconContainer;
+  }
+
+  // ============================================================
+  // LESSON MODAL
+  // ============================================================
+
+  // Open lesson in modal
+  function openLessonModal(item) {
+    pageState.currentLesson = item;
+    pageState.currentLessonIndex = pageState.lessonsList.indexOf(item);
+
+    // Show modal (implementation depends on your HTML structure)
+    const modal = getById("lessonModal");
+    if (modal) {
+      updateLessonModalContent(item);
+      modal.classList.add("is-open");
     }
   }
 
-  function showCourseProgressToast(progress) {
-    const percentComplete = Number(progress?.pct || 0);
-    const completedItems = Number(progress?.done || 0);
-    const requiredItems = Number(progress?.total || 0);
-    const progressMessage = requiredItems
-      ? `You're now ${percentComplete}% complete · ${completedItems}/${requiredItems} required items done.`
-      : "Your course progress just refreshed.";
-    const nextLevelHint =
-      state.user && state.stats && Number.isFinite(Number(state.stats.toNext))
-        ? `Next level in ${Math.max(0, Number(state.stats.toNext))} XP.`
-        : "";
+  // Update modal content
+  function updateLessonModalContent(item) {
+    setTextById("lessonModalTitle", item.title);
+    setTextById("lessonModalDuration", item.duration);
+    setTextById("lessonModalXP", item.xpReward);
 
-    if (window.NetologyToast?.show) {
-      window.NetologyToast.show({
-        skin: "net",
-        id: "courseProgressToast",
-        type: "success",
-        title: "Course progress updated",
-        sub: progressMessage,
-        hint: nextLevelHint,
-        duration: 2800
-      });
-      return;
+    const contentElement = getById("lessonModalContent");
+    if (contentElement && item.content) {
+      clearChildren(contentElement);
+      appendTextWithLineBreaks(contentElement, item.content);
     }
-
-    if (window.NetologyToast?.showMessageToast) {
-      window.NetologyToast.showMessageToast(progressMessage, "success", 3200);
-      return;
-    }
-
-    showAria(progressMessage);
   }
 
-  // Icon builders for lesson rows.
-
-  function lessonIcon(it, completed, locked) {
-    const wrap = document.createElement("div");
-
-    if (locked) {
-      wrap.className = "net-ico-pill bg-light border";
-      const icon = makeIcon("bi bi-lock-fill text-muted");
-      icon.setAttribute("aria-hidden", "true");
-      wrap.appendChild(icon);
-      return wrap;
+  // Close lesson modal
+  function closeLessonModal() {
+    const modal = getById("lessonModal");
+    if (modal) {
+      modal.classList.remove("is-open");
     }
-    if (completed) {
-      wrap.className = "net-ico-pill net-ico-success";
-      const icon = makeIcon("bi bi-check2-circle");
-      icon.setAttribute("aria-hidden", "true");
-      wrap.appendChild(icon);
-      return wrap;
-    }
-
-    if (it.type === "quiz") {
-      wrap.className = "net-ico-pill net-ico-quiz";
-      wrap.appendChild(makeIcon("bi bi-patch-question"));
-      return wrap;
-    }
-    if (it.type === "sandbox" || it.type === "practice") {
-      wrap.className = "net-ico-pill net-ico-sandbox";
-      wrap.appendChild(makeIcon("bi bi-diagram-3"));
-      return wrap;
-    }
-    if (it.type === "challenge") {
-      wrap.className = "net-ico-pill net-ico-challenge";
-      wrap.appendChild(makeIcon("bi bi-flag"));
-      return wrap;
-    }
-
-    wrap.className = "net-ico-pill net-ico-learn";
-    wrap.appendChild(makeIcon("bi bi-file-text"));
-    return wrap;
   }
+
+  // ============================================================
+  // PAGE INITIALIZATION
+  // ============================================================
+
+  // Start when DOM is ready
+  function onDOMReady(callback) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", callback);
+    } else {
+      callback();
+    }
+  }
+
+  // Initialize on page load
+  onDOMReady(() => {
+    initializeCoursePage();
+  });
 
 })();
