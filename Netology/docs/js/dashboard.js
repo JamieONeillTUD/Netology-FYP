@@ -857,10 +857,10 @@
             return;
           }
 
-          // Show unlocked first (if any), then first few locked
+          // Show unlocked first (if any), then first few locked - max 6 total for nice display
           const toShow = [
-            ...(catalog.unlocked || []).slice(0, 3),
-            ...(catalog.locked || []).slice(0, 3)
+            ...(catalog.unlocked || []).slice(0, 4),
+            ...(catalog.locked || []).slice(0, 2)
           ];
 
           const html = toShow.map(achievement => `
@@ -869,10 +869,8 @@
               <div class="badge-icon">
                 <i class="bi ${achievement.icon}"></i>
               </div>
-              <div class="badge-info">
-                <div class="badge-name">${achievement.name}</div>
-                <div class="badge-xp">+${achievement.xp_reward} XP</div>
-              </div>
+              <div class="badge-name">${achievement.name}</div>
+              <div class="badge-xp">+${achievement.xp_reward} XP</div>
             </div>
           `).join('');
 
@@ -883,21 +881,28 @@
           if (!el) return;
           
           if (!challenges || challenges.length === 0) {
-            el.innerHTML = '<div class="small text-muted">No challenges available.</div>';
+            el.innerHTML = '<div class="small text-muted text-center p-3">No challenges available yet</div>';
             return;
           }
 
-          const html = challenges.map(challenge => `
-            <div class="challenge-item mb-2 pb-2 border-bottom">
-              <div class="d-flex align-items-start">
-                <div class="flex-grow-1">
-                  <div class="fw-semibold">${challenge.title || challenge.name || 'Challenge'}</div>
-                  <div class="small text-muted">${challenge.description || ''}</div>
-                  ${challenge.xp_reward ? `<div class="small text-warning"><i class="bi bi-gem me-1"></i>${challenge.xp_reward} XP</div>` : ''}
+          const html = challenges.map((challenge, idx) => {
+            const xpReward = challenge.xp_reward || 0;
+            const desc = challenge.description || challenge.details || 'Complete this challenge';
+            return `
+              <div class="challenge-item">
+                <div class="d-flex align-items-start justify-content-between">
+                  <div class="flex-grow-1">
+                    <div class="fw-semibold">${idx + 1}. ${challenge.title || challenge.name || 'Challenge'}</div>
+                    <div class="text-muted">${desc}</div>
+                    ${xpReward > 0 ? `<div class="text-warning"><i class="bi bi-gem"></i> +${xpReward} XP</div>` : ''}
+                  </div>
+                  <div class="ms-2">
+                    <span class="badge bg-success-subtle text-success">Active</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          `).join('');
+            `;
+          }).join('');
 
           el.innerHTML = html || '<div class="small text-muted">No challenges available.</div>';
         }

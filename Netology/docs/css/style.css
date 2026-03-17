@@ -12760,3 +12760,112 @@ body[data-theme="dark"] .les-mcq-letter {
   border-color: rgba(148, 163, 184, 0.4);
   background: rgba(15, 23, 42, 0.56);
 }
+
+/* ═════════════════════════════════════════════════════════════
+   ACHIEVEMENTS & CHALLENGES STYLING
+   ═════════════════════════════════════════════════════════════ */
+
+/* Achievement badge styling */
+.achievement-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  transition: all 0.2s ease;
+  flex: 0 0 calc(50% - 0.5rem);
+  text-align: center;
+}
+
+.achievement-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.achievement-badge.unlocked {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #fcd34d;
+}
+
+.achievement-badge.locked {
+  opacity: 0.6;
+}
+
+.badge-icon {
+  font-size: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+}
+
+.achievement-badge.unlocked .badge-icon {
+  color: #d97706;
+}
+
+.achievement-badge.locked .badge-icon {
+  color: #9ca3af;
+}
+
+.badge-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.2;
+}
+
+.badge-xp {
+  font-size: 0.7rem;
+  color: #059669;
+  font-weight: 700;
+}
+
+/* Achievement scroller */
+#achieveScroller {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Challenge item styling */
+.challenge-item {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #f9fafb;
+  border-left: 3px solid #0d9488;
+  transition: all 0.2s ease;
+}
+
+.challenge-item:hover {
+  background: #f3f4f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.challenge-item .fw-semibold {
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.challenge-item .text-muted {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.challenge-item .text-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #b45309;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
