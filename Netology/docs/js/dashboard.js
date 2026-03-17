@@ -827,40 +827,41 @@
         },
         
         renderContinueLearning: async (user) => {
-          // Render courses in progress
+          // Render courses in progress as mini course cards
           const continueBox = document.getElementById("continueBox");
           if (!continueBox) return;
 
           const inProgressCourses = dashboardState.progressSummary?.inProgress || 0;
           
           if (inProgressCourses === 0) {
-            continueBox.innerHTML = '<div class="small text-muted">No courses in progress. Start learning today!</div>';
+            continueBox.innerHTML = '<div class="small text-muted text-center p-3">No courses in progress. Start a new course!</div>';
             return;
           }
 
-          // Display placeholder while loading courses
+          // For now, show placeholder with course count
+          // In future, this would fetch and render actual course cards from courseData
           continueBox.innerHTML = `
             <div class="small text-muted">
-              <i class="bi bi-hourglass-split me-2"></i>${inProgressCourses} course(s) in progress
+              <i class="bi bi-book me-2"></i>${inProgressCourses} course(s) in progress
             </div>
           `;
         },
         
         renderAchievements: () => {
-          // Render achievements from dashboardState.achievementCatalog
+          // Render achievements - keep small, use Netology colors
           const scrollerEl = document.getElementById("achieveScroller");
           if (!scrollerEl) return;
 
           const catalog = dashboardState.achievementCatalog;
           if (!catalog || !catalog.all || catalog.all.length === 0) {
-            scrollerEl.innerHTML = '<div class="small text-muted">No achievements yet. Start learning!</div>';
+            scrollerEl.innerHTML = '<div class="small text-muted">No achievements yet</div>';
             return;
           }
 
-          // Show unlocked first (if any), then first few locked - max 6 total for nice display
+          // Show unlocked first, then locked - max 4 total to keep small
           const toShow = [
-            ...(catalog.unlocked || []).slice(0, 4),
-            ...(catalog.locked || []).slice(0, 2)
+            ...(catalog.unlocked || []).slice(0, 3),
+            ...(catalog.locked || []).slice(0, 1)
           ];
 
           const html = toShow.map(achievement => `
@@ -870,41 +871,35 @@
                 <i class="bi ${achievement.icon}"></i>
               </div>
               <div class="badge-name">${achievement.name}</div>
-              <div class="badge-xp">+${achievement.xp_reward} XP</div>
             </div>
           `).join('');
 
-          scrollerEl.innerHTML = html || '<div class="small text-muted">No achievements yet.</div>';
+          scrollerEl.innerHTML = html || '<div class="small text-muted">No achievements yet</div>';
         },
         
         renderChallengeList: (el, challenges, type) => {
           if (!el) return;
           
           if (!challenges || challenges.length === 0) {
-            el.innerHTML = '<div class="small text-muted text-center p-3">No challenges available yet</div>';
+            el.innerHTML = '<div class="small text-muted text-center p-2">No challenges available</div>';
             return;
           }
 
-          const html = challenges.map((challenge, idx) => {
+          const html = challenges.map((challenge) => {
             const xpReward = challenge.xp_reward || 0;
-            const desc = challenge.description || challenge.details || 'Complete this challenge';
             return `
               <div class="challenge-item">
-                <div class="d-flex align-items-start justify-content-between">
-                  <div class="flex-grow-1">
-                    <div class="fw-semibold">${idx + 1}. ${challenge.title || challenge.name || 'Challenge'}</div>
-                    <div class="text-muted">${desc}</div>
-                    ${xpReward > 0 ? `<div class="text-warning"><i class="bi bi-gem"></i> +${xpReward} XP</div>` : ''}
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                  <div class="flex-grow-1 min-width-0">
+                    <div class="fw-semibold text-truncate">${challenge.title || challenge.name || 'Challenge'}</div>
                   </div>
-                  <div class="ms-2">
-                    <span class="badge bg-success-subtle text-success">Active</span>
-                  </div>
+                  ${xpReward > 0 ? `<div class="text-warning small fw-bold">+${xpReward} XP</div>` : ''}
                 </div>
               </div>
             `;
           }).join('');
 
-          el.innerHTML = html || '<div class="small text-muted">No challenges available.</div>';
+          el.innerHTML = html || '<div class="small text-muted">No challenges available</div>';
         }
       };
     }
@@ -937,11 +932,18 @@
     // Get numeric level (fallback to parsing text if needed)
     const numericLevel = user.numeric_level || (user.level && !isNaN(parseInt(user.level)) ? parseInt(user.level) : 1);
 
+    // RANK box - show rank number and difficulty level
     const heroRank = document.getElementById("heroRank");
     if (heroRank) {
-      heroRank.textContent = numericLevel;
+      // Get difficulty based on level
+      const difficulty = numericLevel >= 5 ? "Advanced" : (numericLevel >= 3 ? "Intermediate" : "Novice");
+      heroRank.innerHTML = `
+        <div style="font-size: 2.5rem; font-weight: 700; color: #0d9488; margin-bottom: 0.5rem;">${numericLevel}</div>
+        <div style="font-size: 0.875rem; color: #6b7280;">${difficulty}</div>
+      `;
     }
 
+    // LEVEL box - show just level, XP will be shown in gauge
     const heroLevel = document.getElementById("heroLevel");
     if (heroLevel) {
       heroLevel.textContent = `Level ${numericLevel}`;

@@ -12869,3 +12869,52 @@ body[data-theme="dark"] .les-mcq-letter {
   margin-top: 0.5rem;
 }
 
+
+/* Override achievement badge styling with Netology colors */
+.achievement-badge {
+  flex: 0 0 auto !important;
+  width: 70px;
+  height: 70px;
+  padding: 0.5rem !important;
+  gap: 0.25rem !important;
+}
+
+.badge-icon {
+  font-size: 1.5rem !important;
+  width: 2rem !important;
+  height: 2rem !important;
+}
+
+.achievement-badge.unlocked {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%) !important;
+  border-color: #6ee7b7 !important;
+}
+
+.achievement-badge.unlocked .badge-icon {
+  color: #0d9488 !important;
+}
+
+.badge-name {
+  font-size: 0.65rem !important;
+}
+
+.badge-xp {
+  display: none !important;
+}
+
+/* Compact challenge styling */
+.challenge-item {
+  padding: 0.75rem !important;
+  margin-bottom: 0.5rem;
+  border-left-width: 2px !important;
+}
+
+.challenge-item .fw-semibold {
+  font-size: 0.9rem;
+  margin-bottom: 0 !important;
+}
+
+.challenge-item .text-muted {
+  display: none !important;
+}
+
