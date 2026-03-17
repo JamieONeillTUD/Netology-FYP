@@ -463,26 +463,18 @@
     }
 
     try {
-      const endpoint = ENDPOINTS.courses?.userProgress || ENDPOINTS.courses?.list || "/api/courses/user";
-      console.log("Fetching user courses from:", endpoint);
-      const data = await apiGet(endpoint, { user_email: userEmail });
-      console.log("Got user courses response:", data);
+      const endpoint = ENDPOINTS.courses?.userCourses || "/user-courses";
+      const data = await apiGet(endpoint, { email: userEmail });
 
-      // Extract courses array - be flexible with response structure
+      // Backend returns { success: true, courses: [...] }
       let courses = [];
       if (Array.isArray(data)) {
         courses = data;
       } else if (data.courses && Array.isArray(data.courses)) {
         courses = data.courses;
-      } else if (data.userCourses && Array.isArray(data.userCourses)) {
-        courses = data.userCourses;
-      } else if (data.in_progress && Array.isArray(data.in_progress)) {
-        // Some backends return in_progress array
-        courses = data.in_progress;
       }
-      
+
       dashboardState.userCourses = courses;
-      console.log("Stored user courses:", dashboardState.userCourses);
       return courses;
 
     } catch (error) {
@@ -916,22 +908,13 @@
           
           // Fetch from dashboardState which was populated by fetchUserCoursesFromServer
           if (dashboardState.userCourses && Array.isArray(dashboardState.userCourses) && dashboardState.userCourses.length > 0) {
-            // Broad filter: any course that has progress, is not completed, or is marked in-progress
+            // Backend returns status: "in-progress" | "completed" | "not-started"
+            // Only show courses the user has actually started (progress_pct > 0 or status is in-progress)
             courses = dashboardState.userCourses.filter(c => {
               const status = (c.status || "").toLowerCase();
-              const isCompleted = c.completed === true || c.completed === 1 || status === 'completed';
-              if (isCompleted) return false;
-              // Accept if in_progress flag is truthy, status says in_progress, or they have some lessons done
-              return c.in_progress || c.in_progress === 1 || status === 'in_progress' ||
-                     (c.completed_lessons && Number(c.completed_lessons) > 0);
+              if (status === 'completed') return false;
+              return status === 'in-progress' || Number(c.progress_pct || 0) > 0;
             });
-            // If still nothing, show ALL enrolled courses that aren't completed
-            if (courses.length === 0) {
-              courses = dashboardState.userCourses.filter(c => {
-                const status = (c.status || "").toLowerCase();
-                return c.completed !== true && c.completed !== 1 && status !== 'completed';
-              });
-            }
           }
 
           if (courses.length === 0) {
@@ -946,8 +929,8 @@
           continueBox.className = "continue-learning-list";
 
           courses.forEach(course => {
-            const progress = Math.round(((course.completed_lessons || 0) / (course.total_lessons || 1)) * 100) || 0;
-            const courseId = course.id || course.course_id || course.slug || "";
+            const progress = Math.min(100, Math.max(0, Number(course.progress_pct || 0)));
+            const courseId = course.id || "";
             const courseHref = courseId ? `course.html?id=${encodeURIComponent(courseId)}` : "courses.html";
 
             const card = document.createElement("a");
@@ -987,7 +970,8 @@
             // Progress label
             const labelDiv = document.createElement("small");
             labelDiv.className = "text-muted";
-            labelDiv.textContent = `${progress}% complete • ${course.completed_lessons || 0}/${course.total_lessons || 0} lessons`;
+            const lessonInfo = course.total_lessons ? ` • ${course.total_lessons} lessons` : "";
+            labelDiv.textContent = `${progress}% complete${lessonInfo}`;
             card.appendChild(labelDiv);
 
             continueBox.appendChild(card);
@@ -1018,9 +1002,9 @@
           toShow.forEach(achievement => {
             const badge = document.createElement("div");
             badge.className = `achievement-badge ${achievement.unlocked ? "unlocked" : "locked"}`;
-            
-            // Create tooltip content
-            const tooltipText = `${achievement.name}: ${achievement.description}${achievement.xp_reward ? ` (+${achievement.xp_reward} XP)` : ''}`;
+
+            // Tooltip with full info on hover
+            const tooltipText = `${achievement.name}: ${achievement.description}${achievement.xp_reward ? ` (+${achievement.xp_reward} XP)` : ""}`;
             badge.setAttribute("data-bs-toggle", "tooltip");
             badge.setAttribute("data-bs-placement", "top");
             badge.title = tooltipText;
@@ -1033,13 +1017,11 @@
             icon.appendChild(iconElement);
             badge.appendChild(icon);
 
-            // Name (only show for unlocked to keep locked badges small)
-            if (achievement.unlocked) {
-              const name = document.createElement("div");
-              name.className = "badge-name";
-              name.textContent = achievement.name;
-              badge.appendChild(name);
-            }
+            // Name shown on all badges
+            const name = document.createElement("div");
+            name.className = "badge-name";
+            name.textContent = achievement.name;
+            badge.appendChild(name);
 
             scrollerEl.appendChild(badge);
           });
@@ -1205,64 +1187,67 @@
     const currentXp = xpIntoLevel > 0 ? xpIntoLevel : Math.max(0, rawXp - levelStartXp);
     const progress = Math.min(100, Math.max(0, nextLevelXp > 0 ? (currentXp / nextLevelXp) * 100 : 0));
 
-    // Create SVG semi-circle arc gauge (larger)
-    const width = 200;
-    const height = 110;
-    const centerX = width / 2;
-    const centerY = 85;
-    const radius = 65;
+    // Semi-circle gauge using strokeDasharray/strokeDashoffset on a full circle
+    // This is reliable and avoids floating-point arc endpoint bugs.
+    const r = 54;
+    const cx = 100;
+    const cy = 90;
+    const circumference = Math.PI * r; // half-circle arc length
+    const dashOffset = circumference * (1 - progress / 100);
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    svg.setAttribute("width", width);
-    svg.setAttribute("height", height);
-    svg.style.cssText = "max-width: 200px; height: auto;";
+    svg.setAttribute("viewBox", "0 0 200 100");
+    svg.setAttribute("width", "200");
+    svg.setAttribute("height", "100");
+    svg.style.cssText = "max-width: 200px; display: block;";
 
-    // Background semi-circle arc
-    const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const bgD = `M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 0 1 ${centerX + radius} ${centerY}`;
-    bgPath.setAttribute("d", bgD);
-    bgPath.setAttribute("fill", "none");
-    bgPath.setAttribute("stroke", "#e9ecef");
-    bgPath.setAttribute("stroke-width", "6");
-    bgPath.setAttribute("stroke-linecap", "round");
-    svg.appendChild(bgPath);
+    // Background arc (grey)
+    const bgArc = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    bgArc.setAttribute("cx", cx);
+    bgArc.setAttribute("cy", cy);
+    bgArc.setAttribute("r", r);
+    bgArc.setAttribute("fill", "none");
+    bgArc.setAttribute("stroke", "#e9ecef");
+    bgArc.setAttribute("stroke-width", "10");
+    bgArc.setAttribute("stroke-dasharray", `${circumference} ${circumference}`);
+    bgArc.setAttribute("stroke-dashoffset", "0");
+    bgArc.setAttribute("stroke-linecap", "round");
+    bgArc.setAttribute("transform", `rotate(180 ${cx} ${cy})`);
+    svg.appendChild(bgArc);
 
-    // Progress semi-circle arc (blue)
-    const progressPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const endAngle = (Math.PI / 180) * (180 * (progress / 100));
-    const endX = centerX + radius * Math.cos(Math.PI - endAngle);
-    const endY = centerY - radius * Math.sin(Math.PI - endAngle);
-    const largeArc = progress > 50 ? 1 : 0;
-    const progressD = `M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 ${largeArc} 1 ${endX} ${endY}`;
-    
-    progressPath.setAttribute("d", progressD);
-    progressPath.setAttribute("fill", "none");
-    progressPath.setAttribute("stroke", "#0d6efd");
-    progressPath.setAttribute("stroke-width", "6");
-    progressPath.setAttribute("stroke-linecap", "round");
-    svg.appendChild(progressPath);
+    // Progress arc (teal)
+    const progArc = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    progArc.setAttribute("cx", cx);
+    progArc.setAttribute("cy", cy);
+    progArc.setAttribute("r", r);
+    progArc.setAttribute("fill", "none");
+    progArc.setAttribute("stroke", "#0d9488");
+    progArc.setAttribute("stroke-width", "10");
+    progArc.setAttribute("stroke-dasharray", `${circumference} ${circumference}`);
+    progArc.setAttribute("stroke-dashoffset", dashOffset);
+    progArc.setAttribute("stroke-linecap", "round");
+    progArc.setAttribute("transform", `rotate(180 ${cx} ${cy})`);
+    svg.appendChild(progArc);
 
-    // Level number in center
+    // Level number
     const levelText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    levelText.setAttribute("x", centerX);
-    levelText.setAttribute("y", centerY - 15);
+    levelText.setAttribute("x", cx);
+    levelText.setAttribute("y", "72");
     levelText.setAttribute("text-anchor", "middle");
-    levelText.setAttribute("font-size", "32");
+    levelText.setAttribute("font-size", "30");
     levelText.setAttribute("font-weight", "700");
     levelText.setAttribute("fill", "#212529");
     levelText.textContent = level;
     svg.appendChild(levelText);
 
-    // XP progress text below level
+    // XP label
     const xpLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    xpLabel.setAttribute("x", centerX);
-    xpLabel.setAttribute("y", centerY + 15);
+    xpLabel.setAttribute("x", cx);
+    xpLabel.setAttribute("y", "90");
     xpLabel.setAttribute("text-anchor", "middle");
-    xpLabel.setAttribute("font-size", "12");
+    xpLabel.setAttribute("font-size", "10");
     xpLabel.setAttribute("fill", "#6c757d");
     xpLabel.textContent = `${currentXp} / ${nextLevelXp} XP`;
-    xpLabel.setAttribute("font-size", "11");
     svg.appendChild(xpLabel);
 
     // Clear and insert
