@@ -903,13 +903,8 @@
           const continueBox = document.getElementById("continueBox");
           if (!continueBox) return;
 
-          // Get in-progress courses from dashboard state
           let courses = [];
-          
-          // Fetch from dashboardState which was populated by fetchUserCoursesFromServer
           if (dashboardState.userCourses && Array.isArray(dashboardState.userCourses) && dashboardState.userCourses.length > 0) {
-            // Backend returns status: "in-progress" | "completed" | "not-started"
-            // Only show courses the user has actually started (progress_pct > 0 or status is in-progress)
             courses = dashboardState.userCourses.filter(c => {
               const status = (c.status || "").toLowerCase();
               if (status === 'completed') return false;
@@ -924,55 +919,67 @@
             return;
           }
 
-          // Clear and render course cards
           continueBox.innerHTML = "";
           continueBox.className = "continue-learning-list";
+
+          // Difficulty helpers (mirrors courses.js)
+          const diffIcon = (d) => {
+            const lvl = (d || "novice").toLowerCase();
+            if (lvl === "advanced") return '<i class="bi bi-diamond-fill"></i>';
+            if (lvl === "intermediate") return '<i class="bi bi-hexagon-fill"></i>';
+            return '<i class="bi bi-circle-fill"></i>';
+          };
+          const normDiff = (d) => {
+            const v = (d || "novice").toLowerCase();
+            return ["novice","intermediate","advanced"].includes(v) ? v : "novice";
+          };
 
           courses.forEach(course => {
             const progress = Math.min(100, Math.max(0, Number(course.progress_pct || 0)));
             const courseId = course.id || "";
-            const courseHref = courseId ? `course.html?id=${encodeURIComponent(courseId)}` : "courses.html";
+            const courseHref = courseId ? `course.html?course_id=${encodeURIComponent(courseId)}` : "courses.html";
+            const diff = normDiff(course.difficulty);
+            const title = course.title || course.name || "Course";
+            const category = course.category || "";
+            const lessons = course.total_lessons || 0;
+            const xpReward = course.xp_reward || 0;
 
-            const card = document.createElement("a");
-            card.className = "continue-item";
-            card.href = courseHref;
-            card.style.textDecoration = "none";
-            card.style.color = "inherit";
+            const card = document.createElement("div");
+            card.className = "net-course-card net-course-card--sm";
+            card.dataset.difficulty = diff;
+            card.style.cursor = "pointer";
 
-            // Title
-            const titleDiv = document.createElement("div");
-            titleDiv.className = "fw-semibold small";
-            titleDiv.textContent = course.name || course.title || "Course";
-            card.appendChild(titleDiv);
+            card.innerHTML = `
+              <div class="net-course-header">
+                <div class="net-course-icon">${diffIcon(diff)}</div>
+                <div class="net-course-meta">
+                  ${category ? `<div class="net-course-category">${category}</div>` : ""}
+                  <div class="net-course-title">${title}</div>
+                </div>
+              </div>
+              <div class="net-course-stats-row">
+                ${lessons ? `<span class="net-course-stat-pill"><i class="bi bi-file-text"></i>${lessons} lessons</span>` : ""}
+                ${xpReward ? `<span class="net-course-stat-pill"><i class="bi bi-lightning-charge-fill"></i>${xpReward} XP</span>` : ""}
+              </div>
+              <div class="net-course-footer">
+                <div class="net-course-progress-block">
+                  <div class="net-course-progress-meta">
+                    <span class="net-course-progress-label">${progress}% Complete</span>
+                  </div>
+                  <div class="net-course-bar net-course-bar--wide">
+                    <div class="net-course-bar-fill" style="width:${progress}%"></div>
+                  </div>
+                </div>
+                <button class="net-course-cta btn-continue">
+                  <i class="bi bi-play-fill"></i> Continue
+                </button>
+              </div>`;
 
-            // Subtitle (category / difficulty)
-            const sub = course.category || course.difficulty || course.description || "";
-            if (sub) {
-              const subDiv = document.createElement("div");
-              subDiv.className = "text-muted";
-              subDiv.style.fontSize = "0.7rem";
-              subDiv.textContent = sub;
-              card.appendChild(subDiv);
-            }
-
-            // Progress bar
-            const progressContainer = document.createElement("div");
-            progressContainer.className = "progress mt-2 mb-2";
-            progressContainer.style.height = "0.5rem";
-
-            const progressBar = document.createElement("div");
-            progressBar.className = "progress-bar bg-success";
-            progressBar.style.width = progress + "%";
-            progressBar.setAttribute("role", "progressbar");
-            progressContainer.appendChild(progressBar);
-            card.appendChild(progressContainer);
-
-            // Progress label
-            const labelDiv = document.createElement("small");
-            labelDiv.className = "text-muted";
-            const lessonInfo = course.total_lessons ? ` • ${course.total_lessons} lessons` : "";
-            labelDiv.textContent = `${progress}% complete${lessonInfo}`;
-            card.appendChild(labelDiv);
+            card.addEventListener("click", () => { window.location.href = courseHref; });
+            card.querySelector(".net-course-cta").addEventListener("click", (e) => {
+              e.stopPropagation();
+              window.location.href = courseHref;
+            });
 
             continueBox.appendChild(card);
           });

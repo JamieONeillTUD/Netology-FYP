@@ -12979,3 +12979,60 @@ body[data-theme="dark"] .les-mcq-letter {
   color: #6b7280;
   font-size: 0.75rem;
 }
+
+/* ── Compact course card for dashboard Continue Learning widget ── */
+.net-course-card--sm {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  padding: 0.75rem 0.9rem !important;
+  border-radius: 10px !important;
+  scroll-snap-align: unset;
+}
+
+.net-course-card--sm .net-course-icon {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  font-size: 0.85rem !important;
+  border-radius: 8px !important;
+}
+
+.net-course-card--sm .net-course-category {
+  font-size: 0.65rem !important;
+}
+
+.net-course-card--sm .net-course-title {
+  font-size: 0.82rem !important;
+  font-weight: 600;
+}
+
+.net-course-card--sm .net-course-stats-row {
+  margin-top: 0.35rem !important;
+  gap: 0.3rem !important;
+}
+
+.net-course-card--sm .net-course-stat-pill {
+  font-size: 0.65rem !important;
+  padding: 0.15rem 0.4rem !important;
+}
+
+.net-course-card--sm .net-course-footer {
+  margin-top: 0.4rem !important;
+  gap: 0.5rem !important;
+}
+
+.net-course-card--sm .net-course-progress-label {
+  font-size: 0.65rem !important;
+}
+
+.net-course-card--sm .net-course-bar {
+  height: 5px !important;
+}
+
+.net-course-card--sm .net-course-cta {
+  padding: 0.25rem 0.65rem !important;
+  font-size: 0.72rem !important;
+  border-radius: 6px !important;
+  white-space: nowrap;
+}
