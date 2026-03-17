@@ -5,11 +5,30 @@
 
   const getApiBaseUrl = () => (window.API_BASE || "").replace(/\/$/, "");
   const XP_SYSTEM = window.NetologyXP || null;
-  const apiGet = window.apiGet || createFallbackApiHelper();
   const ENDPOINTS = window.ENDPOINTS || {};
   const API_PATHS = {
     userInfo: ENDPOINTS.auth?.userInfo || "/user-info"
   };
+
+  function createFallbackApiHelper() {
+    return async function apiGetFallback(apiPath, queryParameters = {}) {
+      const baseUrl = getApiBaseUrl();
+      const fullUrl = baseUrl
+        ? new URL(baseUrl.replace(/\/$/, "") + apiPath)
+        : new URL(apiPath, window.location.origin);
+
+      Object.entries(queryParameters || {}).forEach(([paramName, paramValue]) => {
+        if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
+          fullUrl.searchParams.set(paramName, String(paramValue));
+        }
+      });
+
+      const response = await fetch(fullUrl.toString());
+      return response.json();
+    };
+  }
+
+  const apiGet = window.apiGet || createFallbackApiHelper();
 
   // Get element by ID
   function getById(elementId) {
@@ -63,15 +82,6 @@
     }
   }
 
-  // Clamp number between min and max
-  function clamp(numberValue, minimumValue, maximumValue) {
-    const numericValue = Number(numberValue);
-    if (Number.isNaN(numericValue)) {
-      return minimumValue;
-    }
-    return Math.min(maximumValue, Math.max(minimumValue, numericValue));
-  }
-
   // Safely parse JSON
   function parseJsonSafely(jsonString, fallbackValue = null) {
     try {
@@ -79,24 +89,6 @@
     } catch {
       return fallbackValue;
     }
-  }
-
-  function createFallbackApiHelper() {
-    return async function apiGetFallback(apiPath, queryParameters = {}) {
-      const baseUrl = getApiBaseUrl();
-      const fullUrl = baseUrl
-        ? new URL(baseUrl.replace(/\/$/, "") + apiPath)
-        : new URL(apiPath, window.location.origin);
-
-      Object.entries(queryParameters || {}).forEach(([paramName, paramValue]) => {
-        if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
-          fullUrl.searchParams.set(paramName, String(paramValue));
-        }
-      });
-
-      const response = await fetch(fullUrl.toString());
-      return response.json();
-    };
   }
 
   const pageState = {
@@ -117,8 +109,7 @@
     completionStatus: {
       lesson: new Set(),
       quiz: new Set(),
-      challenge: new Set(),
-      tutorial: new Set()
+      challenge: new Set()
     },
     currentLessonIndex: -1,
     currentLesson: null,
@@ -204,8 +195,8 @@
       description: rawCourse.description || "",
       difficulty: String(rawCourse.difficulty || "novice").toLowerCase(),
       requiredLevel: Number(rawCourse.required_level || 1),
-      estimatedTime: rawCourse.estimated_time || "—",
-      totalXP: Number(rawCourse.total_xp || 0),
+      estimatedTime: rawCourse.estimatedTime || rawCourse.estimated_time || "—",
+      totalXP: Number(rawCourse.xpReward || rawCourse.total_xp || 0),
       totalLessons: Number(rawCourse.total_lessons || 0),
       modules: []
     };
@@ -483,75 +474,221 @@
     }
   }
 
-  async function initializeCoursePage() {
-    console.log("Initializing course page...");
+  // ─── Progress helpers ────────────────────────────────────────────────────
 
-    // STEP 1: Parse URL parameters
-    console.log("Step 1: Getting course ID from URL...");
+  function getAllItems() {
+    const items = [];
+    pageState.courseData.modules.forEach((mod) => items.push(...mod.items));
+    return items;
+  }
+
+  function calculateCourseProgress() {
+    const allItems = getAllItems();
+    const total = allItems.length;
+    if (!total) return { percent: 0, completed: 0, total: 0, earnedXP: 0 };
+
+    let completed = 0;
+    let earnedXP = 0;
+    allItems.forEach((item) => {
+      const done =
+        pageState.completionStatus.lesson.has(item.lessonNumber) ||
+        pageState.completionStatus.quiz.has(item.lessonNumber) ||
+        pageState.completionStatus.challenge.has(item.lessonNumber);
+      if (done) {
+        completed++;
+        earnedXP += Number(item.xpReward || 0);
+      }
+    });
+
+    const percent = Math.round((completed / total) * 100);
+    return { percent, completed, total, earnedXP };
+  }
+
+  async function loadCompletionStatus() {
+    const user = pageState.currentUser;
+    if (!user?.email || !pageState.courseId) return;
+
+    try {
+      const baseUrl = getApiBaseUrl();
+      const statusPath = (ENDPOINTS.courses?.userCourseStatus || "/user-course-status");
+      const url = `${baseUrl}${statusPath}?email=${encodeURIComponent(user.email)}&course_id=${pageState.courseId}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data?.success) {
+        pageState.completionStatus.lesson = new Set((data.lessons || []).map(Number));
+        pageState.completionStatus.quiz = new Set((data.quizzes || []).map(Number));
+        pageState.completionStatus.challenge = new Set((data.challenges || []).map(Number));
+      }
+    } catch (err) {
+      console.warn("Could not load completion status:", err);
+    }
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+
+  function renderCourseHeader() {
+    const course = pageState.courseData;
+
+    // Basic text
+    setTextById("courseTitle", course.title || "Course");
+    setTextById("courseDescription", course.description || "");
+    setTextById("breadcrumbCourse", course.title || "Course");
+
+    // Difficulty pill
+    const diffPill = getById("difficultyPill");
+    if (diffPill) {
+      const diff = capitalize(course.difficulty || "Novice");
+      diffPill.textContent = diff;
+      diffPill.className = `net-pill-badge badge px-3 py-2 net-diff-${course.difficulty || "novice"}`;
+    }
+
+    // Stats strip
+    const moduleCount = course.modules.length;
+    setTextById("metaModules", `${moduleCount} module${moduleCount !== 1 ? "s" : ""}`);
+    setTextById("metaTime", course.estimatedTime || "—");
+    setTextById("metaXP", `${course.totalXP} XP`);
+    setTextById("moduleCountLabel", `${moduleCount} module${moduleCount !== 1 ? "s" : ""}`);
+
+    // Progress
+    const progress = calculateCourseProgress();
+    renderProgress(progress);
+
+    // Up-next card
+    renderUpNext(progress);
+  }
+
+  function renderProgress(progress) {
+    const pct = progress.percent;
+
+    // Ring
+    const ringEl = getById("progressRing");
+    if (ringEl) {
+      const circumference = 364.42;
+      const offset = circumference - (pct / 100) * circumference;
+      ringEl.style.strokeDashoffset = String(offset);
+    }
+    setTextById("progressPct", `${pct}%`);
+    setTextById("progressCount", `${progress.completed}/${progress.total}`);
+
+    // Hidden compat elements
+    setTextById("progressText", `${pct}%`);
+    const bar = getById("progressBar");
+    if (bar) bar.style.width = `${pct}%`;
+
+    // Status chips
+    const lockedPill = getById("courseLockedPill");
+    const activePill = getById("courseActivePill");
+    const completedPill = getById("courseCompletedPill");
+
+    const user = pageState.currentUser;
+    const userLevel = pageState.userStats.accessLevel || user?.numeric_level || 1;
+    const required = pageState.courseData.requiredLevel || 1;
+    const isLocked = Number(userLevel) < Number(required);
+
+    if (lockedPill) lockedPill.classList.toggle("d-none", !isLocked);
+    if (activePill) activePill.classList.toggle("d-none", isLocked || pct === 0 || pct === 100);
+    if (completedPill) completedPill.classList.toggle("d-none", pct < 100);
+
+    const lockedExplainer = getById("lockedExplainer");
+    if (lockedExplainer) {
+      lockedExplainer.classList.toggle("d-none", !isLocked);
+      if (isLocked) setTextById("lockedText", `Requires Level ${required} to unlock.`);
+    }
+  }
+
+  function renderUpNext(progress) {
+    const allItems = getAllItems();
+    const nextItem = allItems.find((item) => {
+      return (
+        !pageState.completionStatus.lesson.has(item.lessonNumber) &&
+        !pageState.completionStatus.quiz.has(item.lessonNumber) &&
+        !pageState.completionStatus.challenge.has(item.lessonNumber)
+      );
+    });
+
+    setTextById("nextStepText", nextItem ? nextItem.title : "All done!");
+    setTextById("sidePct", `${progress.percent}%`);
+    setTextById("sideModules", `${pageState.courseData.modules.length}/${pageState.courseData.modules.length}`);
+    setTextById("sideXPEarned", String(progress.earnedXP));
+
+    const continueBtn = getById("continueBtn");
+    const reviewBtn = getById("reviewBtn");
+
+    if (continueBtn) {
+      continueBtn.onclick = () => {
+        const target = nextItem || allItems[0];
+        if (target) openLesson(target);
+      };
+    }
+
+    if (reviewBtn) {
+      if (progress.percent === 100) {
+        reviewBtn.classList.remove("d-none");
+        reviewBtn.onclick = () => {
+          if (allItems[0]) openLesson(allItems[0]);
+        };
+      } else {
+        reviewBtn.classList.add("d-none");
+      }
+    }
+  }
+
+  async function initializeCoursePage() {
     const urlParams = new URLSearchParams(window.location.search);
-    pageState.courseId = urlParams.get("course_id") || "1";
+    pageState.courseId = urlParams.get("id") || urlParams.get("course_id") || "1";
     pageState.contentId = urlParams.get("content_id") || pageState.courseId;
 
-    // STEP 2: Load cached user and show UI
-    console.log("Step 2: Loading cached user...");
     const cachedUser = getCurrentUser();
     pageState.currentUser = cachedUser;
 
+    setupBrandRouting();
+    setupSidebar();
+    setupUserDropdown();
+    setupLogoutButtons();
+
     if (cachedUser && isUserLoggedIn(cachedUser)) {
-      setupBrandRouting();
-      setupSidebar();
-      setupUserDropdown();
-      setupLogoutButtons();
       updateUserDisplay(cachedUser);
       updateUserStats(cachedUser);
-    } else {
-      setupBrandRouting();
-      setupSidebar();
-      setupUserDropdown();
     }
 
-    // STEP 3: Load course from COURSE_CONTENT
-    console.log("Step 3: Loading course from COURSE_CONTENT...");
     const courseData = loadCourseFromContent(pageState.courseId);
     if (courseData) {
       pageState.courseData = courseData;
     } else {
-      console.warn("Could not load course data");
+      console.warn("Could not load course data for id:", pageState.courseId);
     }
 
-    // STEP 4: Refresh user from API
-    console.log("Step 4: Refreshing user from API...");
     const freshUser = await refreshUserFromServer();
     pageState.currentUser = freshUser;
-
     if (freshUser) {
       updateUserDisplay(freshUser);
       updateUserStats(freshUser);
     }
 
-    // STEP 5: Render course to page
-    console.log("Step 5: Rendering course...");
+    await loadCompletionStatus();
+
     renderCourseHeader();
     renderModules();
+    setupLessonDrawer();
 
-    console.log("Course page initialization complete!");
+    document.body.classList.remove("net-loading");
   }
 
-  function renderCourseHeader() {
-    const course = pageState.courseData;
-    setTextById("courseTitle", course.title || "Course");
-    setTextById("courseDescription", course.description || "");
-
-    const progress = calculateCourseProgress();
-    setTextById("courseProgress", `${progress.percent}%`);
-  }
+  // ─── Module / Lesson rendering ────────────────────────────────────────────
 
   // Render all modules
   function renderModules() {
-    const modulesContainer = getById("modulesContainer");
+    const modulesContainer = getById("modulesWrap");
     if (!modulesContainer) return;
 
     clearChildren(modulesContainer);
+
+    if (!pageState.courseData.modules.length) {
+      const empty = getById("modulesEmpty");
+      if (empty) empty.classList.remove("d-none");
+      return;
+    }
 
     pageState.courseData.modules.forEach((module, index) => {
       const moduleElement = renderModule(module, index + 1);
@@ -560,115 +697,167 @@
   }
 
   function renderModule(module, moduleNumber) {
-    const moduleContainer = createElement("div", "net-module");
-    const moduleHeader = createElement("div", "net-module-header");
+    const article = createElement("article", "net-card p-4 mb-2");
 
-    const moduleTitle = createElement("h3", "net-module-title", `Module ${moduleNumber}: ${module.title}`);
-    moduleHeader.appendChild(moduleTitle);
+    // Header
+    const header = createElement("div", "net-module-header mb-3");
+    const title = createElement("h3", "h5 fw-semibold mb-1", `Module ${moduleNumber}: ${module.title}`);
+    header.appendChild(title);
 
     if (module.description) {
-      const moduleDescription = createElement("p", "net-module-description", module.description);
-      moduleHeader.appendChild(moduleDescription);
+      const desc = createElement("p", "small text-muted mb-0", module.description);
+      header.appendChild(desc);
     }
+    article.appendChild(header);
 
-    moduleContainer.appendChild(moduleHeader);
-
-    // Add items
-    const itemsContainer = createElement("div", "net-module-items");
+    // Items
+    const itemsContainer = createElement("div", "net-module-items d-grid gap-2");
     module.items.forEach((item) => {
-      const itemElement = renderLesson(item);
-      itemsContainer.appendChild(itemElement);
+      itemsContainer.appendChild(renderLesson(item));
     });
+    article.appendChild(itemsContainer);
 
-    moduleContainer.appendChild(itemsContainer);
-
-    return moduleContainer;
+    return article;
   }
 
   function renderLesson(item) {
-    const isCompleted = pageState.completionStatus.lesson.has(item.lessonNumber);
+    const isCompleted =
+      pageState.completionStatus.lesson.has(item.lessonNumber) ||
+      pageState.completionStatus.quiz.has(item.lessonNumber) ||
+      pageState.completionStatus.challenge.has(item.lessonNumber);
 
-    const lessonElement = createElement("div", "net-lesson");
-    if (isCompleted) {
-      lessonElement.classList.add("is-completed");
-    }
+    const lessonEl = createElement("div", "net-lesson d-flex align-items-center gap-3 p-3 rounded");
+    lessonEl.style.cursor = "pointer";
+    if (isCompleted) lessonEl.classList.add("is-completed");
 
     // Icon
-    const iconContainer = createElement("div", "net-lesson-icon");
-    iconContainer.appendChild(getLessonIcon(item, isCompleted));
-    lessonElement.appendChild(iconContainer);
+    lessonEl.appendChild(getLessonIcon(item, isCompleted));
 
     // Content
-    const contentContainer = createElement("div", "net-lesson-content");
+    const content = createElement("div", "flex-grow-1");
+    content.appendChild(createElement("div", "fw-semibold", item.title));
+    const meta = createElement("div", "small text-muted");
+    meta.textContent = `${item.duration} · ${item.xpReward} XP`;
+    content.appendChild(meta);
+    lessonEl.appendChild(content);
 
-    const titleElement = createElement("h4", "net-lesson-title", item.title);
-    contentContainer.appendChild(titleElement);
+    // Completed tick
+    if (isCompleted) {
+      lessonEl.appendChild(createIcon("bi bi-check2-circle text-success ms-auto"));
+    }
 
-    const metaElement = createElement("div", "net-lesson-meta");
-    metaElement.textContent = `${item.duration} · ${item.xpReward} XP`;
-    contentContainer.appendChild(metaElement);
+    // Click: open preview drawer
+    lessonEl.addEventListener("click", () => openLessonPreview(item));
 
-    lessonElement.appendChild(contentContainer);
-
-    // Click to open lesson
-    lessonElement.addEventListener("click", () => {
-      openLessonModal(item);
-    });
-
-    return lessonElement;
+    return lessonEl;
   }
 
   function getLessonIcon(item, isCompleted) {
-    const iconContainer = document.createElement("div");
-    iconContainer.className = "net-ico-pill";
+    const pill = createElement("div", "net-ico-pill");
 
     if (isCompleted) {
-      iconContainer.classList.add("net-ico-success");
-      iconContainer.appendChild(createIcon("bi bi-check2-circle"));
-      return iconContainer;
-    }
-
-    if (item.type === "quiz") {
-      iconContainer.classList.add("net-ico-quiz");
-      iconContainer.appendChild(createIcon("bi bi-patch-question"));
+      pill.classList.add("net-ico-success");
+      pill.appendChild(createIcon("bi bi-check2-circle"));
+    } else if (item.type === "quiz") {
+      pill.classList.add("net-ico-quiz");
+      pill.appendChild(createIcon("bi bi-patch-question"));
     } else if (item.type === "sandbox") {
-      iconContainer.classList.add("net-ico-sandbox");
-      iconContainer.appendChild(createIcon("bi bi-diagram-3"));
+      pill.classList.add("net-ico-sandbox");
+      pill.appendChild(createIcon("bi bi-diagram-3"));
     } else if (item.type === "challenge") {
-      iconContainer.classList.add("net-ico-challenge");
-      iconContainer.appendChild(createIcon("bi bi-flag"));
+      pill.classList.add("net-ico-challenge");
+      pill.appendChild(createIcon("bi bi-flag"));
     } else {
-      iconContainer.classList.add("net-ico-learn");
-      iconContainer.appendChild(createIcon("bi bi-file-text"));
+      pill.classList.add("net-ico-learn");
+      pill.appendChild(createIcon("bi bi-file-text"));
     }
 
-    return iconContainer;
+    return pill;
   }
 
-  // Lesson modal handling
+  // ─── Lesson preview drawer (offcanvas) ───────────────────────────────────
 
-  function openLessonModal(item) {
+  function setupLessonDrawer() {
+    const prevBtn = getById("lessonPrevBtn");
+    const nextBtn = getById("lessonNextBtn");
+
+    if (prevBtn) prevBtn.addEventListener("click", () => navigateLesson(-1));
+    if (nextBtn) nextBtn.addEventListener("click", () => navigateLesson(1));
+  }
+
+  function openLessonPreview(item) {
+    const allItems = getAllItems();
+    pageState.currentLessonIndex = allItems.indexOf(item);
     pageState.currentLesson = item;
-    pageState.currentLessonIndex = pageState.lessonsList.indexOf(item);
+    updateDrawerContent(item);
 
-    // Show modal (implementation depends on your HTML structure)
-    const modal = getById("lessonModal");
-    if (modal) {
-      updateLessonModalContent(item);
-      modal.classList.add("is-open");
+    const drawerEl = getById("lessonPreviewDrawer");
+    if (drawerEl && window.bootstrap?.Offcanvas) {
+      const offcanvas = window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
+      offcanvas.show();
     }
   }
 
-  function updateLessonModalContent(item) {
-    setTextById("lessonModalTitle", item.title);
-    setTextById("lessonModalDuration", item.duration);
-    setTextById("lessonModalXP", item.xpReward);
+  function updateDrawerContent(item) {
+    // Header
+    setTextById("lessonPreviewLabel", item.title);
+    setTextById("lessonMetaTime", item.duration || "—");
+    setTextById("lessonMetaXP", String(item.xpReward || 0));
 
-    const contentElement = getById("lessonModalContent");
-    if (contentElement && item.content) {
-      clearChildren(contentElement);
-      appendTextWithLineBreaks(contentElement, item.content);
+    // Preview ring
+    const progress = calculateCourseProgress();
+    const previewRing = getById("previewRing");
+    if (previewRing) {
+      const circ = 163.36;
+      previewRing.style.strokeDashoffset = String(circ - (progress.percent / 100) * circ);
     }
+    setTextById("previewRingPct", `${progress.percent}%`);
+
+    // Body content
+    const body = getById("lessonPreviewBody");
+    if (body) {
+      clearChildren(body);
+      if (item.content) {
+        appendTextWithLineBreaks(body, item.content);
+      } else {
+        body.textContent = "Open the full lesson to view content.";
+      }
+    }
+
+    // Open lesson button
+    const openBtn = getById("lessonOpenBtn");
+    if (openBtn) {
+      const params = new URLSearchParams();
+      params.set("course_id", String(pageState.courseId));
+      params.set("lesson", String(item.lessonNumber));
+      if (pageState.contentId) params.set("content_id", String(pageState.contentId));
+      openBtn.href = `lesson.html?${params.toString()}`;
+    }
+
+    // Prev / Next visibility
+    const allItems = getAllItems();
+    const idx = allItems.indexOf(item);
+    const prevBtn = getById("lessonPrevBtn");
+    const nextBtn = getById("lessonNextBtn");
+    if (prevBtn) prevBtn.disabled = idx <= 0;
+    if (nextBtn) nextBtn.disabled = idx >= allItems.length - 1;
+  }
+
+  function navigateLesson(direction) {
+    const allItems = getAllItems();
+    const newIndex = pageState.currentLessonIndex + direction;
+    if (newIndex < 0 || newIndex >= allItems.length) return;
+    pageState.currentLessonIndex = newIndex;
+    pageState.currentLesson = allItems[newIndex];
+    updateDrawerContent(allItems[newIndex]);
+  }
+
+  function openLesson(item) {
+    const params = new URLSearchParams();
+    params.set("course_id", String(pageState.courseId));
+    params.set("lesson", String(item.lessonNumber));
+    if (pageState.contentId) params.set("content_id", String(pageState.contentId));
+    window.location.href = `lesson.html?${params.toString()}`;
   }
 
   function onDOMReady(callback) {
