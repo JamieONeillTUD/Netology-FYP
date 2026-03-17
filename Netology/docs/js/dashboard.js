@@ -30,6 +30,7 @@
     achievementsFetchedAtTime: 0,
     challenges: { daily: [], weekly: [] },
     challengesFetchedAtTime: 0,
+    userCourses: [],
 
     // Tracking
     autoRefreshBound: false
@@ -152,15 +153,18 @@
     initializeBootstrapTooltips();
     setupDailyTipRotation();
 
-    // STEP 2: Display cached user data while we fetch fresh data
-    console.log("Step 2: Displaying cached user...");
+    // STEP 2: Ensure rendering functions exist first
+    console.log("Step 2: Setting up rendering functions...");
+    ensureRenderingFunctions();
+
+    // Display cached user data while we fetch fresh data
+    console.log("Step 2b: Displaying cached user...");
     const cachedUser = getCurrentUser();
     if (cachedUser) {
-      // These functions are in dashboard-render.js
       window.dashboardRender?.fillUserChrome(cachedUser);
       window.dashboardRender?.renderProgressWidgets(cachedUser);
+      await window.dashboardRender?.renderContinueLearning(cachedUser);
     }
-    await window.dashboardRender?.renderContinueLearning(cachedUser);
 
     // STEP 3: Fetch fresh user data from API
     console.log("Step 3: Fetching fresh user data...");
@@ -172,13 +176,18 @@
       // Record today's login for streaks
       recordLoginToday(freshUser.email);
 
-      // Fetch all in parallel
-      await Promise.all([
-        fetchProgressFromServer(freshUser.email),
-        fetchAchievementsFromServer(freshUser.email, { forceRefresh: true }),
-        loadChallengesFromServer(freshUser.email, { forceRefresh: true }),
-        fetchUserCoursesFromServer(freshUser.email)
-      ]);
+      // Fetch all in parallel with error handling
+      try {
+        await Promise.all([
+          fetchProgressFromServer(freshUser.email),
+          fetchAchievementsFromServer(freshUser.email, { forceRefresh: true }),
+          loadChallengesFromServer(freshUser.email, { forceRefresh: true }),
+          fetchUserCoursesFromServer(freshUser.email)
+        ]);
+      } catch (error) {
+        console.error("Error during data fetch:", error);
+        // Continue even if some data fails to load
+      }
     } else {
       // Guest user - clear cached data
       dashboardState.progressSummary = null;
@@ -283,7 +292,8 @@
           inProgress: Number(data.in_progress || 0),
           totalCourses: Number(data.total_courses || 0),
           totalXp: Number(data.total_xp || 0),
-          level: Number(data.level || 1)
+          level: Number(data.level || 1),
+          loginStreak: Number(data.login_streak || data.streak || 0)
         };
         console.log("Stored progress:", dashboardState.progressSummary);
 
@@ -387,9 +397,13 @@
       // Store results
       if (dailyResult.success) {
         dashboardState.challenges.daily = dailyResult.challenges || [];
+      } else {
+        console.warn("Daily challenges fetch failed");
       }
       if (weeklyResult.success) {
         dashboardState.challenges.weekly = weeklyResult.challenges || [];
+      } else {
+        console.warn("Weekly challenges fetch failed");
       }
 
       // Update timestamp
@@ -400,7 +414,7 @@
       window.dashboardRender?.renderChallengeList(getById("weeklyTasks"), dashboardState.challenges.weekly, "weekly");
 
     } catch (error) {
-      console.warn("Could not load challenges:", error);
+      console.error("Error loading challenges:", error);
     }
   }
 
@@ -503,6 +517,11 @@
     const sidebar = getById("slideSidebar");
     const backdrop = getById("sideBackdrop");
 
+    if (!sidebar) {
+      console.warn("Sidebar elements not found in DOM");
+      return;
+    }
+
     const openSidebar = () => {
       if (!sidebar || !backdrop) return;
       sidebar.classList.add("is-open");
@@ -533,7 +552,10 @@
   function setupUserDropdown() {
     const button = getById("userBtn");
     const dropdown = getById("userDropdown");
-    if (!button || !dropdown) return;
+    if (!button || !dropdown) {
+      console.warn("User dropdown elements not found in DOM");
+      return;
+    }
 
     const closeDropdown = () => {
       dropdown.classList.remove("is-open");
@@ -578,7 +600,10 @@
   // Setup challenge type toggle (daily vs weekly)
   function setupChallengeToggle() {
     const buttons = Array.from(document.querySelectorAll(".dash-toggle-btn[data-panel]"));
-    if (!buttons.length) return;
+    if (!buttons.length) {
+      console.warn("Challenge toggle buttons not found in DOM");
+      return;
+    }
 
     buttons.forEach((button) => {
       button.addEventListener("click", () => {
@@ -617,7 +642,10 @@
   function setupStatsCarousel() {
     const track = getById("statsTrack");
     const indicators = getById("statsIndicators");
-    if (!track || !indicators) return;
+    if (!track || !indicators) {
+      console.warn("Stats carousel elements not found in DOM");
+      return;
+    }
 
     const slides = Array.from(track.querySelectorAll(".net-carousel-slide"));
     const dots = Array.from(indicators.querySelectorAll(".net-indicator"));
@@ -794,12 +822,16 @@
     const user = await refreshUserFromServer();
 
     if (user?.email) {
-      await Promise.all([
-        fetchProgressFromServer(user.email),
-        fetchAchievementsFromServer(user.email),
-        loadChallengesFromServer(user.email),
-        fetchUserCoursesFromServer(user.email)
-      ]);
+      try {
+        await Promise.all([
+          fetchProgressFromServer(user.email),
+          fetchAchievementsFromServer(user.email),
+          loadChallengesFromServer(user.email),
+          fetchUserCoursesFromServer(user.email)
+        ]);
+      } catch (error) {
+        console.warn("Error during refresh:", error);
+      }
     }
 
     window.dashboardRender?.fillUserChrome(user);
@@ -1118,9 +1150,10 @@
     const container = document.getElementById("heroXP");
     if (!container) return;
 
-    const level = Number(user.level || 1);
+    const level = Number(user.numeric_level || user.level || 1);
     const currentXp = Number(user.xp || user.xp_current || 0);
-    const nextLevelXp = Number(user.xp_for_next_level || 100);
+    // Get next level XP from API or use 100 as fallback
+    const nextLevelXp = Number(user.xp_for_next_level || user.next_level_xp || 100);
     const progress = Math.min(100, Math.max(0, nextLevelXp > 0 ? (currentXp / nextLevelXp) * 100 : 0));
 
     // Create SVG semi-circle arc gauge
