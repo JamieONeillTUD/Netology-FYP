@@ -13041,8 +13041,8 @@ body[data-theme="dark"] .les-mcq-letter {
 .dash-challenge {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.55rem 0.7rem;
+  gap: 0.15rem;
+  padding: 0.55rem 0.75rem;
   border-radius: 0.4rem;
   background: #f9fafb;
   border-left: 3px solid #d1d5db;
@@ -13054,18 +13054,18 @@ body[data-theme="dark"] .les-mcq-letter {
   border-left-color: #22c55e;
 }
 
-/* Top row: name on left, XP on right */
 .dash-challenge-top {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .dash-challenge-name {
-  font-size: 0.82rem;
+  font-size: 0.83rem;
   font-weight: 600;
   color: #1f2937;
+  min-width: 0;
 }
 
 .dash-challenge.is-done .dash-challenge-name {
@@ -13073,24 +13073,18 @@ body[data-theme="dark"] .les-mcq-letter {
 }
 
 .dash-challenge-xp {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: #0d9488;
-  white-space: nowrap;
-  background: #f0fdfa;
-  border: 1px solid #99f6e4;
-  border-radius: 999px;
-  padding: 0.1rem 0.5rem;
   flex-shrink: 0;
 }
 
 .dash-challenge.is-done .dash-challenge-xp {
   color: #16a34a;
-  background: #dcfce7;
-  border-color: #86efac;
 }
 
 .dash-challenge-desc {
-  font-size: 0.71rem;
+  font-size: 0.72rem;
   color: #6b7280;
+  line-height: 1.3;
 }
