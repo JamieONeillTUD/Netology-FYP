@@ -814,7 +814,23 @@
         },
         
         renderContinueLearning: async (user) => {
-          // Continue learning section - handled separately
+          // Render courses in progress
+          const continueBox = document.getElementById("continueBox");
+          if (!continueBox) return;
+
+          const inProgressCourses = dashboardState.progressSummary?.inProgress || 0;
+          
+          if (inProgressCourses === 0) {
+            continueBox.innerHTML = '<div class="small text-muted">No courses in progress. Start learning today!</div>';
+            return;
+          }
+
+          // Display placeholder while loading courses
+          continueBox.innerHTML = `
+            <div class="small text-muted">
+              <i class="bi bi-hourglass-split me-2"></i>${inProgressCourses} course(s) in progress
+            </div>
+          `;
         },
         
         renderAchievements: () => {
@@ -900,14 +916,17 @@
     const user = getCurrentUser();
     if (!user) return;
 
+    // Get numeric level (fallback to parsing text if needed)
+    const numericLevel = user.numeric_level || (user.level && !isNaN(parseInt(user.level)) ? parseInt(user.level) : 1);
+
     const heroRank = document.getElementById("heroRank");
-    if (heroRank && user.level) {
-      heroRank.textContent = user.rank || `Rank ${user.level}`;
+    if (heroRank) {
+      heroRank.textContent = numericLevel;
     }
 
     const heroLevel = document.getElementById("heroLevel");
-    if (heroLevel && user.level) {
-      heroLevel.textContent = `Level ${user.level}`;
+    if (heroLevel) {
+      heroLevel.textContent = `Level ${numericLevel}`;
     }
 
     // Render XP arc gauge
@@ -922,9 +941,9 @@
     const container = document.getElementById("heroXP");
     if (!container) return;
 
-    const currentXp = Number(user.xp_current || 0);
+    const currentXp = Number(user.xp || user.xp_current || 0);
     const nextLevelXp = Number(user.xp_for_next_level || 100);
-    const progress = Math.min(100, Math.max(0, (currentXp / nextLevelXp) * 100));
+    const progress = Math.min(100, Math.max(0, nextLevelXp > 0 ? (currentXp / nextLevelXp) * 100 : 0));
 
     // Create SVG arc gauge
     const size = 120;
@@ -998,17 +1017,18 @@
     const calendarEl = document.getElementById("streakCalendar");
     if (!calendarEl) return;
 
-    // For now, just show static calendar - streak calculation happens on server
-    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    // Show last 7 days with proper day labels (S M T W T F S)
+    const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     const today = new Date();
     
     let html = '';
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dayLabel = dayLabels[date.getDay()];
+      const dayIndex = date.getDay();
+      const dayLabel = dayLabels[dayIndex];
       
-      html += `<div class="streak-day" title="${date.toLocaleDateString()}">${dayLabel.charAt(0)}</div>`;
+      html += `<div class="streak-day" title="${date.toLocaleDateString()}">${dayLabel}</div>`;
     }
     
     calendarEl.innerHTML = html;
