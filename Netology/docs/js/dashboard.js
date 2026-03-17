@@ -236,7 +236,7 @@
         last_name: data.last_name || cachedUser?.last_name,
         username: data.username || cachedUser?.username,
         xp: Number.isFinite(Number(data.xp ?? data.total_xp)) ? Number(data.xp ?? data.total_xp) : Number(cachedUser?.xp || 0),
-        numeric_level: Number.isFinite(Number(data.numeric_level)) ? Number(data.numeric_level) : cachedUser?.numeric_level,
+        numeric_level: Number.isFinite(Number(data.numeric_level)) ? Number(data.numeric_level) : (cachedUser?.numeric_level || 1),
         rank: data.rank || data.level || cachedUser?.rank,
         level: data.level || data.rank || cachedUser?.level,
         is_first_login: typeof data.is_first_login !== "undefined" ? Boolean(data.is_first_login) : cachedUser?.is_first_login,
@@ -783,25 +783,38 @@
             const sideName = document.getElementById("sideUserName");
             if (sideName) sideName.textContent = user.first_name;
             
-            // Top nav dropdown name
-            const topName = document.getElementById("topUserName");
-            if (topName) topName.textContent = user.first_name;
+            // Dropdown user name
+            const ddName = document.getElementById("ddName");
+            if (ddName) ddName.textContent = user.first_name;
           }
           
           if (user?.email) {
             // Sidebar user email
             const sideEmail = document.getElementById("sideUserEmail");
             if (sideEmail) sideEmail.textContent = user.email;
+            
+            // Dropdown user email
+            const ddEmail = document.getElementById("ddEmail");
+            if (ddEmail) ddEmail.textContent = user.email;
           }
           
-          if (user?.level) {
+          if (user?.numeric_level || user?.level) {
+            // Get numeric level, not text level
+            const numericLevel = user.numeric_level || (user.level && !isNaN(parseInt(user.level)) ? parseInt(user.level) : 1);
+            
             // Sidebar level badge
             const levelBadge = document.getElementById("sideLevelBadge");
-            if (levelBadge) levelBadge.textContent = `Lv ${user.level}`;
+            if (levelBadge) levelBadge.textContent = `Lv ${numericLevel}`;
             
-            // Hero level display
-            const heroLevel = document.getElementById("heroLevel");
-            if (heroLevel) heroLevel.textContent = `Level ${user.level}`;
+            // Dropdown level
+            const ddLevel = document.getElementById("ddLevel");
+            if (ddLevel) ddLevel.textContent = numericLevel;
+          }
+          
+          if (user?.rank) {
+            // Dropdown rank
+            const ddRank = document.getElementById("ddRank");
+            if (ddRank) ddRank.textContent = user.rank;
           }
         },
         
