@@ -12853,6 +12853,12 @@ body[data-theme="dark"] .les-mcq-letter {
   border-left-color: #16a34a;
 }
 
+.challenge-item.is-completed {
+  background: #ecfdf5;
+  border-left-color: #16a34a;
+  opacity: 0.85;
+}
+
 .challenge-item:hover {
   background: #f3f4f6;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);

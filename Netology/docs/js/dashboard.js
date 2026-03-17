@@ -463,22 +463,27 @@
     }
 
     try {
-      const endpoint = ENDPOINTS.courses?.list || "/api/courses/user";
+      const endpoint = ENDPOINTS.courses?.userProgress || ENDPOINTS.courses?.list || "/api/courses/user";
       console.log("Fetching user courses from:", endpoint);
       const data = await apiGet(endpoint, { user_email: userEmail });
       console.log("Got user courses response:", data);
 
-      // Extract courses array
-      const courses = Array.isArray(data) ? data : (data.courses || data.userCourses || []);
-      
-      if (courses.length > 0) {
-        dashboardState.userCourses = courses;
-        console.log("Stored user courses:", dashboardState.userCourses);
-        return courses;
-      } else {
-        dashboardState.userCourses = [];
-        return [];
+      // Extract courses array - be flexible with response structure
+      let courses = [];
+      if (Array.isArray(data)) {
+        courses = data;
+      } else if (data.courses && Array.isArray(data.courses)) {
+        courses = data.courses;
+      } else if (data.userCourses && Array.isArray(data.userCourses)) {
+        courses = data.userCourses;
+      } else if (data.in_progress && Array.isArray(data.in_progress)) {
+        // Some backends return in_progress array
+        courses = data.in_progress;
       }
+      
+      dashboardState.userCourses = courses;
+      console.log("Stored user courses:", dashboardState.userCourses);
+      return courses;
 
     } catch (error) {
       console.warn("Could not fetch user courses:", error);
@@ -906,12 +911,17 @@
           const continueBox = document.getElementById("continueBox");
           if (!continueBox) return;
 
-          // Get in-progress courses from progress data or from user courses
+          // Get in-progress courses from dashboard state
           let courses = [];
           
-          // Try to get from dashboard state first (from fetchProgressFromServer)
-          if (dashboardState.userCourses && dashboardState.userCourses.length > 0) {
-            courses = dashboardState.userCourses.filter(c => c.in_progress === true || c.status === 'in_progress');
+          // Fetch from dashboardState which was populated by fetchUserCoursesFromServer
+          if (dashboardState.userCourses && Array.isArray(dashboardState.userCourses) && dashboardState.userCourses.length > 0) {
+            // Filter for in-progress courses (not completed)
+            courses = dashboardState.userCourses.filter(c => {
+              const inProgress = c.in_progress === true || c.status === 'in_progress';
+              const notCompleted = c.completed !== true && c.status !== 'completed';
+              return inProgress && notCompleted;
+            });
           }
 
           if (courses.length === 0) {
@@ -1032,25 +1042,40 @@
 
           challenges.forEach((challenge, index) => {
             const xpReward = challenge.xp_reward || 0;
-            const isActive = challenge.active || index === 0;
+            const isCompleted = challenge.completed === true || challenge.status === 'completed';
+            const isActive = challenge.active || (!isCompleted && index === 0);
             
             const item = document.createElement("div");
-            item.className = `challenge-item ${isActive ? "is-active" : ""}`;
+            item.className = `challenge-item ${isCompleted ? "is-completed" : (isActive ? "is-active" : "")}`;
 
-            // Left badge/indicator
+            // Left badge/indicator with XP
             const leftBadge = document.createElement("div");
             leftBadge.className = "challenge-badge";
-            if (isActive) {
+            if (isCompleted) {
               leftBadge.classList.add("bg-success");
               const badgeText = document.createElement("span");
               badgeText.className = "text-white small fw-bold";
-              badgeText.textContent = "Active";
+              badgeText.textContent = "Done";
+              leftBadge.appendChild(badgeText);
+            } else if (isActive) {
+              leftBadge.classList.add("bg-info");
+              const badgeText = document.createElement("span");
+              badgeText.className = "text-white small fw-bold";
+              if (xpReward > 0) {
+                badgeText.textContent = `+${xpReward} XP`;
+              } else {
+                badgeText.textContent = "Active";
+              }
               leftBadge.appendChild(badgeText);
             } else {
               leftBadge.classList.add("bg-light", "text-secondary");
               const badgeText = document.createElement("span");
               badgeText.className = "small fw-bold";
-              badgeText.textContent = "Next";
+              if (xpReward > 0) {
+                badgeText.textContent = `+${xpReward} XP`;
+              } else {
+                badgeText.textContent = "Next";
+              }
               leftBadge.appendChild(badgeText);
             }
 
@@ -1070,18 +1095,10 @@
               content.appendChild(descDiv);
             }
 
-            // Right XP reward
+            // Right side - empty now since XP is in badge
             const xpDiv = document.createElement("div");
             xpDiv.className = "challenge-xp";
-            if (xpReward > 0) {
-              const xpIcon = document.createElement("i");
-              xpIcon.className = "bi bi-lightning-charge-fill text-warning me-1";
-              xpDiv.appendChild(xpIcon);
-              const xpText = document.createElement("span");
-              xpText.className = "fw-bold text-warning";
-              xpText.textContent = `+${xpReward}`;
-              xpDiv.appendChild(xpText);
-            }
+            // XP now shown in left badge
 
             item.appendChild(leftBadge);
             item.appendChild(content);
@@ -1156,18 +1173,18 @@
     const nextLevelXp = Number(user.xp_for_next_level || user.next_level_xp || 100);
     const progress = Math.min(100, Math.max(0, nextLevelXp > 0 ? (currentXp / nextLevelXp) * 100 : 0));
 
-    // Create SVG semi-circle arc gauge
-    const width = 160;
-    const height = 90;
+    // Create SVG semi-circle arc gauge (larger)
+    const width = 200;
+    const height = 110;
     const centerX = width / 2;
-    const centerY = 70;
-    const radius = 50;
+    const centerY = 85;
+    const radius = 65;
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("width", width);
     svg.setAttribute("height", height);
-    svg.style.cssText = "max-width: 160px; height: auto;";
+    svg.style.cssText = "max-width: 200px; height: auto;";
 
     // Background semi-circle arc
     const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -1197,9 +1214,9 @@
     // Level number in center
     const levelText = document.createElementNS("http://www.w3.org/2000/svg", "text");
     levelText.setAttribute("x", centerX);
-    levelText.setAttribute("y", centerY - 12);
+    levelText.setAttribute("y", centerY - 15);
     levelText.setAttribute("text-anchor", "middle");
-    levelText.setAttribute("font-size", "28");
+    levelText.setAttribute("font-size", "32");
     levelText.setAttribute("font-weight", "700");
     levelText.setAttribute("fill", "#212529");
     levelText.textContent = level;
@@ -1208,9 +1225,9 @@
     // XP progress text below level
     const xpLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
     xpLabel.setAttribute("x", centerX);
-    xpLabel.setAttribute("y", centerY + 10);
+    xpLabel.setAttribute("y", centerY + 15);
     xpLabel.setAttribute("text-anchor", "middle");
-    xpLabel.setAttribute("font-size", "11");
+    xpLabel.setAttribute("font-size", "12");
     xpLabel.setAttribute("fill", "#6c757d");
     xpLabel.textContent = `${currentXp} / ${nextLevelXp} XP`;
     svg.appendChild(xpLabel);
