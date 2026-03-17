@@ -916,12 +916,22 @@
           
           // Fetch from dashboardState which was populated by fetchUserCoursesFromServer
           if (dashboardState.userCourses && Array.isArray(dashboardState.userCourses) && dashboardState.userCourses.length > 0) {
-            // Filter for in-progress courses (not completed)
+            // Broad filter: any course that has progress, is not completed, or is marked in-progress
             courses = dashboardState.userCourses.filter(c => {
-              const inProgress = c.in_progress === true || c.status === 'in_progress';
-              const notCompleted = c.completed !== true && c.status !== 'completed';
-              return inProgress && notCompleted;
+              const status = (c.status || "").toLowerCase();
+              const isCompleted = c.completed === true || c.completed === 1 || status === 'completed';
+              if (isCompleted) return false;
+              // Accept if in_progress flag is truthy, status says in_progress, or they have some lessons done
+              return c.in_progress || c.in_progress === 1 || status === 'in_progress' ||
+                     (c.completed_lessons && Number(c.completed_lessons) > 0);
             });
+            // If still nothing, show ALL enrolled courses that aren't completed
+            if (courses.length === 0) {
+              courses = dashboardState.userCourses.filter(c => {
+                const status = (c.status || "").toLowerCase();
+                return c.completed !== true && c.completed !== 1 && status !== 'completed';
+              });
+            }
           }
 
           if (courses.length === 0) {
@@ -937,15 +947,30 @@
 
           courses.forEach(course => {
             const progress = Math.round(((course.completed_lessons || 0) / (course.total_lessons || 1)) * 100) || 0;
-            
-            const card = document.createElement("div");
+            const courseId = course.id || course.course_id || course.slug || "";
+            const courseHref = courseId ? `course.html?id=${encodeURIComponent(courseId)}` : "courses.html";
+
+            const card = document.createElement("a");
             card.className = "continue-item";
+            card.href = courseHref;
+            card.style.textDecoration = "none";
+            card.style.color = "inherit";
 
             // Title
             const titleDiv = document.createElement("div");
-            titleDiv.className = "fw-semibold";
+            titleDiv.className = "fw-semibold small";
             titleDiv.textContent = course.name || course.title || "Course";
             card.appendChild(titleDiv);
+
+            // Subtitle (category / difficulty)
+            const sub = course.category || course.difficulty || course.description || "";
+            if (sub) {
+              const subDiv = document.createElement("div");
+              subDiv.className = "text-muted";
+              subDiv.style.fontSize = "0.7rem";
+              subDiv.textContent = sub;
+              card.appendChild(subDiv);
+            }
 
             // Progress bar
             const progressContainer = document.createElement("div");
@@ -1168,9 +1193,16 @@
     if (!container) return;
 
     const level = Number(user.numeric_level || user.level || 1);
-    const currentXp = Number(user.xp || user.xp_current || 0);
-    // Get next level XP from API or use 100 as fallback
-    const nextLevelXp = Number(user.xp_for_next_level || user.next_level_xp || 100);
+    // Use XP within current level (not cumulative total) so gauge doesn't overflow
+    const rawXp = Number(user.xp || 0);
+    const nextLevelXp = Number(user.next_level_xp || user.xp_for_next_level || 100);
+    // xp_into_level is XP earned within the current level
+    const xpIntoLevel = Number(user.xp_into_level || 0);
+    // Fallback: compute from total XP using the XP formula if xp_into_level isn't stored
+    const levelStartXp = window.NetologyXP?.totalXpForLevel
+      ? window.NetologyXP.totalXpForLevel(level)
+      : (100 * (level - 1) * level) / 2;
+    const currentXp = xpIntoLevel > 0 ? xpIntoLevel : Math.max(0, rawXp - levelStartXp);
     const progress = Math.min(100, Math.max(0, nextLevelXp > 0 ? (currentXp / nextLevelXp) * 100 : 0));
 
     // Create SVG semi-circle arc gauge (larger)
@@ -1230,6 +1262,7 @@
     xpLabel.setAttribute("font-size", "12");
     xpLabel.setAttribute("fill", "#6c757d");
     xpLabel.textContent = `${currentXp} / ${nextLevelXp} XP`;
+    xpLabel.setAttribute("font-size", "11");
     svg.appendChild(xpLabel);
 
     // Clear and insert
