@@ -1060,22 +1060,29 @@
             const item = document.createElement("div");
             item.className = "dash-challenge" + (isCompleted ? " is-done" : "");
 
-            const nameEl = document.createElement("div");
+            // Top row: name + XP
+            const topRow = document.createElement("div");
+            topRow.className = "dash-challenge-top";
+
+            const nameEl = document.createElement("span");
             nameEl.className = "dash-challenge-name";
             nameEl.textContent = challenge.title || challenge.name || "Challenge";
-            item.appendChild(nameEl);
+            topRow.appendChild(nameEl);
 
+            const xpEl = document.createElement("span");
+            xpEl.className = "dash-challenge-xp";
+            xpEl.textContent = isCompleted ? "✓ Done" : (xp ? `+${xp} XP` : "");
+            topRow.appendChild(xpEl);
+
+            item.appendChild(topRow);
+
+            // Description below
             if (challenge.description) {
               const descEl = document.createElement("div");
               descEl.className = "dash-challenge-desc";
               descEl.textContent = challenge.description;
               item.appendChild(descEl);
             }
-
-            const xpEl = document.createElement("div");
-            xpEl.className = "dash-challenge-xp";
-            xpEl.textContent = isCompleted ? "✓ Done" : (xp ? `+${xp} XP` : "");
-            item.appendChild(xpEl);
 
             el.appendChild(item);
           });
