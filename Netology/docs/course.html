@@ -154,7 +154,9 @@ Notes:
   <!-- =======================================================
        MAIN
   ======================================================== -->
-  <main class="container my-4 net-course-shell" role="main">
+  <main class="container my-4" role="main">
+
+    <!-- Skeleton shown while loading -->
     <section class="net-card p-4 net-loading-only" aria-label="Loading course">
       <div class="net-skel net-w-60 mb-3"></div>
       <div class="net-skel net-w-90 mb-2"></div>
@@ -163,169 +165,132 @@ Notes:
     </section>
 
     <div class="net-loading-hide">
-      <div class="mb-3">
-        <nav class="net-breadcrumb" aria-label="Breadcrumb">
-          <a href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
-          <i class="bi bi-chevron-right"></i>
-          <a href="courses.html">Courses</a>
-          <i class="bi bi-chevron-right"></i>
-          <span id="breadcrumbCourse">Course</span>
-        </nav>
-      </div>
 
-      <!-- =======================================================
-         HERO – Clean & focused
-      ======================================================== -->
-      <section class="net-card net-course-hero p-4 p-lg-4 mb-3" aria-label="Course overview" data-tour="course-hero">
+      <!-- Breadcrumb -->
+      <nav class="net-breadcrumb mb-3" aria-label="Breadcrumb">
+        <a href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
+        <i class="bi bi-chevron-right"></i>
+        <a href="courses.html">Courses</a>
+        <i class="bi bi-chevron-right"></i>
+        <span id="breadcrumbCourse">Course</span>
+      </nav>
 
-        <div class="net-course-hero-top">
-          <div class="net-course-hero-left">
+      <!-- =====================================================
+           HERO
+      ====================================================== -->
+      <section class="crs-hero net-card p-4 mb-3" aria-label="Course overview">
+        <div class="crs-hero-layout">
 
+          <!-- Left: info -->
+          <div class="crs-hero-info">
             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-              <h1 class="net-course-title net-section-title mb-0" id="courseTitle">Loading course…</h1>
-              <span class="net-pill-badge badge text-bg-light border px-3 py-2" id="difficultyPill">Difficulty</span>
-
-              <span class="net-status-chip net-status-chip--locked d-none" id="courseLockedPill">
-                <i class="bi bi-lock-fill" aria-hidden="true"></i> Locked
-              </span>
-              <span class="net-status-chip net-status-chip--completed d-none" id="courseCompletedPill">
-                <i class="bi bi-check2-circle" aria-hidden="true"></i> Completed
-              </span>
-              <span class="net-status-chip net-status-chip--progress d-none" id="courseActivePill">
-                <i class="bi bi-play-fill" aria-hidden="true"></i> Active
-              </span>
+              <h1 class="crs-title mb-0" id="courseTitle">Loading…</h1>
+              <span class="crs-pill" id="difficultyPill">Novice</span>
+              <span class="crs-chip crs-chip--locked d-none" id="courseLockedPill"><i class="bi bi-lock-fill"></i> Locked</span>
+              <span class="crs-chip crs-chip--done d-none"   id="courseCompletedPill"><i class="bi bi-check2-circle"></i> Completed</span>
+              <span class="crs-chip crs-chip--active d-none" id="courseActivePill"><i class="bi bi-play-fill"></i> Active</span>
             </div>
 
-            <p class="text-muted net-section-sub mb-3" id="courseDescription">Loading course description…</p>
+            <p class="text-muted mb-3" id="courseDescription">Loading…</p>
 
-            <!-- Compact stats strip -->
-            <div class="net-course-stats-strip" aria-label="Course metadata">
-              <div class="net-stat-chip">
-                <i class="bi bi-collection" aria-hidden="true"></i>
-                <span id="metaModules">0 modules</span>
-              </div>
-              <div class="net-stat-chip">
-                <i class="bi bi-clock" aria-hidden="true"></i>
-                <span id="metaTime">—</span>
-              </div>
-              <div class="net-stat-chip net-stat-chip--xp">
-                <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
-                <span id="metaXP">0 XP</span>
-              </div>
+            <div class="crs-stats-row">
+              <span class="crs-stat"><i class="bi bi-collection"></i><span id="metaModules">0 modules</span></span>
+              <span class="crs-stat"><i class="bi bi-clock"></i><span id="metaTime">—</span></span>
+              <span class="crs-stat crs-stat--xp"><i class="bi bi-lightning-charge-fill"></i><span id="metaXP">0 XP</span></span>
             </div>
 
-            <!-- Locked explainer -->
-            <div class="net-lockline mt-3 d-none" id="lockedExplainer">
-              <i class="bi bi-lock me-2"></i>
-              <span id="lockedText">This course is locked.</span>
+            <div class="crs-lockline d-none mt-3" id="lockedExplainer">
+              <i class="bi bi-lock"></i> <span id="lockedText">This course is locked.</span>
             </div>
-
           </div>
 
-          <!-- Progress ring -->
-          <div class="net-course-hero-right" aria-label="Progress ring" data-tour="course-progress-ring">
-            <div class="net-ring" aria-label="Course completion percentage">
-              <svg viewBox="0 0 140 140" aria-hidden="true">
+          <!-- Right: progress ring -->
+          <div class="crs-ring-wrap">
+            <div class="crs-ring">
+              <svg viewBox="0 0 120 120" aria-hidden="true">
                 <defs>
-                  <linearGradient id="netRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient id="crsRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="#14b8a6"></stop>
                     <stop offset="100%" stop-color="#06b6d4"></stop>
                   </linearGradient>
                 </defs>
-                <circle class="net-ring-track" cx="70" cy="70" r="58" stroke-width="10" fill="none"></circle>
-                <circle id="progressRing" class="net-ring-fill" cx="70" cy="70" r="58" stroke="url(#netRingGrad)"
-                  stroke-width="10" stroke-linecap="round" fill="none" stroke-dasharray="364.42"
-                  stroke-dashoffset="364.42"></circle>
+                <circle class="crs-ring-track" cx="60" cy="60" r="50" stroke-width="9" fill="none"></circle>
+                <circle id="progressRing" class="crs-ring-fill" cx="60" cy="60" r="50"
+                  stroke="url(#crsRingGrad)" stroke-width="9" stroke-linecap="round" fill="none"
+                  stroke-dasharray="314.16" stroke-dashoffset="314.16"></circle>
               </svg>
-              <div class="net-ring-center">
-                <div class="net-ring-pct net-gradient-text" id="progressPct">0%</div>
-                <div class="net-ring-sub" id="progressCount">0/0</div>
+              <div class="crs-ring-center">
+                <span class="crs-ring-pct" id="progressPct">0%</span>
+                <span class="crs-ring-sub" id="progressCount">0/0</span>
               </div>
             </div>
           </div>
-        </div>
 
+        </div>
       </section>
 
-      <!-- =======================================================
-         UP NEXT – Single clear action card
-      ======================================================== -->
-      <section class="net-upnext-card net-card p-3 p-sm-4 mb-3" aria-label="Up next" data-tour="course-continue">
-        <div class="net-upnext-inner">
-          <div class="net-upnext-info">
-            <div class="net-upnext-label">Up Next</div>
+      <!-- =====================================================
+           UP NEXT
+      ====================================================== -->
+      <section class="crs-upnext net-card p-3 p-sm-4 mb-3" aria-label="Up next">
+        <div class="crs-upnext-row">
+          <div>
+            <div class="crs-upnext-label">Up Next</div>
             <div class="fw-semibold" id="nextStepText">—</div>
           </div>
-          <div class="net-upnext-actions">
+          <div class="d-flex gap-2">
             <button class="btn btn-teal" id="continueBtn" type="button">
-              Continue <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+              Continue <i class="bi bi-arrow-right ms-1"></i>
             </button>
             <button class="btn btn-outline-secondary d-none" id="reviewBtn" type="button">
-              Review <i class="bi bi-arrow-repeat ms-1" aria-hidden="true"></i>
+              Review <i class="bi bi-arrow-repeat ms-1"></i>
             </button>
           </div>
         </div>
-        <!-- Inline quick stats -->
-        <div class="net-upnext-stats" id="upnextStats">
-          <span class="net-upnext-stat">
-            <i class="bi bi-check2-circle text-success" aria-hidden="true"></i>
-            <span id="sidePct">0%</span> complete
-          </span>
-          <span class="net-upnext-divider"></span>
-          <span class="net-upnext-stat">
-            <i class="bi bi-layers text-teal" aria-hidden="true"></i>
-            <span id="sideModules">0/0</span> modules
-          </span>
-          <span class="net-upnext-divider"></span>
-          <span class="net-upnext-stat">
-            <i class="bi bi-lightning-charge-fill net-xp-accent" aria-hidden="true"></i>
-            <span id="sideXPEarned">0</span> XP earned
-          </span>
+        <div class="crs-upnext-stats mt-3 pt-3">
+          <span><i class="bi bi-check2-circle text-success"></i> <span id="sidePct">0%</span> complete</span>
+          <span><i class="bi bi-layers"></i> <span id="sideModules">0/0</span> modules</span>
+          <span><i class="bi bi-lightning-charge-fill net-xp-accent"></i> <span id="sideXPEarned">0</span> XP earned</span>
         </div>
       </section>
 
-      <!-- =======================================================
-         MODULES – Full width, clean
-      ======================================================== -->
+      <!-- =====================================================
+           MODULES
+      ====================================================== -->
       <section aria-label="Modules list">
-
-        <div class="d-flex align-items-center gap-2 mb-3 net-module-head" data-tour="course-modules">
-          <h2 class="h4 mb-0">Course Modules</h2>
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <h2 class="h5 fw-bold mb-0">Course Modules</h2>
           <span class="small text-muted" id="moduleCountLabel"></span>
         </div>
 
-        <div class="visually-hidden" id="ariaStatus" aria-live="polite"></div>
+        <!-- Module tab picker -->
+        <div class="crs-mod-tabs" id="moduleTabs" role="tablist" aria-label="Select module"></div>
 
-        <div id="modulesWrap" class="d-grid gap-3" aria-label="Modules container">
-          <article class="net-card p-4">
-            <div class="d-flex align-items-center gap-3">
-              <div class="net-skel" style="width:56px;height:56px;border-radius:18px;"></div>
-              <div class="flex-grow-1">
-                <div class="net-skel net-w-60 mb-2"></div>
-                <div class="net-skel net-w-90"></div>
-              </div>
-            </div>
-          </article>
+        <!-- Type legend -->
+        <div class="crs-type-legend mt-3" aria-label="Activity type key">
+          <span class="crs-type-legend-item crs-type--learn"><i class="bi bi-book-half"></i> Lesson</span>
+          <span class="crs-type-legend-item crs-type--quiz"><i class="bi bi-patch-question-fill"></i> Quiz</span>
+          <span class="crs-type-legend-item crs-type--sandbox"><i class="bi bi-diagram-3"></i> Sandbox</span>
+          <span class="crs-type-legend-item crs-type--challenge"><i class="bi bi-flag-fill"></i> Challenge</span>
         </div>
+
+        <!-- Active module panel -->
+        <div class="crs-module mt-2" id="modulePanel"></div>
 
         <div class="net-empty mt-3 d-none" id="modulesEmpty">
           <div class="fw-semibold mb-1">No modules found</div>
           <div class="text-muted small">This course doesn't have content yet.</div>
         </div>
-
       </section>
 
-      <!-- Hidden elements for JS compatibility -->
+      <!-- Hidden compat stubs -->
       <div class="d-none">
         <span id="progressText">0%</span>
         <div id="progressBar"></div>
         <span id="courseStreakBadge"></span>
         <span id="courseXpHint"></span>
-        <button id="nextStepBtn" type="button"></button>
-        <button id="jumpToFirstIncompleteBtn" type="button"></button>
-        <button id="collapseAllBtn" type="button"></button>
-        <button id="expandAllBtn" type="button"></button>
       </div>
+
     </div>
   </main>
 

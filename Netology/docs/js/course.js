@@ -347,12 +347,19 @@
   }
 
   function mapSectionTypeToItemType(sectionType, item) {
+    // Check section-level type hint first
     if (sectionType.includes("quiz") || sectionType.includes("test")) return "quiz";
     if (sectionType.includes("sandbox") || sectionType.includes("practice")) return "sandbox";
     if (sectionType.includes("challenge")) return "challenge";
-    if (item?.type === "quiz") return "quiz";
-    if (item?.type === "sandbox" || item?.type === "practice") return "sandbox";
-    if (item?.type === "challenge") return "challenge";
+
+    // Fall back to the item's own type field — normalise to lowercase to handle
+    // course_content.js values like "Learn", "Quiz", "Practice", "Challenge"
+    const itemType = String(item?.type || "").toLowerCase().trim();
+    if (itemType === "quiz" || itemType === "test") return "quiz";
+    if (itemType === "sandbox" || itemType === "practice" || itemType === "tutorial") return "sandbox";
+    if (itemType === "challenge") return "challenge";
+    if (itemType === "learn" || itemType === "lesson" || itemType === "text") return "learn";
+
     return "learn";
   }
 
@@ -560,7 +567,7 @@
     if (diffPill) {
       const diff = capitalize(course.difficulty || "Novice");
       diffPill.textContent = diff;
-      diffPill.className = `net-pill-badge badge px-3 py-2 net-diff-${course.difficulty || "novice"}`;
+      diffPill.className = `crs-pill crs-${course.difficulty || "novice"}`;
     }
 
     // Stats strip
@@ -581,22 +588,18 @@
   function renderProgress(progress) {
     const pct = progress.percent;
 
-    // Ring
     const ringEl = getById("progressRing");
     if (ringEl) {
-      const circumference = 364.42;
-      const offset = circumference - (pct / 100) * circumference;
-      ringEl.style.strokeDashoffset = String(offset);
+      const circumference = 314.16;
+      ringEl.style.strokeDashoffset = String(circumference - (pct / 100) * circumference);
     }
     setTextById("progressPct", `${pct}%`);
     setTextById("progressCount", `${progress.completed}/${progress.total}`);
 
-    // Hidden compat elements
     setTextById("progressText", `${pct}%`);
     const bar = getById("progressBar");
     if (bar) bar.style.width = `${pct}%`;
 
-    // Status chips
     const lockedPill = getById("courseLockedPill");
     const activePill = getById("courseActivePill");
     const completedPill = getById("courseCompletedPill");
@@ -719,48 +722,115 @@
 
   // ─── Module / Lesson rendering ────────────────────────────────────────────
 
-  // Render all modules
+  // Count how many items in a module are completed
+  function moduleCompletedCount(module) {
+    return module.items.filter((item) =>
+      pageState.completionStatus.lesson.has(item.lessonNumber) ||
+      pageState.completionStatus.quiz.has(item.lessonNumber) ||
+      pageState.completionStatus.challenge.has(item.lessonNumber)
+    ).length;
+  }
+
+  // Render all modules as a tab picker + single panel
   function renderModules() {
-    const modulesContainer = getById("modulesWrap");
-    if (!modulesContainer) return;
+    const tabsEl  = getById("moduleTabs");
+    const panelEl = getById("modulePanel");
+    if (!tabsEl || !panelEl) return;
 
-    clearChildren(modulesContainer);
+    clearChildren(tabsEl);
+    clearChildren(panelEl);
 
-    if (!pageState.courseData.modules.length) {
+    const modules = pageState.courseData.modules;
+    if (!modules.length) {
       const empty = getById("modulesEmpty");
       if (empty) empty.classList.remove("d-none");
       return;
     }
 
-    pageState.courseData.modules.forEach((module, index) => {
-      const moduleElement = renderModule(module, index + 1);
-      modulesContainer.appendChild(moduleElement);
+    let activeIndex = 0;
+
+    // Find first incomplete module to default to
+    for (let i = 0; i < modules.length; i++) {
+      if (moduleCompletedCount(modules[i]) < modules[i].items.length) {
+        activeIndex = i;
+        break;
+      }
+    }
+
+    // Build tab buttons
+    modules.forEach((module, index) => {
+      const done  = moduleCompletedCount(module);
+      const total = module.items.length;
+      const allDone = done === total;
+
+      const btn = createElement("button", "crs-mod-tab");
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", index === activeIndex ? "true" : "false");
+      btn.dataset.index = String(index);
+      if (index === activeIndex) btn.classList.add("is-active");
+
+      const label = createElement("span", "crs-mod-tab-label", `Module ${index + 1}`);
+      const count = createElement("span", `crs-mod-tab-count${allDone ? " is-done" : ""}`, `${done}/${total}`);
+
+      btn.appendChild(label);
+      btn.appendChild(count);
+      btn.addEventListener("click", () => selectModule(index));
+      tabsEl.appendChild(btn);
     });
+
+    // Show the default panel
+    showModulePanel(activeIndex);
   }
 
-  function renderModule(module, moduleNumber) {
-    const article = createElement("article", "net-card p-4 mb-2");
+  function selectModule(index) {
+    const tabsEl = getById("moduleTabs");
+    if (tabsEl) {
+      tabsEl.querySelectorAll(".crs-mod-tab").forEach((btn, i) => {
+        const active = i === index;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-selected", String(active));
+      });
+    }
+    showModulePanel(index);
+  }
+
+  function showModulePanel(index) {
+    const panelEl = getById("modulePanel");
+    if (!panelEl) return;
+
+    const module = pageState.courseData.modules[index];
+    if (!module) return;
+
+    clearChildren(panelEl);
+
+    const done  = moduleCompletedCount(module);
+    const total = module.items.length;
 
     // Header
-    const header = createElement("div", "net-module-header mb-3");
-    const title = createElement("h3", "h5 fw-semibold mb-1", `Module ${moduleNumber}: ${module.title}`);
-    header.appendChild(title);
-
+    const header = createElement("div", "crs-module-header");
+    const titleRow = createElement("div", "crs-module-title-row");
+    titleRow.appendChild(createElement("h3", "crs-module-title", module.title));
+    const prog = createElement("span", `crs-module-prog${done === total ? " is-done" : ""}`, `${done}/${total} done`);
+    titleRow.appendChild(prog);
+    header.appendChild(titleRow);
     if (module.description) {
-      const desc = createElement("p", "small text-muted mb-0", module.description);
-      header.appendChild(desc);
+      header.appendChild(createElement("p", "crs-module-desc", module.description));
     }
-    article.appendChild(header);
+    panelEl.appendChild(header);
 
     // Items
-    const itemsContainer = createElement("div", "net-module-items d-grid gap-2");
-    module.items.forEach((item) => {
-      itemsContainer.appendChild(renderLesson(item));
-    });
-    article.appendChild(itemsContainer);
-
-    return article;
+    const itemsContainer = createElement("div", "crs-module-items");
+    module.items.forEach((item) => itemsContainer.appendChild(renderLesson(item)));
+    panelEl.appendChild(itemsContainer);
   }
+
+  // Descriptions shown as tooltip on the type badge
+  const typeDescriptions = {
+    learn:     "Lesson — read and learn the theory",
+    quiz:      "Quiz — test your knowledge with questions",
+    sandbox:   "Sandbox — hands-on network simulation",
+    challenge: "Challenge — solve a real networking problem"
+  };
 
   function renderLesson(item) {
     const isCompleted =
@@ -768,53 +838,70 @@
       pageState.completionStatus.quiz.has(item.lessonNumber) ||
       pageState.completionStatus.challenge.has(item.lessonNumber);
 
-    const lessonEl = createElement("div", "net-lesson d-flex align-items-center gap-3 p-3 rounded");
-    lessonEl.style.cursor = "pointer";
-    if (isCompleted) lessonEl.classList.add("is-completed");
+    const row = createElement("div", "crs-lesson");
+    if (isCompleted) row.classList.add("is-completed");
 
     // Icon
-    lessonEl.appendChild(getLessonIcon(item, isCompleted));
+    row.appendChild(getLessonIcon(item, isCompleted));
 
-    // Content
-    const content = createElement("div", "flex-grow-1");
-    content.appendChild(createElement("div", "fw-semibold", item.title));
-    const meta = createElement("div", "small text-muted");
+    // Text
+    const body = createElement("div", "crs-lesson-body");
+    body.appendChild(createElement("div", "crs-lesson-title", item.title));
+    const meta = createElement("div", "crs-lesson-meta");
     meta.textContent = `${item.duration} · ${item.xpReward} XP`;
-    content.appendChild(meta);
-    lessonEl.appendChild(content);
+    body.appendChild(meta);
+    row.appendChild(body);
 
-    // Completed tick
+    // Type badge — label and colour match dashboard stat cards
+    const typeLabels = {
+      learn:     "Lesson",
+      quiz:      "Quiz",
+      sandbox:   "Sandbox",
+      challenge: "Challenge"
+    };
+    const typeName = typeLabels[item.type] || "Lesson";
+    const typeBadge = createElement("span", `crs-lesson-type crs-type--${item.type || "learn"}`, typeName);
+    typeBadge.title = typeDescriptions[item.type] || "Read through this lesson";
+    row.appendChild(typeBadge);
+
+    // Completed tick or open button
     if (isCompleted) {
-      lessonEl.appendChild(createIcon("bi bi-check2-circle text-success ms-auto"));
+      row.appendChild(createIcon("bi bi-check2-circle crs-done-tick"));
     }
 
-    // Click: open preview drawer
-    lessonEl.addEventListener("click", () => openLessonPreview(item));
+    // Direct open-lesson link (always present, visible on hover)
+    const lessonUrl = buildLessonUrl(item);
+    const openBtn = createElement("a", "crs-open-btn");
+    openBtn.href = lessonUrl;
+    openBtn.title = "Open lesson";
+    openBtn.setAttribute("aria-label", `Open ${item.title}`);
+    openBtn.appendChild(createIcon("bi bi-arrow-right"));
+    openBtn.addEventListener("click", (e) => e.stopPropagation());
+    row.appendChild(openBtn);
 
-    return lessonEl;
+    // Click row → preview drawer
+    row.addEventListener("click", () => openLessonPreview(item));
+
+    return row;
   }
 
   function getLessonIcon(item, isCompleted) {
-    const pill = createElement("div", "net-ico-pill");
-
     if (isCompleted) {
-      pill.classList.add("net-ico-success");
-      pill.appendChild(createIcon("bi bi-check2-circle"));
-    } else if (item.type === "quiz") {
-      pill.classList.add("net-ico-quiz");
-      pill.appendChild(createIcon("bi bi-patch-question"));
-    } else if (item.type === "sandbox") {
-      pill.classList.add("net-ico-sandbox");
-      pill.appendChild(createIcon("bi bi-diagram-3"));
-    } else if (item.type === "challenge") {
-      pill.classList.add("net-ico-challenge");
-      pill.appendChild(createIcon("bi bi-flag"));
-    } else {
-      pill.classList.add("net-ico-learn");
-      pill.appendChild(createIcon("bi bi-file-text"));
+      const ico = createElement("div", "crs-ico crs-ico--done");
+      ico.appendChild(createIcon("bi bi-check2-circle"));
+      return ico;
     }
-
-    return pill;
+    // Each type gets a unique icon and colour via CSS
+    const typeMap = {
+      learn:     { mod: "learn",     icon: "bi-book-half" },        // blue  – Lesson
+      quiz:      { mod: "quiz",      icon: "bi-patch-question-fill" }, // purple – Quiz
+      sandbox:   { mod: "sandbox",   icon: "bi-diagram-3" },         // orange – Sandbox
+      challenge: { mod: "challenge", icon: "bi-flag-fill" }           // teal   – Challenge
+    };
+    const entry = typeMap[item.type] || typeMap.learn;
+    const ico = createElement("div", `crs-ico crs-ico--${entry.mod}`);
+    ico.appendChild(createIcon(`bi ${entry.icon}`));
+    return ico;
   }
 
   // ─── Lesson preview drawer (offcanvas) ───────────────────────────────────
@@ -866,14 +953,9 @@
       }
     }
 
-    // Open lesson button
     const openBtn = getById("lessonOpenBtn");
     if (openBtn) {
-      const params = new URLSearchParams();
-      params.set("course_id", String(pageState.courseId));
-      params.set("lesson", String(item.lessonNumber));
-      if (pageState.contentId) params.set("content_id", String(pageState.contentId));
-      openBtn.href = `lesson.html?${params.toString()}`;
+      openBtn.href = buildLessonUrl(item);
     }
 
     // Prev / Next visibility
@@ -894,12 +976,62 @@
     updateDrawerContent(allItems[newIndex]);
   }
 
+  // Build the correct destination URL for any item type.
+  // - learn  → lesson.html
+  // - quiz   → quiz.html
+  // - sandbox (practice/tutorial) → write localStorage then sandbox.html?mode=practice
+  // - challenge → write localStorage then sandbox.html?challenge=1
+  function buildLessonUrl(item) {
+    const courseId   = String(pageState.courseId);
+    const contentId  = String(pageState.contentId || pageState.courseId);
+    const lessonNum  = String(item.lessonNumber);
+
+    if (item.type === "quiz") {
+      const p = new URLSearchParams({ course_id: courseId, lesson: lessonNum, content_id: contentId });
+      return `quiz.html?${p.toString()}`;
+    }
+
+    if (item.type === "sandbox") {
+      const payload = {
+        courseId,
+        contentId,
+        lesson: lessonNum,
+        lessonTitle: item.title || "",
+        unitTitle: item.unitTitle || "",
+        courseTitle: pageState.courseData.title || "",
+        steps: item.steps || [],
+        tips: item.tips || "",
+        xp: item.xpReward || 0
+      };
+      try { localStorage.setItem("netology_active_tutorial", JSON.stringify(payload)); } catch {}
+      const p = new URLSearchParams({ course_id: courseId, lesson: lessonNum, content_id: contentId, mode: "practice" });
+      return `sandbox.html?${p.toString()}`;
+    }
+
+    if (item.type === "challenge") {
+      const payload = {
+        courseId,
+        contentId,
+        lesson: lessonNum,
+        lessonTitle: item.title || "",
+        unitTitle: item.unitTitle || "",
+        courseTitle: pageState.courseData.title || "",
+        challenge: item.challengeRules || {},
+        challengeXp: item.xpReward || 0
+      };
+      try { localStorage.setItem("netology_active_challenge", JSON.stringify(payload)); } catch {}
+      const p = new URLSearchParams({ course_id: courseId, lesson: lessonNum, content_id: contentId, challenge: "1" });
+      return `sandbox.html?${p.toString()}`;
+    }
+
+    // Default: lesson
+    const p = new URLSearchParams({ course_id: courseId, lesson: lessonNum });
+    if (pageState.contentId) p.set("content_id", contentId);
+    return `lesson.html?${p.toString()}`;
+  }
+
   function openLesson(item) {
-    const params = new URLSearchParams();
-    params.set("course_id", String(pageState.courseId));
-    params.set("lesson", String(item.lessonNumber));
-    if (pageState.contentId) params.set("content_id", String(pageState.contentId));
-    window.location.href = `lesson.html?${params.toString()}`;
+    window.location.href = buildLessonUrl(item);
   }
 
   function onDOMReady(callback) {
