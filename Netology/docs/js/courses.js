@@ -296,6 +296,7 @@
   function createCourseCard(courseData, progressMap, userLevel) {
     const card = document.createElement("div");
     card.className = "net-course-card";
+    card.dataset.difficulty = normalizeDifficultyLevel(courseData.difficulty);
 
     const courseId = String(courseData.id || "");
     const courseProgress = progressMap.get(courseId) || {};
