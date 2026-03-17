@@ -6327,11 +6327,10 @@ body.net-course-page.net-landing::after {
   height: 160px;
   margin: 0 auto;
   position: relative;
-  display: grid;
-  place-items: center;
 }
 
 .net-ring svg {
+  display: block;
   width: 160px;
   height: 160px;
   filter: drop-shadow(0 20px 44px rgba(2, 6, 23, .10));

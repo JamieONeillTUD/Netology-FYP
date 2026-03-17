@@ -179,12 +179,32 @@
     }
   }
 
-  function loadCourseFromContent(courseId) {
-    if (!window.COURSE_CONTENT) {
-      return null;
+  function findRawCourse(courseId, courseTitle) {
+    if (!window.COURSE_CONTENT) return null;
+
+    // Try direct key match first
+    if (window.COURSE_CONTENT[String(courseId)]) {
+      return window.COURSE_CONTENT[String(courseId)];
     }
 
-    const rawCourse = window.COURSE_CONTENT[String(courseId)];
+    const entries = Object.values(window.COURSE_CONTENT);
+
+    // Match by the id field stored inside the content object
+    const byId = entries.find((c) => String(c.id) === String(courseId));
+    if (byId) return byId;
+
+    // Match by title (DB IDs differ from content keys)
+    if (courseTitle) {
+      const normalizedTitle = String(courseTitle).trim().toLowerCase();
+      const byTitle = entries.find((c) => String(c.title || "").trim().toLowerCase() === normalizedTitle);
+      if (byTitle) return byTitle;
+    }
+
+    return null;
+  }
+
+  function loadCourseFromContent(courseId, courseTitle) {
+    const rawCourse = findRawCourse(courseId, courseTitle);
     if (!rawCourse) {
       return null;
     }
@@ -652,7 +672,29 @@
       updateUserStats(cachedUser);
     }
 
-    const courseData = loadCourseFromContent(pageState.courseId);
+    // Try to load from COURSE_CONTENT directly first
+    let courseData = loadCourseFromContent(pageState.courseId);
+
+    // If not found by ID, fetch the course title from the API and match by title
+    if (!courseData) {
+      try {
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/course?id=${pageState.courseId}`);
+        const apiCourse = await res.json();
+        if (apiCourse?.title) {
+          courseData = loadCourseFromContent(pageState.courseId, apiCourse.title);
+          // Patch in any missing meta from the API response
+          if (courseData) {
+            courseData.totalXP = courseData.totalXP || Number(apiCourse.xp_reward || 0);
+            courseData.estimatedTime = courseData.estimatedTime || apiCourse.estimated_time || "\u2014";
+            courseData.totalLessons = courseData.totalLessons || Number(apiCourse.total_lessons || 0);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch course from API:", err);
+      }
+    }
+
     if (courseData) {
       pageState.courseData = courseData;
     } else {
