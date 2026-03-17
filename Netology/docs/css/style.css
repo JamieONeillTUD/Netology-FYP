@@ -13036,3 +13036,49 @@ body[data-theme="dark"] .les-mcq-letter {
   border-radius: 6px !important;
   white-space: nowrap;
 }
+
+/* ── Dashboard challenge list items ── */
+.dash-challenge {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.4rem;
+  background: #f9fafb;
+  border-left: 3px solid #d1d5db;
+  margin-bottom: 0.4rem;
+}
+
+.dash-challenge.is-done {
+  background: #f0fdf4;
+  border-left-color: #22c55e;
+}
+
+.dash-challenge-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+}
+
+.dash-challenge.is-done .dash-challenge-name {
+  color: #15803d;
+}
+
+.dash-challenge-desc {
+  font-size: 0.72rem;
+  color: #6b7280;
+  flex: 1;
+}
+
+.dash-challenge-xp {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0d9488;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dash-challenge.is-done .dash-challenge-xp {
+  color: #22c55e;
+}

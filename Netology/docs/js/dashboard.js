@@ -1042,7 +1042,7 @@
         
         renderChallengeList: (el, challenges, type) => {
           if (!el) return;
-          
+
           if (!challenges || challenges.length === 0) {
             el.innerHTML = "";
             el.className = "dash-tasklist small text-muted text-center p-2";
@@ -1050,73 +1050,33 @@
             return;
           }
 
-          // Clear and set up
           el.innerHTML = "";
           el.className = "dash-tasklist";
 
-          challenges.forEach((challenge, index) => {
-            const xpReward = challenge.xp_reward || 0;
+          challenges.forEach(challenge => {
             const isCompleted = challenge.completed === true || challenge.status === 'completed';
-            const isActive = challenge.active || (!isCompleted && index === 0);
-            
+            const xp = challenge.xp_reward || 0;
+
             const item = document.createElement("div");
-            item.className = `challenge-item ${isCompleted ? "is-completed" : (isActive ? "is-active" : "")}`;
+            item.className = "dash-challenge" + (isCompleted ? " is-done" : "");
 
-            // Left badge/indicator with XP
-            const leftBadge = document.createElement("div");
-            leftBadge.className = "challenge-badge";
-            if (isCompleted) {
-              leftBadge.classList.add("bg-success");
-              const badgeText = document.createElement("span");
-              badgeText.className = "text-white small fw-bold";
-              badgeText.textContent = "Done";
-              leftBadge.appendChild(badgeText);
-            } else if (isActive) {
-              leftBadge.classList.add("bg-info");
-              const badgeText = document.createElement("span");
-              badgeText.className = "text-white small fw-bold";
-              if (xpReward > 0) {
-                badgeText.textContent = `+${xpReward} XP`;
-              } else {
-                badgeText.textContent = "Active";
-              }
-              leftBadge.appendChild(badgeText);
-            } else {
-              leftBadge.classList.add("bg-light", "text-secondary");
-              const badgeText = document.createElement("span");
-              badgeText.className = "small fw-bold";
-              if (xpReward > 0) {
-                badgeText.textContent = `+${xpReward} XP`;
-              } else {
-                badgeText.textContent = "Next";
-              }
-              leftBadge.appendChild(badgeText);
-            }
-
-            // Main content
-            const content = document.createElement("div");
-            content.className = "challenge-content";
-
-            const nameDiv = document.createElement("div");
-            nameDiv.className = "fw-semibold";
-            nameDiv.textContent = challenge.title || challenge.name || "Challenge";
-            content.appendChild(nameDiv);
+            const nameEl = document.createElement("div");
+            nameEl.className = "dash-challenge-name";
+            nameEl.textContent = challenge.title || challenge.name || "Challenge";
+            item.appendChild(nameEl);
 
             if (challenge.description) {
-              const descDiv = document.createElement("small");
-              descDiv.className = "text-muted";
-              descDiv.textContent = challenge.description;
-              content.appendChild(descDiv);
+              const descEl = document.createElement("div");
+              descEl.className = "dash-challenge-desc";
+              descEl.textContent = challenge.description;
+              item.appendChild(descEl);
             }
 
-            // Right side - empty now since XP is in badge
-            const xpDiv = document.createElement("div");
-            xpDiv.className = "challenge-xp";
-            // XP now shown in left badge
+            const xpEl = document.createElement("div");
+            xpEl.className = "dash-challenge-xp";
+            xpEl.textContent = isCompleted ? "✓ Done" : (xp ? `+${xp} XP` : "");
+            item.appendChild(xpEl);
 
-            item.appendChild(leftBadge);
-            item.appendChild(content);
-            item.appendChild(xpDiv);
             el.appendChild(item);
           });
         }
