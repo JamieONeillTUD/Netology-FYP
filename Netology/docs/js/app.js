@@ -577,4 +577,8 @@ window.ENDPOINTS = {
 
   // Expose globally
   window.recordLoginDay = recordLoginDay;
+  window.getLoginLog = function(email) {
+    const normalizedEmail = normalizeEmail(email);
+    return normalizedEmail ? readLoginLog(normalizedEmail) : [];
+  };
 })();

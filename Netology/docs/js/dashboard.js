@@ -1216,11 +1216,59 @@
       calendarEl.appendChild(dayEl);
     }
 
-    // Update streak count from progress data
+    // Calculate and update streak count from local login log
+    const streak = calculateCurrentStreak(user.email);
     const heroStreak = document.getElementById("heroStreak");
-    if (heroStreak && dashboardState.progressSummary?.loginStreak !== undefined) {
-      heroStreak.textContent = dashboardState.progressSummary.loginStreak || 0;
+    if (heroStreak) {
+      heroStreak.textContent = streak;
     }
+  }
+
+  // Calculate current streak from login log
+  function calculateCurrentStreak(userEmail) {
+    if (!userEmail || typeof window.readLoginLog !== "function") {
+      return 0;
+    }
+
+    try {
+      // Get login log (it's exposed from app.js if available)
+      if (typeof window.getLoginLog === "function") {
+        const loginLog = window.getLoginLog(userEmail);
+        if (!loginLog || loginLog.length === 0) return 0;
+
+        // Calculate streak by checking consecutive days backwards from today
+        const today = new Date();
+        let streak = 0;
+        let currentDate = new Date(today);
+        currentDate.setHours(0, 0, 0, 0);
+
+        while (true) {
+          const dateStr = dateToKey(currentDate);
+          if (loginLog.includes(dateStr)) {
+            streak++;
+            currentDate.setDate(currentDate.getDate() - 1);
+          } else {
+            break;
+          }
+        }
+
+        return streak;
+      }
+
+      // Fallback: use backend data
+      return dashboardState.progressSummary?.loginStreak || 0;
+    } catch (error) {
+      console.warn("Could not calculate streak:", error);
+      return dashboardState.progressSummary?.loginStreak || 0;
+    }
+  }
+
+  // Helper to format date as YYYY-MM-DD
+  function dateToKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   // START THE APP
