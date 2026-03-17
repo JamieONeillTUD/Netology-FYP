@@ -12835,13 +12835,22 @@ body[data-theme="dark"] .les-mcq-letter {
   justify-content: center;
 }
 
-/* Challenge item styling */
+/* Challenge item styling - full layout with badge, content, and XP */
 .challenge-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   padding: 1rem;
   border-radius: 0.5rem;
   background: #f9fafb;
-  border-left: 3px solid #0d9488;
+  border-left: 4px solid #0d9488;
   transition: all 0.2s ease;
+  margin-bottom: 0.75rem;
+}
+
+.challenge-item.is-active {
+  background: #f0fdf4;
+  border-left-color: #16a34a;
 }
 
 .challenge-item:hover {
@@ -12849,24 +12858,57 @@ body[data-theme="dark"] .les-mcq-letter {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.challenge-item .fw-semibold {
+/* Challenge badge (left indicator) */
+.challenge-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+  width: 50px;
+  height: 50px;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.challenge-badge.bg-success {
+  background-color: #16a34a;
+  color: white;
+}
+
+.challenge-badge.bg-light {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Challenge content (middle) */
+.challenge-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.challenge-content > div:first-child {
   color: #1f2937;
+  font-weight: 600;
   margin-bottom: 0.25rem;
 }
 
-.challenge-item .text-muted {
+.challenge-content small {
   color: #6b7280;
   font-size: 0.875rem;
+  display: block;
+  margin-top: 0.25rem;
 }
 
-.challenge-item .text-warning {
-  display: inline-flex;
+/* Challenge XP (right) */
+.challenge-xp {
+  display: flex;
   align-items: center;
-  gap: 0.25rem;
-  color: #b45309;
-  font-size: 0.875rem;
+  gap: 0.5rem;
   font-weight: 600;
-  margin-top: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 
@@ -12902,19 +12944,31 @@ body[data-theme="dark"] .les-mcq-letter {
   display: none !important;
 }
 
-/* Compact challenge styling */
-.challenge-item {
-  padding: 0.75rem !important;
+/* Continue Learning course cards */
+.continue-learning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.continue-item {
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  border-left: 4px solid #0d9488;
+}
+
+.continue-item > div:first-child {
+  font-weight: 600;
+  color: #1f2937;
   margin-bottom: 0.5rem;
-  border-left-width: 2px !important;
 }
 
-.challenge-item .fw-semibold {
-  font-size: 0.9rem;
-  margin-bottom: 0 !important;
+.continue-item .progress {
+  background-color: #e5e7eb;
 }
 
-.challenge-item .text-muted {
-  display: none !important;
+.continue-item small {
+  color: #6b7280;
+  font-size: 0.875rem;
 }
-

@@ -172,17 +172,19 @@
       // Record today's login for streaks
       recordLoginToday(freshUser.email);
 
-      // Fetch all three in parallel
+      // Fetch all in parallel
       await Promise.all([
         fetchProgressFromServer(freshUser.email),
         fetchAchievementsFromServer(freshUser.email, { forceRefresh: true }),
-        loadChallengesFromServer(freshUser.email, { forceRefresh: true })
+        loadChallengesFromServer(freshUser.email, { forceRefresh: true }),
+        fetchUserCoursesFromServer(freshUser.email)
       ]);
     } else {
       // Guest user - clear cached data
       dashboardState.progressSummary = null;
       dashboardState.achievementCatalog = { all: [], unlocked: [], locked: [] };
       dashboardState.challenges = { daily: [], weekly: [] };
+      dashboardState.userCourses = [];
     }
 
     // STEP 5: Render everything
@@ -435,6 +437,39 @@
         challenges: [],
         error
       };
+    }
+  }
+
+  // FETCH USER COURSES
+  async function fetchUserCoursesFromServer(userEmail) {
+    if (!userEmail) {
+      console.log("No email provided to fetchUserCoursesFromServer");
+      dashboardState.userCourses = [];
+      return [];
+    }
+
+    try {
+      const endpoint = ENDPOINTS.courses?.list || "/api/courses/user";
+      console.log("Fetching user courses from:", endpoint);
+      const data = await apiGet(endpoint, { user_email: userEmail });
+      console.log("Got user courses response:", data);
+
+      // Extract courses array
+      const courses = Array.isArray(data) ? data : (data.courses || data.userCourses || []);
+      
+      if (courses.length > 0) {
+        dashboardState.userCourses = courses;
+        console.log("Stored user courses:", dashboardState.userCourses);
+        return courses;
+      } else {
+        dashboardState.userCourses = [];
+        return [];
+      }
+
+    } catch (error) {
+      console.warn("Could not fetch user courses:", error);
+      dashboardState.userCourses = [];
+      return [];
     }
   }
 
@@ -762,7 +797,8 @@
       await Promise.all([
         fetchProgressFromServer(user.email),
         fetchAchievementsFromServer(user.email),
-        loadChallengesFromServer(user.email)
+        loadChallengesFromServer(user.email),
+        fetchUserCoursesFromServer(user.email)
       ]);
     }
 
@@ -835,36 +871,63 @@
         },
         
         renderContinueLearning: async (user) => {
-          // Render courses in progress
           const continueBox = document.getElementById("continueBox");
           if (!continueBox) return;
 
-          const inProgressCourses = dashboardState.progressSummary?.inProgress || 0;
+          // Get in-progress courses from progress data or from user courses
+          let courses = [];
           
-          if (inProgressCourses === 0) {
+          // Try to get from dashboard state first (from fetchProgressFromServer)
+          if (dashboardState.userCourses && dashboardState.userCourses.length > 0) {
+            courses = dashboardState.userCourses.filter(c => c.in_progress === true || c.status === 'in_progress');
+          }
+
+          if (courses.length === 0) {
             continueBox.innerHTML = "";
             continueBox.className = "small text-muted text-center p-3";
             continueBox.textContent = "No courses in progress. Start a new course!";
             return;
           }
 
-          // Clear existing
+          // Clear and render course cards
           continueBox.innerHTML = "";
-          continueBox.className = "d-flex align-items-center gap-2";
+          continueBox.className = "continue-learning-list";
 
-          const icon = document.createElement("i");
-          icon.className = "bi bi-book";
+          courses.forEach(course => {
+            const progress = Math.round(((course.completed_lessons || 0) / (course.total_lessons || 1)) * 100) || 0;
+            
+            const card = document.createElement("div");
+            card.className = "continue-item";
 
-          const text = document.createElement("div");
-          text.className = "small text-muted";
-          text.textContent = `${inProgressCourses} course(s) in progress`;
+            // Title
+            const titleDiv = document.createElement("div");
+            titleDiv.className = "fw-semibold";
+            titleDiv.textContent = course.name || course.title || "Course";
+            card.appendChild(titleDiv);
 
-          continueBox.appendChild(icon);
-          continueBox.appendChild(text);
+            // Progress bar
+            const progressContainer = document.createElement("div");
+            progressContainer.className = "progress mt-2 mb-2";
+            progressContainer.style.height = "0.5rem";
+
+            const progressBar = document.createElement("div");
+            progressBar.className = "progress-bar bg-success";
+            progressBar.style.width = progress + "%";
+            progressBar.setAttribute("role", "progressbar");
+            progressContainer.appendChild(progressBar);
+            card.appendChild(progressContainer);
+
+            // Progress label
+            const labelDiv = document.createElement("small");
+            labelDiv.className = "text-muted";
+            labelDiv.textContent = `${progress}% complete • ${course.completed_lessons || 0}/${course.total_lessons || 0} lessons`;
+            card.appendChild(labelDiv);
+
+            continueBox.appendChild(card);
+          });
         },
         
         renderAchievements: () => {
-          // Render achievements using DOM methods instead of innerHTML
           const scrollerEl = document.getElementById("achieveScroller");
           if (!scrollerEl) return;
 
@@ -879,30 +942,45 @@
           scrollerEl.innerHTML = "";
           scrollerEl.classList.remove("text-muted", "small");
 
-          // Show unlocked first, then locked - max 4 total to keep small
+          // Show ALL achievements (unlocked first, then locked)
           const toShow = [
-            ...(catalog.unlocked || []).slice(0, 3),
-            ...(catalog.locked || []).slice(0, 1)
+            ...(catalog.unlocked || []),
+            ...(catalog.locked || [])
           ];
 
           toShow.forEach(achievement => {
             const badge = document.createElement("div");
             badge.className = `achievement-badge ${achievement.unlocked ? "unlocked" : "locked"}`;
-            badge.title = `${achievement.name}: ${achievement.description}`;
+            
+            // Create tooltip content
+            const tooltipText = `${achievement.name}: ${achievement.description}${achievement.xp_reward ? ` (+${achievement.xp_reward} XP)` : ''}`;
+            badge.setAttribute("data-bs-toggle", "tooltip");
+            badge.setAttribute("data-bs-placement", "top");
+            badge.title = tooltipText;
 
+            // Icon
             const icon = document.createElement("div");
             icon.className = "badge-icon";
             const iconElement = document.createElement("i");
-            iconElement.className = `bi ${achievement.icon}`;
+            iconElement.className = `bi ${achievement.icon || "bi-star"}`;
             icon.appendChild(iconElement);
-
-            const name = document.createElement("div");
-            name.className = "badge-name";
-            name.textContent = achievement.name;
-
             badge.appendChild(icon);
-            badge.appendChild(name);
+
+            // Name (only show for unlocked to keep locked badges small)
+            if (achievement.unlocked) {
+              const name = document.createElement("div");
+              name.className = "badge-name";
+              name.textContent = achievement.name;
+              badge.appendChild(name);
+            }
+
             scrollerEl.appendChild(badge);
+          });
+
+          // Re-initialize tooltips for new badges
+          const tooltips = scrollerEl.querySelectorAll('[data-bs-toggle="tooltip"]');
+          tooltips.forEach(el => {
+            new bootstrap.Tooltip(el);
           });
         },
         
@@ -910,42 +988,72 @@
           if (!el) return;
           
           if (!challenges || challenges.length === 0) {
-            el.textContent = "No challenges available";
+            el.innerHTML = "";
             el.className = "dash-tasklist small text-muted text-center p-2";
+            el.textContent = "No challenges available";
             return;
           }
 
-          // Clear existing
+          // Clear and set up
           el.innerHTML = "";
           el.className = "dash-tasklist";
 
-          challenges.forEach((challenge) => {
+          challenges.forEach((challenge, index) => {
             const xpReward = challenge.xp_reward || 0;
+            const isActive = challenge.active || index === 0;
             
             const item = document.createElement("div");
-            item.className = "challenge-item";
+            item.className = `challenge-item ${isActive ? "is-active" : ""}`;
 
-            const container = document.createElement("div");
-            container.className = "d-flex align-items-center justify-content-between gap-2";
-
-            const nameDiv = document.createElement("div");
-            nameDiv.className = "flex-grow-1 min-width-0";
-            
-            const nameSpan = document.createElement("div");
-            nameSpan.className = "fw-semibold text-truncate";
-            nameSpan.textContent = challenge.title || challenge.name || "Challenge";
-            nameDiv.appendChild(nameSpan);
-
-            container.appendChild(nameDiv);
-
-            if (xpReward > 0) {
-              const xpDiv = document.createElement("div");
-              xpDiv.className = "text-warning small fw-bold";
-              xpDiv.textContent = `+${xpReward} XP`;
-              container.appendChild(xpDiv);
+            // Left badge/indicator
+            const leftBadge = document.createElement("div");
+            leftBadge.className = "challenge-badge";
+            if (isActive) {
+              leftBadge.classList.add("bg-success");
+              const badgeText = document.createElement("span");
+              badgeText.className = "text-white small fw-bold";
+              badgeText.textContent = "Active";
+              leftBadge.appendChild(badgeText);
+            } else {
+              leftBadge.classList.add("bg-light", "text-secondary");
+              const badgeText = document.createElement("span");
+              badgeText.className = "small fw-bold";
+              badgeText.textContent = "Next";
+              leftBadge.appendChild(badgeText);
             }
 
-            item.appendChild(container);
+            // Main content
+            const content = document.createElement("div");
+            content.className = "challenge-content";
+
+            const nameDiv = document.createElement("div");
+            nameDiv.className = "fw-semibold";
+            nameDiv.textContent = challenge.title || challenge.name || "Challenge";
+            content.appendChild(nameDiv);
+
+            if (challenge.description) {
+              const descDiv = document.createElement("small");
+              descDiv.className = "text-muted";
+              descDiv.textContent = challenge.description;
+              content.appendChild(descDiv);
+            }
+
+            // Right XP reward
+            const xpDiv = document.createElement("div");
+            xpDiv.className = "challenge-xp";
+            if (xpReward > 0) {
+              const xpIcon = document.createElement("i");
+              xpIcon.className = "bi bi-lightning-charge-fill text-warning me-1";
+              xpDiv.appendChild(xpIcon);
+              const xpText = document.createElement("span");
+              xpText.className = "fw-bold text-warning";
+              xpText.textContent = `+${xpReward}`;
+              xpDiv.appendChild(xpText);
+            }
+
+            item.appendChild(leftBadge);
+            item.appendChild(content);
+            item.appendChild(xpDiv);
             el.appendChild(item);
           });
         }
@@ -1010,67 +1118,69 @@
     const container = document.getElementById("heroXP");
     if (!container) return;
 
+    const level = Number(user.level || 1);
     const currentXp = Number(user.xp || user.xp_current || 0);
     const nextLevelXp = Number(user.xp_for_next_level || 100);
     const progress = Math.min(100, Math.max(0, nextLevelXp > 0 ? (currentXp / nextLevelXp) * 100 : 0));
 
-    // Create SVG arc gauge
-    const size = 120;
-    const center = size / 2;
-    const radius = 45;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference * (1 - progress / 100);
+    // Create SVG semi-circle arc gauge
+    const width = 160;
+    const height = 90;
+    const centerX = width / 2;
+    const centerY = 70;
+    const radius = 50;
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
-    svg.setAttribute("width", size);
-    svg.setAttribute("height", size);
-    svg.style.cssText = "max-width: 120px; height: auto;";
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("width", width);
+    svg.setAttribute("height", height);
+    svg.style.cssText = "max-width: 160px; height: auto;";
 
-    // Background circle
-    const bgCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    bgCircle.setAttribute("cx", center);
-    bgCircle.setAttribute("cy", center);
-    bgCircle.setAttribute("r", radius);
-    bgCircle.setAttribute("fill", "none");
-    bgCircle.setAttribute("stroke", "#e9ecef");
-    bgCircle.setAttribute("stroke-width", "6");
-    svg.appendChild(bgCircle);
+    // Background semi-circle arc
+    const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const bgD = `M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 0 1 ${centerX + radius} ${centerY}`;
+    bgPath.setAttribute("d", bgD);
+    bgPath.setAttribute("fill", "none");
+    bgPath.setAttribute("stroke", "#e9ecef");
+    bgPath.setAttribute("stroke-width", "6");
+    bgPath.setAttribute("stroke-linecap", "round");
+    svg.appendChild(bgPath);
 
-    // Progress circle (arc)
-    const progressCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    progressCircle.setAttribute("cx", center);
-    progressCircle.setAttribute("cy", center);
-    progressCircle.setAttribute("r", radius);
-    progressCircle.setAttribute("fill", "none");
-    progressCircle.setAttribute("stroke", "#0d6efd");
-    progressCircle.setAttribute("stroke-width", "6");
-    progressCircle.setAttribute("stroke-dasharray", circumference);
-    progressCircle.setAttribute("stroke-dashoffset", offset);
-    progressCircle.setAttribute("stroke-linecap", "round");
-    progressCircle.style.cssText = "transform: rotate(-90deg); transform-origin: 50% 50%;";
-    svg.appendChild(progressCircle);
+    // Progress semi-circle arc (blue)
+    const progressPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const endAngle = (Math.PI / 180) * (180 * (progress / 100));
+    const endX = centerX + radius * Math.cos(Math.PI - endAngle);
+    const endY = centerY - radius * Math.sin(Math.PI - endAngle);
+    const largeArc = progress > 50 ? 1 : 0;
+    const progressD = `M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 ${largeArc} 1 ${endX} ${endY}`;
+    
+    progressPath.setAttribute("d", progressD);
+    progressPath.setAttribute("fill", "none");
+    progressPath.setAttribute("stroke", "#0d6efd");
+    progressPath.setAttribute("stroke-width", "6");
+    progressPath.setAttribute("stroke-linecap", "round");
+    svg.appendChild(progressPath);
 
-    // Center text with level and XP
-    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    text.setAttribute("x", center);
-    text.setAttribute("y", center - 5);
-    text.setAttribute("text-anchor", "middle");
-    text.setAttribute("font-size", "20");
-    text.setAttribute("font-weight", "700");
-    text.setAttribute("fill", "#212529");
-    text.textContent = user.level || "1";
-    svg.appendChild(text);
+    // Level number in center
+    const levelText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    levelText.setAttribute("x", centerX);
+    levelText.setAttribute("y", centerY - 12);
+    levelText.setAttribute("text-anchor", "middle");
+    levelText.setAttribute("font-size", "28");
+    levelText.setAttribute("font-weight", "700");
+    levelText.setAttribute("fill", "#212529");
+    levelText.textContent = level;
+    svg.appendChild(levelText);
 
-    // XP text below
-    const xpText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    xpText.setAttribute("x", center);
-    xpText.setAttribute("y", center + 12);
-    xpText.setAttribute("text-anchor", "middle");
-    xpText.setAttribute("font-size", "10");
-    xpText.setAttribute("fill", "#6c757d");
-    xpText.textContent = `${currentXp}/${nextLevelXp}`;
-    svg.appendChild(xpText);
+    // XP progress text below level
+    const xpLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    xpLabel.setAttribute("x", centerX);
+    xpLabel.setAttribute("y", centerY + 10);
+    xpLabel.setAttribute("text-anchor", "middle");
+    xpLabel.setAttribute("font-size", "11");
+    xpLabel.setAttribute("fill", "#6c757d");
+    xpLabel.textContent = `${currentXp} / ${nextLevelXp} XP`;
+    svg.appendChild(xpLabel);
 
     // Clear and insert
     container.innerHTML = "";
