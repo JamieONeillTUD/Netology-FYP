@@ -653,7 +653,15 @@
       if (!user?.email) return;
 
       retryButton.disabled = true;
-      retryButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Retrying';
+      
+      // Show loading state
+      const spinner = document.createElement("span");
+      spinner.className = "spinner-border spinner-border-sm me-2";
+      retryButton.innerHTML = "";
+      retryButton.appendChild(spinner);
+      const loadingText = document.createElement("span");
+      loadingText.textContent = "Retrying";
+      retryButton.appendChild(loadingText);
 
       await loadChallengesFromServer(user.email, { forceRefresh: true });
 
@@ -827,36 +835,49 @@
         },
         
         renderContinueLearning: async (user) => {
-          // Render courses in progress as mini course cards
+          // Render courses in progress
           const continueBox = document.getElementById("continueBox");
           if (!continueBox) return;
 
           const inProgressCourses = dashboardState.progressSummary?.inProgress || 0;
           
           if (inProgressCourses === 0) {
-            continueBox.innerHTML = '<div class="small text-muted text-center p-3">No courses in progress. Start a new course!</div>';
+            continueBox.innerHTML = "";
+            continueBox.className = "small text-muted text-center p-3";
+            continueBox.textContent = "No courses in progress. Start a new course!";
             return;
           }
 
-          // For now, show placeholder with course count
-          // In future, this would fetch and render actual course cards from courseData
-          continueBox.innerHTML = `
-            <div class="small text-muted">
-              <i class="bi bi-book me-2"></i>${inProgressCourses} course(s) in progress
-            </div>
-          `;
+          // Clear existing
+          continueBox.innerHTML = "";
+          continueBox.className = "d-flex align-items-center gap-2";
+
+          const icon = document.createElement("i");
+          icon.className = "bi bi-book";
+
+          const text = document.createElement("div");
+          text.className = "small text-muted";
+          text.textContent = `${inProgressCourses} course(s) in progress`;
+
+          continueBox.appendChild(icon);
+          continueBox.appendChild(text);
         },
         
         renderAchievements: () => {
-          // Render achievements - keep small, use Netology colors
+          // Render achievements using DOM methods instead of innerHTML
           const scrollerEl = document.getElementById("achieveScroller");
           if (!scrollerEl) return;
 
           const catalog = dashboardState.achievementCatalog;
           if (!catalog || !catalog.all || catalog.all.length === 0) {
-            scrollerEl.innerHTML = '<div class="small text-muted">No achievements yet</div>';
+            scrollerEl.textContent = "No achievements yet";
+            scrollerEl.classList.add("text-muted", "small");
             return;
           }
+
+          // Clear existing
+          scrollerEl.innerHTML = "";
+          scrollerEl.classList.remove("text-muted", "small");
 
           // Show unlocked first, then locked - max 4 total to keep small
           const toShow = [
@@ -864,42 +885,69 @@
             ...(catalog.locked || []).slice(0, 1)
           ];
 
-          const html = toShow.map(achievement => `
-            <div class="achievement-badge ${achievement.unlocked ? 'unlocked' : 'locked'}" 
-                 title="${achievement.name}: ${achievement.description}">
-              <div class="badge-icon">
-                <i class="bi ${achievement.icon}"></i>
-              </div>
-              <div class="badge-name">${achievement.name}</div>
-            </div>
-          `).join('');
+          toShow.forEach(achievement => {
+            const badge = document.createElement("div");
+            badge.className = `achievement-badge ${achievement.unlocked ? "unlocked" : "locked"}`;
+            badge.title = `${achievement.name}: ${achievement.description}`;
 
-          scrollerEl.innerHTML = html || '<div class="small text-muted">No achievements yet</div>';
+            const icon = document.createElement("div");
+            icon.className = "badge-icon";
+            const iconElement = document.createElement("i");
+            iconElement.className = `bi ${achievement.icon}`;
+            icon.appendChild(iconElement);
+
+            const name = document.createElement("div");
+            name.className = "badge-name";
+            name.textContent = achievement.name;
+
+            badge.appendChild(icon);
+            badge.appendChild(name);
+            scrollerEl.appendChild(badge);
+          });
         },
         
         renderChallengeList: (el, challenges, type) => {
           if (!el) return;
           
           if (!challenges || challenges.length === 0) {
-            el.innerHTML = '<div class="small text-muted text-center p-2">No challenges available</div>';
+            el.textContent = "No challenges available";
+            el.className = "dash-tasklist small text-muted text-center p-2";
             return;
           }
 
-          const html = challenges.map((challenge) => {
-            const xpReward = challenge.xp_reward || 0;
-            return `
-              <div class="challenge-item">
-                <div class="d-flex align-items-center justify-content-between gap-2">
-                  <div class="flex-grow-1 min-width-0">
-                    <div class="fw-semibold text-truncate">${challenge.title || challenge.name || 'Challenge'}</div>
-                  </div>
-                  ${xpReward > 0 ? `<div class="text-warning small fw-bold">+${xpReward} XP</div>` : ''}
-                </div>
-              </div>
-            `;
-          }).join('');
+          // Clear existing
+          el.innerHTML = "";
+          el.className = "dash-tasklist";
 
-          el.innerHTML = html || '<div class="small text-muted">No challenges available</div>';
+          challenges.forEach((challenge) => {
+            const xpReward = challenge.xp_reward || 0;
+            
+            const item = document.createElement("div");
+            item.className = "challenge-item";
+
+            const container = document.createElement("div");
+            container.className = "d-flex align-items-center justify-content-between gap-2";
+
+            const nameDiv = document.createElement("div");
+            nameDiv.className = "flex-grow-1 min-width-0";
+            
+            const nameSpan = document.createElement("div");
+            nameSpan.className = "fw-semibold text-truncate";
+            nameSpan.textContent = challenge.title || challenge.name || "Challenge";
+            nameDiv.appendChild(nameSpan);
+
+            container.appendChild(nameDiv);
+
+            if (xpReward > 0) {
+              const xpDiv = document.createElement("div");
+              xpDiv.className = "text-warning small fw-bold";
+              xpDiv.textContent = `+${xpReward} XP`;
+              container.appendChild(xpDiv);
+            }
+
+            item.appendChild(container);
+            el.appendChild(item);
+          });
         }
       };
     }
@@ -935,12 +983,13 @@
     // RANK box - show rank number and difficulty level
     const heroRank = document.getElementById("heroRank");
     if (heroRank) {
-      // Get difficulty based on level
+      heroRank.textContent = numericLevel;
+    }
+
+    const heroRankDifficulty = document.getElementById("heroRankDifficulty");
+    if (heroRankDifficulty) {
       const difficulty = numericLevel >= 5 ? "Advanced" : (numericLevel >= 3 ? "Intermediate" : "Novice");
-      heroRank.innerHTML = `
-        <div style="font-size: 2.5rem; font-weight: 700; color: #0d9488; margin-bottom: 0.5rem;">${numericLevel}</div>
-        <div style="font-size: 0.875rem; color: #6b7280;">${difficulty}</div>
-      `;
+      heroRankDifficulty.textContent = difficulty;
     }
 
     // LEVEL box - show just level, XP will be shown in gauge
@@ -1041,17 +1090,21 @@
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     const today = new Date();
     
-    let html = '';
+    // Clear existing
+    calendarEl.innerHTML = "";
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dayIndex = date.getDay();
       const dayLabel = dayLabels[dayIndex];
       
-      html += `<div class="streak-day" title="${date.toLocaleDateString()}">${dayLabel}</div>`;
+      const dayEl = document.createElement("div");
+      dayEl.className = "streak-day";
+      dayEl.title = date.toLocaleDateString();
+      dayEl.textContent = dayLabel;
+      calendarEl.appendChild(dayEl);
     }
-    
-    calendarEl.innerHTML = html;
 
     // Update streak count from progress data
     const heroStreak = document.getElementById("heroStreak");
