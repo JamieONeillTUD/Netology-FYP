@@ -111,8 +111,7 @@
       quiz: new Set(),
       challenge: new Set()
     },
-    currentLessonIndex: -1,
-    currentLesson: null,
+
     userStats: {
       level: 1,
       rank: "Novice",
@@ -715,7 +714,6 @@
 
     renderCourseHeader();
     renderModules();
-    setupLessonDrawer();
 
     document.body.classList.remove("net-loading");
   }
@@ -879,8 +877,8 @@
     openBtn.addEventListener("click", (e) => e.stopPropagation());
     row.appendChild(openBtn);
 
-    // Click row → preview drawer
-    row.addEventListener("click", () => openLessonPreview(item));
+    // Click row → go straight to lesson/quiz/sandbox/challenge
+    row.addEventListener("click", () => { window.location.href = buildLessonUrl(item); });
 
     return row;
   }
@@ -902,78 +900,6 @@
     const ico = createElement("div", `crs-ico crs-ico--${entry.mod}`);
     ico.appendChild(createIcon(`bi ${entry.icon}`));
     return ico;
-  }
-
-  // ─── Lesson preview drawer (offcanvas) ───────────────────────────────────
-
-  function setupLessonDrawer() {
-    const prevBtn = getById("lessonPrevBtn");
-    const nextBtn = getById("lessonNextBtn");
-
-    if (prevBtn) prevBtn.addEventListener("click", () => navigateLesson(-1));
-    if (nextBtn) nextBtn.addEventListener("click", () => navigateLesson(1));
-  }
-
-  function openLessonPreview(item) {
-    const allItems = getAllItems();
-    pageState.currentLessonIndex = allItems.indexOf(item);
-    pageState.currentLesson = item;
-    updateDrawerContent(item);
-
-    const drawerEl = getById("lessonPreviewDrawer");
-    if (drawerEl && window.bootstrap?.Offcanvas) {
-      const offcanvas = window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
-      offcanvas.show();
-    }
-  }
-
-  function updateDrawerContent(item) {
-    // Header
-    setTextById("lessonPreviewLabel", item.title);
-    setTextById("lessonMetaTime", item.duration || "—");
-    setTextById("lessonMetaXP", String(item.xpReward || 0));
-
-    // Preview ring
-    const progress = calculateCourseProgress();
-    const previewRing = getById("previewRing");
-    if (previewRing) {
-      const circ = 163.36;
-      previewRing.style.strokeDashoffset = String(circ - (progress.percent / 100) * circ);
-    }
-    setTextById("previewRingPct", `${progress.percent}%`);
-
-    // Body content
-    const body = getById("lessonPreviewBody");
-    if (body) {
-      clearChildren(body);
-      if (item.content) {
-        appendTextWithLineBreaks(body, item.content);
-      } else {
-        body.textContent = "Open the full lesson to view content.";
-      }
-    }
-
-    const openBtn = getById("lessonOpenBtn");
-    if (openBtn) {
-      openBtn.href = buildLessonUrl(item);
-    }
-
-    // Prev / Next visibility
-    const allItems = getAllItems();
-    const idx = allItems.indexOf(item);
-    const prevBtn = getById("lessonPrevBtn");
-    const nextBtn = getById("lessonNextBtn");
-    if (prevBtn) prevBtn.disabled = idx <= 0;
-    if (nextBtn) nextBtn.disabled = idx >= allItems.length - 1;
-  }
-
-  function navigateLesson(direction) {
-    const allItems = getAllItems();
-    const newIndex = pageState.currentLessonIndex + direction;
-    if (newIndex < 0 || newIndex >= allItems.length) return;
-    pageState.currentLessonIndex = newIndex;
-    pageState.currentLesson = allItems[newIndex];
-    updateDrawerContent(allItems[newIndex]);
   }
 
   // Build the correct destination URL for any item type.
