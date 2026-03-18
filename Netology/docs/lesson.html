@@ -9,19 +9,18 @@ HTML
 lesson.html – Netology Interactive Lesson Player
 
 Purpose:
-- Step-by-step interactive lesson player, loaded via URL params ?course=&module=&lesson=
+- Step-by-step interactive lesson player, loaded via URL params ?course_id=&lesson=&content_id=
 - Slide-out sidebar + sticky top navbar
-- Dedicated lesson top bar: back button, animated step progress bar, streak pill, XP pill
+- Lesson top bar: back button, animated step progress bar, streak pill, XP pill
 - Intro screen: lesson title, description, time/XP/steps metadata, learning objectives
-- Step screen: renders exercise types (MCQ, fill-blank, matching,
-  tap-word, flashcard) with hint support, skip and bookmark controls
+- Step screen: three step types — Learn (content cards), MCQ (check blocks), Matching (pairs)
 - Feedback overlay: correct/incorrect result, explanation text, XP earned
 - Completion screen: trophy, stats summary (XP / accuracy / streak / time),
   step review, and Next Lesson / Review / Back to Course actions
 
 Notes:
 - Lesson step data sourced from course_content.js; XP posted to API on completion
-- Scripts: config.js → app.js → course_content.js → lesson.js
+- Scripts: app.js → course_content.js → lesson.js
 -->
 
 <!doctype html>
@@ -216,32 +215,12 @@ Notes:
         <!-- Dynamic step content renders here -->
       </div>
 
-      <!-- Lesson Outline Sidebar -->
-      <aside class="les-outline-panel" id="lesOutlinePanel" style="display:none;" aria-label="Lesson outline">
-        <div class="les-outline-header">
-          <h3>Lesson Outline</h3>
-          <button class="les-outline-close" id="lesOutlineClose" aria-label="Close outline">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-        <div class="les-outline-content" id="lesOutlineContent">
-          <!-- Outline items rendered by JS -->
-        </div>
-      </aside>
-
       <!-- Step Footer -->
       <div class="les-step-footer" id="lesStepFooter">
         <div class="les-step-footer-inner">
           <button class="les-btn les-btn-ghost" id="lesSkipBtn" style="display:none;">
             Skip
           </button>
-          <button class="les-btn les-btn-ghost" id="lesBookmarkBtn" title="Bookmark this slide" aria-label="Bookmark this slide" style="display:none;">
-            <i class="bi bi-bookmark"></i>
-          </button>
-          <div class="les-step-hint" id="lesStepHint" style="display:none;">
-            <i class="bi bi-lightbulb"></i>
-            <span id="lesHintText"></span>
-          </div>
           <button class="les-btn les-btn-primary" id="lesCheckBtn" disabled>
             Check
           </button>
