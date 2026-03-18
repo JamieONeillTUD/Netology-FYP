@@ -1980,6 +1980,31 @@ const COURSE_CONTENT = {
           {
             title: "VLSM and subnet strategy",
             learn: "VLSM lets you mix subnet sizes to match real workloads.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "VLSM (Variable Length Subnet Masking) allows different subnet sizes inside the same address block.",
+                  "Start by listing your requirements from largest to smallest to avoid running out of space.",
+                  "Large departments might need a /24, while a server segment might only need a /28."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Why ordering matters",
+                content: [
+                  "Allocating the largest subnets first prevents fragmentation and wasted space.",
+                  "A good VLSM plan makes scaling easier and avoids costly renumbering."
+                ]
+              },
+              {
+                type: "check",
+                question: "VLSM allows you to:",
+                options: ["Use only one subnet size", "Mix different subnet sizes in one block", "Avoid using subnet masks"],
+                correctIndex: 1,
+                explanation: "VLSM supports different subnet sizes in the same address block."
+              }
+            ],
             content: [
               "VLSM (Variable Length Subnet Masking) allows different subnet sizes inside the same address block.",
               "Start by listing your requirements from largest to smallest to avoid running out of space.",
@@ -2000,6 +2025,31 @@ const COURSE_CONTENT = {
           {
             title: "Subnetting by hand",
             learn: "You can calculate network ranges using block sizes and binary boundaries.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Subnetting by hand starts with the block size: 256 minus the mask in the interesting octet.",
+                  "Example: /26 has mask 255.255.255.192, so block size is 256 - 192 = 64.",
+                  "That means subnets start at .0, .64, .128, and .192."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Usable addresses",
+                content: [
+                  "Each subnet has a network address, usable host range, and broadcast address.",
+                  "Total addresses = block size. Usable = total minus 2."
+                ]
+              },
+              {
+                type: "check",
+                question: "A /26 subnet has how many usable hosts?",
+                options: ["62", "126", "254"],
+                correctIndex: 0,
+                explanation: "A /26 has 64 total addresses, 62 usable."
+              }
+            ],
             content: [
               "Subnetting by hand starts with the block size: 256 minus the mask in the interesting octet.",
               "Example: /26 has mask 255.255.255.192, so block size is 256 - 192 = 64.",
@@ -2175,6 +2225,31 @@ const COURSE_CONTENT = {
           {
             title: "VLAN concepts",
             learn: "VLANs separate traffic and improve security and performance.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "VLANs create logical segments on the same physical switch.",
+                  "Devices in different VLANs cannot communicate without routing.",
+                  "VLANs reduce broadcast scope and improve security."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: VLANs as virtual switches",
+                content: [
+                  "Think of VLANs like virtual switches — the same hardware, but separate logical networks.",
+                  "Common uses include voice VLANs for IP phones and guest VLANs for visitors."
+                ]
+              },
+              {
+                type: "check",
+                question: "VLANs create separate ___ domains.",
+                options: ["Broadcast", "Collision", "Routing"],
+                correctIndex: 0,
+                explanation: "VLANs separate broadcast domains."
+              }
+            ],
             content: [
               "VLANs create logical segments on the same physical switch.",
               "Devices in different VLANs cannot communicate without routing.",
@@ -2194,6 +2269,31 @@ const COURSE_CONTENT = {
           {
             title: "VLAN planning and naming",
             learn: "Consistent VLAN design makes growth and troubleshooting much easier.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "A good VLAN plan maps business functions to clear segments.",
+                  "Use consistent numbering, like 10 for staff, 20 for guests, 30 for voice, and 40 for printers.",
+                  "Names should match the function so the intent is obvious in logs and configs."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Management VLANs",
+                content: [
+                  "Keep management VLANs separate and tightly controlled for security.",
+                  "Reserve VLAN ranges for future projects to avoid renumbering later."
+                ]
+              },
+              {
+                type: "check",
+                question: "Why should VLAN names match their function?",
+                options: ["To make logs and configs easier to read", "To increase broadcast traffic", "To avoid using numbers"],
+                correctIndex: 0,
+                explanation: "Clear names make intent obvious in logs and during troubleshooting."
+              }
+            ],
             content: [
               "A good VLAN plan maps business functions to clear segments.",
               "Use consistent numbering, like 10 for staff, 20 for guests, 30 for voice, and 40 for printers.",
@@ -2214,6 +2314,31 @@ const COURSE_CONTENT = {
           {
             title: "802.1Q trunking",
             learn: "Trunk links tag frames so multiple VLANs can share the same link.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "802.1Q adds a VLAN tag to Ethernet frames.",
+                  "Trunks carry traffic for multiple VLANs between switches or to routers.",
+                  "The native VLAN on a trunk is sent untagged, so keep native VLANs consistent end to end."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Allowed VLAN lists",
+                content: [
+                  "Allowed VLAN lists limit which VLANs are permitted across a trunk for safety and clarity.",
+                  "If VLANs or the native VLAN mismatch, users see intermittent or one-way connectivity."
+                ]
+              },
+              {
+                type: "check",
+                question: "802.1Q does what?",
+                options: ["Tags frames with VLAN identifiers", "Encrypts traffic", "Assigns IP addresses"],
+                correctIndex: 0,
+                explanation: "802.1Q adds VLAN tags to Ethernet frames."
+              }
+            ],
             content: [
               "802.1Q adds a VLAN tag to Ethernet frames.",
               "Trunks carry traffic for multiple VLANs between switches or to routers.",
@@ -2233,6 +2358,31 @@ const COURSE_CONTENT = {
           {
             title: "Access vs trunk ports",
             learn: "Access ports carry one VLAN; trunks carry many and use a native VLAN.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Access ports are for end devices and carry a single VLAN without tags.",
+                  "Trunk ports are used between switches or between a switch and a router.",
+                  "The native VLAN on a trunk is sent untagged by default."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Common mistakes",
+                content: [
+                  "If a PC is plugged into a trunk port, it may receive tagged frames and fail DHCP.",
+                  "Best practice: place unused access ports in an unused VLAN and shut them down."
+                ]
+              },
+              {
+                type: "check",
+                question: "An access port carries:",
+                options: ["One VLAN, untagged", "Multiple VLANs", "All VLANs by default"],
+                correctIndex: 0,
+                explanation: "Access ports carry a single VLAN and do not tag frames."
+              }
+            ],
             content: [
               "Access ports are for end devices and carry a single VLAN without tags.",
               "Trunk ports are used between switches or between a switch and a router.",
@@ -2408,6 +2558,31 @@ const COURSE_CONTENT = {
           {
             title: "Router-on-a-stick",
             learn: "Subinterfaces on one router port can route between VLANs.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Router-on-a-stick uses a single router interface with multiple subinterfaces.",
+                  "Each subinterface is assigned to a VLAN and acts as that VLAN's gateway.",
+                  "The switch port connected to the router must be a trunk carrying all required VLANs."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Bottleneck risk",
+                content: [
+                  "Because all VLANs share one physical link, that link can become a bottleneck.",
+                  "It is cost-effective but less scalable for high-traffic environments."
+                ]
+              },
+              {
+                type: "check",
+                question: "Router-on-a-stick routes between VLANs using:",
+                options: ["Subinterfaces", "Access ports", "DNS"],
+                correctIndex: 0,
+                explanation: "Subinterfaces map each VLAN to one router interface."
+              }
+            ],
             content: [
               "Router-on-a-stick uses a single router interface with multiple subinterfaces.",
               "Each subinterface is assigned to a VLAN and acts as that VLAN's gateway.",
@@ -2427,6 +2602,31 @@ const COURSE_CONTENT = {
           {
             title: "SVI on Layer 3 switches",
             learn: "Layer 3 switches route between VLANs using SVI interfaces.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "An SVI (Switch Virtual Interface) provides a Layer 3 interface for a VLAN.",
+                  "SVIs allow a multilayer switch to route internally without an external router.",
+                  "Inter-VLAN routing happens inside the switch, which is fast and scalable."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Enabling IP routing",
+                content: [
+                  "Remember to enable IP routing on the switch, or SVIs will not route traffic.",
+                  "SVIs are the common choice for modern enterprise access layers."
+                ]
+              },
+              {
+                type: "check",
+                question: "SVI stands for:",
+                options: ["Switch Virtual Interface", "Secure VLAN Interface", "Static Virtual Interface"],
+                correctIndex: 0,
+                explanation: "SVI is Switch Virtual Interface — it provides a Layer 3 gateway for a VLAN."
+              }
+            ],
             content: [
               "An SVI (Switch Virtual Interface) provides a Layer 3 interface for a VLAN.",
               "SVIs allow a multilayer switch to route internally without a router.",
@@ -2446,6 +2646,31 @@ const COURSE_CONTENT = {
           {
             title: "Inter-VLAN design patterns",
             learn: "Design choices depend on size, cost, and performance needs.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Small sites often use router-on-a-stick to save cost.",
+                  "Medium and large sites typically use Layer 3 switches for higher throughput.",
+                  "Routed access designs remove Layer 2 trunks and route at the edge to reduce loops."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Choosing the right pattern",
+                content: [
+                  "Consider where you want policy enforcement: at the router, core, or distribution layer.",
+                  "The right pattern balances simplicity, performance, and security."
+                ]
+              },
+              {
+                type: "check",
+                question: "Which inter-VLAN design is most common in small networks?",
+                options: ["Router-on-a-stick", "Full mesh Layer 3 switching", "Routed access only"],
+                correctIndex: 0,
+                explanation: "Router-on-a-stick is cost-effective and common in smaller environments."
+              }
+            ],
             content: [
               "Small sites often use router-on-a-stick to save cost.",
               "Medium and large sites typically use Layer 3 switches for higher throughput.",
@@ -2466,6 +2691,31 @@ const COURSE_CONTENT = {
           {
             title: "Troubleshooting inter-VLAN routing",
             learn: "Most inter-VLAN issues come from gateway or trunk problems.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Verify that each VLAN has a correct gateway IP address.",
+                  "Check that the switch-to-router or switch-to-switch link is a trunk.",
+                  "Confirm the correct VLANs are allowed on the trunk."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: First test",
+                content: [
+                  "A quick test: can hosts reach their own gateway IP?",
+                  "If local gateway fails, focus on VLAN membership and IP configuration first."
+                ]
+              },
+              {
+                type: "check",
+                question: "Best first test when VLANs cannot talk to each other:",
+                options: ["Ping the default gateway", "Change DNS settings", "Replace the ISP link"],
+                correctIndex: 0,
+                explanation: "If the gateway fails, routing between VLANs will not work."
+              }
+            ],
             content: [
               "Verify that each VLAN has a correct gateway IP address.",
               "Check that the switch-to-router (or switch-to-switch) link is a trunk.",
@@ -2965,6 +3215,31 @@ const COURSE_CONTENT = {
           {
             title: "Attack surface",
             learn: "Reducing the attack surface limits exposure and risk.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Every open service, port, and misconfiguration is part of the attack surface.",
+                  "Reducing exposure lowers the chance of compromise and limits blast radius.",
+                  "Focus on least privilege, minimal services, and strong identity controls."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Staying small",
+                content: [
+                  "Disabling unused remote access services closes entire categories of attacks.",
+                  "Regular scans and configuration reviews keep the attack surface from creeping back."
+                ]
+              },
+              {
+                type: "check",
+                question: "Which action reduces the attack surface?",
+                options: ["Disable unused services", "Enable all management interfaces", "Use default credentials"],
+                correctIndex: 0,
+                explanation: "Disabling unused services removes unnecessary exposure."
+              }
+            ],
             content: [
               "Every open service, port, and misconfiguration is part of the attack surface.",
               "Reducing exposure lowers the chance of compromise and limits blast radius.",
@@ -2985,6 +3260,31 @@ const COURSE_CONTENT = {
           {
             title: "Threat modeling and risk",
             learn: "Threat modeling helps prioritize defenses based on what matters most.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Threat modeling starts with your most valuable assets and how they could be harmed.",
+                  "Consider likelihood and impact to focus on the highest-risk scenarios first.",
+                  "Map data flows so you know where sensitive information travels and where to add controls."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Risk prioritization",
+                content: [
+                  "Protecting payment systems has higher priority than public marketing sites.",
+                  "This approach keeps security aligned with business goals and limited budgets."
+                ]
+              },
+              {
+                type: "check",
+                question: "When prioritizing risks, you should consider:",
+                options: ["Likelihood and impact", "Only cost", "Only technical difficulty"],
+                correctIndex: 0,
+                explanation: "Both likelihood and impact determine which risks matter most."
+              }
+            ],
             content: [
               "Threat modeling starts with your most valuable assets and how they could be harmed.",
               "Consider likelihood and impact to focus on the highest-risk scenarios first.",
@@ -3005,6 +3305,31 @@ const COURSE_CONTENT = {
           {
             title: "Hardening checklist",
             learn: "Harden devices by removing defaults, patching, and restricting access.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Disable unused services, close unused ports, and remove default credentials.",
+                  "Patch operating systems and network devices regularly.",
+                  "Apply secure management: restrict admin access to known subnets or jump hosts."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Management plane",
+                content: [
+                  "Harden the management plane with a separate management VLAN and strict access rules.",
+                  "Replace Telnet with SSH and prefer key-based authentication where possible."
+                ]
+              },
+              {
+                type: "check",
+                question: "Which is a key hardening action?",
+                options: ["Patch devices regularly", "Enable all services", "Use default admin accounts"],
+                correctIndex: 0,
+                explanation: "Patching removes known vulnerabilities."
+              }
+            ],
             content: [
               "Disable unused services, close unused ports, and remove default credentials.",
               "Patch operating systems and network devices regularly.",
@@ -3024,6 +3349,31 @@ const COURSE_CONTENT = {
           {
             title: "Authentication and AAA",
             learn: "AAA centralizes identity and enforces least privilege across devices.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Authentication verifies identity; authorization defines what a user can do; accounting logs actions.",
+                  "Centralized AAA (like RADIUS or TACACS+) simplifies management and auditing.",
+                  "Multi-factor authentication adds a second layer of protection for administrative access."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Least privilege",
+                content: [
+                  "Least privilege ensures users only get the access they need to do their job.",
+                  "Strong identity controls reduce the chance of lateral movement after a breach."
+                ]
+              },
+              {
+                type: "check",
+                question: "AAA stands for:",
+                options: ["Authentication, Authorization, Accounting", "Access, Address, Audit", "Application, API, Admin"],
+                correctIndex: 0,
+                explanation: "AAA is Authentication, Authorization, and Accounting."
+              }
+            ],
             content: [
               "Authentication verifies identity; authorization defines what a user can do; accounting logs actions.",
               "Centralized AAA (like RADIUS or TACACS+) simplifies management and auditing.",
@@ -3186,6 +3536,31 @@ const COURSE_CONTENT = {
           {
             title: "Stateless vs stateful",
             learn: "Stateful firewalls allow return traffic automatically and reduce rule complexity.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Stateless firewalls filter each packet in isolation.",
+                  "Stateful firewalls track connection state and allow return traffic automatically.",
+                  "Stateless filtering can be faster but requires more careful rule design."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Why stateful is simpler",
+                content: [
+                  "Stateful inspection reduces the need for separate inbound allow rules for established sessions.",
+                  "Choose stateful inspection when usability and safety are priorities."
+                ]
+              },
+              {
+                type: "check",
+                question: "Stateful firewalls are different because they:",
+                options: ["Track connection state", "Ignore all ports", "Disable routing"],
+                correctIndex: 0,
+                explanation: "Stateful firewalls track active connections and allow return traffic."
+              }
+            ],
             content: [
               "Stateless firewalls filter each packet in isolation.",
               "Stateful firewalls track connection state and allow return traffic automatically.",
@@ -3205,6 +3580,31 @@ const COURSE_CONTENT = {
           {
             title: "ACL design",
             learn: "Order matters. Place specific rules before general ones.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "ACLs are evaluated top-down: the first match wins.",
+                  "Put specific allow or deny rules before general rules.",
+                  "Use least privilege: allow only what is required, deny everything else."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Documentation",
+                content: [
+                  "Document each rule so future changes do not break the original intent.",
+                  "Well-structured ACLs are easier to audit and safer to change."
+                ]
+              },
+              {
+                type: "check",
+                question: "ACLs are evaluated in what order?",
+                options: ["Top-down, first match wins", "Bottom-up", "Randomly"],
+                correctIndex: 0,
+                explanation: "ACLs are processed from top to bottom and the first match applies."
+              }
+            ],
             content: [
               "ACLs are evaluated top-down: the first match wins.",
               "Put specific allow or deny rules before general rules.",
@@ -3224,6 +3624,31 @@ const COURSE_CONTENT = {
           {
             title: "Firewall policy lifecycle",
             learn: "Policies need regular review so they stay secure and relevant.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Firewall rules often outlive their original purpose unless they are reviewed.",
+                  "A good policy lifecycle includes request, review, approval, and implementation.",
+                  "Add owners and expiration dates so temporary rules do not become permanent."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Clean-up",
+                content: [
+                  "Log usage and review counters to identify rules that never match.",
+                  "A healthy policy set is small, documented, and easy to explain."
+                ]
+              },
+              {
+                type: "check",
+                question: "Why review firewall rules periodically?",
+                options: ["Remove unused rules and reduce risk", "Make them longer", "Disable logging"],
+                correctIndex: 0,
+                explanation: "Unused rules increase risk and complexity over time."
+              }
+            ],
             content: [
               "Firewall rules often outlive their original purpose unless they are reviewed.",
               "A good policy lifecycle includes request, review, approval, and implementation.",
@@ -3244,6 +3669,31 @@ const COURSE_CONTENT = {
           {
             title: "Rule ordering and implicit deny",
             learn: "The order of rules is just as important as the rules themselves.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "ACLs are evaluated top-down, so the first match wins.",
+                  "Many platforms apply an implicit deny at the end of the list.",
+                  "Watch for shadowed rules that never match because an earlier rule already applies."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Testing safely",
+                content: [
+                  "Always test rules in a safe environment before deploying to production.",
+                  "Use counters or logs to clean up unused rules over time."
+                ]
+              },
+              {
+                type: "check",
+                question: "An implicit deny at the end of an ACL means:",
+                options: ["All unmatched traffic is blocked", "All traffic is allowed", "Rules are ignored"],
+                correctIndex: 0,
+                explanation: "An implicit deny blocks any traffic not explicitly permitted."
+              }
+            ],
             content: [
               "ACLs are evaluated top-down, so the first match wins.",
               "An early broad rule can override later detailed rules.",
@@ -3392,6 +3842,31 @@ const COURSE_CONTENT = {
           {
             title: "Logging and SIEM basics",
             learn: "Good logs enable faster incident response and better forensic analysis.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Centralized logging aggregates events from firewalls, routers, and servers.",
+                  "SIEM tools correlate events to detect suspicious behavior faster.",
+                  "Make sure logs include timestamps, usernames, source IPs, and action results."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Time sync",
+                content: [
+                  "NTP and log retention policies are critical for usable investigation timelines.",
+                  "Well-structured logs reduce investigation time and false positives."
+                ]
+              },
+              {
+                type: "check",
+                question: "A SIEM is used to:",
+                options: ["Correlate and analyze logs", "Block all traffic", "Assign IP addresses"],
+                correctIndex: 0,
+                explanation: "SIEM systems aggregate and analyze logs for security insights."
+              }
+            ],
             content: [
               "Centralized logging aggregates events from firewalls, routers, and servers.",
               "SIEM tools correlate events to detect suspicious behavior faster.",
@@ -3411,6 +3886,31 @@ const COURSE_CONTENT = {
           {
             title: "Incident response workflow",
             learn: "Follow a consistent IR process to reduce downtime and impact.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "IR phases: Prepare, Detect, Contain, Eradicate, and Recover.",
+                  "Containment limits damage; eradication removes root cause.",
+                  "Define roles, contacts, and communication channels before incidents happen."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Post-incident review",
+                content: [
+                  "A post-incident review turns lessons learned into better controls.",
+                  "Clear escalation paths prevent confusion during high-stress events."
+                ]
+              },
+              {
+                type: "check",
+                question: "Which IR phase comes first?",
+                options: ["Prepare", "Contain", "Recover"],
+                correctIndex: 0,
+                explanation: "Preparation ensures your team and tools are ready before an incident occurs."
+              }
+            ],
             content: [
               "IR phases: Prepare, Detect, Contain, Eradicate, and Recover.",
               "Preparation and detection reduce mean time to respond.",
@@ -3430,6 +3930,31 @@ const COURSE_CONTENT = {
           {
             title: "Playbooks and tabletop exercises",
             learn: "Practicing response steps builds speed and confidence.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "Playbooks are step-by-step guides for common incidents like phishing or ransomware.",
+                  "They define who does what, which systems to isolate, and how to communicate.",
+                  "Tabletop exercises simulate incidents without breaking production systems."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Why practice matters",
+                content: [
+                  "Practicing reveals gaps in tooling, access, and decision-making.",
+                  "Well-practiced teams respond faster and reduce business impact."
+                ]
+              },
+              {
+                type: "check",
+                question: "Tabletop exercises help teams:",
+                options: ["Practice response without production impact", "Encrypt all traffic", "Assign IP addresses"],
+                correctIndex: 0,
+                explanation: "Tabletops test process and communication safely."
+              }
+            ],
             content: [
               "Playbooks are step-by-step guides for common incidents like phishing or ransomware.",
               "They define who does what, which systems to isolate, and how to communicate.",
@@ -3450,6 +3975,31 @@ const COURSE_CONTENT = {
           {
             title: "Detection baselines and alerting",
             learn: "Baselines help you spot anomalies and tune alerts.",
+            blocks: [
+              {
+                type: "text",
+                text: [
+                  "A baseline is the normal behavior of your network and systems.",
+                  "Without a baseline, alerts will be noisy and hard to trust.",
+                  "Start with simple metrics: login failures, unusual traffic, and service health."
+                ]
+              },
+              {
+                type: "explain",
+                title: "Key Concept: Revisiting baselines",
+                content: [
+                  "Baselines shift after major changes or seasonal peaks, so revisit them regularly.",
+                  "Alert quality is a measurable sign of a mature security program."
+                ]
+              },
+              {
+                type: "check",
+                question: "Fill in the blank: A baseline describes ___ behavior.",
+                options: ["normal", "unknown", "hostile"],
+                correctIndex: 0,
+                explanation: "Baselines define what normal looks like so anomalies stand out."
+              }
+            ],
             content: [
               "A baseline is the normal behavior of your network and systems.",
               "Without a baseline, alerts will be noisy and hard to trust.",
