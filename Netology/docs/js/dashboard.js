@@ -1,13 +1,12 @@
 // dashboard.js — Main user dashboard with progress, achievements, and challenges.
 
-(() => {
+(function () {
   "use strict";
 
-  const ENDPOINTS = window.ENDPOINTS || {};
-  const apiGet = window.apiGet;
+  var ENDPOINTS = window.ENDPOINTS || {};
+  var apiGet = window.apiGet;
 
-  // All mutable dashboard data lives here.
-  const state = {
+  var dashboardState = {
     refreshTimer: null,
     carouselTimer: null,
     progress: null,
@@ -17,7 +16,7 @@
     listenersAttached: false
   };
 
-  const TIPS = [
+  var NETWORKING_TIPS = [
     "CompTIA Network+ covers the physical, data link, network, transport, and application layers.",
     "A MAC address is 48 bits long and is burned into the network card.",
     "OSPF is a link-state routing protocol using Dijkstra's algorithm.",
@@ -30,720 +29,972 @@
     "A firewall filters traffic based on security rules."
   ];
 
-  // Reads the saved user from localStorage.
-  function getSavedUser() {
+  // Read the saved user object from local storage
+  function readSavedUserFromLocalStorage() {
     try {
-      const raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
-      return raw ? JSON.parse(raw) : null;
-    } catch {
+      var rawData = localStorage.getItem("netology_user") || localStorage.getItem("user");
+      return rawData ? JSON.parse(rawData) : null;
+    } catch (error) {
       return null;
     }
   }
 
-  // Saves user data to localStorage.
-  function saveUser(user) {
-    if (!user) return;
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem("netology_user", JSON.stringify(user));
+  // Save the user object to local storage
+  function saveUserToLocalStorage(userData) {
+    if (!userData) return;
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("netology_user", JSON.stringify(userData));
   }
 
-  // Sets text content on an element by id.
-  function setText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
-  }
+  // Get the user profile from the server and merge with saved data
+  async function fetchUserProfileFromServer() {
+    var savedUser = readSavedUserFromLocalStorage();
+    var userEmail = "";
 
-  // Fetches fresh user data from server and merges with saved data.
-  async function fetchUser() {
-    const saved = getSavedUser();
-    const email = saved?.email || localStorage.getItem("netology_last_email") || "";
-    if (!email) return saved;
+    if (savedUser && savedUser.email) {
+      userEmail = savedUser.email;
+    } else {
+      userEmail = localStorage.getItem("netology_last_email") || "";
+    }
+
+    if (!userEmail) {
+      return savedUser;
+    }
 
     try {
-      const endpoint = ENDPOINTS.auth?.userInfo || "/user-info";
-      const data = await apiGet(endpoint, { email });
-      if (!data?.success) return saved;
+      var endpoint = (ENDPOINTS.auth && ENDPOINTS.auth.userInfo) || "/user-info";
+      var serverData = await apiGet(endpoint, { email: userEmail });
 
-      const updated = {
-        ...(saved || {}),
-        email,
-        first_name: data.first_name || saved?.first_name,
-        last_name: data.last_name || saved?.last_name,
-        username: data.username || saved?.username,
-        xp: Number.isFinite(Number(data.xp ?? data.total_xp))
-          ? Number(data.xp ?? data.total_xp)
-          : Number(saved?.xp || 0),
-        numeric_level: Number.isFinite(Number(data.numeric_level))
-          ? Number(data.numeric_level)
-          : (saved?.numeric_level || 1),
-        rank: data.rank || data.level || saved?.rank,
-        level: data.level || data.rank || saved?.level,
-        is_first_login: typeof data.is_first_login !== "undefined"
-          ? Boolean(data.is_first_login)
-          : saved?.is_first_login,
-        onboarding_completed: typeof data.onboarding_completed !== "undefined"
-          ? Boolean(data.onboarding_completed)
-          : saved?.onboarding_completed
-      };
+      if (!serverData || !serverData.success) {
+        return savedUser;
+      }
 
-      saveUser(updated);
-      return updated;
-    } catch (err) {
-      console.warn("Could not fetch user from server:", err);
-      return saved;
+      var updatedUser = Object.assign({}, savedUser || {}, {
+        email: userEmail,
+        first_name: serverData.first_name || (savedUser && savedUser.first_name) || "",
+        last_name: serverData.last_name || (savedUser && savedUser.last_name) || "",
+        username: serverData.username || (savedUser && savedUser.username) || "",
+        xp: Number.isFinite(Number(serverData.xp !== undefined ? serverData.xp : serverData.total_xp))
+          ? Number(serverData.xp !== undefined ? serverData.xp : serverData.total_xp)
+          : Number((savedUser && savedUser.xp) || 0),
+        numeric_level: Number.isFinite(Number(serverData.numeric_level))
+          ? Number(serverData.numeric_level)
+          : ((savedUser && savedUser.numeric_level) || 1),
+        rank: serverData.rank || serverData.level || (savedUser && savedUser.rank) || "",
+        level: serverData.level || serverData.rank || (savedUser && savedUser.level) || "",
+        xp_into_level: Number(serverData.xp_into_level || 0),
+        next_level_xp: Number(serverData.next_level_xp || 100),
+        is_first_login: typeof serverData.is_first_login !== "undefined"
+          ? Boolean(serverData.is_first_login)
+          : (savedUser && savedUser.is_first_login),
+        onboarding_completed: typeof serverData.onboarding_completed !== "undefined"
+          ? Boolean(serverData.onboarding_completed)
+          : (savedUser && savedUser.onboarding_completed)
+      });
+
+      saveUserToLocalStorage(updatedUser);
+      return updatedUser;
+    } catch (error) {
+      console.warn("Could not fetch user from server:", error);
+      return savedUser;
     }
   }
 
-  // Fetches the user's progress summary (lessons, quizzes, XP, streak).
-  async function fetchProgress(email) {
-    if (!email) { state.progress = null; return null; }
+  // Get the user's progress summary from the server
+  async function fetchUserProgressFromServer(userEmail) {
+    if (!userEmail) {
+      dashboardState.progress = null;
+      return null;
+    }
 
     try {
-      const endpoint = ENDPOINTS.courses?.userProgressSummary || "/user-progress-summary";
-      const data = await apiGet(endpoint, { email });
+      var endpoint = (ENDPOINTS.courses && ENDPOINTS.courses.userProgressSummary) || "/user-progress-summary";
+      var serverData = await apiGet(endpoint, { email: userEmail });
 
-      if (data && (data.lessons_done !== undefined || data.quizzes_done !== undefined || data.total_xp !== undefined)) {
-        state.progress = {
-          email,
-          lessons: Number(data.lessons_done || 0),
-          quizzes: Number(data.quizzes_done || 0),
-          challenges: Number(data.challenges_done || 0),
-          coursesDone: Number(data.courses_done || 0),
-          coursesActive: Number(data.in_progress || 0),
-          coursesTotal: Number(data.total_courses || 0),
-          totalXp: Number(data.total_xp || 0),
-          level: Number(data.level || 1),
-          streak: Number(data.login_streak || data.streak || 0)
+      if (serverData && (serverData.lessons_done !== undefined || serverData.quizzes_done !== undefined || serverData.total_xp !== undefined)) {
+        dashboardState.progress = {
+          email: userEmail,
+          lessonsCompleted: Number(serverData.lessons_done || 0),
+          quizzesCompleted: Number(serverData.quizzes_done || 0),
+          challengesCompleted: Number(serverData.challenges_done || 0),
+          coursesFinished: Number(serverData.courses_done || 0),
+          coursesInProgress: Number(serverData.in_progress || 0),
+          coursesTotal: Number(serverData.total_courses || 0),
+          totalExperiencePoints: Number(serverData.total_xp || 0),
+          currentLevel: Number(serverData.level || 1),
+          loginStreak: Number(serverData.login_streak || serverData.streak || 0)
         };
-        return state.progress;
+        return dashboardState.progress;
       }
 
-      state.progress = null;
+      dashboardState.progress = null;
       return null;
-    } catch (err) {
-      console.warn("Could not fetch progress:", err);
-      state.progress = null;
+    } catch (error) {
+      console.warn("Could not fetch progress:", error);
+      dashboardState.progress = null;
       return null;
     }
   }
 
-  // Fetches the user's achievements (unlocked and locked).
-  async function fetchAchievements(email) {
-    const empty = { all: [], unlocked: [], locked: [] };
-    if (!email) { state.achievements = empty; return empty; }
+  // Get unlocked and locked achievements from the server
+  async function fetchUserAchievementsFromServer(userEmail) {
+    var emptyAchievements = { all: [], unlocked: [], locked: [] };
+
+    if (!userEmail) {
+      dashboardState.achievements = emptyAchievements;
+      return emptyAchievements;
+    }
 
     try {
-      const endpoint = ENDPOINTS.achievements?.list || "/api/user/achievements";
-      const data = await apiGet(endpoint, { user_email: email });
+      var endpoint = (ENDPOINTS.achievements && ENDPOINTS.achievements.list) || "/api/user/achievements";
+      var serverData = await apiGet(endpoint, { user_email: userEmail });
 
-      if (data && (data.unlocked || data.locked || data.achievements)) {
-        const unlocked = (data.unlocked || []).map(a => ({ ...a, unlocked: true }));
-        const locked = (data.locked || []).map(a => ({ ...a, unlocked: false }));
-        state.achievements = { all: [...unlocked, ...locked], unlocked, locked };
+      if (serverData && (serverData.unlocked || serverData.locked || serverData.achievements)) {
+        var unlockedList = (serverData.unlocked || []).map(function (achievement) {
+          return Object.assign({}, achievement, { unlocked: true });
+        });
+        var lockedList = (serverData.locked || []).map(function (achievement) {
+          return Object.assign({}, achievement, { unlocked: false });
+        });
+        dashboardState.achievements = {
+          all: unlockedList.concat(lockedList),
+          unlocked: unlockedList,
+          locked: lockedList
+        };
       } else {
-        state.achievements = empty;
+        dashboardState.achievements = emptyAchievements;
       }
-      return state.achievements;
-    } catch (err) {
-      console.warn("Could not fetch achievements:", err);
-      state.achievements = empty;
-      return empty;
+
+      return dashboardState.achievements;
+    } catch (error) {
+      console.warn("Could not fetch achievements:", error);
+      dashboardState.achievements = emptyAchievements;
+      return emptyAchievements;
     }
   }
 
-  // Fetches challenges of a given type (daily or weekly).
-  async function fetchChallengesByType(email, type) {
-    const endpoint = ENDPOINTS.challenges?.list || "/api/user/challenges";
+  // Get challenges of a specific type (daily or weekly)
+  async function fetchChallengesOfType(userEmail, challengeType) {
+    var endpoint = (ENDPOINTS.challenges && ENDPOINTS.challenges.list) || "/api/user/challenges";
     try {
-      const data = await apiGet(endpoint, { type, user_email: email });
-      return Array.isArray(data) ? data : (data.challenges || []);
-    } catch (err) {
-      console.warn(`Could not fetch ${type} challenges:`, err);
+      var serverData = await apiGet(endpoint, { type: challengeType, user_email: userEmail });
+      return Array.isArray(serverData) ? serverData : (serverData.challenges || []);
+    } catch (error) {
+      console.warn("Could not fetch " + challengeType + " challenges:", error);
       return [];
     }
   }
 
-  // Fetches daily and weekly challenges, stores them, and renders both lists.
-  async function fetchChallenges(email) {
-    if (!email) {
-      renderChallengeList(document.getElementById("dailyTasks"), []);
-      renderChallengeList(document.getElementById("weeklyTasks"), []);
+  // Get both daily and weekly challenges and display them
+  async function fetchAllChallengesFromServer(userEmail) {
+    var dailyTasksContainer = document.getElementById("dailyTasks");
+    var weeklyTasksContainer = document.getElementById("weeklyTasks");
+
+    if (!userEmail) {
+      displayChallengeList(dailyTasksContainer, []);
+      displayChallengeList(weeklyTasksContainer, []);
       return;
     }
 
     try {
-      const [daily, weekly] = await Promise.all([
-        fetchChallengesByType(email, "daily"),
-        fetchChallengesByType(email, "weekly")
+      var results = await Promise.all([
+        fetchChallengesOfType(userEmail, "daily"),
+        fetchChallengesOfType(userEmail, "weekly")
       ]);
-      state.challenges.daily = daily;
-      state.challenges.weekly = weekly;
-      renderChallengeList(document.getElementById("dailyTasks"), daily);
-      renderChallengeList(document.getElementById("weeklyTasks"), weekly);
-    } catch (err) {
-      console.warn("Error loading challenges:", err);
+      var dailyChallenges = results[0];
+      var weeklyChallenges = results[1];
+
+      dashboardState.challenges.daily = dailyChallenges;
+      dashboardState.challenges.weekly = weeklyChallenges;
+      displayChallengeList(dailyTasksContainer, dailyChallenges);
+      displayChallengeList(weeklyTasksContainer, weeklyChallenges);
+    } catch (error) {
+      console.warn("Error loading challenges:", error);
     }
   }
 
-  // Fetches the courses this user has started.
-  // COURSE_CONTENT is the source of truth for all static data (title, XP, lesson counts).
-  // The API is only used to overlay progress_pct and status per course.
-  async function fetchCourses(email) {
-    if (!email) { state.courses = []; return []; }
+  // Build course list from COURSE_CONTENT and overlay progress from the server
+  async function fetchCourseProgressFromServer(userEmail) {
+    if (!userEmail) {
+      dashboardState.courses = [];
+      return [];
+    }
 
-    // Build the base list entirely from COURSE_CONTENT — always accurate.
-    const allCourses = Object.entries(window.COURSE_CONTENT || {}).map(([id, c]) => ({
-      id: String(id),
-      title: c.title || "Course",
-      difficulty: c.difficulty || "novice",
-      category: c.category || "Core",
-      xp_reward: c.xpReward || 0,
-      total_lessons: (c.units || []).reduce((s, u) => s + (u.lessons?.length || 0), 0),
-      progress_pct: 0,
-      status: "not-started"
-    }));
+    var courseContentData = window.COURSE_CONTENT || {};
+    var courseIds = Object.keys(courseContentData);
+    var allCourses = [];
 
-    // Overlay progress_pct and status from the API — nothing else.
-    try {
-      const endpoint = ENDPOINTS.courses?.userCourses || "/user-courses";
-      const data = await apiGet(endpoint, { email });
-      const list = Array.isArray(data) ? data : (Array.isArray(data.courses) ? data.courses : []);
-      const progressMap = new Map(list.map(c => [String(c.id || c.course_id || ""), c]));
-      allCourses.forEach(c => {
-        const p = progressMap.get(c.id);
-        if (p) {
-          c.progress_pct = Math.min(100, Math.max(0, Number(p.progress_pct || 0)));
-          c.status = p.status || "not-started";
+    for (var index = 0; index < courseIds.length; index++) {
+      var courseId = courseIds[index];
+      var courseData = courseContentData[courseId];
+      var units = courseData.units || [];
+      var totalLessonsInCourse = 0;
+
+      for (var unitIndex = 0; unitIndex < units.length; unitIndex++) {
+        var unitLessons = units[unitIndex].lessons;
+        if (unitLessons && unitLessons.length) {
+          totalLessonsInCourse += unitLessons.length;
         }
+      }
+
+      allCourses.push({
+        id: String(courseId),
+        title: courseData.title || "Course",
+        difficulty: courseData.difficulty || "novice",
+        category: courseData.category || "Core",
+        experiencePointsReward: courseData.xpReward || 0,
+        totalLessons: totalLessonsInCourse,
+        progressPercent: 0,
+        status: "not-started"
       });
-    } catch (err) {
-      console.warn("Could not fetch course progress:", err);
     }
 
-    // Also check localStorage for courses the user has visited,
-    // so cards still show when the API is cold-starting or returns nothing.
-    const startedKey = `netology_started_courses:${email}`;
-    let localStarted = new Set();
     try {
-      const raw = localStorage.getItem(startedKey);
-      const list = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(list)) list.forEach(e => e?.id && localStarted.add(String(e.id)));
-    } catch {}
+      var endpoint = (ENDPOINTS.courses && ENDPOINTS.courses.userCourses) || "/user-courses";
+      var serverData = await apiGet(endpoint, { email: userEmail });
+      var courseList = Array.isArray(serverData)
+        ? serverData
+        : (Array.isArray(serverData.courses) ? serverData.courses : []);
 
-    // Dashboard only shows courses the user has actually started.
-    state.courses = allCourses.filter(c => c.progress_pct > 0 || localStarted.has(c.id));
-    return state.courses;
+      var progressLookup = {};
+      for (var serverIndex = 0; serverIndex < courseList.length; serverIndex++) {
+        var serverCourse = courseList[serverIndex];
+        var serverCourseId = String(serverCourse.id || serverCourse.course_id || "");
+        progressLookup[serverCourseId] = serverCourse;
+      }
+
+      for (var courseIndex = 0; courseIndex < allCourses.length; courseIndex++) {
+        var currentCourse = allCourses[courseIndex];
+        var progressData = progressLookup[currentCourse.id];
+        if (progressData) {
+          currentCourse.progressPercent = Math.min(100, Math.max(0, Number(progressData.progress_pct || 0)));
+          currentCourse.status = progressData.status || "not-started";
+        }
+      }
+    } catch (error) {
+      console.warn("Could not fetch course progress:", error);
+    }
+
+    var startedCourses = [];
+    for (var filterIndex = 0; filterIndex < allCourses.length; filterIndex++) {
+      if (allCourses[filterIndex].progressPercent > 0) {
+        startedCourses.push(allCourses[filterIndex]);
+      }
+    }
+
+    dashboardState.courses = startedCourses;
+    return startedCourses;
   }
 
-  // Records today's login for streak tracking.
-  function recordLogin(email) {
-    if (typeof window.recordLoginDay === "function") window.recordLoginDay(email);
+  // Record today's login for streak tracking
+  function recordTodaysLogin(userEmail) {
+    if (typeof window.recordLoginDay === "function") {
+      window.recordLoginDay(userEmail);
+    }
   }
 
-  // Points logo links to dashboard (logged in) or home page (not).
-  function setupLogos() {
-    const page = getSavedUser()?.email ? "dashboard.html" : "index.html";
-    const top = document.getElementById("topBrand");
-    const side = document.getElementById("sideBrand");
-    if (top) top.setAttribute("href", page);
-    if (side) side.setAttribute("href", page);
+  // Point logo links to dashboard or home page
+  function setupLogoLinks() {
+    var savedUser = readSavedUserFromLocalStorage();
+    var targetPage = (savedUser && savedUser.email) ? "dashboard.html" : "index.html";
+
+    var topBrandLink = document.getElementById("topBrand");
+    var sideBrandLink = document.getElementById("sideBrand");
+
+    if (topBrandLink) topBrandLink.setAttribute("href", targetPage);
+    if (sideBrandLink) sideBrandLink.setAttribute("href", targetPage);
   }
 
-  // Wires up the sidebar open, close, and backdrop buttons.
-  function setupSidebar() {
-    const openBtn = document.getElementById("openSidebarBtn");
-    const closeBtn = document.getElementById("closeSidebarBtn");
-    const sidebar = document.getElementById("slideSidebar");
-    const backdrop = document.getElementById("sideBackdrop");
+  // Wire up the slide-out sidebar open, close, and backdrop
+  function setupSlideSidebar() {
+    var openButton = document.getElementById("openSidebarBtn");
+    var closeButton = document.getElementById("closeSidebarBtn");
+    var sidebar = document.getElementById("slideSidebar");
+    var backdrop = document.getElementById("sideBackdrop");
+
     if (!sidebar) return;
 
-    const open = () => {
+    function openSidebar() {
       if (!backdrop) return;
       sidebar.classList.add("is-open");
       backdrop.classList.add("is-open");
       document.body.classList.add("net-noscroll");
-    };
+    }
 
-    const close = () => {
+    function closeSidebar() {
       if (!backdrop) return;
       sidebar.classList.remove("is-open");
       backdrop.classList.remove("is-open");
       document.body.classList.remove("net-noscroll");
-    };
+    }
 
-    if (openBtn) openBtn.addEventListener("click", open);
-    if (closeBtn) closeBtn.addEventListener("click", close);
-    if (backdrop) backdrop.addEventListener("click", close);
+    if (openButton) {
+      openButton.addEventListener("click", function () {
+        openSidebar();
+      });
+    }
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && sidebar.classList.contains("is-open")) close();
+    if (closeButton) {
+      closeButton.addEventListener("click", function () {
+        closeSidebar();
+      });
+    }
+
+    if (backdrop) {
+      backdrop.addEventListener("click", function () {
+        closeSidebar();
+      });
+    }
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && sidebar.classList.contains("is-open")) {
+        closeSidebar();
+      }
     });
   }
 
-  // Wires up the user dropdown toggle.
-  function setupDropdown() {
-    const btn = document.getElementById("userBtn");
-    const menu = document.getElementById("userDropdown");
-    if (!btn || !menu) return;
+  // Wire up the user dropdown toggle
+  function setupUserDropdownMenu() {
+    var dropdownButton = document.getElementById("userBtn");
+    var dropdownMenu = document.getElementById("userDropdown");
 
-    const closeMenu = () => {
-      menu.classList.remove("is-open");
-      btn.setAttribute("aria-expanded", "false");
-    };
+    if (!dropdownButton || !dropdownMenu) return;
 
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const open = menu.classList.toggle("is-open");
-      btn.setAttribute("aria-expanded", String(open));
+    function closeDropdownMenu() {
+      dropdownMenu.classList.remove("is-open");
+      dropdownButton.setAttribute("aria-expanded", "false");
+    }
+
+    dropdownButton.addEventListener("click", function (event) {
+      event.stopPropagation();
+      var isNowOpen = dropdownMenu.classList.toggle("is-open");
+      dropdownButton.setAttribute("aria-expanded", String(isNowOpen));
     });
 
-    document.addEventListener("click", (e) => {
-      if (!menu.contains(e.target) && !btn.contains(e.target)) closeMenu();
+    document.addEventListener("click", function (event) {
+      if (!dropdownMenu.contains(event.target) && !dropdownButton.contains(event.target)) {
+        closeDropdownMenu();
+      }
     });
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeMenu();
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        closeDropdownMenu();
+      }
     });
   }
 
-  // Wires up both logout buttons.
-  function setupLogout() {
-    const logout = () => {
+  // Wire up both logout buttons
+  function setupLogoutButtons() {
+    function performLogout() {
       localStorage.removeItem("netology_user");
       localStorage.removeItem("user");
       localStorage.removeItem("netology_token");
       window.location.href = "index.html";
-    };
+    }
 
-    const top = document.getElementById("topLogoutBtn");
-    const side = document.getElementById("sideLogoutBtn");
-    if (top) top.addEventListener("click", logout);
-    if (side) side.addEventListener("click", logout);
+    var topLogoutButton = document.getElementById("topLogoutBtn");
+    var sideLogoutButton = document.getElementById("sideLogoutBtn");
+
+    if (topLogoutButton) {
+      topLogoutButton.addEventListener("click", function () {
+        performLogout();
+      });
+    }
+
+    if (sideLogoutButton) {
+      sideLogoutButton.addEventListener("click", function () {
+        performLogout();
+      });
+    }
   }
 
-  // Wires up the daily/weekly challenge toggle buttons.
-  function setupChallengeToggle() {
-    const buttons = Array.from(document.querySelectorAll(".dash-toggle-btn[data-panel]"));
-    if (!buttons.length) return;
+  // Wire up the daily/weekly challenge toggle buttons
+  function setupChallengeToggleButtons() {
+    var toggleButtons = Array.from(document.querySelectorAll(".dash-toggle-btn[data-panel]"));
+    if (!toggleButtons.length) return;
 
-    buttons.forEach((clicked) => {
-      clicked.addEventListener("click", () => {
-        buttons.forEach((b) => b.classList.remove("is-active"));
-        clicked.classList.add("is-active");
+    for (var buttonIndex = 0; buttonIndex < toggleButtons.length; buttonIndex++) {
+      (function (clickedButton) {
+        clickedButton.addEventListener("click", function () {
+          for (var removeIndex = 0; removeIndex < toggleButtons.length; removeIndex++) {
+            toggleButtons[removeIndex].classList.remove("is-active");
+          }
+          clickedButton.classList.add("is-active");
 
-        const target = clicked.getAttribute("data-panel");
+          var targetPanelId = clickedButton.getAttribute("data-panel");
 
-        buttons.forEach((b) => {
-          const panelId = b.getAttribute("data-panel");
-          if (!panelId) return;
-          const panel = document.getElementById(panelId);
-          if (!panel) return;
+          for (var panelIndex = 0; panelIndex < toggleButtons.length; panelIndex++) {
+            var panelId = toggleButtons[panelIndex].getAttribute("data-panel");
+            if (!panelId) continue;
 
-          if (panelId === target) {
-            panel.hidden = false;
-            requestAnimationFrame(() => panel.classList.add("is-active"));
-          } else {
-            panel.classList.remove("is-active");
-            setTimeout(() => { panel.hidden = true; }, 200);
+            var panelElement = document.getElementById(panelId);
+            if (!panelElement) continue;
+
+            if (panelId === targetPanelId) {
+              panelElement.hidden = false;
+              requestAnimationFrame(function () {
+                panelElement.classList.add("is-active");
+              });
+            } else {
+              panelElement.classList.remove("is-active");
+              (function (elementToHide) {
+                setTimeout(function () {
+                  elementToHide.hidden = true;
+                }, 200);
+              })(panelElement);
+            }
           }
         });
-      });
-    });
+      })(toggleButtons[buttonIndex]);
+    }
   }
 
-  // Sets up the stats carousel that auto-advances every 8 seconds.
-  function setupCarousel() {
-    const track = document.getElementById("statsTrack");
-    const indicators = document.getElementById("statsIndicators");
-    if (!track || !indicators) return;
+  // Set up the stats carousel that auto-advances every 8 seconds
+  function setupStatsCarousel() {
+    var carouselTrack = document.getElementById("statsTrack");
+    var carouselIndicators = document.getElementById("statsIndicators");
 
-    const slides = Array.from(track.querySelectorAll(".net-carousel-slide"));
-    const dots = Array.from(indicators.querySelectorAll(".net-indicator"));
-    if (!slides.length || dots.length !== slides.length) return;
+    if (!carouselTrack || !carouselIndicators) return;
 
-    let current = 0;
+    var slides = Array.from(carouselTrack.querySelectorAll(".net-carousel-slide"));
+    var indicatorDots = Array.from(carouselIndicators.querySelectorAll(".net-indicator"));
 
-    const goTo = (i) => {
-      current = (i + slides.length) % slides.length;
-      slides.forEach((s, j) => s.classList.toggle("is-active", j === current));
-      dots.forEach((d, j) => d.classList.toggle("active", j === current));
-    };
+    if (!slides.length || indicatorDots.length !== slides.length) return;
 
-    const restartAuto = () => {
-      if (state.carouselTimer) clearInterval(state.carouselTimer);
-      state.carouselTimer = setInterval(() => goTo(current + 1), 8000);
-    };
+    var currentSlideIndex = 0;
 
-    dots.forEach((dot, i) => {
-      dot.addEventListener("click", (e) => {
-        e.stopPropagation();
-        goTo(i);
-        restartAuto();
-      });
-    });
+    function goToSlide(slideIndex) {
+      currentSlideIndex = (slideIndex + slides.length) % slides.length;
+      for (var slideNumber = 0; slideNumber < slides.length; slideNumber++) {
+        if (slideNumber === currentSlideIndex) {
+          slides[slideNumber].classList.add("is-active");
+        } else {
+          slides[slideNumber].classList.remove("is-active");
+        }
+      }
+      for (var dotNumber = 0; dotNumber < indicatorDots.length; dotNumber++) {
+        if (dotNumber === currentSlideIndex) {
+          indicatorDots[dotNumber].classList.add("active");
+        } else {
+          indicatorDots[dotNumber].classList.remove("active");
+        }
+      }
+    }
 
-    goTo(0);
-    restartAuto();
+    function restartAutoAdvance() {
+      if (dashboardState.carouselTimer) {
+        clearInterval(dashboardState.carouselTimer);
+      }
+      dashboardState.carouselTimer = setInterval(function () {
+        goToSlide(currentSlideIndex + 1);
+      }, 8000);
+    }
+
+    for (var dotIndex = 0; dotIndex < indicatorDots.length; dotIndex++) {
+      (function (index) {
+        indicatorDots[index].addEventListener("click", function (event) {
+          event.stopPropagation();
+          goToSlide(index);
+          restartAutoAdvance();
+        });
+      })(dotIndex);
+    }
+
+    goToSlide(0);
+    restartAutoAdvance();
   }
 
-  // Rotates networking tips in the tip box every 10 seconds.
-  function startTips() {
-    const box = document.getElementById("dailyTip");
-    if (!box) return;
+  // Rotate networking tips in the tip box every 10 seconds
+  function startNetworkingTipsRotation() {
+    var tipBox = document.getElementById("dailyTip");
+    if (!tipBox) return;
 
-    let i = 0;
-    box.textContent = TIPS[0];
-    i = 1;
+    var tipIndex = 0;
+    tipBox.textContent = NETWORKING_TIPS[0];
+    tipIndex = 1;
 
-    setInterval(() => {
-      box.style.transition = "opacity 0.6s ease";
-      box.style.opacity = "0";
-      setTimeout(() => {
-        box.textContent = TIPS[i % TIPS.length];
-        i++;
-        box.style.opacity = "1";
+    setInterval(function () {
+      tipBox.style.transition = "opacity 0.6s ease";
+      tipBox.style.opacity = "0";
+
+      setTimeout(function () {
+        tipBox.textContent = NETWORKING_TIPS[tipIndex % NETWORKING_TIPS.length];
+        tipIndex++;
+        tipBox.style.opacity = "1";
       }, 600);
     }, 10000);
   }
 
-  // Activates Bootstrap tooltips on the page.
-  function setupTooltips(scope) {
-    if (!window.bootstrap?.Tooltip) return;
-    (scope || document).querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
-      const existing = window.bootstrap.Tooltip.getInstance(el);
-      if (existing) existing.dispose();
-      new window.bootstrap.Tooltip(el);
-    });
+  // Activate Bootstrap tooltips on the page
+  function activateBootstrapTooltips(scopeElement) {
+    if (!window.bootstrap || !window.bootstrap.Tooltip) return;
+
+    var container = scopeElement || document;
+    var tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
+
+    for (var tooltipIndex = 0; tooltipIndex < tooltipElements.length; tooltipIndex++) {
+      var element = tooltipElements[tooltipIndex];
+      var existingTooltip = window.bootstrap.Tooltip.getInstance(element);
+      if (existingTooltip) existingTooltip.dispose();
+      new window.bootstrap.Tooltip(element);
+    }
   }
 
-  // Sets up onboarding for first-time users.
-  function setupOnboarding(user) {
-    if (!user?.email || !user?.is_first_login) return;
+  // Set up onboarding for first-time users
+  function setupFirstTimeOnboarding(userData) {
+    if (!userData || !userData.email || !userData.is_first_login) return;
 
-    const email = String(user.email).trim().toLowerCase();
-    const prev = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
+    var userEmail = String(userData.email).trim().toLowerCase();
+    var previousOnboardingUser = String(localStorage.getItem("netology_onboarding_user") || "").trim().toLowerCase();
 
-    const done = Boolean(user.onboarding_completed)
-      || localStorage.getItem(`netology_onboarding_completed_${email}`) === "true"
-      || localStorage.getItem(`netology_onboarding_skipped_${email}`) === "true";
-    if (done) return;
+    var onboardingAlreadyDone = Boolean(userData.onboarding_completed)
+      || localStorage.getItem("netology_onboarding_completed_" + userEmail) === "true"
+      || localStorage.getItem("netology_onboarding_skipped_" + userEmail) === "true";
 
-    if (!prev || prev !== email) {
-      localStorage.setItem("netology_onboarding_user", email);
+    if (onboardingAlreadyDone) return;
+
+    if (!previousOnboardingUser || previousOnboardingUser !== userEmail) {
+      localStorage.setItem("netology_onboarding_user", userEmail);
       localStorage.setItem("netology_onboarding_stage", "dashboard");
     }
 
-    try { sessionStorage.setItem("netology_onboarding_session", "true"); } catch {}
-  }
-
-  // Starts the onboarding tour if available.
-  function startTour(user) {
-    if (!user?.email) return;
-    if (typeof window.maybeStartOnboardingTour === "function") {
-      window.maybeStartOnboardingTour("dashboard", user.email);
-    }
-  }
-
-  // Listens for tab focus, visibility, and storage changes to auto-refresh.
-  function setupRefreshListeners() {
-    if (state.listenersAttached) return;
-    state.listenersAttached = true;
-
-    const schedule = () => {
-      if (document.hidden) return;
-      if (state.refreshTimer) clearTimeout(state.refreshTimer);
-      state.refreshTimer = setTimeout(() => refreshAll(), 180);
-    };
-
-    window.addEventListener("focus", schedule);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) schedule(); });
-    window.addEventListener("storage", (e) => {
-      if (e.key === "user" || (e.key && e.key.startsWith("netology_"))) schedule();
-    });
-  }
-
-  // Fills in the user's name, email, rank, and level in sidebar and dropdown.
-  function renderUserInfo(user) {
-    if (!user) return;
-    const name = user.first_name
-      ? `${user.first_name} ${user.last_name || ""}`.trim()
-      : (user.username || "");
-    const level = Number(user.numeric_level || user.level || 1);
-
-    setText("sideUserName", name);
-    setText("ddName", name);
-    setText("sideUserEmail", user.email || "");
-    setText("ddEmail", user.email || "");
-    setText("ddRank", user.rank || "");
-    setText("sideLevelBadge", `Lv ${level}`);
-    setText("ddLevel", level);
-  }
-
-  // Updates the stat numbers in the carousel slides.
-  function renderStats() {
-    const p = state.progress;
-    if (!p) return;
-    setText("heroActive", p.coursesActive || 0);
-    setText("statLessons", p.lessons || 0);
-    setText("statQuizzes", p.quizzes || 0);
-    setText("statChallenges", p.challenges || 0);
-  }
-
-  // Updates the rank card, level label, and redraws the XP gauge.
-  function renderRank() {
-    const user = getSavedUser();
-    if (!user) return;
-
-    const level = Number(user.numeric_level || user.level || 1);
-    const tier = level >= 5 ? "Advanced" : level >= 3 ? "Intermediate" : "Novice";
-
-    setText("heroRank", level);
-    setText("heroRankDifficulty", tier);
-    renderXpGauge(user, level);
-  }
-
-  // Draws the semicircle XP progress gauge.
-  function renderXpGauge(user, level) {
-    const container = document.getElementById("heroXP");
-    if (!container) return;
-
-    const rawXp = Number(user.xp || 0);
-    const nextXp = Number(user.next_level_xp || user.xp_for_next_level || 100);
-    const xpInto = Number(user.xp_into_level || 0);
-    const startXp = window.NetologyXP?.totalXpForLevel
-      ? window.NetologyXP.totalXpForLevel(level)
-      : (100 * (level - 1) * level) / 2;
-    const currentXp = xpInto > 0 ? xpInto : Math.max(0, rawXp - startXp);
-    const pct = Math.min(100, Math.max(0, nextXp > 0 ? (currentXp / nextXp) * 100 : 0));
-
-    const r = 54, cx = 100, cy = 90;
-    const arc = Math.PI * r;
-    const offset = arc * (1 - pct / 100);
-
-    // Helper to create an SVG element with attributes.
-    const svgEl = (tag, attrs) => {
-      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
-      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-      return el;
-    };
-
-    const svg = svgEl("svg", { viewBox: "0 0 200 100", width: "200", height: "100" });
-    svg.style.cssText = "max-width: 200px; display: block;";
-
-    // Background arc.
-    svg.appendChild(svgEl("circle", {
-      cx, cy, r, fill: "none", stroke: "#e9ecef", "stroke-width": "10",
-      "stroke-dasharray": `${arc} ${arc}`, "stroke-dashoffset": "0",
-      "stroke-linecap": "round", transform: `rotate(180 ${cx} ${cy})`
-    }));
-
-    // Progress arc.
-    svg.appendChild(svgEl("circle", {
-      cx, cy, r, fill: "none", stroke: "#0d9488", "stroke-width": "10",
-      "stroke-dasharray": `${arc} ${arc}`, "stroke-dashoffset": offset,
-      "stroke-linecap": "round", transform: `rotate(180 ${cx} ${cy})`
-    }));
-
-    // Level number.
-    const lvl = svgEl("text", {
-      x: cx, y: "72", "text-anchor": "middle", "font-size": "30", "font-weight": "700", fill: "#212529"
-    });
-    lvl.textContent = level;
-    svg.appendChild(lvl);
-
-    // XP label.
-    const label = svgEl("text", {
-      x: cx, y: "90", "text-anchor": "middle", "font-size": "10", fill: "#6c757d"
-    });
-    label.textContent = `${currentXp} / ${nextXp} XP`;
-    svg.appendChild(label);
-
-    container.innerHTML = "";
-    container.classList.remove("visually-hidden");
-    container.appendChild(svg);
-  }
-
-  // Formats a date as YYYY-MM-DD for login log lookups.
-  function dateKey(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-
-  // Counts consecutive login days going backwards from today.
-  function countStreak(email) {
-    if (!email || typeof window.getLoginLog !== "function") return 0;
     try {
-      const log = window.getLoginLog(email);
-      if (!log?.length) return 0;
+      sessionStorage.setItem("netology_onboarding_session", "true");
+    } catch (error) {}
 
-      let count = 0;
-      let day = new Date();
-      day.setHours(0, 0, 0, 0);
+  }
 
-      while (log.includes(dateKey(day))) {
-        count++;
-        day.setDate(day.getDate() - 1);
+  // Start the onboarding tour if available
+  function startOnboardingTourIfAvailable(userData) {
+    if (!userData || !userData.email) return;
+    if (typeof window.maybeStartOnboardingTour === "function") {
+      window.maybeStartOnboardingTour("dashboard", userData.email);
+    }
+  }
+
+  // Refresh the dashboard when the tab gets focus or storage changes
+  function setupAutoRefreshListeners() {
+    if (dashboardState.listenersAttached) return;
+    dashboardState.listenersAttached = true;
+
+    function scheduleRefresh() {
+      if (document.hidden) return;
+      if (dashboardState.refreshTimer) clearTimeout(dashboardState.refreshTimer);
+      dashboardState.refreshTimer = setTimeout(function () {
+        refreshEntireDashboard();
+      }, 180);
+    }
+
+    window.addEventListener("focus", scheduleRefresh);
+
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) scheduleRefresh();
+    });
+
+    window.addEventListener("storage", function (event) {
+      if (event.key === "user" || (event.key && event.key.indexOf("netology_") === 0)) {
+        scheduleRefresh();
       }
-      return count;
-    } catch (err) {
-      console.warn("Could not count login streak:", err);
-      return state.progress?.streak || 0;
-    }
-  }
-
-  // Draws the 7-day login streak calendar.
-  function renderStreak() {
-    const user = getSavedUser();
-    if (!user) return;
-
-    const calendar = document.getElementById("streakCalendar");
-    if (!calendar) return;
-
-    const labels = ["S", "M", "T", "W", "T", "F", "S"];
-    const today = new Date();
-    calendar.innerHTML = "";
-
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const el = document.createElement("div");
-      el.className = "streak-day";
-      el.title = date.toLocaleDateString();
-      el.textContent = labels[date.getDay()];
-      calendar.appendChild(el);
-    }
-
-    setText("heroStreak", countStreak(user.email));
-  }
-
-  // Renders the "continue learning" course cards.
-  function renderCourses() {
-    const box = document.getElementById("continueBox");
-    if (!box) return;
-
-    const courses = (state.courses || []).filter(c => {
-      const s = (c.status || "").toLowerCase();
-      return s !== "completed" && (s === "in-progress" || Number(c.progress_pct || 0) > 0);
     });
+  }
 
-    if (!courses.length) {
-      box.className = "small text-muted text-center p-3";
-      box.textContent = "No courses in progress. Start a new course!";
+  // Show the user's name, email, rank, and level in the sidebar and dropdown
+  function displayUserInformation(userData) {
+    if (!userData) return;
+
+    var displayName = "";
+    if (userData.first_name) {
+      displayName = userData.first_name + " " + (userData.last_name || "");
+      displayName = displayName.trim();
+    } else {
+      displayName = userData.username || "";
+    }
+
+    var userLevel = Number(userData.numeric_level || userData.level || 1);
+
+    var sideUserNameElement = document.getElementById("sideUserName");
+    if (sideUserNameElement) sideUserNameElement.textContent = displayName;
+
+    var dropdownNameElement = document.getElementById("ddName");
+    if (dropdownNameElement) dropdownNameElement.textContent = displayName;
+
+    var sideUserEmailElement = document.getElementById("sideUserEmail");
+    if (sideUserEmailElement) sideUserEmailElement.textContent = userData.email || "";
+
+    var dropdownEmailElement = document.getElementById("ddEmail");
+    if (dropdownEmailElement) dropdownEmailElement.textContent = userData.email || "";
+
+    var dropdownRankElement = document.getElementById("ddRank");
+    if (dropdownRankElement) dropdownRankElement.textContent = userData.rank || "";
+
+    var sideLevelBadgeElement = document.getElementById("sideLevelBadge");
+    if (sideLevelBadgeElement) sideLevelBadgeElement.textContent = "Lv " + userLevel;
+
+    var dropdownLevelElement = document.getElementById("ddLevel");
+    if (dropdownLevelElement) dropdownLevelElement.textContent = userLevel;
+  }
+
+  // Update the stat numbers in the carousel slides
+  function displayProgressStatistics() {
+    var progress = dashboardState.progress;
+    if (!progress) return;
+
+    var activeCoursesElement = document.getElementById("heroActive");
+    if (activeCoursesElement) activeCoursesElement.textContent = progress.coursesInProgress || 0;
+
+    var lessonsElement = document.getElementById("statLessons");
+    if (lessonsElement) lessonsElement.textContent = progress.lessonsCompleted || 0;
+
+    var quizzesElement = document.getElementById("statQuizzes");
+    if (quizzesElement) quizzesElement.textContent = progress.quizzesCompleted || 0;
+
+    var challengesElement = document.getElementById("statChallenges");
+    if (challengesElement) challengesElement.textContent = progress.challengesCompleted || 0;
+  }
+
+  // Update the rank card and draw the semicircle XP gauge
+  function displayRankAndExperienceGauge() {
+    var userData = readSavedUserFromLocalStorage();
+    if (!userData) return;
+
+    var userLevel = Number(userData.numeric_level || userData.level || 1);
+    var tierName = "Novice";
+    if (userLevel >= 5) {
+      tierName = "Advanced";
+    } else if (userLevel >= 3) {
+      tierName = "Intermediate";
+    }
+
+    var rankElement = document.getElementById("heroRank");
+    if (rankElement) rankElement.textContent = userLevel;
+
+    var difficultyElement = document.getElementById("heroRankDifficulty");
+    if (difficultyElement) difficultyElement.textContent = tierName;
+
+    var gaugeContainer = document.getElementById("heroXP");
+    if (!gaugeContainer) return;
+
+    var totalExperiencePoints = Number(userData.xp || 0);
+    var experiencePointsForNextLevel = Number(userData.next_level_xp || userData.xp_for_next_level || 100);
+    var experiencePointsIntoCurrentLevel = Number(userData.xp_into_level || 0);
+
+    var experiencePointsAtLevelStart = 0;
+    if (window.NetologyXP && window.NetologyXP.totalXpForLevel) {
+      experiencePointsAtLevelStart = window.NetologyXP.totalXpForLevel(userLevel);
+    } else {
+      experiencePointsAtLevelStart = (100 * (userLevel - 1) * userLevel) / 2;
+    }
+
+    var currentExperienceInLevel = experiencePointsIntoCurrentLevel > 0
+      ? experiencePointsIntoCurrentLevel
+      : Math.max(0, totalExperiencePoints - experiencePointsAtLevelStart);
+
+    var progressPercent = 0;
+    if (experiencePointsForNextLevel > 0) {
+      progressPercent = Math.min(100, Math.max(0, (currentExperienceInLevel / experiencePointsForNextLevel) * 100));
+    }
+
+    var radius = 54;
+    var centerX = 100;
+    var centerY = 90;
+    var arcLength = Math.PI * radius;
+    var dashOffset = arcLength * (1 - progressPercent / 100);
+
+    var svgNamespace = "http://www.w3.org/2000/svg";
+
+    var svgElement = document.createElementNS(svgNamespace, "svg");
+    svgElement.setAttribute("viewBox", "0 0 200 100");
+    svgElement.setAttribute("width", "200");
+    svgElement.setAttribute("height", "100");
+    svgElement.style.cssText = "max-width: 200px; display: block;";
+
+    var backgroundArc = document.createElementNS(svgNamespace, "circle");
+    backgroundArc.setAttribute("cx", centerX);
+    backgroundArc.setAttribute("cy", centerY);
+    backgroundArc.setAttribute("r", radius);
+    backgroundArc.setAttribute("fill", "none");
+    backgroundArc.setAttribute("stroke", "#e9ecef");
+    backgroundArc.setAttribute("stroke-width", "10");
+    backgroundArc.setAttribute("stroke-dasharray", arcLength + " " + arcLength);
+    backgroundArc.setAttribute("stroke-dashoffset", "0");
+    backgroundArc.setAttribute("stroke-linecap", "round");
+    backgroundArc.setAttribute("transform", "rotate(180 " + centerX + " " + centerY + ")");
+    svgElement.appendChild(backgroundArc);
+
+    var progressArc = document.createElementNS(svgNamespace, "circle");
+    progressArc.setAttribute("cx", centerX);
+    progressArc.setAttribute("cy", centerY);
+    progressArc.setAttribute("r", radius);
+    progressArc.setAttribute("fill", "none");
+    progressArc.setAttribute("stroke", "#0d9488");
+    progressArc.setAttribute("stroke-width", "10");
+    progressArc.setAttribute("stroke-dasharray", arcLength + " " + arcLength);
+    progressArc.setAttribute("stroke-dashoffset", dashOffset);
+    progressArc.setAttribute("stroke-linecap", "round");
+    progressArc.setAttribute("transform", "rotate(180 " + centerX + " " + centerY + ")");
+    svgElement.appendChild(progressArc);
+
+    var levelText = document.createElementNS(svgNamespace, "text");
+    levelText.setAttribute("x", centerX);
+    levelText.setAttribute("y", "72");
+    levelText.setAttribute("text-anchor", "middle");
+    levelText.setAttribute("font-size", "30");
+    levelText.setAttribute("font-weight", "700");
+    levelText.setAttribute("fill", "#212529");
+    levelText.textContent = userLevel;
+    svgElement.appendChild(levelText);
+
+    var experienceLabel = document.createElementNS(svgNamespace, "text");
+    experienceLabel.setAttribute("x", centerX);
+    experienceLabel.setAttribute("y", "90");
+    experienceLabel.setAttribute("text-anchor", "middle");
+    experienceLabel.setAttribute("font-size", "10");
+    experienceLabel.setAttribute("fill", "#6c757d");
+    experienceLabel.textContent = currentExperienceInLevel + " / " + experiencePointsForNextLevel + " XP";
+    svgElement.appendChild(experienceLabel);
+
+    gaugeContainer.innerHTML = "";
+    gaugeContainer.classList.remove("visually-hidden");
+    gaugeContainer.appendChild(svgElement);
+  }
+
+  // Count how many days in a row the user has logged in
+  function countConsecutiveLoginDays(userEmail) {
+    if (!userEmail || typeof window.getLoginLog !== "function") return 0;
+
+    try {
+      var loginHistory = window.getLoginLog(userEmail);
+      if (!loginHistory || !loginHistory.length) return 0;
+
+      var consecutiveDays = 0;
+      var checkDate = new Date();
+      checkDate.setHours(0, 0, 0, 0);
+
+      while (true) {
+        var year = checkDate.getFullYear();
+        var month = String(checkDate.getMonth() + 1).padStart(2, "0");
+        var day = String(checkDate.getDate()).padStart(2, "0");
+        var dateString = year + "-" + month + "-" + day;
+
+        if (loginHistory.indexOf(dateString) === -1) break;
+
+        consecutiveDays++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+
+      return consecutiveDays;
+    } catch (error) {
+      console.warn("Could not count login streak:", error);
+      return (dashboardState.progress && dashboardState.progress.loginStreak) || 0;
+    }
+  }
+
+  // Draw the 7-day login streak calendar
+  function displayLoginStreakCalendar() {
+    var userData = readSavedUserFromLocalStorage();
+    if (!userData) return;
+
+    var calendarContainer = document.getElementById("streakCalendar");
+    if (!calendarContainer) return;
+
+    var dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+    var today = new Date();
+    calendarContainer.innerHTML = "";
+
+    for (var daysAgo = 6; daysAgo >= 0; daysAgo--) {
+      var calendarDate = new Date(today);
+      calendarDate.setDate(calendarDate.getDate() - daysAgo);
+
+      var dayElement = document.createElement("div");
+      dayElement.className = "streak-day";
+      dayElement.title = calendarDate.toLocaleDateString();
+      dayElement.textContent = dayLabels[calendarDate.getDay()];
+      calendarContainer.appendChild(dayElement);
+    }
+
+    var streakCountElement = document.getElementById("heroStreak");
+    if (streakCountElement) {
+      streakCountElement.textContent = countConsecutiveLoginDays(userData.email);
+    }
+  }
+
+  // Render the continue learning course cards
+  function displayContinueLearningCourses() {
+    var coursesContainer = document.getElementById("continueBox");
+    if (!coursesContainer) return;
+
+    var inProgressCourses = [];
+    var allCourses = dashboardState.courses || [];
+
+    for (var filterIndex = 0; filterIndex < allCourses.length; filterIndex++) {
+      var courseStatus = (allCourses[filterIndex].status || "").toLowerCase();
+      var courseProgress = Number(allCourses[filterIndex].progressPercent || 0);
+
+      if (courseStatus !== "completed" && (courseStatus === "in-progress" || courseProgress > 0)) {
+        inProgressCourses.push(allCourses[filterIndex]);
+      }
+    }
+
+    if (inProgressCourses.length === 0) {
+      coursesContainer.className = "small text-muted text-center p-3";
+      coursesContainer.textContent = "No courses in progress. Start a new course!";
       return;
     }
 
-    box.className = "continue-learning-list";
-    box.innerHTML = "";
+    coursesContainer.className = "continue-learning-list";
+    coursesContainer.innerHTML = "";
 
-    const diffIcon = (d) => {
-      const l = (d || "").toLowerCase();
-      if (l === "advanced") return '<i class="bi bi-diamond-fill"></i>';
-      if (l === "intermediate") return '<i class="bi bi-hexagon-fill"></i>';
-      return '<i class="bi bi-circle-fill"></i>';
-    };
+    for (var courseIndex = 0; courseIndex < inProgressCourses.length; courseIndex++) {
+      var course = inProgressCourses[courseIndex];
+      var completionPercent = Math.min(100, Math.max(0, Number(course.progressPercent || 0)));
+      var courseId = String(course.id || "");
+      var courseLink = courseId ? "course.html?id=" + encodeURIComponent(courseId) : "courses.html";
+      var courseTitle = course.title || "Course";
+      var courseCategory = course.category || "";
 
-    const normDiff = (d) => {
-      const l = (d || "novice").toLowerCase();
-      return ["novice", "intermediate", "advanced"].includes(l) ? l : "novice";
-    };
+      var difficultyLevel = (course.difficulty || "novice").toLowerCase();
+      if (difficultyLevel !== "novice" && difficultyLevel !== "intermediate" && difficultyLevel !== "advanced") {
+        difficultyLevel = "novice";
+      }
 
-    courses.forEach(course => {
-      const pct = Math.min(100, Math.max(0, Number(course.progress_pct || 0)));
-      const id = String(course.id || course.course_id || "");
-      const href = id ? `course.html?id=${encodeURIComponent(id)}` : "courses.html";
-      const diff = normDiff(course.difficulty);
-      const title = course.title || course.name || "Course";
-      const cat = course.category || "";
+      var difficultyIcon = '<i class="bi bi-circle-fill"></i>';
+      if (difficultyLevel === "advanced") {
+        difficultyIcon = '<i class="bi bi-diamond-fill"></i>';
+      } else if (difficultyLevel === "intermediate") {
+        difficultyIcon = '<i class="bi bi-hexagon-fill"></i>';
+      }
 
-      // always read lesson count and XP from COURSE_CONTENT (source of truth)
-      const staticCourse = window.COURSE_CONTENT?.[id] || {};
-      const lessons = (staticCourse.units || []).reduce((s, u) => s + (u.lessons?.length || 0), 0)
-        || course.total_lessons || 0;
-      const xp = staticCourse.xpReward || course.xp_reward || 0;
+      var staticCourseData = (window.COURSE_CONTENT && window.COURSE_CONTENT[courseId]) || {};
+      var staticUnits = staticCourseData.units || [];
+      var lessonCount = 0;
 
-      const card = document.createElement("div");
-      card.className = "net-course-card net-course-card--sm";
-      card.dataset.difficulty = diff;
-      card.style.cursor = "pointer";
-      card.innerHTML = `
-        <div class="net-course-header">
-          <div class="net-course-icon">${diffIcon(diff)}</div>
-          <div class="net-course-meta">
-            ${cat ? `<div class="net-course-category">${cat}</div>` : ""}
-            <div class="net-course-title">${title}</div>
-          </div>
-        </div>
-        <div class="net-course-stats-row">
-          ${lessons ? `<span class="net-course-stat-pill"><i class="bi bi-file-text"></i>${lessons} lessons</span>` : ""}
-          ${xp ? `<span class="net-course-stat-pill"><i class="bi bi-lightning-charge-fill"></i>${xp} XP</span>` : ""}
-        </div>
-        <div class="net-course-footer">
-          <div class="net-course-progress-block">
-            <div class="net-course-progress-meta">
-              <span class="net-course-progress-label">${pct}% Complete</span>
-            </div>
-            <div class="net-course-bar net-course-bar--wide">
-              <div class="net-course-bar-fill" style="width:${pct}%"></div>
-            </div>
-          </div>
-          <button class="net-course-cta btn-continue"><i class="bi bi-play-fill"></i> Continue</button>
-        </div>`;
+      for (var unitIndex = 0; unitIndex < staticUnits.length; unitIndex++) {
+        var unitLessons = staticUnits[unitIndex].lessons;
+        if (unitLessons && unitLessons.length) {
+          lessonCount += unitLessons.length;
+        }
+      }
 
-      card.addEventListener("click", () => { window.location.href = href; });
-      card.querySelector(".net-course-cta").addEventListener("click", (e) => {
-        e.stopPropagation();
-        window.location.href = href;
-      });
-      box.appendChild(card);
-    });
+      if (lessonCount === 0) {
+        lessonCount = course.totalLessons || 0;
+      }
+
+      var experiencePointsReward = staticCourseData.xpReward || course.experiencePointsReward || 0;
+
+      var courseCard = document.createElement("div");
+      courseCard.className = "net-course-card net-course-card--sm";
+      courseCard.dataset.difficulty = difficultyLevel;
+      courseCard.style.cursor = "pointer";
+
+      var lessonsHtml = "";
+      if (lessonCount) {
+        lessonsHtml = '<span class="net-course-stat-pill"><i class="bi bi-file-text"></i>' + lessonCount + ' lessons</span>';
+      }
+
+      var experienceHtml = "";
+      if (experiencePointsReward) {
+        experienceHtml = '<span class="net-course-stat-pill"><i class="bi bi-lightning-charge-fill"></i>' + experiencePointsReward + ' XP</span>';
+      }
+
+      var categoryHtml = "";
+      if (courseCategory) {
+        categoryHtml = '<div class="net-course-category">' + courseCategory + '</div>';
+      }
+
+      courseCard.innerHTML =
+        '<div class="net-course-header">' +
+          '<div class="net-course-icon">' + difficultyIcon + '</div>' +
+          '<div class="net-course-meta">' +
+            categoryHtml +
+            '<div class="net-course-title">' + courseTitle + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="net-course-stats-row">' +
+          lessonsHtml +
+          experienceHtml +
+        '</div>' +
+        '<div class="net-course-footer">' +
+          '<div class="net-course-progress-block">' +
+            '<div class="net-course-progress-meta">' +
+              '<span class="net-course-progress-label">' + completionPercent + '% Complete</span>' +
+            '</div>' +
+            '<div class="net-course-bar net-course-bar--wide">' +
+              '<div class="net-course-bar-fill" style="width:' + completionPercent + '%"></div>' +
+            '</div>' +
+          '</div>' +
+          '<button class="net-course-cta btn-continue"><i class="bi bi-play-fill"></i> Continue</button>' +
+        '</div>';
+
+      (function (linkUrl) {
+        courseCard.addEventListener("click", function () {
+          window.location.href = linkUrl;
+        });
+        courseCard.querySelector(".net-course-cta").addEventListener("click", function (event) {
+          event.stopPropagation();
+          window.location.href = linkUrl;
+        });
+      })(courseLink);
+
+      coursesContainer.appendChild(courseCard);
+    }
   }
 
-  // Renders the achievement badges.
-  function renderAchievements() {
-    const container = document.getElementById("achieveScroller");
-    if (!container) return;
+  // Render the achievement badges
+  function displayAchievementBadges() {
+    var achievementContainer = document.getElementById("achieveScroller");
+    if (!achievementContainer) return;
 
-    const list = state.achievements;
-    if (!list?.all?.length) {
-      container.textContent = "No achievements yet";
-      container.classList.add("text-muted", "small");
+    var achievementData = dashboardState.achievements;
+    if (!achievementData || !achievementData.all || achievementData.all.length === 0) {
+      achievementContainer.textContent = "No achievements yet";
+      achievementContainer.classList.add("text-muted", "small");
       return;
     }
 
-    container.innerHTML = "";
-    container.classList.remove("text-muted", "small");
+    achievementContainer.innerHTML = "";
+    achievementContainer.classList.remove("text-muted", "small");
 
-    [...(list.unlocked || []), ...(list.locked || [])].forEach(ach => {
-      const badge = document.createElement("div");
-      badge.className = `achievement-badge ${ach.unlocked ? "unlocked" : "locked"}`;
-      badge.setAttribute("data-bs-toggle", "tooltip");
-      badge.setAttribute("data-bs-placement", "top");
-      badge.title = `${ach.name}: ${ach.description}${ach.xp_reward ? ` (+${ach.xp_reward} XP)` : ""}`;
+    var orderedAchievements = (achievementData.unlocked || []).concat(achievementData.locked || []);
 
-      const icon = document.createElement("div");
-      icon.className = "badge-icon";
-      icon.innerHTML = `<i class="bi ${ach.icon || "bi-star"}"></i>`;
-      badge.appendChild(icon);
+    for (var achievementIndex = 0; achievementIndex < orderedAchievements.length; achievementIndex++) {
+      var achievement = orderedAchievements[achievementIndex];
 
-      const name = document.createElement("div");
-      name.className = "badge-name";
-      name.textContent = ach.name;
-      badge.appendChild(name);
+      var badgeElement = document.createElement("div");
+      badgeElement.className = "achievement-badge " + (achievement.unlocked ? "unlocked" : "locked");
+      badgeElement.setAttribute("data-bs-toggle", "tooltip");
+      badgeElement.setAttribute("data-bs-placement", "top");
 
-      container.appendChild(badge);
-    });
+      var tooltipText = achievement.name + ": " + achievement.description;
+      if (achievement.xp_reward) {
+        tooltipText += " (+" + achievement.xp_reward + " XP)";
+      }
+      badgeElement.title = tooltipText;
 
-    container.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-      new bootstrap.Tooltip(el);
-    });
+      var iconElement = document.createElement("div");
+      iconElement.className = "badge-icon";
+      iconElement.innerHTML = '<i class="bi ' + (achievement.icon || "bi-star") + '"></i>';
+      badgeElement.appendChild(iconElement);
+
+      var nameElement = document.createElement("div");
+      nameElement.className = "badge-name";
+      nameElement.textContent = achievement.name;
+      badgeElement.appendChild(nameElement);
+
+      achievementContainer.appendChild(badgeElement);
+    }
+
+    var tooltipElements = achievementContainer.querySelectorAll('[data-bs-toggle="tooltip"]');
+    for (var tooltipIndex = 0; tooltipIndex < tooltipElements.length; tooltipIndex++) {
+      new bootstrap.Tooltip(tooltipElements[tooltipIndex]);
+    }
   }
 
-  // Renders a list of challenges into a container.
-  function renderChallengeList(container, challenges) {
+  // Render a list of challenges into a container
+  function displayChallengeList(container, challengeList) {
     if (!container) return;
-    if (!challenges?.length) {
+
+    if (!challengeList || challengeList.length === 0) {
       container.className = "dash-tasklist small text-muted text-center p-2";
       container.textContent = "No challenges available";
       return;
@@ -752,116 +1003,126 @@
     container.className = "dash-tasklist";
     container.innerHTML = "";
 
-    challenges.forEach(ch => {
-      const done = ch.completed === true || ch.status === "completed";
-      const xp = ch.xp_reward || 0;
+    for (var challengeIndex = 0; challengeIndex < challengeList.length; challengeIndex++) {
+      var challenge = challengeList[challengeIndex];
+      var isCompleted = challenge.completed === true || challenge.status === "completed";
+      var experienceReward = challenge.xp_reward || 0;
 
-      const row = document.createElement("div");
-      row.className = "dash-challenge" + (done ? " is-done" : "");
+      var challengeRow = document.createElement("div");
+      challengeRow.className = "dash-challenge" + (isCompleted ? " is-done" : "");
 
-      const top = document.createElement("div");
-      top.className = "dash-challenge-top";
-      top.innerHTML = `
-        <span class="dash-challenge-name">${ch.title || ch.name || "Challenge"}</span>
-        <span class="dash-challenge-xp">${done ? "✓ Done" : (xp ? `+${xp} XP` : "")}</span>`;
-      row.appendChild(top);
+      var challengeTopRow = document.createElement("div");
+      challengeTopRow.className = "dash-challenge-top";
 
-      if (ch.description) {
-        const desc = document.createElement("div");
-        desc.className = "dash-challenge-desc";
-        desc.textContent = ch.description;
-        row.appendChild(desc);
+      var statusText = "";
+      if (isCompleted) {
+        statusText = "✓ Done";
+      } else if (experienceReward) {
+        statusText = "+" + experienceReward + " XP";
       }
 
-      container.appendChild(row);
-    });
+      challengeTopRow.innerHTML =
+        '<span class="dash-challenge-name">' + (challenge.title || challenge.name || "Challenge") + '</span>' +
+        '<span class="dash-challenge-xp">' + statusText + '</span>';
+      challengeRow.appendChild(challengeTopRow);
+
+      if (challenge.description) {
+        var descriptionElement = document.createElement("div");
+        descriptionElement.className = "dash-challenge-desc";
+        descriptionElement.textContent = challenge.description;
+        challengeRow.appendChild(descriptionElement);
+      }
+
+      container.appendChild(challengeRow);
+    }
   }
 
-  // Fetches all data and redraws everything.
-  async function refreshAll() {
-    const user = await fetchUser();
+  // Fetch everything and redraw the whole dashboard
+  async function refreshEntireDashboard() {
+    var userData = await fetchUserProfileFromServer();
 
-    if (user?.email) {
+    if (userData && userData.email) {
       try {
         await Promise.all([
-          fetchProgress(user.email),
-          fetchAchievements(user.email),
-          fetchChallenges(user.email),
-          fetchCourses(user.email)
+          fetchUserProgressFromServer(userData.email),
+          fetchUserAchievementsFromServer(userData.email),
+          fetchAllChallengesFromServer(userData.email),
+          fetchCourseProgressFromServer(userData.email)
         ]);
-      } catch (err) {
-        console.warn("Error during refresh:", err);
+      } catch (error) {
+        console.warn("Error during refresh:", error);
       }
     }
 
-    renderUserInfo(user);
-    renderStats();
-    renderRank();
-    renderStreak();
-    renderAchievements();
-    renderCourses();
+    displayUserInformation(userData);
+    displayProgressStatistics();
+    displayRankAndExperienceGauge();
+    displayLoginStreakCalendar();
+    displayAchievementBadges();
+    displayContinueLearningCourses();
   }
 
-  // Main entry point — sets up the page then fetches data.
-  async function init() {
-    setupLogos();
-    setupSidebar();
-    setupDropdown();
-    setupLogout();
-    setupChallengeToggle();
-    setupCarousel();
-    setupTooltips();
-    startTips();
+  // Main entry point, sets up the page then fetches data
+  async function initialiseDashboard() {
+    setupLogoLinks();
+    setupSlideSidebar();
+    setupUserDropdownMenu();
+    setupLogoutButtons();
+    setupChallengeToggleButtons();
+    setupStatsCarousel();
+    activateBootstrapTooltips();
+    startNetworkingTipsRotation();
 
-    // Show cached data immediately so page isn't blank while we fetch.
-    const cached = getSavedUser();
-    if (cached) {
-      renderUserInfo(cached);
-      renderStats();
-      renderRank();
-      renderStreak();
-      renderCourses();
+    var cachedUser = readSavedUserFromLocalStorage();
+    if (cachedUser) {
+      displayUserInformation(cachedUser);
+      displayProgressStatistics();
+      displayRankAndExperienceGauge();
+      displayLoginStreakCalendar();
+      displayContinueLearningCourses();
     }
 
-    const user = await fetchUser();
+    var userData = await fetchUserProfileFromServer();
 
-    if (user?.email) {
-      recordLogin(user.email);
+    if (userData && userData.email) {
+      recordTodaysLogin(userData.email);
       try {
         await Promise.all([
-          fetchProgress(user.email),
-          fetchAchievements(user.email),
-          fetchChallenges(user.email),
-          fetchCourses(user.email)
+          fetchUserProgressFromServer(userData.email),
+          fetchUserAchievementsFromServer(userData.email),
+          fetchAllChallengesFromServer(userData.email),
+          fetchCourseProgressFromServer(userData.email)
         ]);
-      } catch (err) {
-        console.warn("Error during data fetch:", err);
+      } catch (error) {
+        console.warn("Error during data fetch:", error);
       }
     } else {
-      state.progress = null;
-      state.achievements = { all: [], unlocked: [], locked: [] };
-      state.challenges = { daily: [], weekly: [] };
-      state.courses = [];
+      dashboardState.progress = null;
+      dashboardState.achievements = { all: [], unlocked: [], locked: [] };
+      dashboardState.challenges = { daily: [], weekly: [] };
+      dashboardState.courses = [];
     }
 
-    renderUserInfo(user);
-    renderStats();
-    renderRank();
-    renderStreak();
-    renderCourses();
-    renderAchievements();
+    displayUserInformation(userData);
+    displayProgressStatistics();
+    displayRankAndExperienceGauge();
+    displayLoginStreakCalendar();
+    displayContinueLearningCourses();
+    displayAchievementBadges();
 
-    if (user?.email) {
-      setupOnboarding(user);
-      setTimeout(() => startTour(user), 600);
+    if (userData && userData.email) {
+      setupFirstTimeOnboarding(userData);
+      setTimeout(function () {
+        startOnboardingTourIfAvailable(userData);
+      }, 600);
     }
 
-    setupRefreshListeners();
+    setupAutoRefreshListeners();
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init, { once: true });
+    document.addEventListener("DOMContentLoaded", initialiseDashboard, { once: true });
   } else {
-    init();
+    initialiseDashboard();
   }
 })();

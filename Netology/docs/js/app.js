@@ -1,4 +1,4 @@
-/* app.js - shared globals loaded on every page */
+// app.js — Shared globals loaded on every page.
 
 (function () {
   "use strict";
@@ -73,8 +73,8 @@
     var needed = 100;
     while (remaining >= needed) {
       remaining -= needed;
-      level++;
-      needed += 100;
+      level = level + 1;
+      needed = needed + 100;
     }
     return level;
   }
@@ -87,8 +87,12 @@
   // get the rank name based on a users level
   function rankForLevel(level) {
     var validLevel = ensureValidLevel(level);
-    if (validLevel >= 5) return "Advanced";
-    if (validLevel >= 3) return "Intermediate";
+    if (validLevel >= 5) {
+      return "Advanced";
+    }
+    if (validLevel >= 3) {
+      return "Intermediate";
+    }
     return "Novice";
   }
 
@@ -168,11 +172,12 @@
     return String(email || "").trim().toLowerCase();
   }
 
-  // local storage keys for achievement tracking
+  // build the localStorage key for pending achievements
   function pendingStorageKey(email) {
     return "netology_achievement_pending:" + normaliseEmail(email);
   }
 
+  // build the localStorage key for seen achievements
   function seenStorageKey(email) {
     return "netology_achievement_seen:" + normaliseEmail(email);
   }
@@ -187,11 +192,40 @@
     }
   }
 
+  // check if a string exists in an array
+  function arrayContains(list, value) {
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] === value) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // check if a key exists in a plain object used as a set
+  function objectHasKey(obj, key) {
+    return obj.hasOwnProperty(key);
+  }
+
+  // get all values from a plain object used as a map
+  function objectValues(obj) {
+    var result = [];
+    var keys = Object.keys(obj);
+    for (var i = 0; i < keys.length; i++) {
+      result.push(obj[keys[i]]);
+    }
+    return result;
+  }
+
   // clean and validate a raw achievement object
   function cleanAchievement(rawAchievement) {
-    if (!rawAchievement || typeof rawAchievement !== "object") return null;
+    if (!rawAchievement || typeof rawAchievement !== "object") {
+      return null;
+    }
     var achievementId = String(rawAchievement.id || "").trim();
-    if (!achievementId) return null;
+    if (!achievementId) {
+      return null;
+    }
     return {
       id: achievementId,
       name: String(rawAchievement.name || "Achievement"),
@@ -206,67 +240,114 @@
   // get list of achievement ids the user has already seen
   function getSeenAchievementIds(email) {
     var cleanEmail = normaliseEmail(email);
-    return cleanEmail ? readListFromStorage(seenStorageKey(cleanEmail)).map(String) : [];
+    if (!cleanEmail) {
+      return [];
+    }
+    var rawList = readListFromStorage(seenStorageKey(cleanEmail));
+    var result = [];
+    for (var i = 0; i < rawList.length; i++) {
+      result.push(String(rawList[i]));
+    }
+    return result;
   }
 
   // mark achievement ids as seen so they wont show again
   function markAchievementsSeen(email, achievementIds) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail) return;
-    var seenSet = new Set(getSeenAchievementIds(cleanEmail));
-    achievementIds.forEach(function (id) {
-      var trimmedId = String(id || "").trim();
-      if (trimmedId) seenSet.add(trimmedId);
-    });
-    localStorage.setItem(seenStorageKey(cleanEmail), JSON.stringify([].concat(Array.from(seenSet))));
+    if (!cleanEmail) {
+      return;
+    }
+    var existingSeen = getSeenAchievementIds(cleanEmail);
+    var seenLookup = {};
+    for (var i = 0; i < existingSeen.length; i++) {
+      seenLookup[existingSeen[i]] = true;
+    }
+    for (var j = 0; j < achievementIds.length; j++) {
+      var trimmedId = String(achievementIds[j] || "").trim();
+      if (trimmedId) {
+        seenLookup[trimmedId] = true;
+      }
+    }
+    localStorage.setItem(seenStorageKey(cleanEmail), JSON.stringify(Object.keys(seenLookup)));
   }
 
   // remove specific achievements from the pending queue
   function removePendingAchievements(email, achievementIds) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail || !achievementIds || !achievementIds.length) return;
-    var idsToRemove = new Set(
-      achievementIds.map(function (id) { return String(id || "").trim(); }).filter(Boolean)
-    );
-    if (!idsToRemove.size) return;
+    if (!cleanEmail || !achievementIds || !achievementIds.length) {
+      return;
+    }
+    var idsToRemove = {};
+    for (var i = 0; i < achievementIds.length; i++) {
+      var trimmedId = String(achievementIds[i] || "").trim();
+      if (trimmedId) {
+        idsToRemove[trimmedId] = true;
+      }
+    }
+    if (Object.keys(idsToRemove).length === 0) {
+      return;
+    }
     var key = pendingStorageKey(cleanEmail);
-    var remaining = readListFromStorage(key).filter(function (achievement) {
-      return achievement && achievement.id && !idsToRemove.has(String(achievement.id).trim());
-    });
-    if (remaining.length) localStorage.setItem(key, JSON.stringify(remaining));
-    else localStorage.removeItem(key);
+    var currentPending = readListFromStorage(key);
+    var remaining = [];
+    for (var r = 0; r < currentPending.length; r++) {
+      var achievement = currentPending[r];
+      if (achievement && achievement.id && !objectHasKey(idsToRemove, String(achievement.id).trim())) {
+        remaining.push(achievement);
+      }
+    }
+    if (remaining.length) {
+      localStorage.setItem(key, JSON.stringify(remaining));
+    } else {
+      localStorage.removeItem(key);
+    }
   }
 
   // show toast popups for newly earned achievements
   function showAchievementPopups(email, achievements) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail || !achievements || !achievements.length || !document.body) return [];
-    var alreadySeen = new Set(getSeenAchievementIds(cleanEmail));
-    var queued = new Set();
+    if (!cleanEmail || !achievements || !achievements.length || !document.body) {
+      return [];
+    }
+    var seenIds = getSeenAchievementIds(cleanEmail);
+    var alreadySeen = {};
+    for (var s = 0; s < seenIds.length; s++) {
+      alreadySeen[seenIds[s]] = true;
+    }
+    var queued = {};
     var toShow = [];
-    achievements.forEach(function (rawAchievement) {
-      var achievement = cleanAchievement(rawAchievement);
-      if (!achievement || alreadySeen.has(achievement.id) || queued.has(achievement.id)) return;
-      queued.add(achievement.id);
+    for (var i = 0; i < achievements.length; i++) {
+      var achievement = cleanAchievement(achievements[i]);
+      if (!achievement || objectHasKey(alreadySeen, achievement.id) || objectHasKey(queued, achievement.id)) {
+        continue;
+      }
+      queued[achievement.id] = true;
       toShow.push(achievement);
-    });
-    if (!toShow.length) return [];
+    }
+    if (!toShow.length) {
+      return [];
+    }
 
     // show each achievement with a slight delay between them
-    toShow.forEach(function (achievement, index) {
-      setTimeout(function () {
-        if (window.NetologyToast && window.NetologyToast.showAchievementToast) {
-          window.NetologyToast.showAchievementToast(achievement);
-        } else if (window.NetologyToast && window.NetologyToast.showMessageToast) {
-          window.NetologyToast.showMessageToast(achievement.name + " unlocked", "success", 3200);
-        } else {
-          alert(achievement.name + " unlocked");
-        }
-      }, index * 220);
-    });
+    for (var t = 0; t < toShow.length; t++) {
+      (function (achievementToShow, delayIndex) {
+        setTimeout(function () {
+          if (window.NetologyToast && window.NetologyToast.showAchievementToast) {
+            window.NetologyToast.showAchievementToast(achievementToShow);
+          } else if (window.NetologyToast && window.NetologyToast.showMessageToast) {
+            window.NetologyToast.showMessageToast(achievementToShow.name + " unlocked", "success", 3200);
+          } else {
+            alert(achievementToShow.name + " unlocked");
+          }
+        }, delayIndex * 220);
+      })(toShow[t], t);
+    }
 
     // mark these as seen and remove from pending
-    var shownIds = toShow.map(function (achievement) { return achievement.id; });
+    var shownIds = [];
+    for (var m = 0; m < toShow.length; m++) {
+      shownIds.push(toShow[m].id);
+    }
     markAchievementsSeen(cleanEmail, shownIds);
     removePendingAchievements(cleanEmail, shownIds);
     return toShow;
@@ -275,29 +356,38 @@
   // queue new achievement unlocks and show popups for them
   function queueAchievementUnlocks(email, newUnlocks) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail || !newUnlocks || !newUnlocks.length) return [];
+    if (!cleanEmail || !newUnlocks || !newUnlocks.length) {
+      return [];
+    }
     var key = pendingStorageKey(cleanEmail);
-    var achievementsById = new Map();
+    var achievementsById = {};
     var newAchievements = [];
 
     // load existing pending achievements
-    readListFromStorage(key).forEach(function (rawAchievement) {
-      var achievement = cleanAchievement(rawAchievement);
-      if (achievement) achievementsById.set(achievement.id, achievement);
-    });
+    var existingPending = readListFromStorage(key);
+    for (var e = 0; e < existingPending.length; e++) {
+      var existing = cleanAchievement(existingPending[e]);
+      if (existing) {
+        achievementsById[existing.id] = existing;
+      }
+    }
 
     // merge in new unlocks
-    newUnlocks.forEach(function (rawAchievement) {
-      var achievement = cleanAchievement(rawAchievement);
-      if (!achievement) return;
-      achievementsById.set(achievement.id, achievement);
-      newAchievements.push(achievement);
-    });
+    for (var n = 0; n < newUnlocks.length; n++) {
+      var newAchievement = cleanAchievement(newUnlocks[n]);
+      if (!newAchievement) {
+        continue;
+      }
+      achievementsById[newAchievement.id] = newAchievement;
+      newAchievements.push(newAchievement);
+    }
 
     // save merged list and show popups for new ones
-    localStorage.setItem(key, JSON.stringify(Array.from(achievementsById.values())));
-    if (newAchievements.length) showAchievementPopups(cleanEmail, newAchievements);
-    return Array.from(achievementsById.values());
+    localStorage.setItem(key, JSON.stringify(objectValues(achievementsById)));
+    if (newAchievements.length) {
+      showAchievementPopups(cleanEmail, newAchievements);
+    }
+    return objectValues(achievementsById);
   }
 
   // show any pending achievement popups on page load
@@ -305,10 +395,14 @@
     try {
       var rawUser = localStorage.getItem("netology_user") || localStorage.getItem("user") || "null";
       var user = JSON.parse(rawUser);
-      var email = normaliseEmail(user && user.email || "");
-      if (!email) return;
+      var email = normaliseEmail((user && user.email) || "");
+      if (!email) {
+        return;
+      }
       var pending = readListFromStorage(pendingStorageKey(email));
-      if (pending.length) showAchievementPopups(email, pending);
+      if (pending.length) {
+        showAchievementPopups(email, pending);
+      }
     } catch (error) {
       // ignore errors reading from storage
     }
@@ -319,7 +413,9 @@
 
   // show pending achievements once dom is ready
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", showPendingAchievements, { once: true });
+    document.addEventListener("DOMContentLoaded", function () {
+      showPendingAchievements();
+    }, { once: true });
   } else {
     showPendingAchievements();
   }
@@ -366,27 +462,40 @@
   // get todays date as a yyyy-mm-dd string
   function getTodayString() {
     var today = new Date();
-    return today.getFullYear()
-      + "-" + String(today.getMonth() + 1).padStart(2, "0")
-      + "-" + String(today.getDate()).padStart(2, "0");
+    var month = String(today.getMonth() + 1);
+    var day = String(today.getDate());
+    if (month.length < 2) {
+      month = "0" + month;
+    }
+    if (day.length < 2) {
+      day = "0" + day;
+    }
+    return today.getFullYear() + "-" + month + "-" + day;
   }
 
   // update the users xp in local storage
   function updateLocalXp(email, amount) {
-    if (!amount) return;
-    ["user", "netology_user"].forEach(function (storageKey) {
-      var user = parseJsonSafe(localStorage.getItem(storageKey), null);
-      if (!user || normaliseEmail(user.email) !== normaliseEmail(email)) return;
+    if (!amount) {
+      return;
+    }
+    var storageKeys = ["user", "netology_user"];
+    for (var i = 0; i < storageKeys.length; i++) {
+      var user = parseJsonSafe(localStorage.getItem(storageKeys[i]), null);
+      if (!user || normaliseEmail(user.email) !== normaliseEmail(email)) {
+        continue;
+      }
       var updated = (XP && XP.applyXpToUser)
         ? XP.applyXpToUser(user, amount)
         : Object.assign({}, user, { xp: Math.max(0, Number(user.xp || 0) + amount) });
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-    });
+      localStorage.setItem(storageKeys[i], JSON.stringify(updated));
+    }
   }
 
   // send login record to the server and handle response
   function syncLoginWithServer(email) {
-    if (!API_BASE) return;
+    if (!API_BASE) {
+      return;
+    }
     var path = (ENDPOINTS.auth && ENDPOINTS.auth.recordLogin) || "/record-login";
     fetch(buildFullUrl(path), {
       method: "POST",
@@ -395,10 +504,14 @@
     })
     .then(function (response) { return response.json(); })
     .then(function (data) {
-      if (!data || !data.success) return;
+      if (!data || !data.success) {
+        return;
+      }
 
       // update local login log if server has data
-      if (Array.isArray(data.log) && data.log.length) saveLoginLog(email, data.log);
+      if (Array.isArray(data.log) && data.log.length) {
+        saveLoginLog(email, data.log);
+      }
 
       // queue any newly unlocked achievements
       var unlocks = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
@@ -408,7 +521,9 @@
 
       // add any bonus xp from achievements
       var bonusXp = Number(data.achievement_xp_added || 0);
-      if (bonusXp > 0) updateLocalXp(email, bonusXp);
+      if (bonusXp > 0) {
+        updateLocalXp(email, bonusXp);
+      }
     })
     .catch(function () {});
   }
@@ -416,10 +531,12 @@
   // record todays login and sync with server
   function recordLoginDay(email) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail) return [];
+    if (!cleanEmail) {
+      return [];
+    }
     var log = readLoginLog(cleanEmail);
     var today = getTodayString();
-    if (!log.includes(today)) {
+    if (!arrayContains(log, today)) {
       log.push(today);
       log.sort();
       saveLoginLog(cleanEmail, log);
@@ -444,11 +561,13 @@
       ? new URL(base + path)
       : new URL(path, window.location.origin);
     if (params && typeof params === "object") {
-      Object.entries(params).forEach(function (pair) {
-        if (pair[1] !== undefined && pair[1] !== null && pair[1] !== "") {
-          url.searchParams.set(pair[0], String(pair[1]));
+      var paramKeys = Object.keys(params);
+      for (var i = 0; i < paramKeys.length; i++) {
+        var paramValue = params[paramKeys[i]];
+        if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
+          url.searchParams.set(paramKeys[i], String(paramValue));
         }
-      });
+      }
     }
     var response = await fetch(url.toString());
     return response.json();
