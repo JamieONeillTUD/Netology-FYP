@@ -1040,116 +1040,69 @@
 
   function getAllCourseItems(course) {
     if (!course || !course.units || !course.units.length) return [];
-
     const items = [];
-    let lessonCounter = 1;
-
-    course.units.forEach(function (unit) {
-      const result = normalizeUnitItems(unit, lessonCounter);
-      items.push.apply(items, result.items);
-      lessonCounter = result.next;
+    course.units.forEach(function (unit, unitIdx) {
+      items.push.apply(items, normalizeUnitItems(unit, unitIdx).items);
     });
-
     return items;
   }
 
   function buildCourseModules(course) {
     if (!course || !course.units || !course.units.length) return [];
-
-    const modules = [];
-    let lessonCounter = 1;
-
-    course.units.forEach(function (unit, index) {
-      const result = normalizeUnitItems(unit, lessonCounter);
-      modules.push({
-        id: unit.id || "module-" + (index + 1),
-        index: index + 1,
-        title: unit.title || "Module " + (index + 1),
-        items: result.items
-      });
-      lessonCounter = result.next;
+    return course.units.map(function (unit, unitIdx) {
+      return {
+        id: "unit-" + unitIdx,
+        index: unitIdx + 1,
+        title: unit.title || "Module " + (unitIdx + 1),
+        items: normalizeUnitItems(unit, unitIdx).items
+      };
     });
-
-    return modules;
   }
 
-  function normalizeUnitItems(unit, startNumber) {
+  // Reads unit.lessons[], unit.quiz, unit.sandbox, unit.challenge directly.
+  // lesson_number = unitIdx + 1 (matches DB completion key).
+  function normalizeUnitItems(unit, unitIdx) {
     const items = [];
-    let lessonNum = startNumber;
+    const lessonNum = unitIdx + 1;
 
-    function addItem(type, raw) {
+    (unit.lessons || []).forEach(function (lesson) {
       items.push({
-        type: type,
-        title: raw.title || raw.name || capitalizeWord(type),
-        lesson_number: Number(raw.lesson_number || raw.lessonNumber || 0),
-        xp: Number(raw.xp || raw.xpReward || raw.xp_reward || 0),
-        steps: Array.isArray(raw.steps) ? raw.steps : []
+        type: "learn",
+        title: lesson.title || "Lesson",
+        lesson_number: lessonNum,
+        xp: Number(lesson.xp || 40)
+      });
+    });
+
+    if (unit.quiz) {
+      items.push({
+        type: "quiz",
+        title: unit.quiz.title || "Quiz",
+        lesson_number: lessonNum,
+        xp: Number(unit.quiz.xp || 60)
       });
     }
 
-    if (Array.isArray(unit.sections)) {
-      unit.sections.forEach(function (section) {
-        const sectionType = String(section.type || section.kind || section.title || "").toLowerCase();
-        (section.items || section.lessons || []).forEach(function (item) {
-          addItem(resolveItemType(sectionType, item), item);
-        });
-      });
-    } else if (unit.sections && typeof unit.sections === "object") {
-      const sec = unit.sections;
-      (sec.learn || sec.lesson || sec.lessons || []).forEach(function (item) { addItem("learn", item); });
-      (sec.quiz || sec.quizzes || []).forEach(function (item) { addItem("quiz", item); });
-      (sec.practice || sec.sandbox || []).forEach(function (item) { addItem("sandbox", item); });
-      (sec.challenge || sec.challenges || []).forEach(function (item) { addItem("challenge", item); });
-    } else if (Array.isArray(unit.lessons)) {
-      unit.lessons.forEach(function (item) {
-        const type = String(item.type || "learn").toLowerCase();
-        let resolved = "learn";
-        if (type === "quiz") resolved = "quiz";
-        else if (type === "challenge") resolved = "challenge";
-        else if (type === "sandbox" || type === "practice") resolved = "sandbox";
-        addItem(resolved, item);
+    if (unit.sandbox) {
+      items.push({
+        type: "sandbox",
+        title: unit.sandbox.title || "Practice",
+        lesson_number: lessonNum,
+        xp: Number(unit.sandbox.xp || 30),
+        steps: unit.sandbox.steps || []
       });
     }
 
-    let lastLearnNumber = lessonNum - 1;
+    if (unit.challenge) {
+      items.push({
+        type: "challenge",
+        title: unit.challenge.title || "Challenge",
+        lesson_number: lessonNum,
+        xp: Number(unit.challenge.xp || 80)
+      });
+    }
 
-    items.forEach(function (item) {
-      if (item.type === "learn") {
-        item.lesson_number = item.lesson_number || lessonNum++;
-        lastLearnNumber = item.lesson_number;
-        lessonNum = Math.max(lessonNum, item.lesson_number + 1);
-      } else if (!item.lesson_number) {
-        item.lesson_number = Math.max(1, lastLearnNumber);
-      }
-
-      if (!item.xp) {
-        if (item.type === "quiz") item.xp = 60;
-        else if (item.type === "challenge") item.xp = 80;
-        else if (item.type === "sandbox") item.xp = 30;
-        else item.xp = 40;
-      }
-    });
-
-    const typeOrder = { learn: 1, quiz: 2, sandbox: 3, challenge: 4 };
-
-    items.sort(function (a, b) {
-      if (a.lesson_number !== b.lesson_number) return a.lesson_number - b.lesson_number;
-      return (typeOrder[a.type] || 9) - (typeOrder[b.type] || 9);
-    });
-
-    return { items: items, next: lessonNum };
-  }
-
-  function resolveItemType(sectionType, item) {
-    const type = String(item.type || "").toLowerCase();
-
-    if (type === "quiz" || type === "challenge" || type === "learn") return type;
-    if (type === "sandbox" || type === "practice") return "sandbox";
-    if (sectionType.includes("quiz")) return "quiz";
-    if (sectionType.includes("challenge")) return "challenge";
-    if (sectionType.includes("practice") || sectionType.includes("sandbox") || sectionType.includes("hands-on")) return "sandbox";
-
-    return "learn";
+    return { items: items, next: lessonNum + 1 };
   }
 
   function getUniqueItemsByType(course, type) {
@@ -1167,40 +1120,21 @@
 
   function buildLessonTitleMap(course) {
     const map = new Map();
-
-    getAllCourseItems(course).forEach(function (item) {
-      if (item.type === "learn" && item.lesson_number && !map.has(item.lesson_number)) {
-        map.set(Number(item.lesson_number), item.title || "Lesson " + item.lesson_number);
-      }
+    // lesson_number = unitIdx + 1; use first lesson title in each unit
+    (course?.units || []).forEach(function (unit, unitIdx) {
+      const num = unitIdx + 1;
+      const title = unit.lessons?.[0]?.title || unit.title || "Lesson " + num;
+      if (!map.has(num)) map.set(num, title);
     });
-
     return map;
   }
 
   function getTutorialStepCount(course, lessonNumber) {
-    if (!course || !course.units || !course.units.length) return 0;
-
-    let lessonCounter = 1;
-    let stepCount = 0;
-
-    course.units.forEach(function (unit) {
-      (unit.sections || []).forEach(function (section) {
-        (section.items || []).forEach(function (item) {
-          const type = String(item.type || "").toLowerCase();
-
-          if (type === "learn") {
-            if (lessonCounter === lessonNumber) {
-              stepCount = Math.max(stepCount, (item.steps || []).length);
-            }
-            lessonCounter++;
-          } else if ((type === "practice" || type === "sandbox") && lessonCounter - 1 === lessonNumber) {
-            stepCount = Math.max(stepCount, (item.steps || []).length);
-          }
-        });
-      });
-    });
-
-    return stepCount;
+    if (!course || !course.units) return 0;
+    // lessonNumber = unitIdx + 1
+    const unitIdx = lessonNumber - 1;
+    const unit = course.units[unitIdx];
+    return unit?.sandbox?.steps?.length || 0;
   }
 
   function getModuleProgress(mod, completions) {

@@ -362,99 +362,35 @@ function getAvailableTutorials() {
     const requiredLevel = Number(course.required_level || 1) || 1;
     if (requiredLevel > accessLevel) return;
 
-    let lessonCounter = 1;
+    const rawDifficulty = String(course.difficulty || "").toLowerCase();
+    const difficulty =
+      rawDifficulty === "advanced" ? "Advanced" :
+      rawDifficulty === "intermediate" ? "Intermediate" :
+      "Beginner";
+
+    // new structure: sandbox lives directly on each unit
     (course.units || []).forEach((unit, unitIndex) => {
-      const moduleId = String(unit?.id || `module-${unitIndex + 1}`);
-      const unitItems = [];
-      const pushUnitItem = (type, data) => {
-        unitItems.push({
-          type,
-          title: data.title || data.name || "Tutorial",
-          lessonNumber: Number(data.lesson_number || data.lessonNumber || 0),
-          unitTitle: unit?.title || "",
-          steps: Array.isArray(data.steps) ? data.steps : [],
-          tips: data.tips || "",
-          xp: Number(data.xp || data.xpReward || data.xp_reward || 0),
-        });
-      };
-
-      if (Array.isArray(unit?.sections)) {
-        unit.sections.forEach((section) => {
-          const sectionType = String(section.type || section.kind || section.title || "").toLowerCase();
-          const sectionItems = Array.isArray(section.items) ? section.items : [];
-          sectionItems.forEach((item) => {
-            const explicitType = String(item?.type || "").toLowerCase();
-            const itemType =
-              explicitType === "quiz" ? "quiz" :
-              explicitType === "challenge" ? "challenge" :
-              explicitType === "sandbox" || explicitType === "practice" ? "sandbox" :
-              explicitType === "learn" ? "learn" :
-              sectionType.includes("quiz") ? "quiz" :
-              sectionType.includes("challenge") ? "challenge" :
-              sectionType.includes("practice") || sectionType.includes("sandbox") || sectionType.includes("hands-on") ? "sandbox" :
-              "learn";
-            pushUnitItem(itemType, item);
-          });
-        });
-      }
-
-      if (!unitItems.length && Array.isArray(unit?.lessons)) {
-        unit.lessons.forEach((item) => {
-          const itemTypeRaw = String(item.type || "").toLowerCase();
-          const itemType =
-            itemTypeRaw === "quiz" ? "quiz" :
-            itemTypeRaw === "challenge" ? "challenge" :
-            itemTypeRaw === "sandbox" || itemTypeRaw === "practice" ? "sandbox" :
-            "learn";
-          pushUnitItem(itemType, item);
-        });
-      }
-
-      let lastLearnLesson = lessonCounter - 1;
-      unitItems.forEach((item) => {
-        if (item.type === "learn") {
-          if (!item.lessonNumber) item.lessonNumber = lessonCounter++;
-          else lessonCounter = Math.max(lessonCounter, item.lessonNumber + 1);
-          lastLearnLesson = item.lessonNumber;
-          return;
-        }
-
-        if (!item.lessonNumber) {
-          item.lessonNumber = Math.max(1, lastLearnLesson || 1);
-        }
-      });
-
-      unitItems.forEach((item) => {
-        if (item.type !== "sandbox") return;
-        const rawDifficulty = String(course.difficulty || "").toLowerCase();
-        const difficulty =
-          rawDifficulty === "advanced" ? "Advanced" :
-          rawDifficulty === "intermediate" ? "Intermediate" :
-          "Beginner";
-        tutorials.push({
-          id: `${course.id || "course"}:${item.lessonNumber}:${item.title || "tutorial"}`,
-          courseId: String(course.id || ""),
-          contentId: String(course.id || ""),
-          moduleId,
-          courseTitle: course.title || "Course",
-          unitTitle: item.unitTitle || "",
-          lesson: Number(item.lessonNumber || 0),
-          lessonTitle: item.title || "Tutorial",
-          title: item.title || "Tutorial",
-          desc: item.tips || item.unitTitle || course.description || "",
-          difficulty,
-          icon: "bi-mortarboard-fill",
-          steps: item.steps || [],
-          tips: item.tips || "",
-          xp: Number(item.xp || 0),
-        });
+      if (!unit.sandbox) return;
+      tutorials.push({
+        id: `${course.id || "course"}:${unitIndex}:${unit.sandbox.title || "tutorial"}`,
+        courseId: String(course.id || ""),
+        unitIndex,
+        courseTitle: course.title || "Course",
+        unitTitle: unit.title || "",
+        title: unit.sandbox.title || "Practice",
+        desc: unit.sandbox.tips || unit.about || course.description || "",
+        difficulty,
+        icon: "bi-mortarboard-fill",
+        steps: unit.sandbox.steps || [],
+        tips: unit.sandbox.tips || "",
+        xp: Number(unit.sandbox.xp || 0),
       });
     });
   });
 
   tutorials.sort((a, b) => {
     if (a.courseId !== b.courseId) return String(a.courseId).localeCompare(String(b.courseId), undefined, { numeric: true });
-    return Number(a.lesson || 0) - Number(b.lesson || 0);
+    return Number(a.unitIndex || 0) - Number(b.unitIndex || 0);
   });
 
   return tutorials;

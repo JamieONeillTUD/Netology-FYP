@@ -1,27 +1,24 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: course_content.js
-Purpose: Stores all course, unit, section, and lesson content used by course and lesson pages.
-Notes: xpReward matches total section item XP for each course. Unused lesson
-       fields (content, summary, learn) removed. Thin lessons buffed to 6-8
-       paragraphs. Weak quizzes expanded to 4-5 questions minimum.
----------------------------------------------------------
-*/
+// ============================================================
+// course_content.js — Netology Course Data
+// One source of truth for all course curriculum.
+//
+// Structure per course:
+//   COURSE_CONTENT["1"] = {
+//     id, title, description, difficulty, required_level,
+//     estimatedTime, xpReward, category,
+//     units: [
+//       {
+//         title, about,
+//         lessons:   [ { title, blocks, objectives } ],
+//         quiz:      { title, xp, questions }  | undefined,
+//         sandbox:   { title, xp, steps, tips } | undefined,
+//         challenge: { title, xp, rules, steps, tips } | undefined
+//       }
+//     ]
+//   }
+// ============================================================
 
 const COURSE_CONTENT = {
-  // Data shape (high-level):
-  // COURSE_CONTENT[courseId] = {
-  //   title, description, difficulty, required_level, estimatedTime, xpReward, category,
-  //   units: [
-  //     {
-  //       title, about,
-  //       sections: [{ title, items: [{ type, title, content, duration, xp, challenge? }] }],
-  //       lessons: [{ title, blocks, objectives, quiz? }]
-  //     }
-  //   ]
-  // }
-  // Novice courses (level 1+).
   "1": {
     id: "1",
     title: "Networking Foundations",
@@ -35,113 +32,6 @@ const COURSE_CONTENT = {
       {
         title: "Unit 1: Network Basics",
         about: "Learn what networks are, why they exist, and how traffic moves across LANs, WANs, and the Internet.",
-        sections: [
-          {
-            title: "Core concepts",
-            items: [
-              {
-                type: "Learn",
-                title: "What is a network?",
-                content: "A network is a set of devices that communicate using shared rules (protocols).",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "LAN vs WAN vs Internet",
-                content: "LANs are local, WANs connect sites over distance, and the Internet is the global network of networks.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "Network roles and services",
-                content: "Clients, servers, and shared services like DHCP and DNS make networks usable.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "Topologies and traffic flow",
-                content: "Understand common topologies (star, mesh, tree) and how traffic moves between devices.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Quiz",
-                title: "Network basics quiz",
-                duration: "8 min",
-                xp: 90
-              }
-            ]
-          },
-          {
-            title: "Hands-on",
-            items: [
-              {
-                type: "Practice",
-                title: "Classify network types",
-                duration: "12 min",
-                xp: 35,
-                steps: [
-                  {
-                    text: "Add a router to the canvas.",
-                    checks: [{ type: "device", deviceType: "router", count: 1 }]
-                  },
-                  {
-                    text: "Add a switch to the canvas.",
-                    checks: [{ type: "device", deviceType: "switch", count: 1 }]
-                  },
-                  {
-                    text: "Add two PCs.",
-                    checks: [{ type: "device", deviceType: "pc", count: 2 }]
-                  },
-                  {
-                    text: "Connect each PC to the switch.",
-                    checks: [{ type: "connection", from: "pc", to: "switch", count: 2 }]
-                  },
-                  {
-                    text: "Connect the switch to the router.",
-                    checks: [{ type: "connection", from: "switch", to: "router", count: 1 }]
-                  },
-                  {
-                    text: "Add an Internet cloud.",
-                    checks: [{ type: "device", deviceType: "cloud", count: 1 }]
-                  },
-                  {
-                    text: "Connect the router to the Internet cloud.",
-                    checks: [{ type: "connection", from: "router", to: "cloud", count: 1 }]
-                  },
-                  {
-                    text: "Rename the router to include \"Gateway\" (example: Office Gateway).",
-                    checks: [{ type: "name_contains", deviceType: "router", contains: "Gateway", count: 1 }],
-                    hint: "Select the router and edit its name in the Properties panel."
-                  }
-                ],
-                tips: "LAN is the local group behind the switch; the router is the gateway to the WAN/Internet."
-              },
-              {
-                type: "Challenge",
-                title: "Design a small office network",
-                duration: "16 min",
-                xp: 100,
-                challenge: {
-                  rules: {
-                    minDevices: 5,
-                    minConnections: 4,
-                    requiredTypes: { router: 1, switch: 1, pc: 3 }
-                  },
-                  steps: [
-                    "Add 1 router, 1 switch, and at least 3 PCs.",
-                    "Connect all PCs to the switch, then connect the switch to the router.",
-                    "Explain which devices are in the LAN and which device is the gateway."
-                  ],
-                  tips: "Think of the router as the path to the Internet and the switch as the local meeting point."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "What is a network?",
@@ -209,7 +99,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "A connection between two offices in different cities is a:",
-                options: ["LAN", "WAN", "Personal Area Network"],
+                options: [
+                  "LAN",
+                  "WAN",
+                  "Personal Area Network"
+                ],
                 correctIndex: 1,
                 explanation: "WANs connect LANs over long distances."
               }
@@ -244,7 +138,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Which service assigns IP addresses automatically?",
-                options: ["DNS", "DHCP", "NTP"],
+                options: [
+                  "DNS",
+                  "DHCP",
+                  "NTP"
+                ],
                 correctIndex: 1,
                 explanation: "DHCP hands out IP addresses, subnet masks, and gateways."
               },
@@ -253,7 +151,11 @@ const COURSE_CONTENT = {
                 title: "Mini activity: Pick the right service",
                 mode: "select",
                 prompt: "A new laptop joins the Wi-Fi and needs an IP address. Which service should handle this?",
-                options: ["DNS", "DHCP", "File Server"],
+                options: [
+                  "DNS",
+                  "DHCP",
+                  "File Server"
+                ],
                 correctIndex: 1,
                 explanation: "DHCP is responsible for automatic IP configuration."
               }
@@ -288,7 +190,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Which traffic type reaches every device on the LAN?",
-                options: ["Unicast", "Broadcast", "Multicast"],
+                options: [
+                  "Unicast",
+                  "Broadcast",
+                  "Multicast"
+                ],
                 correctIndex: 1,
                 explanation: "Broadcasts are sent to all devices in the broadcast domain."
               }
@@ -297,187 +203,240 @@ const COURSE_CONTENT = {
               "Identify common topologies",
               "Describe unicast vs broadcast traffic",
               "Explain how switches direct traffic"
-            ],
-            quiz: {
-              title: "Network basics quiz",
-              xp: 90,
-              questions: [
+            ]
+          }
+        ],
+        quiz: {
+          title: "Network basics quiz",
+          xp: 90,
+          questions: [
+            {
+              id: "q1",
+              question: "Fill in the blank: A network that spans a single building is a ___.",
+              options: [
+                "LAN",
+                "WAN",
+                "MAN"
+              ],
+              correctAnswer: 0,
+              explanation: "LANs are local networks within a building or campus."
+            },
+            {
+              id: "q2",
+              question: "The Internet is best described as a:",
+              options: [
+                "Single LAN",
+                "Network of networks",
+                "Single ISP"
+              ],
+              correctAnswer: 1,
+              explanation: "The Internet connects many independent networks."
+            },
+            {
+              id: "q3",
+              question: "Which topology uses a central switch or hub?",
+              options: [
+                "Star",
+                "Ring",
+                "Bus"
+              ],
+              correctAnswer: 0,
+              explanation: "Star topologies connect devices to a central point."
+            },
+            {
+              id: "q4",
+              question: "Broadcast traffic is sent to:",
+              options: [
+                "One device",
+                "All devices in the LAN",
+                "Only routers"
+              ],
+              correctAnswer: 1,
+              explanation: "Broadcasts reach all devices in the broadcast domain."
+            },
+            {
+              id: "q5",
+              question: "A WAN typically connects:",
+              options: [
+                "Devices in one room",
+                "LANs across long distances",
+                "Only wireless devices"
+              ],
+              correctAnswer: 1,
+              explanation: "WANs connect LANs over long distances."
+            },
+            {
+              id: "q6",
+              question: "Fill in the blank: Protocols are the ___ of communication.",
+              options: [
+                "rules",
+                "cables",
+                "ports"
+              ],
+              correctAnswer: 0,
+              explanation: "Protocols define how devices communicate."
+            },
+            {
+              id: "q7",
+              question: "Which is an example of an endpoint?",
+              options: [
+                "Router",
+                "Switch",
+                "Laptop"
+              ],
+              correctAnswer: 2,
+              explanation: "Endpoints are devices that generate or consume data."
+            },
+            {
+              id: "q8",
+              question: "In a star topology, if a single cable to a PC fails, the rest of the network is usually:",
+              options: [
+                "Down",
+                "Still working",
+                "Forced into a ring"
+              ],
+              correctAnswer: 1,
+              explanation: "Only that one device is impacted in a star topology."
+            },
+            {
+              id: "q9",
+              question: "A device that provides files or services to others is called a:",
+              options: [
+                "Client",
+                "Server",
+                "Repeater"
+              ],
+              correctAnswer: 1,
+              explanation: "Servers provide services that clients request."
+            },
+            {
+              id: "q10",
+              question: "Why use redundant services like two DNS servers?",
+              options: [
+                "It doubles Internet speed",
+                "It improves availability if one fails",
+                "It encrypts all traffic"
+              ],
+              correctAnswer: 1,
+              explanation: "Redundancy keeps critical services available during outages."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Classify network types",
+          xp: 35,
+          steps: [
+            {
+              text: "Add a router to the canvas.",
+              checks: [
                 {
-                  id: "q1",
-                  question: "Fill in the blank: A network that spans a single building is a ___.",
-                  options: ["LAN", "WAN", "MAN"],
-                  correctAnswer: 0,
-                  explanation: "LANs are local networks within a building or campus."
-                },
-                {
-                  id: "q2",
-                  question: "The Internet is best described as a:",
-                  options: ["Single LAN", "Network of networks", "Single ISP"],
-                  correctAnswer: 1,
-                  explanation: "The Internet connects many independent networks."
-                },
-                {
-                  id: "q3",
-                  question: "Which topology uses a central switch or hub?",
-                  options: ["Star", "Ring", "Bus"],
-                  correctAnswer: 0,
-                  explanation: "Star topologies connect devices to a central point."
-                },
-                {
-                  id: "q4",
-                  question: "Broadcast traffic is sent to:",
-                  options: ["One device", "All devices in the LAN", "Only routers"],
-                  correctAnswer: 1,
-                  explanation: "Broadcasts reach all devices in the broadcast domain."
-                },
-                {
-                  id: "q5",
-                  question: "A WAN typically connects:",
-                  options: ["Devices in one room", "LANs across long distances", "Only wireless devices"],
-                  correctAnswer: 1,
-                  explanation: "WANs connect LANs over long distances."
-                },
-                {
-                  id: "q6",
-                  question: "Fill in the blank: Protocols are the ___ of communication.",
-                  options: ["rules", "cables", "ports"],
-                  correctAnswer: 0,
-                  explanation: "Protocols define how devices communicate."
-                },
-                {
-                  id: "q7",
-                  question: "Which is an example of an endpoint?",
-                  options: ["Router", "Switch", "Laptop"],
-                  correctAnswer: 2,
-                  explanation: "Endpoints are devices that generate or consume data."
-                },
-                {
-                  id: "q8",
-                  question: "In a star topology, if a single cable to a PC fails, the rest of the network is usually:",
-                  options: ["Down", "Still working", "Forced into a ring"],
-                  correctAnswer: 1,
-                  explanation: "Only that one device is impacted in a star topology."
-                },
-                {
-                  id: "q9",
-                  question: "A device that provides files or services to others is called a:",
-                  options: ["Client", "Server", "Repeater"],
-                  correctAnswer: 1,
-                  explanation: "Servers provide services that clients request."
-                },
-                {
-                  id: "q10",
-                  question: "Why use redundant services like two DNS servers?",
-                  options: ["It doubles Internet speed", "It improves availability if one fails", "It encrypts all traffic"],
-                  correctAnswer: 1,
-                  explanation: "Redundancy keeps critical services available during outages."
+                  type: "device",
+                  deviceType: "router",
+                  count: 1
                 }
               ]
+            },
+            {
+              text: "Add a switch to the canvas.",
+              checks: [
+                {
+                  type: "device",
+                  deviceType: "switch",
+                  count: 1
+                }
+              ]
+            },
+            {
+              text: "Add two PCs.",
+              checks: [
+                {
+                  type: "device",
+                  deviceType: "pc",
+                  count: 2
+                }
+              ]
+            },
+            {
+              text: "Connect each PC to the switch.",
+              checks: [
+                {
+                  type: "connection",
+                  from: "pc",
+                  to: "switch",
+                  count: 2
+                }
+              ]
+            },
+            {
+              text: "Connect the switch to the router.",
+              checks: [
+                {
+                  type: "connection",
+                  from: "switch",
+                  to: "router",
+                  count: 1
+                }
+              ]
+            },
+            {
+              text: "Add an Internet cloud.",
+              checks: [
+                {
+                  type: "device",
+                  deviceType: "cloud",
+                  count: 1
+                }
+              ]
+            },
+            {
+              text: "Connect the router to the Internet cloud.",
+              checks: [
+                {
+                  type: "connection",
+                  from: "router",
+                  to: "cloud",
+                  count: 1
+                }
+              ]
+            },
+            {
+              text: "Rename the router to include \"Gateway\" (example: Office Gateway).",
+              checks: [
+                {
+                  type: "name_contains",
+                  deviceType: "router",
+                  contains: "Gateway",
+                  count: 1
+                }
+              ],
+              hint: "Select the router and edit its name in the Properties panel."
             }
-          }
-        ]
+          ],
+          tips: "LAN is the local group behind the switch; the router is the gateway to the WAN/Internet."
+        },
+        challenge: {
+          title: "Design a small office network",
+          xp: 100,
+          rules: {
+            minDevices: 5,
+            minConnections: 4,
+            requiredTypes: {
+              router: 1,
+              switch: 1,
+              pc: 3
+            }
+          },
+          steps: [
+            "Add 1 router, 1 switch, and at least 3 PCs.",
+            "Connect all PCs to the switch, then connect the switch to the router.",
+            "Explain which devices are in the LAN and which device is the gateway."
+          ],
+          tips: "Think of the router as the path to the Internet and the switch as the local meeting point."
+        }
       },
       {
         title: "Unit 2: Switching and Frames",
         about: "Explore how switches forward frames, how MAC addresses work, and why broadcasts matter.",
-        sections: [
-          {
-            title: "Core concepts",
-            items: [
-              {
-                type: "Learn",
-                title: "Switches, routers, and endpoints",
-                content: "Switches forward frames on a LAN, routers forward packets between LANs.",
-                duration: "12 min",
-                xp: 50
-              },
-              {
-                type: "Learn",
-                title: "Ethernet frames and MAC addresses",
-                content: "Frames are the Layer 2 envelope; MAC addresses identify devices on a LAN.",
-                duration: "12 min",
-                xp: 50
-              },
-              {
-                type: "Learn",
-                title: "ARP and broadcast domains",
-                content: "ARP resolves IPs to MACs; broadcasts stay inside a single LAN.",
-                duration: "12 min",
-                xp: 50
-              },
-              {
-                type: "Learn",
-                title: "Switching loops and STP basics",
-                content: "Redundant links can cause loops; STP keeps Layer 2 stable.",
-                duration: "10 min",
-                xp: 50
-              },
-              {
-                type: "Quiz",
-                title: "Ethernet and switching quiz",
-                duration: "8 min",
-                xp: 80
-              }
-            ]
-          },
-          {
-            title: "Hands-on",
-            items: [
-              {
-                type: "Practice",
-                title: "Trace a frame on a LAN",
-                duration: "12 min",
-                xp: 35,
-                steps: [
-                  {
-                    text: "Add one switch to the canvas.",
-                    checks: [{ type: "device", deviceType: "switch", count: 1 }]
-                  },
-                  {
-                    text: "Add two PCs.",
-                    checks: [{ type: "device", deviceType: "pc", count: 2 }]
-                  },
-                  {
-                    text: "Connect each PC to the switch with Ethernet.",
-                    checks: [{ type: "connection", from: "pc", to: "switch", count: 2 }]
-                  },
-                  {
-                    text: "Add a third PC to create an unknown destination.",
-                    checks: [{ type: "device", deviceType: "pc", count: 3 }]
-                  },
-                  {
-                    text: "Explain how the switch learns the source MAC address.",
-                    hint: "Switches learn the source MAC from incoming frames."
-                  },
-                  {
-                    text: "Explain why unknown destinations are flooded to all ports.",
-                    hint: "Switches flood until they learn where a MAC lives."
-                  }
-                ],
-                tips: "Switches learn MACs from source addresses and flood unknown destinations."
-              },
-              {
-                type: "Challenge",
-                title: "Build a two-switch LAN",
-                duration: "18 min",
-                xp: 110,
-                challenge: {
-                  rules: {
-                    minDevices: 6,
-                    minConnections: 5,
-                    requiredTypes: { switch: 2, pc: 4 }
-                  },
-                  steps: [
-                    "Add two switches and connect them with an uplink.",
-                    "Connect at least two PCs to each switch.",
-                    "Explain how a switch learns MAC addresses as frames move."
-                  ],
-                  tips: "Switches learn by reading source MACs; unknown destinations are flooded."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Switches, routers, and endpoints",
@@ -503,7 +462,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Which device connects different networks together?",
-                options: ["Switch", "Router", "Access Point"],
+                options: [
+                  "Switch",
+                  "Router",
+                  "Access Point"
+                ],
                 correctIndex: 1,
                 explanation: "Routers forward packets between networks."
               },
@@ -512,7 +475,11 @@ const COURSE_CONTENT = {
                 title: "Mini activity: Choose the path",
                 mode: "select",
                 prompt: "A PC needs to reach a website outside the LAN. Which device does it send traffic to first?",
-                options: ["Local switch", "Default gateway", "DNS server"],
+                options: [
+                  "Local switch",
+                  "Default gateway",
+                  "DNS server"
+                ],
                 correctIndex: 1,
                 explanation: "Off-subnet traffic must go to the default gateway (router)."
               }
@@ -547,7 +514,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Which field identifies who sent the frame?",
-                options: ["Destination MAC", "Source MAC", "FCS"],
+                options: [
+                  "Destination MAC",
+                  "Source MAC",
+                  "FCS"
+                ],
                 correctIndex: 1,
                 explanation: "The source MAC identifies the sender."
               }
@@ -582,7 +553,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "An ARP request is sent as:",
-                options: ["Unicast", "Broadcast", "Multicast"],
+                options: [
+                  "Unicast",
+                  "Broadcast",
+                  "Multicast"
+                ],
                 correctIndex: 1,
                 explanation: "ARP requests are broadcast so all devices can hear them."
               },
@@ -591,7 +566,11 @@ const COURSE_CONTENT = {
                 title: "Mini activity: Choose the first step",
                 mode: "select",
                 prompt: "You know the IP but not the MAC. What should the device send first?",
-                options: ["ARP request", "DNS query", "ICMP echo reply"],
+                options: [
+                  "ARP request",
+                  "DNS query",
+                  "ICMP echo reply"
+                ],
                 correctIndex: 0,
                 explanation: "ARP discovers the MAC address for a known IP on the LAN."
               }
@@ -626,7 +605,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "STP primarily prevents:",
-                options: ["Layer 2 loops", "IP conflicts", "DHCP failures"],
+                options: [
+                  "Layer 2 loops",
+                  "IP conflicts",
+                  "DHCP failures"
+                ],
                 correctIndex: 0,
                 explanation: "STP prevents Layer 2 loops and broadcast storms."
               }
@@ -635,186 +618,192 @@ const COURSE_CONTENT = {
               "Explain why loops are harmful",
               "Describe what STP does",
               "Identify why redundancy still matters"
-            ],
-            quiz: {
-              title: "Ethernet and switching quiz",
-              xp: 80,
-              questions: [
+            ]
+          }
+        ],
+        quiz: {
+          title: "Ethernet and switching quiz",
+          xp: 80,
+          questions: [
+            {
+              id: "q1",
+              question: "Fill in the blank: A switch forwards frames based on ___ addresses.",
+              options: [
+                "MAC",
+                "IP",
+                "DNS"
+              ],
+              correctAnswer: 0,
+              explanation: "Switches use MAC addresses to forward frames."
+            },
+            {
+              id: "q2",
+              question: "Routers primarily operate at which OSI layer?",
+              options: [
+                "Layer 3",
+                "Layer 2",
+                "Layer 1"
+              ],
+              correctAnswer: 0,
+              explanation: "Routers forward packets at Layer 3."
+            },
+            {
+              id: "q3",
+              question: "ARP is used to map:",
+              options: [
+                "IP to MAC",
+                "MAC to IP",
+                "DNS to IP"
+              ],
+              correctAnswer: 0,
+              explanation: "ARP resolves IP addresses to MAC addresses."
+            },
+            {
+              id: "q4",
+              question: "A broadcast domain is typically bounded by a:",
+              options: [
+                "Router",
+                "Switch",
+                "Hub"
+              ],
+              correctAnswer: 0,
+              explanation: "Routers stop broadcasts and separate domains."
+            },
+            {
+              id: "q5",
+              question: "Ethernet frames include a ___ for error detection.",
+              options: [
+                "FCS",
+                "TTL",
+                "DHCP"
+              ],
+              correctAnswer: 0,
+              explanation: "The FCS (Frame Check Sequence) is used to detect errors."
+            },
+            {
+              id: "q6",
+              question: "If a switch does not know a destination MAC, it will:",
+              options: [
+                "Flood the frame",
+                "Drop the frame",
+                "Route the frame"
+              ],
+              correctAnswer: 0,
+              explanation: "Unknown unicast frames are flooded."
+            },
+            {
+              id: "q7",
+              question: "Fill in the blank: Endpoints are devices that ___ data.",
+              options: [
+                "generate or consume",
+                "only forward",
+                "only encrypt"
+              ],
+              correctAnswer: 0,
+              explanation: "Endpoints are the sources and destinations of data."
+            },
+            {
+              id: "q8",
+              question: "STP is primarily used to prevent:",
+              options: [
+                "Routing loops",
+                "Layer 2 loops",
+                "IP conflicts"
+              ],
+              correctAnswer: 1,
+              explanation: "Spanning Tree prevents Layer 2 loops and broadcast storms."
+            },
+            {
+              id: "q9",
+              question: "PortFast should be enabled on:",
+              options: [
+                "Access ports to end devices",
+                "Trunk links between switches",
+                "Router uplinks only"
+              ],
+              correctAnswer: 0,
+              explanation: "PortFast skips STP startup stages on access ports so end devices connect immediately."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Trace a frame on a LAN",
+          xp: 35,
+          steps: [
+            {
+              text: "Add one switch to the canvas.",
+              checks: [
                 {
-                  id: "q1",
-                  question: "Fill in the blank: A switch forwards frames based on ___ addresses.",
-                  options: ["MAC", "IP", "DNS"],
-                  correctAnswer: 0,
-                  explanation: "Switches use MAC addresses to forward frames."
-                },
-                {
-                  id: "q2",
-                  question: "Routers primarily operate at which OSI layer?",
-                  options: ["Layer 3", "Layer 2", "Layer 1"],
-                  correctAnswer: 0,
-                  explanation: "Routers forward packets at Layer 3."
-                },
-                {
-                  id: "q3",
-                  question: "ARP is used to map:",
-                  options: ["IP to MAC", "MAC to IP", "DNS to IP"],
-                  correctAnswer: 0,
-                  explanation: "ARP resolves IP addresses to MAC addresses."
-                },
-                {
-                  id: "q4",
-                  question: "A broadcast domain is typically bounded by a:",
-                  options: ["Router", "Switch", "Hub"],
-                  correctAnswer: 0,
-                  explanation: "Routers stop broadcasts and separate domains."
-                },
-                {
-                  id: "q5",
-                  question: "Ethernet frames include a ___ for error detection.",
-                  options: ["FCS", "TTL", "DHCP"],
-                  correctAnswer: 0,
-                  explanation: "The FCS (Frame Check Sequence) is used to detect errors."
-                },
-                {
-                  id: "q6",
-                  question: "If a switch does not know a destination MAC, it will:",
-                  options: ["Flood the frame", "Drop the frame", "Route the frame"],
-                  correctAnswer: 0,
-                  explanation: "Unknown unicast frames are flooded."
-                },
-                {
-                  id: "q7",
-                  question: "Fill in the blank: Endpoints are devices that ___ data.",
-                  options: ["generate or consume", "only forward", "only encrypt"],
-                  correctAnswer: 0,
-                  explanation: "Endpoints are the sources and destinations of data."
-                },
-                {
-                  id: "q8",
-                  question: "STP is primarily used to prevent:",
-                  options: ["Routing loops", "Layer 2 loops", "IP conflicts"],
-                  correctAnswer: 1,
-                  explanation: "Spanning Tree prevents Layer 2 loops and broadcast storms."
-                },
-                {
-                  id: "q9",
-                  question: "PortFast should be enabled on:",
-                  options: ["Access ports to end devices", "Trunk links between switches", "Router uplinks only"],
-                  correctAnswer: 0,
-                  explanation: "PortFast skips STP startup stages on access ports so end devices connect immediately."
+                  type: "device",
+                  deviceType: "switch",
+                  count: 1
                 }
               ]
+            },
+            {
+              text: "Add two PCs.",
+              checks: [
+                {
+                  type: "device",
+                  deviceType: "pc",
+                  count: 2
+                }
+              ]
+            },
+            {
+              text: "Connect each PC to the switch with Ethernet.",
+              checks: [
+                {
+                  type: "connection",
+                  from: "pc",
+                  to: "switch",
+                  count: 2
+                }
+              ]
+            },
+            {
+              text: "Add a third PC to create an unknown destination.",
+              checks: [
+                {
+                  type: "device",
+                  deviceType: "pc",
+                  count: 3
+                }
+              ]
+            },
+            {
+              text: "Explain how the switch learns the source MAC address.",
+              hint: "Switches learn the source MAC from incoming frames."
+            },
+            {
+              text: "Explain why unknown destinations are flooded to all ports.",
+              hint: "Switches flood until they learn where a MAC lives."
             }
-          }
-        ]
+          ],
+          tips: "Switches learn MACs from source addresses and flood unknown destinations."
+        },
+        challenge: {
+          title: "Build a two-switch LAN",
+          xp: 110,
+          rules: {
+            minDevices: 6,
+            minConnections: 5,
+            requiredTypes: {
+              switch: 2,
+              pc: 4
+            }
+          },
+          steps: [
+            "Add two switches and connect them with an uplink.",
+            "Connect at least two PCs to each switch.",
+            "Explain how a switch learns MAC addresses as frames move."
+          ],
+          tips: "Switches learn by reading source MACs; unknown destinations are flooded."
+        }
       },
       {
         title: "Unit 3: IPv4 and Core Services",
         about: "Learn how IP addresses work, why subnets exist, and how DNS/DHCP keep networks usable.",
-        sections: [
-          {
-            title: "Core concepts",
-            items: [
-              {
-                type: "Learn",
-                title: "IPv4 addresses",
-                content: "IPv4 addresses identify devices at Layer 3 using dotted decimal notation.",
-                duration: "12 min",
-                xp: 50
-              },
-              {
-                type: "Learn",
-                title: "Subnet masks and gateways",
-                content: "Subnet masks define local vs remote traffic; gateways forward off-subnet packets.",
-                duration: "12 min",
-                xp: 50
-              },
-              {
-                type: "Learn",
-                title: "IP planning and common mistakes",
-                content: "Simple planning prevents conflicts, overlaps, and hard-to-debug outages.",
-                duration: "12 min",
-                xp: 50
-              },
-              {
-                type: "Learn",
-                title: "DHCP and DNS essentials",
-                content: "DHCP hands out addresses; DNS turns names into IPs.",
-                duration: "12 min",
-                xp: 50
-              },
-              {
-                type: "Quiz",
-                title: "IP basics quiz",
-                duration: "8 min",
-                xp: 80
-              }
-            ]
-          },
-          {
-            title: "Hands-on",
-            items: [
-              {
-                type: "Practice",
-                title: "Assign IP details",
-                duration: "12 min",
-                xp: 35,
-                steps: [
-                  {
-                    text: "Add a router to the canvas.",
-                    checks: [{ type: "device", deviceType: "router", count: 1 }]
-                  },
-                  {
-                    text: "Add a switch.",
-                    checks: [{ type: "device", deviceType: "switch", count: 1 }]
-                  },
-                  {
-                    text: "Add two PCs.",
-                    checks: [{ type: "device", deviceType: "pc", count: 2 }]
-                  },
-                  {
-                    text: "Connect both PCs to the switch.",
-                    checks: [{ type: "connection", from: "pc", to: "switch", count: 2 }]
-                  },
-                  {
-                    text: "Connect the switch to the router.",
-                    checks: [{ type: "connection", from: "switch", to: "router", count: 1 }]
-                  },
-                  {
-                    text: "Set IP addresses on both PCs in the same /24 (example: 192.168.10.10 and 192.168.10.11).",
-                    checks: [{ type: "ip", deviceType: "pc", count: 2 }],
-                    hint: "Select a PC, open Properties, and enter the IP address."
-                  },
-                  {
-                    text: "Set the default gateway on both PCs (example: 192.168.10.1).",
-                    checks: [{ type: "gateway", deviceType: "pc", count: 2 }],
-                    hint: "The gateway should match the router's LAN interface."
-                  }
-                ],
-                tips: "Devices in the same /24 talk directly; the gateway is used for off-subnet traffic."
-              },
-              {
-                type: "Challenge",
-                title: "Subnet a small office",
-                duration: "18 min",
-                xp: 110,
-                challenge: {
-                  rules: {
-                    minDevices: 5,
-                    minConnections: 4,
-                    requiredTypes: { router: 1, switch: 1, pc: 3 }
-                  },
-                  steps: [
-                    "Create a LAN with a router, a switch, and three PCs.",
-                    "Assign IP addresses in the same /24 and pick a default gateway.",
-                    "Explain how DHCP and DNS would be added to improve usability."
-                  ],
-                  tips: "Keep hosts in the same subnet and use the router as the gateway."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "IPv4 addresses",
@@ -840,7 +829,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Which range is private?",
-                options: ["10.0.0.0/8", "8.8.8.0/24", "1.1.1.0/24"],
+                options: [
+                  "10.0.0.0/8",
+                  "8.8.8.0/24",
+                  "1.1.1.0/24"
+                ],
                 correctIndex: 0,
                 explanation: "10.0.0.0/8 is a private IPv4 range."
               }
@@ -875,7 +868,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Which value tells a host what is local?",
-                options: ["Subnet mask", "DNS server", "MAC address"],
+                options: [
+                  "Subnet mask",
+                  "DNS server",
+                  "MAC address"
+                ],
                 correctIndex: 0,
                 explanation: "The subnet mask defines which addresses are local."
               },
@@ -884,7 +881,11 @@ const COURSE_CONTENT = {
                 title: "Mini activity: Local or gateway?",
                 mode: "select",
                 prompt: "A host has 192.168.10.5/24 and wants to reach 192.168.10.77. How should it send the traffic?",
-                options: ["Directly on the LAN", "To the default gateway", "To DNS"],
+                options: [
+                  "Directly on the LAN",
+                  "To the default gateway",
+                  "To DNS"
+                ],
                 correctIndex: 0,
                 explanation: "Same /24 means the traffic is local."
               }
@@ -919,7 +920,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Why should you document static IPs?",
-                options: ["To increase bandwidth", "To avoid address conflicts", "To speed up DNS"],
+                options: [
+                  "To increase bandwidth",
+                  "To avoid address conflicts",
+                  "To speed up DNS"
+                ],
                 correctIndex: 1,
                 explanation: "Tracking static IPs prevents two devices from using the same address."
               }
@@ -954,7 +959,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "In DHCP, the client sends a ___ first.",
-                options: ["Discover", "Offer", "Acknowledge"],
+                options: [
+                  "Discover",
+                  "Offer",
+                  "Acknowledge"
+                ],
                 correctIndex: 0,
                 explanation: "The client starts the process with a Discover message."
               },
@@ -963,7 +972,11 @@ const COURSE_CONTENT = {
                 title: "Mini activity: Diagnose the issue",
                 mode: "select",
                 prompt: "Users can reach 8.8.8.8 by IP but not example.com by name. Which service is likely the issue?",
-                options: ["DNS", "DHCP", "Switching"],
+                options: [
+                  "DNS",
+                  "DHCP",
+                  "Switching"
+                ],
                 correctIndex: 0,
                 explanation: "If IP works but names fail, DNS is the culprit."
               }
@@ -972,89 +985,228 @@ const COURSE_CONTENT = {
               "Explain the DHCP DORA process",
               "Describe what DNS does",
               "Identify symptoms of DNS or DHCP issues"
-            ],
-            quiz: {
-              title: "IP basics quiz",
-              xp: 80,
-              questions: [
+            ]
+          }
+        ],
+        quiz: {
+          title: "IP basics quiz",
+          xp: 80,
+          questions: [
+            {
+              id: "q1",
+              question: "Fill in the blank: An IPv4 address has ___ bits.",
+              options: [
+                "32",
+                "48",
+                "64"
+              ],
+              correctAnswer: 0,
+              explanation: "IPv4 uses 32-bit addresses."
+            },
+            {
+              id: "q2",
+              question: "A subnet mask of 255.255.255.0 is written as:",
+              options: [
+                "/24",
+                "/16",
+                "/30"
+              ],
+              correctAnswer: 0,
+              explanation: "/24 means 24 network bits."
+            },
+            {
+              id: "q3",
+              question: "The default gateway is used when traffic is:",
+              options: [
+                "Destined outside the local subnet",
+                "Staying within the subnet",
+                "Broadcast-only"
+              ],
+              correctAnswer: 0,
+              explanation: "Gateways are for off-subnet traffic."
+            },
+            {
+              id: "q4",
+              question: "DHCP stands for:",
+              options: [
+                "Dynamic Host Configuration Protocol",
+                "Domain Host Control Protocol",
+                "Distributed Host Cache Protocol"
+              ],
+              correctAnswer: 0,
+              explanation: "DHCP automates IP configuration."
+            },
+            {
+              id: "q5",
+              question: "DNS translates:",
+              options: [
+                "Names to IPs",
+                "IPs to MACs",
+                "MACs to names"
+              ],
+              correctAnswer: 0,
+              explanation: "DNS resolves names to IP addresses."
+            },
+            {
+              id: "q6",
+              question: "Which of the following is a private IPv4 range?",
+              options: [
+                "10.0.0.0/8",
+                "8.8.8.0/24",
+                "1.1.1.0/24"
+              ],
+              correctAnswer: 0,
+              explanation: "10.0.0.0/8 is private."
+            },
+            {
+              id: "q7",
+              question: "If a host can reach local devices but not the Internet, check the:",
+              options: [
+                "Default gateway",
+                "Switch port speed",
+                "MAC address table"
+              ],
+              correctAnswer: 0,
+              explanation: "A wrong gateway blocks off-subnet traffic."
+            },
+            {
+              id: "q8",
+              question: "In DHCP, the first message a client sends is:",
+              options: [
+                "Discover",
+                "Offer",
+                "Request"
+              ],
+              correctAnswer: 0,
+              explanation: "The client starts with a Discover message."
+            },
+            {
+              id: "q9",
+              question: "Which practice helps prevent IP conflicts?",
+              options: [
+                "Documenting static IPs and reservations",
+                "Using random IPs",
+                "Disabling DHCP"
+              ],
+              correctAnswer: 0,
+              explanation: "Tracking static IPs and reservations prevents overlaps."
+            },
+            {
+              id: "q10",
+              question: "Overlapping subnets between sites usually cause:",
+              options: [
+                "Faster routing",
+                "Routing and reachability problems",
+                "Better security"
+              ],
+              correctAnswer: 1,
+              explanation: "Overlaps create ambiguous routes and broken connectivity."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Assign IP details",
+          xp: 35,
+          steps: [
+            {
+              text: "Add a router to the canvas.",
+              checks: [
                 {
-                  id: "q1",
-                  question: "Fill in the blank: An IPv4 address has ___ bits.",
-                  options: ["32", "48", "64"],
-                  correctAnswer: 0,
-                  explanation: "IPv4 uses 32-bit addresses."
-                },
-                {
-                  id: "q2",
-                  question: "A subnet mask of 255.255.255.0 is written as:",
-                  options: ["/24", "/16", "/30"],
-                  correctAnswer: 0,
-                  explanation: "/24 means 24 network bits."
-                },
-                {
-                  id: "q3",
-                  question: "The default gateway is used when traffic is:",
-                  options: ["Destined outside the local subnet", "Staying within the subnet", "Broadcast-only"],
-                  correctAnswer: 0,
-                  explanation: "Gateways are for off-subnet traffic."
-                },
-                {
-                  id: "q4",
-                  question: "DHCP stands for:",
-                  options: ["Dynamic Host Configuration Protocol", "Domain Host Control Protocol", "Distributed Host Cache Protocol"],
-                  correctAnswer: 0,
-                  explanation: "DHCP automates IP configuration."
-                },
-                {
-                  id: "q5",
-                  question: "DNS translates:",
-                  options: ["Names to IPs", "IPs to MACs", "MACs to names"],
-                  correctAnswer: 0,
-                  explanation: "DNS resolves names to IP addresses."
-                },
-                {
-                  id: "q6",
-                  question: "Which of the following is a private IPv4 range?",
-                  options: ["10.0.0.0/8", "8.8.8.0/24", "1.1.1.0/24"],
-                  correctAnswer: 0,
-                  explanation: "10.0.0.0/8 is private."
-                },
-                {
-                  id: "q7",
-                  question: "If a host can reach local devices but not the Internet, check the:",
-                  options: ["Default gateway", "Switch port speed", "MAC address table"],
-                  correctAnswer: 0,
-                  explanation: "A wrong gateway blocks off-subnet traffic."
-                },
-                {
-                  id: "q8",
-                  question: "In DHCP, the first message a client sends is:",
-                  options: ["Discover", "Offer", "Request"],
-                  correctAnswer: 0,
-                  explanation: "The client starts with a Discover message."
-                },
-                {
-                  id: "q9",
-                  question: "Which practice helps prevent IP conflicts?",
-                  options: ["Documenting static IPs and reservations", "Using random IPs", "Disabling DHCP"],
-                  correctAnswer: 0,
-                  explanation: "Tracking static IPs and reservations prevents overlaps."
-                },
-                {
-                  id: "q10",
-                  question: "Overlapping subnets between sites usually cause:",
-                  options: ["Faster routing", "Routing and reachability problems", "Better security"],
-                  correctAnswer: 1,
-                  explanation: "Overlaps create ambiguous routes and broken connectivity."
+                  type: "device",
+                  deviceType: "router",
+                  count: 1
                 }
               ]
+            },
+            {
+              text: "Add a switch.",
+              checks: [
+                {
+                  type: "device",
+                  deviceType: "switch",
+                  count: 1
+                }
+              ]
+            },
+            {
+              text: "Add two PCs.",
+              checks: [
+                {
+                  type: "device",
+                  deviceType: "pc",
+                  count: 2
+                }
+              ]
+            },
+            {
+              text: "Connect both PCs to the switch.",
+              checks: [
+                {
+                  type: "connection",
+                  from: "pc",
+                  to: "switch",
+                  count: 2
+                }
+              ]
+            },
+            {
+              text: "Connect the switch to the router.",
+              checks: [
+                {
+                  type: "connection",
+                  from: "switch",
+                  to: "router",
+                  count: 1
+                }
+              ]
+            },
+            {
+              text: "Set IP addresses on both PCs in the same /24 (example: 192.168.10.10 and 192.168.10.11).",
+              checks: [
+                {
+                  type: "ip",
+                  deviceType: "pc",
+                  count: 2
+                }
+              ],
+              hint: "Select a PC, open Properties, and enter the IP address."
+            },
+            {
+              text: "Set the default gateway on both PCs (example: 192.168.10.1).",
+              checks: [
+                {
+                  type: "gateway",
+                  deviceType: "pc",
+                  count: 2
+                }
+              ],
+              hint: "The gateway should match the router's LAN interface."
             }
-          }
-        ]
+          ],
+          tips: "Devices in the same /24 talk directly; the gateway is used for off-subnet traffic."
+        },
+        challenge: {
+          title: "Subnet a small office",
+          xp: 110,
+          rules: {
+            minDevices: 5,
+            minConnections: 4,
+            requiredTypes: {
+              router: 1,
+              switch: 1,
+              pc: 3
+            }
+          },
+          steps: [
+            "Create a LAN with a router, a switch, and three PCs.",
+            "Assign IP addresses in the same /24 and pick a default gateway.",
+            "Explain how DHCP and DNS would be added to improve usability."
+          ],
+          tips: "Keep hosts in the same subnet and use the router as the gateway."
+        }
       }
     ]
   },
-
   "2": {
     id: "2",
     title: "Ethernet & Switching Basics",
@@ -1068,83 +1220,6 @@ const COURSE_CONTENT = {
       {
         title: "Unit 1: Switching 101",
         about: "Understand how switches learn and forward frames, and how to prevent dangerous loops.",
-        sections: [
-          {
-            title: "Switching",
-            items: [
-              {
-                type: "Learn",
-                title: "Switch vs hub",
-                content: "Switches forward frames intelligently using MAC tables; hubs flood everything to every port.",
-                duration: "8 min",
-                xp: 35
-              },
-              {
-                type: "Learn",
-                title: "Spanning Tree basics",
-                content: "STP prevents loops by blocking redundant paths in Layer 2 networks.",
-                duration: "9 min",
-                xp: 35
-              },
-              {
-                type: "Quiz",
-                title: "Switch fundamentals quick check",
-                duration: "5 min",
-                xp: 45
-              },
-              {
-                type: "Quiz",
-                title: "Switching quick check",
-                duration: "5 min",
-                xp: 50
-              },
-              {
-                type: "Practice",
-                title: "Inspect MAC tables",
-                duration: "8 min",
-                xp: 25,
-                steps: [
-                  {
-                    text: "Add a switch and two PCs.",
-                    checks: [{ type: "device", deviceType: "switch", count: 1 }, { type: "device", deviceType: "pc", count: 2 }]
-                  },
-                  {
-                    text: "Connect both PCs to the switch.",
-                    checks: [{ type: "connection", from: "pc", to: "switch", count: 2 }]
-                  },
-                  {
-                    text: "Open the switch config panel and note the MAC table section.",
-                    hint: "Select the switch and look for the MAC address table in Properties."
-                  },
-                  {
-                    text: "Explain how traffic from each PC would populate the table.",
-                    hint: "Each incoming frame teaches the switch which port that MAC address is on."
-                  }
-                ],
-                tips: "MAC tables map source MAC addresses to the port they were learned on."
-              },
-              {
-                type: "Challenge",
-                title: "Design a resilient switched LAN",
-                duration: "14 min",
-                xp: 95,
-                challenge: {
-                  rules: {
-                    minDevices: 6,
-                    minConnections: 5,
-                    requiredTypes: { switch: 2, pc: 4 }
-                  },
-                  steps: [
-                    "Build a LAN with two switches and at least four PCs.",
-                    "Connect at least two PCs to each switch and create one inter-switch uplink.",
-                    "Document how the switches will learn MAC addresses and why STP is important if you add redundancy."
-                  ],
-                  tips: "Keep the design simple first, then explain how STP protects the network when redundant links are present."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Switch vs hub",
@@ -1169,7 +1244,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What does a switch do when it does not know the destination MAC?",
-                options: ["Drops the frame", "Floods to all ports except the source", "Sends it to the router"],
+                options: [
+                  "Drops the frame",
+                  "Floods to all ports except the source",
+                  "Sends it to the router"
+                ],
                 correctIndex: 1,
                 explanation: "Unknown unicast frames are flooded until the switch learns the destination."
               }
@@ -1178,41 +1257,7 @@ const COURSE_CONTENT = {
               "Compare how hubs and switches forward frames",
               "Explain MAC address learning and ageing",
               "Describe why switches are preferred over hubs"
-            ],
-            quiz: {
-              title: "Switch fundamentals quick check",
-              xp: 45,
-              questions: [
-                {
-                  id: "q1",
-                  question: "What information does a switch use for Layer 2 forwarding decisions?",
-                  options: ["Destination MAC address", "Destination IP address", "Default gateway"],
-                  correctAnswer: 0,
-                  explanation: "Layer 2 switches use MAC addresses to decide which port to forward a frame to."
-                },
-                {
-                  id: "q2",
-                  question: "Why do unknown unicast frames get flooded?",
-                  options: ["The switch has no MAC table entry yet", "The router requested flooding", "STP requires it"],
-                  correctAnswer: 0,
-                  explanation: "If a destination MAC is unknown, the switch floods until it learns that MAC on a port."
-                },
-                {
-                  id: "q3",
-                  question: "What is the main problem with hubs in modern networks?",
-                  options: ["They create unnecessary traffic and shared collisions", "They cannot connect Ethernet cables", "They block all broadcasts"],
-                  correctAnswer: 0,
-                  explanation: "Hubs repeat everything to every port, creating extra traffic and one shared collision domain."
-                },
-                {
-                  id: "q4",
-                  question: "What happens when a MAC table entry ages out?",
-                  options: ["The switch may flood until it relearns the destination", "The switch reboots automatically", "The router assigns a new MAC"],
-                  correctAnswer: 0,
-                  explanation: "Aged-out entries are removed, so unknown destinations are flooded until new frames reteach the table."
-                }
-              ]
-            }
+            ]
           },
           {
             title: "Spanning Tree basics",
@@ -1237,7 +1282,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What role does the root bridge play in STP?",
-                options: ["It blocks all traffic", "It is the reference point for path calculations", "It assigns IP addresses"],
+                options: [
+                  "It blocks all traffic",
+                  "It is the reference point for path calculations",
+                  "It assigns IP addresses"
+                ],
                 correctIndex: 1,
                 explanation: "All STP path costs are calculated relative to the root bridge."
               }
@@ -1246,47 +1295,121 @@ const COURSE_CONTENT = {
               "Explain why switching loops are dangerous",
               "Describe how STP elects a root bridge",
               "Explain how STP prevents loops while keeping backup paths available"
-            ],
-            quiz: {
-              title: "Switching quick check",
-              xp: 50,
-              questions: [
+            ]
+          }
+        ],
+        quiz: {
+          title: "Switching quick check",
+          xp: 50,
+          questions: [
+            {
+              id: "q1",
+              question: "Why is STP used?",
+              options: [
+                "To encrypt frames",
+                "To prevent Layer 2 loops",
+                "To assign IPs"
+              ],
+              correctAnswer: 1,
+              explanation: "STP prevents Layer 2 loops that would cause broadcast storms."
+            },
+            {
+              id: "q2",
+              question: "A hub forwards frames to:",
+              options: [
+                "A single port only",
+                "All ports",
+                "Only the destination MAC"
+              ],
+              correctAnswer: 1,
+              explanation: "Hubs flood all traffic to every port."
+            },
+            {
+              id: "q3",
+              question: "If two switches have redundant links and STP is disabled, what is the biggest risk?",
+              options: [
+                "Broadcast storms and unstable MAC learning",
+                "Improved throughput with no downside",
+                "Automatic VLAN creation"
+              ],
+              correctAnswer: 0,
+              explanation: "Without STP, loops can create broadcast storms and MAC table flapping."
+            },
+            {
+              id: "q4",
+              question: "What does convergence mean in STP?",
+              options: [
+                "The network recalculates and settles on a stable forwarding topology",
+                "Every port forwards at once",
+                "Routers advertise BGP routes"
+              ],
+              correctAnswer: 0,
+              explanation: "Convergence is the process of recalculating and stabilising the loop-free topology."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Inspect MAC tables",
+          xp: 25,
+          steps: [
+            {
+              text: "Add a switch and two PCs.",
+              checks: [
                 {
-                  id: "q1",
-                  question: "Why is STP used?",
-                  options: ["To encrypt frames", "To prevent Layer 2 loops", "To assign IPs"],
-                  correctAnswer: 1,
-                  explanation: "STP prevents Layer 2 loops that would cause broadcast storms."
+                  type: "device",
+                  deviceType: "switch",
+                  count: 1
                 },
                 {
-                  id: "q2",
-                  question: "A hub forwards frames to:",
-                  options: ["A single port only", "All ports", "Only the destination MAC"],
-                  correctAnswer: 1,
-                  explanation: "Hubs flood all traffic to every port."
-                },
-                {
-                  id: "q3",
-                  question: "If two switches have redundant links and STP is disabled, what is the biggest risk?",
-                  options: ["Broadcast storms and unstable MAC learning", "Improved throughput with no downside", "Automatic VLAN creation"],
-                  correctAnswer: 0,
-                  explanation: "Without STP, loops can create broadcast storms and MAC table flapping."
-                },
-                {
-                  id: "q4",
-                  question: "What does convergence mean in STP?",
-                  options: ["The network recalculates and settles on a stable forwarding topology", "Every port forwards at once", "Routers advertise BGP routes"],
-                  correctAnswer: 0,
-                  explanation: "Convergence is the process of recalculating and stabilising the loop-free topology."
+                  type: "device",
+                  deviceType: "pc",
+                  count: 2
                 }
               ]
+            },
+            {
+              text: "Connect both PCs to the switch.",
+              checks: [
+                {
+                  type: "connection",
+                  from: "pc",
+                  to: "switch",
+                  count: 2
+                }
+              ]
+            },
+            {
+              text: "Open the switch config panel and note the MAC table section.",
+              hint: "Select the switch and look for the MAC address table in Properties."
+            },
+            {
+              text: "Explain how traffic from each PC would populate the table.",
+              hint: "Each incoming frame teaches the switch which port that MAC address is on."
             }
-          }
-        ]
+          ],
+          tips: "MAC tables map source MAC addresses to the port they were learned on."
+        },
+        challenge: {
+          title: "Design a resilient switched LAN",
+          xp: 95,
+          rules: {
+            minDevices: 6,
+            minConnections: 5,
+            requiredTypes: {
+              switch: 2,
+              pc: 4
+            }
+          },
+          steps: [
+            "Build a LAN with two switches and at least four PCs.",
+            "Connect at least two PCs to each switch and create one inter-switch uplink.",
+            "Document how the switches will learn MAC addresses and why STP is important if you add redundancy."
+          ],
+          tips: "Keep the design simple first, then explain how STP protects the network when redundant links are present."
+        }
       }
     ]
   },
-
   "3": {
     id: "3",
     title: "IP Addressing Essentials",
@@ -1300,98 +1423,6 @@ const COURSE_CONTENT = {
       {
         title: "Unit 1: IPv4 Essentials",
         about: "Explore how IPv4 addresses are structured, where private ranges come from, and how NAT lets private networks reach the Internet.",
-        sections: [
-          {
-            title: "Addressing",
-            items: [
-              {
-                type: "Learn",
-                title: "IPv4 address classes",
-                content: "Classes A, B, and C are legacy ranges that still explain where today's private IP blocks come from.",
-                duration: "8 min",
-                xp: 35
-              },
-              {
-                type: "Learn",
-                title: "Private vs public IPs",
-                content: "Private IPs are used inside networks and cannot be routed on the Internet; NAT bridges the gap.",
-                duration: "9 min",
-                xp: 35
-              },
-              {
-                type: "Quiz",
-                title: "IPv4 classes quick check",
-                duration: "5 min",
-                xp: 45
-              },
-              {
-                type: "Quiz",
-                title: "Addressing quick check",
-                duration: "5 min",
-                xp: 50
-              }
-            ]
-          },
-          {
-            title: "Hands-on Lab",
-            items: [
-              {
-                type: "Practice",
-                title: "Configure a private LAN",
-                duration: "10 min",
-                xp: 30,
-                steps: [
-                  {
-                    text: "Add one router, one switch, and two PCs.",
-                    checks: [
-                      { type: "device", deviceType: "router", count: 1 },
-                      { type: "device", deviceType: "switch", count: 1 },
-                      { type: "device", deviceType: "pc", count: 2 }
-                    ]
-                  },
-                  {
-                    text: "Connect both PCs to the switch, and connect the switch to the router.",
-                    checks: [
-                      { type: "connection", from: "pc", to: "switch", count: 2 },
-                      { type: "connection", from: "switch", to: "router", count: 1 }
-                    ]
-                  },
-                  {
-                    text: "Assign a private IPv4 address to each PC (for example 192.168.50.10 and 192.168.50.11).",
-                    checks: [{ type: "ip", deviceType: "pc", count: 2 }],
-                    hint: "Use the device properties panel to set each PC IP address."
-                  },
-                  {
-                    text: "Set the default gateway on both PCs (for example 192.168.50.1).",
-                    checks: [{ type: "gateway", deviceType: "pc", count: 2 }],
-                    hint: "Use the router LAN IP as the gateway for both hosts."
-                  }
-                ],
-                tips: "Keep both hosts in the same subnet and use the router as the gateway for off-subnet traffic."
-              },
-              {
-                type: "Challenge",
-                title: "Plan an office IP layout",
-                duration: "15 min",
-                xp: 95,
-                challenge: {
-                  rules: {
-                    minDevices: 5,
-                    minConnections: 4,
-                    requiredTypes: { router: 1, switch: 1, pc: 3 }
-                  },
-                  steps: [
-                    "Create a network with one router, one switch, and at least three PCs.",
-                    "Connect all PCs to the switch and connect the switch to the router.",
-                    "Use a private IPv4 range and document which address should be the default gateway.",
-                    "Explain how NAT would let these private hosts access public Internet services."
-                  ],
-                  tips: "Focus on clean address planning first, then describe where NAT is applied (on the router edge)."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "IPv4 address classes",
@@ -1415,7 +1446,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Which class of IPv4 address starts with 192?",
-                options: ["Class A", "Class B", "Class C"],
+                options: [
+                  "Class A",
+                  "Class B",
+                  "Class C"
+                ],
                 correctIndex: 2,
                 explanation: "Class C addresses range from 192 to 223 in the first octet."
               }
@@ -1424,41 +1459,7 @@ const COURSE_CONTENT = {
               "Identify IPv4 address classes by their first octet",
               "List the three private IP ranges",
               "Explain why CIDR replaced classful addressing"
-            ],
-            quiz: {
-              title: "IPv4 classes quick check",
-              xp: 45,
-              questions: [
-                {
-                  id: "q1",
-                  question: "Which first-octet range matches Class B in the historical class model?",
-                  options: ["1-126", "128-191", "192-223"],
-                  correctAnswer: 1,
-                  explanation: "Class B addresses historically use first octets from 128 to 191."
-                },
-                {
-                  id: "q2",
-                  question: "Why did CIDR replace classful addressing?",
-                  options: ["To allocate address space more efficiently", "To remove subnet masks", "To stop DNS lookups"],
-                  correctAnswer: 0,
-                  explanation: "CIDR supports variable prefixes so networks can be sized to real host requirements."
-                },
-                {
-                  id: "q3",
-                  question: "Which range is one of the private IPv4 blocks?",
-                  options: ["172.16.0.0/12", "11.0.0.0/8", "150.10.0.0/16"],
-                  correctAnswer: 0,
-                  explanation: "172.16.0.0/12 is one of the RFC 1918 private ranges."
-                },
-                {
-                  id: "q4",
-                  question: "What is true about private IPv4 addresses?",
-                  options: ["They are not directly routable on the public Internet", "They are globally unique Internet identities", "They replace MAC addresses"],
-                  correctAnswer: 0,
-                  explanation: "Private addresses are for internal use and require translation at the edge to reach the public Internet."
-                }
-              ]
-            }
+            ]
           },
           {
             title: "Private vs public IPs",
@@ -1482,7 +1483,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What allows private IPs to access the Internet?",
-                options: ["DNS", "NAT", "DHCP"],
+                options: [
+                  "DNS",
+                  "NAT",
+                  "DHCP"
+                ],
                 correctIndex: 1,
                 explanation: "NAT (Network Address Translation) translates private IPs to a public IP for Internet access."
               }
@@ -1491,47 +1496,148 @@ const COURSE_CONTENT = {
               "Distinguish private from public IP addresses",
               "Explain how NAT enables Internet access for private devices",
               "List the three private IP ranges"
-            ],
-            quiz: {
-              title: "Addressing quick check",
-              xp: 50,
-              questions: [
+            ]
+          }
+        ],
+        quiz: {
+          title: "Addressing quick check",
+          xp: 50,
+          questions: [
+            {
+              id: "q1",
+              question: "Which is a private IP range?",
+              options: [
+                "8.8.8.0/24",
+                "10.0.0.0/8",
+                "1.1.1.0/24"
+              ],
+              correctAnswer: 1,
+              explanation: "10.0.0.0/8 is one of the three private IPv4 ranges."
+            },
+            {
+              id: "q2",
+              question: "Public IPs are:",
+              options: [
+                "Only used inside LANs",
+                "Globally routable on the Internet",
+                "Only for servers"
+              ],
+              correctAnswer: 1,
+              explanation: "Public IPs are globally routable and reachable from anywhere on the Internet."
+            },
+            {
+              id: "q3",
+              question: "What does NAT do at the network edge?",
+              options: [
+                "Translates private source IPs to a public IP",
+                "Encrypts all traffic end-to-end",
+                "Assigns hostnames to PCs"
+              ],
+              correctAnswer: 0,
+              explanation: "NAT changes the source IP from private to public so internal hosts can communicate externally."
+            },
+            {
+              id: "q4",
+              question: "Which address is private?",
+              options: [
+                "192.168.10.25",
+                "203.0.113.8",
+                "8.8.8.8"
+              ],
+              correctAnswer: 0,
+              explanation: "192.168.0.0/16 is private; the others are public examples."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Configure a private LAN",
+          xp: 30,
+          steps: [
+            {
+              text: "Add one router, one switch, and two PCs.",
+              checks: [
                 {
-                  id: "q1",
-                  question: "Which is a private IP range?",
-                  options: ["8.8.8.0/24", "10.0.0.0/8", "1.1.1.0/24"],
-                  correctAnswer: 1,
-                  explanation: "10.0.0.0/8 is one of the three private IPv4 ranges."
+                  type: "device",
+                  deviceType: "router",
+                  count: 1
                 },
                 {
-                  id: "q2",
-                  question: "Public IPs are:",
-                  options: ["Only used inside LANs", "Globally routable on the Internet", "Only for servers"],
-                  correctAnswer: 1,
-                  explanation: "Public IPs are globally routable and reachable from anywhere on the Internet."
+                  type: "device",
+                  deviceType: "switch",
+                  count: 1
                 },
                 {
-                  id: "q3",
-                  question: "What does NAT do at the network edge?",
-                  options: ["Translates private source IPs to a public IP", "Encrypts all traffic end-to-end", "Assigns hostnames to PCs"],
-                  correctAnswer: 0,
-                  explanation: "NAT changes the source IP from private to public so internal hosts can communicate externally."
-                },
-                {
-                  id: "q4",
-                  question: "Which address is private?",
-                  options: ["192.168.10.25", "203.0.113.8", "8.8.8.8"],
-                  correctAnswer: 0,
-                  explanation: "192.168.0.0/16 is private; the others are public examples."
+                  type: "device",
+                  deviceType: "pc",
+                  count: 2
                 }
               ]
+            },
+            {
+              text: "Connect both PCs to the switch, and connect the switch to the router.",
+              checks: [
+                {
+                  type: "connection",
+                  from: "pc",
+                  to: "switch",
+                  count: 2
+                },
+                {
+                  type: "connection",
+                  from: "switch",
+                  to: "router",
+                  count: 1
+                }
+              ]
+            },
+            {
+              text: "Assign a private IPv4 address to each PC (for example 192.168.50.10 and 192.168.50.11).",
+              checks: [
+                {
+                  type: "ip",
+                  deviceType: "pc",
+                  count: 2
+                }
+              ],
+              hint: "Use the device properties panel to set each PC IP address."
+            },
+            {
+              text: "Set the default gateway on both PCs (for example 192.168.50.1).",
+              checks: [
+                {
+                  type: "gateway",
+                  deviceType: "pc",
+                  count: 2
+                }
+              ],
+              hint: "Use the router LAN IP as the gateway for both hosts."
             }
-          }
-        ]
+          ],
+          tips: "Keep both hosts in the same subnet and use the router as the gateway for off-subnet traffic."
+        },
+        challenge: {
+          title: "Plan an office IP layout",
+          xp: 95,
+          rules: {
+            minDevices: 5,
+            minConnections: 4,
+            requiredTypes: {
+              router: 1,
+              switch: 1,
+              pc: 3
+            }
+          },
+          steps: [
+            "Create a network with one router, one switch, and at least three PCs.",
+            "Connect all PCs to the switch and connect the switch to the router.",
+            "Use a private IPv4 range and document which address should be the default gateway.",
+            "Explain how NAT would let these private hosts access public Internet services."
+          ],
+          tips: "Focus on clean address planning first, then describe where NAT is applied (on the router edge)."
+        }
       }
     ]
   },
-  // Intermediate courses (level 3+).
   "4": {
     id: "4",
     title: "Subnetting & VLANs",
@@ -1545,79 +1651,6 @@ const COURSE_CONTENT = {
       {
         title: "Unit 1: Subnetting Fundamentals",
         about: "Learn why subnetting matters and how CIDR works.",
-        sections: [
-          {
-            title: "Subnetting",
-            items: [
-              {
-                type: "Learn",
-                title: "Why subnet?",
-                content: "Subnetting reduces broadcast domains, improves performance, and keeps IP plans organized.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "CIDR and prefix lengths",
-                content: "CIDR uses prefixes (like /24) to define network size and range.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "VLSM and subnet strategy",
-                content: "Variable-length subnets let you match address space to real needs.",
-                duration: "14 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "Subnetting by hand",
-                content: "Use block sizes to calculate network ranges and usable host counts.",
-                duration: "14 min",
-                xp: 60
-              },
-              {
-                type: "Quiz",
-                title: "Subnetting fundamentals quiz",
-                duration: "8 min",
-                xp: 90
-              },
-              {
-                type: "Practice",
-                title: "Calculate subnet ranges",
-                duration: "14 min",
-                xp: 40,
-                steps: [
-                  "Add a router, a switch, and four PCs.",
-                  "Connect all PCs to the switch and the switch to the router.",
-                  "Assign two PCs to 192.168.10.0/26 (example: .10 and .20).",
-                  "Assign two PCs to 192.168.10.64/26 (example: .70 and .80)."
-                ],
-                tips: "A /26 has 64 addresses; the network IDs here are .0 and .64."
-              },
-              {
-                type: "Challenge",
-                title: "Design two subnets for a small business",
-                duration: "18 min",
-                xp: 110,
-                challenge: {
-                  rules: {
-                    minDevices: 6,
-                    minConnections: 5,
-                    requiredTypes: { router: 1, switch: 1, pc: 4 }
-                  },
-                  steps: [
-                    "Add 1 router, 1 switch, and at least 4 PCs.",
-                    "Connect all PCs to the switch and connect the switch to the router.",
-                    "Plan two subnets (e.g., Staff and Guest) and document the gateway for each."
-                  ],
-                  tips: "Use two groups of PCs to represent two different subnets."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Why subnet?",
@@ -1643,7 +1676,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What limits broadcasts to just one subnet?",
-                options: ["Switches", "Routers", "Gateways"],
+                options: [
+                  "Switches",
+                  "Routers",
+                  "Gateways"
+                ],
                 correctIndex: 1,
                 explanation: "Routers separate broadcast domains; broadcasts never cross a router."
               }
@@ -1678,7 +1715,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What is the block size for a /25?",
-                options: ["64", "128", "256"],
+                options: [
+                  "64",
+                  "128",
+                  "256"
+                ],
                 correctIndex: 1,
                 explanation: "A /25 gives 128 addresses per subnet; networks start at .0, .128."
               }
@@ -1712,7 +1753,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "VLSM allows you to:",
-                options: ["Use only one subnet size", "Mix different subnet sizes in one block", "Avoid using subnet masks"],
+                options: [
+                  "Use only one subnet size",
+                  "Mix different subnet sizes in one block",
+                  "Avoid using subnet masks"
+                ],
                 correctIndex: 1,
                 explanation: "VLSM supports different subnet sizes in the same address block."
               }
@@ -1746,7 +1791,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "A /26 subnet has how many usable hosts?",
-                options: ["62", "126", "254"],
+                options: [
+                  "62",
+                  "126",
+                  "254"
+                ],
                 correctIndex: 0,
                 explanation: "A /26 has 64 total addresses, 62 usable."
               }
@@ -1755,162 +1804,159 @@ const COURSE_CONTENT = {
               "Calculate block sizes",
               "Find network and broadcast addresses",
               "Avoid overlapping subnets"
-            ],
-            quiz: {
-              title: "Subnetting fundamentals quiz",
-              xp: 90,
-              questions: [
-                {
-                  id: "q1",
-                  question: "Fill in the blank: A /24 has ___ total addresses.",
-                  options: ["256", "128", "64"],
-                  correctAnswer: 0,
-                  explanation: "A /24 has 256 total addresses."
-                },
-                {
-                  id: "q2",
-                  question: "A /26 subnet has how many usable hosts?",
-                  options: ["62", "126", "254"],
-                  correctAnswer: 0,
-                  explanation: "A /26 has 64 total, 62 usable."
-                },
-                {
-                  id: "q3",
-                  question: "Subnetting helps by:",
-                  options: ["Increasing broadcast traffic", "Reducing broadcast domains", "Eliminating routers"],
-                  correctAnswer: 1,
-                  explanation: "Subnetting reduces broadcast domains."
-                },
-                {
-                  id: "q4",
-                  question: "CIDR /30 is commonly used for:",
-                  options: ["Point-to-point links", "Large LANs", "Wireless only"],
-                  correctAnswer: 0,
-                  explanation: "A /30 is common for point-to-point links."
-                },
-                {
-                  id: "q5",
-                  question: "Fill in the blank: The shorter the prefix, the ___ the subnet.",
-                  options: ["larger", "smaller", "safer"],
-                  correctAnswer: 0,
-                  explanation: "Shorter prefixes mean larger subnets."
-                },
-                {
-                  id: "q6",
-                  question: "Which mask matches /27?",
-                  options: ["255.255.255.224", "255.255.255.0", "255.255.255.248"],
-                  correctAnswer: 0,
-                  explanation: "/27 corresponds to 255.255.255.224."
-                },
-                {
-                  id: "q7",
-                  question: "Network address of 192.168.10.64/26 is:",
-                  options: ["192.168.10.64", "192.168.10.65", "192.168.10.1"],
-                  correctAnswer: 0,
-                  explanation: "The network address is the first address in the block."
-                },
-                {
-                  id: "q8",
-                  question: "Broadcast address of 192.168.10.64/26 is:",
-                  options: ["192.168.10.127", "192.168.10.95", "192.168.10.63"],
-                  correctAnswer: 0,
-                  explanation: "The broadcast is the last address in the block."
-                },
-                {
-                  id: "q9",
-                  question: "VLSM allows you to:",
-                  options: ["Use multiple subnet sizes in one address block", "Avoid subnetting entirely", "Eliminate routing"],
-                  correctAnswer: 0,
-                  explanation: "VLSM supports different subnet sizes in the same block."
-                },
-                {
-                  id: "q10",
-                  question: "When planning VLSM, you should allocate subnets in what order?",
-                  options: ["Largest to smallest", "Smallest to largest", "Randomly"],
-                  correctAnswer: 0,
-                  explanation: "Starting with the largest prevents running out of space."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "Subnetting fundamentals quiz",
+          xp: 90,
+          questions: [
+            {
+              id: "q1",
+              question: "Fill in the blank: A /24 has ___ total addresses.",
+              options: [
+                "256",
+                "128",
+                "64"
+              ],
+              correctAnswer: 0,
+              explanation: "A /24 has 256 total addresses."
+            },
+            {
+              id: "q2",
+              question: "A /26 subnet has how many usable hosts?",
+              options: [
+                "62",
+                "126",
+                "254"
+              ],
+              correctAnswer: 0,
+              explanation: "A /26 has 64 total, 62 usable."
+            },
+            {
+              id: "q3",
+              question: "Subnetting helps by:",
+              options: [
+                "Increasing broadcast traffic",
+                "Reducing broadcast domains",
+                "Eliminating routers"
+              ],
+              correctAnswer: 1,
+              explanation: "Subnetting reduces broadcast domains."
+            },
+            {
+              id: "q4",
+              question: "CIDR /30 is commonly used for:",
+              options: [
+                "Point-to-point links",
+                "Large LANs",
+                "Wireless only"
+              ],
+              correctAnswer: 0,
+              explanation: "A /30 is common for point-to-point links."
+            },
+            {
+              id: "q5",
+              question: "Fill in the blank: The shorter the prefix, the ___ the subnet.",
+              options: [
+                "larger",
+                "smaller",
+                "safer"
+              ],
+              correctAnswer: 0,
+              explanation: "Shorter prefixes mean larger subnets."
+            },
+            {
+              id: "q6",
+              question: "Which mask matches /27?",
+              options: [
+                "255.255.255.224",
+                "255.255.255.0",
+                "255.255.255.248"
+              ],
+              correctAnswer: 0,
+              explanation: "/27 corresponds to 255.255.255.224."
+            },
+            {
+              id: "q7",
+              question: "Network address of 192.168.10.64/26 is:",
+              options: [
+                "192.168.10.64",
+                "192.168.10.65",
+                "192.168.10.1"
+              ],
+              correctAnswer: 0,
+              explanation: "The network address is the first address in the block."
+            },
+            {
+              id: "q8",
+              question: "Broadcast address of 192.168.10.64/26 is:",
+              options: [
+                "192.168.10.127",
+                "192.168.10.95",
+                "192.168.10.63"
+              ],
+              correctAnswer: 0,
+              explanation: "The broadcast is the last address in the block."
+            },
+            {
+              id: "q9",
+              question: "VLSM allows you to:",
+              options: [
+                "Use multiple subnet sizes in one address block",
+                "Avoid subnetting entirely",
+                "Eliminate routing"
+              ],
+              correctAnswer: 0,
+              explanation: "VLSM supports different subnet sizes in the same block."
+            },
+            {
+              id: "q10",
+              question: "When planning VLSM, you should allocate subnets in what order?",
+              options: [
+                "Largest to smallest",
+                "Smallest to largest",
+                "Randomly"
+              ],
+              correctAnswer: 0,
+              explanation: "Starting with the largest prevents running out of space."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Calculate subnet ranges",
+          xp: 40,
+          steps: [
+            "Add a router, a switch, and four PCs.",
+            "Connect all PCs to the switch and the switch to the router.",
+            "Assign two PCs to 192.168.10.0/26 (example: .10 and .20).",
+            "Assign two PCs to 192.168.10.64/26 (example: .70 and .80)."
+          ],
+          tips: "A /26 has 64 addresses; the network IDs here are .0 and .64."
+        },
+        challenge: {
+          title: "Design two subnets for a small business",
+          xp: 110,
+          rules: {
+            minDevices: 6,
+            minConnections: 5,
+            requiredTypes: {
+              router: 1,
+              switch: 1,
+              pc: 4
+            }
+          },
+          steps: [
+            "Add 1 router, 1 switch, and at least 4 PCs.",
+            "Connect all PCs to the switch and connect the switch to the router.",
+            "Plan two subnets (e.g., Staff and Guest) and document the gateway for each."
+          ],
+          tips: "Use two groups of PCs to represent two different subnets."
+        }
       },
       {
         title: "Unit 2: VLANs & Trunks",
         about: "Segment Layer 2 networks and carry VLANs over trunk links.",
-        sections: [
-          {
-            title: "VLANs",
-            items: [
-              {
-                type: "Learn",
-                title: "VLAN concepts",
-                content: "VLANs create separate broadcast domains on the same switch.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "VLAN planning and naming",
-                content: "Clear VLAN numbering and naming keeps large environments manageable.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "802.1Q trunking",
-                content: "Trunks carry multiple VLANs between switches using tags.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "Access vs trunk ports",
-                content: "Access ports carry a single VLAN; trunk ports carry many, with a native VLAN untagged.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Quiz",
-                title: "VLANs quiz",
-                duration: "8 min",
-                xp: 90
-              },
-              {
-                type: "Practice",
-                title: "Assign VLANs to ports",
-                duration: "14 min",
-                xp: 40,
-                steps: [
-                  "Add two switches and four PCs.",
-                  "Connect two PCs to Switch A and two PCs to Switch B.",
-                  "Link the two switches together with one uplink.",
-                  "Rename two PCs with VLAN10 and two PCs with VLAN20 to model segmentation."
-                ],
-                tips: "VLANs are logical; use naming to keep groups clear while you design."
-              },
-              {
-                type: "Challenge",
-                title: "Build a VLAN campus",
-                duration: "18 min",
-                xp: 110,
-                challenge: {
-                  rules: {
-                    minDevices: 6,
-                    minConnections: 5,
-                    requiredTypes: { switch: 2, pc: 4 }
-                  },
-                  steps: [
-                    "Add 2 switches and at least 4 PCs.",
-                    "Connect PCs to the switches and link the switches together.",
-                    "Treat two PCs as VLAN 10 and two PCs as VLAN 20 in your notes."
-                  ],
-                  tips: "Imagine the trunk between switches carrying VLAN 10 and VLAN 20."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "VLAN concepts",
@@ -1935,7 +1981,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "VLANs create separate ___ domains.",
-                options: ["Broadcast", "Collision", "Routing"],
+                options: [
+                  "Broadcast",
+                  "Collision",
+                  "Routing"
+                ],
                 correctIndex: 0,
                 explanation: "VLANs separate broadcast domains."
               }
@@ -1968,7 +2018,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Why should VLAN names match their function?",
-                options: ["To make logs and configs easier to read", "To increase broadcast traffic", "To avoid using numbers"],
+                options: [
+                  "To make logs and configs easier to read",
+                  "To increase broadcast traffic",
+                  "To avoid using numbers"
+                ],
                 correctIndex: 0,
                 explanation: "Clear names make intent obvious in logs and during troubleshooting."
               }
@@ -2002,7 +2056,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "802.1Q does what?",
-                options: ["Tags frames with VLAN identifiers", "Encrypts traffic", "Assigns IP addresses"],
+                options: [
+                  "Tags frames with VLAN identifiers",
+                  "Encrypts traffic",
+                  "Assigns IP addresses"
+                ],
                 correctIndex: 0,
                 explanation: "802.1Q adds VLAN tags to Ethernet frames."
               }
@@ -2035,7 +2093,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "An access port carries:",
-                options: ["One VLAN, untagged", "Multiple VLANs", "All VLANs by default"],
+                options: [
+                  "One VLAN, untagged",
+                  "Multiple VLANs",
+                  "All VLANs by default"
+                ],
                 correctIndex: 0,
                 explanation: "Access ports carry a single VLAN and do not tag frames."
               }
@@ -2044,162 +2106,158 @@ const COURSE_CONTENT = {
               "Describe access vs trunk ports",
               "Explain the native VLAN",
               "Identify common trunk misconfigurations"
-            ],
-            quiz: {
-              title: "VLANs quiz",
-              xp: 90,
-              questions: [
-                {
-                  id: "q1",
-                  question: "VLANs create separate ___ domains.",
-                  options: ["Broadcast", "Collision", "Routing"],
-                  correctAnswer: 0,
-                  explanation: "VLANs separate broadcast domains."
-                },
-                {
-                  id: "q2",
-                  question: "802.1Q does what?",
-                  options: ["Tags frames", "Encrypts traffic", "Assigns IPs"],
-                  correctAnswer: 0,
-                  explanation: "802.1Q adds VLAN tags to frames."
-                },
-                {
-                  id: "q3",
-                  question: "An access port carries:",
-                  options: ["One VLAN", "Multiple VLANs", "All VLANs"],
-                  correctAnswer: 0,
-                  explanation: "Access ports carry a single VLAN."
-                },
-                {
-                  id: "q4",
-                  question: "The native VLAN on a trunk is:",
-                  options: ["Untagged", "Tagged", "Dropped"],
-                  correctAnswer: 0,
-                  explanation: "Native VLAN traffic is untagged by default."
-                },
-                {
-                  id: "q5",
-                  question: "Fill in the blank: Devices in different VLANs require ___ to communicate.",
-                  options: ["Routing", "Bridging", "Repeating"],
-                  correctAnswer: 0,
-                  explanation: "Routing is required between VLANs."
-                },
-                {
-                  id: "q6",
-                  question: "Which device typically performs inter-VLAN routing?",
-                  options: ["Layer 3 device", "Hub", "Repeater"],
-                  correctAnswer: 0,
-                  explanation: "Routers or Layer 3 switches perform inter-VLAN routing."
-                },
-                {
-                  id: "q7",
-                  question: "Trunk links are commonly used between:",
-                  options: ["Switches", "PCs", "Printers"],
-                  correctAnswer: 0,
-                  explanation: "Trunks connect switches or switch-to-router links."
-                },
-                {
-                  id: "q8",
-                  question: "A trunk link typically carries:",
-                  options: ["Multiple VLANs", "One VLAN only", "Only management traffic"],
-                  correctAnswer: 0,
-                  explanation: "Trunks are designed to carry multiple VLANs."
-                },
-                {
-                  id: "q9",
-                  question: "Which concept limits which VLANs can traverse a trunk?",
-                  options: ["Allowed VLAN list", "Default gateway", "ARP cache"],
-                  correctAnswer: 0,
-                  explanation: "Allowed VLAN lists control what traffic crosses a trunk."
-                },
-                {
-                  id: "q10",
-                  question: "A voice VLAN is typically used for:",
-                  options: ["IP phones", "File servers", "Printers only"],
-                  correctAnswer: 0,
-                  explanation: "Voice VLANs separate and prioritize IP phone traffic."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "VLANs quiz",
+          xp: 90,
+          questions: [
+            {
+              id: "q1",
+              question: "VLANs create separate ___ domains.",
+              options: [
+                "Broadcast",
+                "Collision",
+                "Routing"
+              ],
+              correctAnswer: 0,
+              explanation: "VLANs separate broadcast domains."
+            },
+            {
+              id: "q2",
+              question: "802.1Q does what?",
+              options: [
+                "Tags frames",
+                "Encrypts traffic",
+                "Assigns IPs"
+              ],
+              correctAnswer: 0,
+              explanation: "802.1Q adds VLAN tags to frames."
+            },
+            {
+              id: "q3",
+              question: "An access port carries:",
+              options: [
+                "One VLAN",
+                "Multiple VLANs",
+                "All VLANs"
+              ],
+              correctAnswer: 0,
+              explanation: "Access ports carry a single VLAN."
+            },
+            {
+              id: "q4",
+              question: "The native VLAN on a trunk is:",
+              options: [
+                "Untagged",
+                "Tagged",
+                "Dropped"
+              ],
+              correctAnswer: 0,
+              explanation: "Native VLAN traffic is untagged by default."
+            },
+            {
+              id: "q5",
+              question: "Fill in the blank: Devices in different VLANs require ___ to communicate.",
+              options: [
+                "Routing",
+                "Bridging",
+                "Repeating"
+              ],
+              correctAnswer: 0,
+              explanation: "Routing is required between VLANs."
+            },
+            {
+              id: "q6",
+              question: "Which device typically performs inter-VLAN routing?",
+              options: [
+                "Layer 3 device",
+                "Hub",
+                "Repeater"
+              ],
+              correctAnswer: 0,
+              explanation: "Routers or Layer 3 switches perform inter-VLAN routing."
+            },
+            {
+              id: "q7",
+              question: "Trunk links are commonly used between:",
+              options: [
+                "Switches",
+                "PCs",
+                "Printers"
+              ],
+              correctAnswer: 0,
+              explanation: "Trunks connect switches or switch-to-router links."
+            },
+            {
+              id: "q8",
+              question: "A trunk link typically carries:",
+              options: [
+                "Multiple VLANs",
+                "One VLAN only",
+                "Only management traffic"
+              ],
+              correctAnswer: 0,
+              explanation: "Trunks are designed to carry multiple VLANs."
+            },
+            {
+              id: "q9",
+              question: "Which concept limits which VLANs can traverse a trunk?",
+              options: [
+                "Allowed VLAN list",
+                "Default gateway",
+                "ARP cache"
+              ],
+              correctAnswer: 0,
+              explanation: "Allowed VLAN lists control what traffic crosses a trunk."
+            },
+            {
+              id: "q10",
+              question: "A voice VLAN is typically used for:",
+              options: [
+                "IP phones",
+                "File servers",
+                "Printers only"
+              ],
+              correctAnswer: 0,
+              explanation: "Voice VLANs separate and prioritize IP phone traffic."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Assign VLANs to ports",
+          xp: 40,
+          steps: [
+            "Add two switches and four PCs.",
+            "Connect two PCs to Switch A and two PCs to Switch B.",
+            "Link the two switches together with one uplink.",
+            "Rename two PCs with VLAN10 and two PCs with VLAN20 to model segmentation."
+          ],
+          tips: "VLANs are logical; use naming to keep groups clear while you design."
+        },
+        challenge: {
+          title: "Build a VLAN campus",
+          xp: 110,
+          rules: {
+            minDevices: 6,
+            minConnections: 5,
+            requiredTypes: {
+              switch: 2,
+              pc: 4
+            }
+          },
+          steps: [
+            "Add 2 switches and at least 4 PCs.",
+            "Connect PCs to the switches and link the switches together.",
+            "Treat two PCs as VLAN 10 and two PCs as VLAN 20 in your notes."
+          ],
+          tips: "Imagine the trunk between switches carrying VLAN 10 and VLAN 20."
+        }
       },
       {
         title: "Unit 3: Inter-VLAN Routing",
         about: "Connect VLANs using router-on-a-stick or Layer 3 switches.",
-        sections: [
-          {
-            title: "Routing between VLANs",
-            items: [
-              {
-                type: "Learn",
-                title: "Router-on-a-stick",
-                content: "A single router interface can route multiple VLANs using subinterfaces.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "SVI on Layer 3 switches",
-                content: "SVIs provide gateway interfaces for VLANs on a multilayer switch.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "Inter-VLAN design patterns",
-                content: "Choose between router-on-a-stick, multilayer switches, or routed access designs.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Learn",
-                title: "Troubleshooting inter-VLAN routing",
-                content: "Verify gateways, VLAN tagging, and allowed VLANs on trunks.",
-                duration: "12 min",
-                xp: 55
-              },
-              {
-                type: "Quiz",
-                title: "Inter-VLAN routing quiz",
-                duration: "8 min",
-                xp: 90
-              },
-              {
-                type: "Practice",
-                title: "Configure inter-VLAN routing",
-                duration: "14 min",
-                xp: 45,
-                steps: [
-                  "Add a router, a switch, and three PCs.",
-                  "Connect all PCs to the switch and connect the switch to the router.",
-                  "Name one PC VLAN10 and two PCs VLAN20 to model two groups.",
-                  "Assign gateway IPs on the router (one per VLAN) in your notes."
-                ],
-                tips: "Router-on-a-stick uses subinterfaces; each VLAN needs its own gateway IP."
-              },
-              {
-                type: "Challenge",
-                title: "Route between two VLANs",
-                duration: "18 min",
-                xp: 110,
-                challenge: {
-                  rules: {
-                    minDevices: 5,
-                    minConnections: 4,
-                    requiredTypes: { router: 1, switch: 1, pc: 3 }
-                  },
-                  steps: [
-                    "Add a switch, a router, and at least three PCs.",
-                    "Connect PCs to the switch and the switch to the router.",
-                    "Treat one PC as VLAN 10 and two PCs as VLAN 20 in your design."
-                  ],
-                  tips: "You are modeling the topology; VLAN configurations are conceptual."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Router-on-a-stick",
@@ -2224,7 +2282,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Router-on-a-stick routes between VLANs using:",
-                options: ["Subinterfaces", "Access ports", "DNS"],
+                options: [
+                  "Subinterfaces",
+                  "Access ports",
+                  "DNS"
+                ],
                 correctIndex: 0,
                 explanation: "Subinterfaces map each VLAN to one router interface."
               }
@@ -2257,7 +2319,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "SVI stands for:",
-                options: ["Switch Virtual Interface", "Secure VLAN Interface", "Static Virtual Interface"],
+                options: [
+                  "Switch Virtual Interface",
+                  "Secure VLAN Interface",
+                  "Static Virtual Interface"
+                ],
                 correctIndex: 0,
                 explanation: "SVI is Switch Virtual Interface — it provides a Layer 3 gateway for a VLAN."
               }
@@ -2290,7 +2356,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Which inter-VLAN design is most common in small networks?",
-                options: ["Router-on-a-stick", "Full mesh Layer 3 switching", "Routed access only"],
+                options: [
+                  "Router-on-a-stick",
+                  "Full mesh Layer 3 switching",
+                  "Routed access only"
+                ],
                 correctIndex: 0,
                 explanation: "Router-on-a-stick is cost-effective and common in smaller environments."
               }
@@ -2324,7 +2394,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Best first test when VLANs cannot talk to each other:",
-                options: ["Ping the default gateway", "Change DNS settings", "Replace the ISP link"],
+                options: [
+                  "Ping the default gateway",
+                  "Change DNS settings",
+                  "Replace the ISP link"
+                ],
                 correctIndex: 0,
                 explanation: "If the gateway fails, routing between VLANs will not work."
               }
@@ -2332,89 +2406,158 @@ const COURSE_CONTENT = {
             objectives: [
               "Identify common inter-VLAN failures",
               "Describe a basic troubleshooting sequence"
-            ],
-            quiz: {
-              title: "Inter-VLAN routing quiz",
-              xp: 90,
-              questions: [
-                {
-                  id: "q1",
-                  question: "Router-on-a-stick uses ___ to route multiple VLANs.",
-                  options: ["Subinterfaces", "Access ports", "DNS"],
-                  correctAnswer: 0,
-                  explanation: "Subinterfaces map VLANs to a single router interface."
-                },
-                {
-                  id: "q2",
-                  question: "SVI stands for:",
-                  options: ["Switch Virtual Interface", "Secure VLAN Interface", "Static Virtual Interface"],
-                  correctAnswer: 0,
-                  explanation: "SVI is Switch Virtual Interface."
-                },
-                {
-                  id: "q3",
-                  question: "Fill in the blank: Each VLAN should have a ___ IP used as a default gateway.",
-                  options: ["unique", "shared", "random"],
-                  correctAnswer: 0,
-                  explanation: "Each VLAN needs its own gateway IP."
-                },
-                {
-                  id: "q4",
-                  question: "If hosts in VLAN 10 cannot reach VLAN 20, check ___ first.",
-                  options: ["Gateway IPs and trunking", "DNS", "Cable length"],
-                  correctAnswer: 0,
-                  explanation: "Gateway and trunk configuration are common issues."
-                },
-                {
-                  id: "q5",
-                  question: "A multilayer switch routes at Layer:",
-                  options: ["3", "1", "2"],
-                  correctAnswer: 0,
-                  explanation: "Layer 3 switches route between VLANs."
-                },
-                {
-                  id: "q6",
-                  question: "Inter-VLAN routing is required because VLANs are separate ___ domains.",
-                  options: ["broadcast", "collision", "physical"],
-                  correctAnswer: 0,
-                  explanation: "VLANs are separate broadcast domains."
-                },
-                {
-                  id: "q7",
-                  question: "Router-on-a-stick is common in:",
-                  options: ["Small networks", "Very large networks", "Wireless-only networks"],
-                  correctAnswer: 0,
-                  explanation: "It is common in smaller environments."
-                },
-                {
-                  id: "q8",
-                  question: "Router-on-a-stick requires the switch port to be a:",
-                  options: ["Trunk", "Access", "Monitor"],
-                  correctAnswer: 0,
-                  explanation: "The router must receive tagged VLAN traffic on a trunk."
-                },
-                {
-                  id: "q9",
-                  question: "Layer 3 switches route between VLANs using:",
-                  options: ["SVIs", "Hubs", "Repeaters"],
-                  correctAnswer: 0,
-                  explanation: "SVIs are the gateway interfaces for VLANs on L3 switches."
-                },
-                {
-                  id: "q10",
-                  question: "Best first test when VLANs can’t talk:",
-                  options: ["Ping the default gateway", "Change DNS", "Replace the ISP link"],
-                  correctAnswer: 0,
-                  explanation: "If the gateway fails, routing between VLANs won’t work."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "Inter-VLAN routing quiz",
+          xp: 90,
+          questions: [
+            {
+              id: "q1",
+              question: "Router-on-a-stick uses ___ to route multiple VLANs.",
+              options: [
+                "Subinterfaces",
+                "Access ports",
+                "DNS"
+              ],
+              correctAnswer: 0,
+              explanation: "Subinterfaces map VLANs to a single router interface."
+            },
+            {
+              id: "q2",
+              question: "SVI stands for:",
+              options: [
+                "Switch Virtual Interface",
+                "Secure VLAN Interface",
+                "Static Virtual Interface"
+              ],
+              correctAnswer: 0,
+              explanation: "SVI is Switch Virtual Interface."
+            },
+            {
+              id: "q3",
+              question: "Fill in the blank: Each VLAN should have a ___ IP used as a default gateway.",
+              options: [
+                "unique",
+                "shared",
+                "random"
+              ],
+              correctAnswer: 0,
+              explanation: "Each VLAN needs its own gateway IP."
+            },
+            {
+              id: "q4",
+              question: "If hosts in VLAN 10 cannot reach VLAN 20, check ___ first.",
+              options: [
+                "Gateway IPs and trunking",
+                "DNS",
+                "Cable length"
+              ],
+              correctAnswer: 0,
+              explanation: "Gateway and trunk configuration are common issues."
+            },
+            {
+              id: "q5",
+              question: "A multilayer switch routes at Layer:",
+              options: [
+                "3",
+                "1",
+                "2"
+              ],
+              correctAnswer: 0,
+              explanation: "Layer 3 switches route between VLANs."
+            },
+            {
+              id: "q6",
+              question: "Inter-VLAN routing is required because VLANs are separate ___ domains.",
+              options: [
+                "broadcast",
+                "collision",
+                "physical"
+              ],
+              correctAnswer: 0,
+              explanation: "VLANs are separate broadcast domains."
+            },
+            {
+              id: "q7",
+              question: "Router-on-a-stick is common in:",
+              options: [
+                "Small networks",
+                "Very large networks",
+                "Wireless-only networks"
+              ],
+              correctAnswer: 0,
+              explanation: "It is common in smaller environments."
+            },
+            {
+              id: "q8",
+              question: "Router-on-a-stick requires the switch port to be a:",
+              options: [
+                "Trunk",
+                "Access",
+                "Monitor"
+              ],
+              correctAnswer: 0,
+              explanation: "The router must receive tagged VLAN traffic on a trunk."
+            },
+            {
+              id: "q9",
+              question: "Layer 3 switches route between VLANs using:",
+              options: [
+                "SVIs",
+                "Hubs",
+                "Repeaters"
+              ],
+              correctAnswer: 0,
+              explanation: "SVIs are the gateway interfaces for VLANs on L3 switches."
+            },
+            {
+              id: "q10",
+              question: "Best first test when VLANs can’t talk:",
+              options: [
+                "Ping the default gateway",
+                "Change DNS",
+                "Replace the ISP link"
+              ],
+              correctAnswer: 0,
+              explanation: "If the gateway fails, routing between VLANs won’t work."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Configure inter-VLAN routing",
+          xp: 45,
+          steps: [
+            "Add a router, a switch, and three PCs.",
+            "Connect all PCs to the switch and connect the switch to the router.",
+            "Name one PC VLAN10 and two PCs VLAN20 to model two groups.",
+            "Assign gateway IPs on the router (one per VLAN) in your notes."
+          ],
+          tips: "Router-on-a-stick uses subinterfaces; each VLAN needs its own gateway IP."
+        },
+        challenge: {
+          title: "Route between two VLANs",
+          xp: 110,
+          rules: {
+            minDevices: 5,
+            minConnections: 4,
+            requiredTypes: {
+              router: 1,
+              switch: 1,
+              pc: 3
+            }
+          },
+          steps: [
+            "Add a switch, a router, and at least three PCs.",
+            "Connect PCs to the switch and the switch to the router.",
+            "Treat one PC as VLAN 10 and two PCs as VLAN 20 in your design."
+          ],
+          tips: "You are modeling the topology; VLAN configurations are conceptual."
+        }
       }
     ]
   },
-
   "5": {
     id: "5",
     title: "Routing Fundamentals",
@@ -2428,33 +2571,6 @@ const COURSE_CONTENT = {
       {
         title: "Unit 1: Routing Essentials",
         about: "Compare static and dynamic routing and explore OSPF basics.",
-        sections: [
-          {
-            title: "Routing",
-            items: [
-              {
-                type: "Learn",
-                title: "Static vs dynamic routing",
-                content: "Static routes are manual; dynamic routes adapt to changes using protocols.",
-                duration: "9 min",
-                xp: 40
-              },
-              {
-                type: "Learn",
-                title: "OSPF overview",
-                content: "OSPF is a link-state protocol that calculates shortest paths.",
-                duration: "10 min",
-                xp: 40
-              },
-              {
-                type: "Quiz",
-                title: "Routing quick check",
-                duration: "6 min",
-                xp: 60
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Static vs dynamic routing",
@@ -2478,7 +2594,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What is the main disadvantage of static routes?",
-                options: ["They use too much bandwidth", "They do not adapt to link failures", "They require special hardware"],
+                options: [
+                  "They use too much bandwidth",
+                  "They do not adapt to link failures",
+                  "They require special hardware"
+                ],
                 correctIndex: 1,
                 explanation: "Static routes must be manually updated if the network changes."
               }
@@ -2511,7 +2631,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What algorithm does OSPF use to calculate shortest paths?",
-                options: ["Bellman-Ford", "Dijkstra SPF", "Round-robin"],
+                options: [
+                  "Bellman-Ford",
+                  "Dijkstra SPF",
+                  "Round-robin"
+                ],
                 correctIndex: 1,
                 explanation: "OSPF uses Dijkstra's Shortest Path First algorithm."
               }
@@ -2520,54 +2644,73 @@ const COURSE_CONTENT = {
               "Describe how OSPF works",
               "Explain the role of the link-state database",
               "Identify the OSPF metric"
-            ],
-            quiz: {
-              title: "Routing quick check",
-              xp: 60,
-              questions: [
-                {
-                  id: "q1",
-                  question: "OSPF is a:",
-                  options: ["Distance-vector", "Link-state", "Hybrid"],
-                  correctAnswer: 1,
-                  explanation: "OSPF is a link-state routing protocol."
-                },
-                {
-                  id: "q2",
-                  question: "Static routes must be updated:",
-                  options: ["Manually by an administrator", "Automatically by OSPF", "By the switch"],
-                  correctAnswer: 0,
-                  explanation: "Static routes do not adapt on their own; an admin must change them."
-                },
-                {
-                  id: "q3",
-                  question: "Which algorithm does OSPF use to calculate shortest paths?",
-                  options: ["Bellman-Ford", "Dijkstra SPF", "Round-robin"],
-                  correctAnswer: 1,
-                  explanation: "OSPF uses Dijkstra's Shortest Path First algorithm."
-                },
-                {
-                  id: "q4",
-                  question: "Dynamic routing is preferred over static routing when:",
-                  options: ["The network has multiple paths and redundancy", "There is only one exit path", "No routers are present"],
-                  correctAnswer: 0,
-                  explanation: "Dynamic protocols can find alternate paths automatically when links fail."
-                },
-                {
-                  id: "q5",
-                  question: "OSPF routers discover neighbours by exchanging:",
-                  options: ["Hello packets", "ARP requests", "DNS queries"],
-                  correctAnswer: 0,
-                  explanation: "OSPF uses Hello packets to form and maintain neighbour relationships."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "Routing quick check",
+          xp: 60,
+          questions: [
+            {
+              id: "q1",
+              question: "OSPF is a:",
+              options: [
+                "Distance-vector",
+                "Link-state",
+                "Hybrid"
+              ],
+              correctAnswer: 1,
+              explanation: "OSPF is a link-state routing protocol."
+            },
+            {
+              id: "q2",
+              question: "Static routes must be updated:",
+              options: [
+                "Manually by an administrator",
+                "Automatically by OSPF",
+                "By the switch"
+              ],
+              correctAnswer: 0,
+              explanation: "Static routes do not adapt on their own; an admin must change them."
+            },
+            {
+              id: "q3",
+              question: "Which algorithm does OSPF use to calculate shortest paths?",
+              options: [
+                "Bellman-Ford",
+                "Dijkstra SPF",
+                "Round-robin"
+              ],
+              correctAnswer: 1,
+              explanation: "OSPF uses Dijkstra's Shortest Path First algorithm."
+            },
+            {
+              id: "q4",
+              question: "Dynamic routing is preferred over static routing when:",
+              options: [
+                "The network has multiple paths and redundancy",
+                "There is only one exit path",
+                "No routers are present"
+              ],
+              correctAnswer: 0,
+              explanation: "Dynamic protocols can find alternate paths automatically when links fail."
+            },
+            {
+              id: "q5",
+              question: "OSPF routers discover neighbours by exchanging:",
+              options: [
+                "Hello packets",
+                "ARP requests",
+                "DNS queries"
+              ],
+              correctAnswer: 0,
+              explanation: "OSPF uses Hello packets to form and maintain neighbour relationships."
+            }
+          ]
+        }
       }
     ]
   },
-
   "6": {
     id: "6",
     title: "Wireless & Network Services",
@@ -2581,33 +2724,6 @@ const COURSE_CONTENT = {
       {
         title: "Unit 1: Wireless and Services",
         about: "Explore Wi‑Fi basics and core network services.",
-        sections: [
-          {
-            title: "Wireless + Services",
-            items: [
-              {
-                type: "Learn",
-                title: "Wi‑Fi standards",
-                content: "802.11 standards define speeds and frequency bands for wireless networks.",
-                duration: "9 min",
-                xp: 40
-              },
-              {
-                type: "Learn",
-                title: "DHCP & DNS basics",
-                content: "DHCP assigns IPs automatically; DNS translates names to IP addresses.",
-                duration: "10 min",
-                xp: 40
-              },
-              {
-                type: "Quiz",
-                title: "Services quick check",
-                duration: "6 min",
-                xp: 60
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Wi‑Fi standards",
@@ -2631,7 +2747,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Which Wi‑Fi standard introduced OFDMA for better efficiency?",
-                options: ["Wi‑Fi 4 (802.11n)", "Wi‑Fi 5 (802.11ac)", "Wi‑Fi 6 (802.11ax)"],
+                options: [
+                  "Wi‑Fi 4 (802.11n)",
+                  "Wi‑Fi 5 (802.11ac)",
+                  "Wi‑Fi 6 (802.11ax)"
+                ],
                 correctIndex: 2,
                 explanation: "Wi‑Fi 6 (802.11ax) introduced OFDMA for more efficient airtime usage."
               }
@@ -2664,7 +2784,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What does the D in DORA stand for?",
-                options: ["Deliver", "Discover", "Deny"],
+                options: [
+                  "Deliver",
+                  "Discover",
+                  "Deny"
+                ],
                 correctIndex: 1,
                 explanation: "The first step of DHCP is Discover — the client broadcasts looking for a server."
               }
@@ -2673,55 +2797,73 @@ const COURSE_CONTENT = {
               "Describe how DHCP works",
               "Explain the DORA process",
               "Describe the DNS hierarchy"
-            ],
-            quiz: {
-              title: "Services quick check",
-              xp: 60,
-              questions: [
-                {
-                  id: "q1",
-                  question: "DNS is used to:",
-                  options: ["Encrypt traffic", "Resolve domain names", "Assign MACs"],
-                  correctAnswer: 1,
-                  explanation: "DNS maps names to IP addresses."
-                },
-                {
-                  id: "q2",
-                  question: "The first step of the DHCP process is:",
-                  options: ["Discover", "Offer", "Acknowledge"],
-                  correctAnswer: 0,
-                  explanation: "The client starts with a Discover broadcast looking for a DHCP server."
-                },
-                {
-                  id: "q3",
-                  question: "Wi‑Fi 6 (802.11ax) improved efficiency using:",
-                  options: ["OFDMA", "Token Ring", "Static channels only"],
-                  correctAnswer: 0,
-                  explanation: "OFDMA allows Wi‑Fi 6 to serve multiple clients simultaneously on subcarriers."
-                },
-                {
-                  id: "q4",
-                  question: "Which frequency band has longer range but more interference?",
-                  options: ["2.4 GHz", "5 GHz", "6 GHz"],
-                  correctAnswer: 0,
-                  explanation: "2.4 GHz penetrates walls better but is more crowded with devices."
-                },
-                {
-                  id: "q5",
-                  question: "If users can reach 8.8.8.8 but not google.com, the issue is likely:",
-                  options: ["DNS", "DHCP", "The switch"],
-                  correctAnswer: 0,
-                  explanation: "IP connectivity works but name resolution fails, so DNS is the culprit."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "Services quick check",
+          xp: 60,
+          questions: [
+            {
+              id: "q1",
+              question: "DNS is used to:",
+              options: [
+                "Encrypt traffic",
+                "Resolve domain names",
+                "Assign MACs"
+              ],
+              correctAnswer: 1,
+              explanation: "DNS maps names to IP addresses."
+            },
+            {
+              id: "q2",
+              question: "The first step of the DHCP process is:",
+              options: [
+                "Discover",
+                "Offer",
+                "Acknowledge"
+              ],
+              correctAnswer: 0,
+              explanation: "The client starts with a Discover broadcast looking for a DHCP server."
+            },
+            {
+              id: "q3",
+              question: "Wi‑Fi 6 (802.11ax) improved efficiency using:",
+              options: [
+                "OFDMA",
+                "Token Ring",
+                "Static channels only"
+              ],
+              correctAnswer: 0,
+              explanation: "OFDMA allows Wi‑Fi 6 to serve multiple clients simultaneously on subcarriers."
+            },
+            {
+              id: "q4",
+              question: "Which frequency band has longer range but more interference?",
+              options: [
+                "2.4 GHz",
+                "5 GHz",
+                "6 GHz"
+              ],
+              correctAnswer: 0,
+              explanation: "2.4 GHz penetrates walls better but is more crowded with devices."
+            },
+            {
+              id: "q5",
+              question: "If users can reach 8.8.8.8 but not google.com, the issue is likely:",
+              options: [
+                "DNS",
+                "DHCP",
+                "The switch"
+              ],
+              correctAnswer: 0,
+              explanation: "IP connectivity works but name resolution fails, so DNS is the culprit."
+            }
+          ]
+        }
       }
     ]
   },
-
-  // Advanced courses (level 5+).
   "7": {
     id: "7",
     title: "Network Security & Hardening",
@@ -2735,79 +2877,6 @@ const COURSE_CONTENT = {
       {
         title: "Unit 1: Threats & Hardening",
         about: "Identify common threats and apply hardening techniques.",
-        sections: [
-          {
-            title: "Security basics",
-            items: [
-              {
-                type: "Learn",
-                title: "Attack surface",
-                content: "Every open port, service, and configuration adds to your attack surface.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "Threat modeling and risk",
-                content: "Prioritize controls by likelihood, impact, and asset value.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "Hardening checklist",
-                content: "Disable unused services, use strong auth, patch often, and log everything.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "Authentication and AAA",
-                content: "Centralize authentication and apply least privilege with AAA (Authentication, Authorization, Accounting).",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Quiz",
-                title: "Hardening fundamentals quiz",
-                duration: "8 min",
-                xp: 100
-              },
-              {
-                type: "Practice",
-                title: "Spot hardening gaps",
-                duration: "12 min",
-                xp: 40,
-                steps: [
-                  "Add a router, firewall, switch, two PCs, and a server.",
-                  "Connect PCs and server to the switch, then switch to firewall, firewall to router.",
-                  "List three services you would disable on the server if unused.",
-                  "Identify one logging source you would always keep enabled."
-                ],
-                tips: "Least privilege and minimal services reduce exposure and simplify monitoring."
-              },
-              {
-                type: "Challenge",
-                title: "Harden a branch network",
-                duration: "18 min",
-                xp: 120,
-                challenge: {
-                  rules: {
-                    minDevices: 6,
-                    minConnections: 5,
-                    requiredTypes: { router: 1, switch: 1, pc: 4 }
-                  },
-                  steps: [
-                    "Build a small branch network with a router, switch, and four PCs.",
-                    "Designate one PC as admin and the rest as users in your notes.",
-                    "Describe which services should be disabled and which logs should be enabled."
-                  ],
-                  tips: "Focus on least privilege and reducing exposed services."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Attack surface",
@@ -2832,7 +2901,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Which action reduces the attack surface?",
-                options: ["Disable unused services", "Enable all management interfaces", "Use default credentials"],
+                options: [
+                  "Disable unused services",
+                  "Enable all management interfaces",
+                  "Use default credentials"
+                ],
                 correctIndex: 0,
                 explanation: "Disabling unused services removes unnecessary exposure."
               }
@@ -2866,7 +2939,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "When prioritizing risks, you should consider:",
-                options: ["Likelihood and impact", "Only cost", "Only technical difficulty"],
+                options: [
+                  "Likelihood and impact",
+                  "Only cost",
+                  "Only technical difficulty"
+                ],
                 correctIndex: 0,
                 explanation: "Both likelihood and impact determine which risks matter most."
               }
@@ -2900,7 +2977,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Which is a key hardening action?",
-                options: ["Patch devices regularly", "Enable all services", "Use default admin accounts"],
+                options: [
+                  "Patch devices regularly",
+                  "Enable all services",
+                  "Use default admin accounts"
+                ],
                 correctIndex: 0,
                 explanation: "Patching removes known vulnerabilities."
               }
@@ -2933,7 +3014,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "AAA stands for:",
-                options: ["Authentication, Authorization, Accounting", "Access, Address, Audit", "Application, API, Admin"],
+                options: [
+                  "Authentication, Authorization, Accounting",
+                  "Access, Address, Audit",
+                  "Application, API, Admin"
+                ],
                 correctIndex: 0,
                 explanation: "AAA is Authentication, Authorization, and Accounting."
               }
@@ -2942,149 +3027,159 @@ const COURSE_CONTENT = {
               "Define AAA",
               "Explain least privilege",
               "Describe why MFA improves security"
-            ],
-            quiz: {
-              title: "Hardening fundamentals quiz",
-              xp: 100,
-              questions: [
-                {
-                  id: "q1",
-                  question: "Which action reduces attack surface?",
-                  options: ["Enable unused services", "Disable unused services", "Use default passwords"],
-                  correctAnswer: 1,
-                  explanation: "Disable unused services to reduce exposure."
-                },
-                {
-                  id: "q2",
-                  question: "Which is a strong hardening practice?",
-                  options: ["Use default admin accounts", "Patch regularly", "Open all ports"],
-                  correctAnswer: 1,
-                  explanation: "Patching removes known vulnerabilities."
-                },
-                {
-                  id: "q3",
-                  question: "Least privilege means:",
-                  options: ["Everyone has admin access", "Access is only what's needed", "No authentication required"],
-                  correctAnswer: 1,
-                  explanation: "Least privilege limits access to only what is required."
-                },
-                {
-                  id: "q4",
-                  question: "AAA stands for:",
-                  options: ["Access, Address, Audit", "Authentication, Authorization, Accounting", "Application, API, Admin"],
-                  correctAnswer: 1,
-                  explanation: "AAA is Authentication, Authorization, Accounting."
-                },
-                {
-                  id: "q5",
-                  question: "Fill in the blank: MFA adds a second ___ to authentication.",
-                  options: ["factor", "router", "subnet"],
-                  correctAnswer: 0,
-                  explanation: "MFA adds a second factor."
-                },
-                {
-                  id: "q6",
-                  question: "Why are audit logs important?",
-                  options: ["They block all attacks", "They show who did what", "They replace backups"],
-                  correctAnswer: 1,
-                  explanation: "Audit logs provide accountability and investigation data."
-                },
-                {
-                  id: "q7",
-                  question: "Centralized AAA helps because it:",
-                  options: ["Requires more passwords", "Simplifies access management", "Stops routing"],
-                  correctAnswer: 1,
-                  explanation: "Centralized AAA simplifies control and auditing."
-                },
-                {
-                  id: "q8",
-                  question: "Which control limits lateral movement?",
-                  options: ["Network segmentation", "Disable backups", "Open admin ports"],
-                  correctAnswer: 0,
-                  explanation: "Segmentation limits how far an attacker can move."
-                },
-                {
-                  id: "q9",
-                  question: "Hardening the management plane often includes:",
-                  options: ["Management VLAN and restricted access", "Guest Wi-Fi on the same VLAN", "Public admin interfaces"],
-                  correctAnswer: 0,
-                  explanation: "Separate management access reduces risk."
-                },
-                {
-                  id: "q10",
-                  question: "Least privilege helps because it:",
-                  options: ["Reduces blast radius", "Increases attack surface", "Eliminates logging"],
-                  correctAnswer: 0,
-                  explanation: "Smaller permissions reduce the impact of compromise."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "Hardening fundamentals quiz",
+          xp: 100,
+          questions: [
+            {
+              id: "q1",
+              question: "Which action reduces attack surface?",
+              options: [
+                "Enable unused services",
+                "Disable unused services",
+                "Use default passwords"
+              ],
+              correctAnswer: 1,
+              explanation: "Disable unused services to reduce exposure."
+            },
+            {
+              id: "q2",
+              question: "Which is a strong hardening practice?",
+              options: [
+                "Use default admin accounts",
+                "Patch regularly",
+                "Open all ports"
+              ],
+              correctAnswer: 1,
+              explanation: "Patching removes known vulnerabilities."
+            },
+            {
+              id: "q3",
+              question: "Least privilege means:",
+              options: [
+                "Everyone has admin access",
+                "Access is only what's needed",
+                "No authentication required"
+              ],
+              correctAnswer: 1,
+              explanation: "Least privilege limits access to only what is required."
+            },
+            {
+              id: "q4",
+              question: "AAA stands for:",
+              options: [
+                "Access, Address, Audit",
+                "Authentication, Authorization, Accounting",
+                "Application, API, Admin"
+              ],
+              correctAnswer: 1,
+              explanation: "AAA is Authentication, Authorization, Accounting."
+            },
+            {
+              id: "q5",
+              question: "Fill in the blank: MFA adds a second ___ to authentication.",
+              options: [
+                "factor",
+                "router",
+                "subnet"
+              ],
+              correctAnswer: 0,
+              explanation: "MFA adds a second factor."
+            },
+            {
+              id: "q6",
+              question: "Why are audit logs important?",
+              options: [
+                "They block all attacks",
+                "They show who did what",
+                "They replace backups"
+              ],
+              correctAnswer: 1,
+              explanation: "Audit logs provide accountability and investigation data."
+            },
+            {
+              id: "q7",
+              question: "Centralized AAA helps because it:",
+              options: [
+                "Requires more passwords",
+                "Simplifies access management",
+                "Stops routing"
+              ],
+              correctAnswer: 1,
+              explanation: "Centralized AAA simplifies control and auditing."
+            },
+            {
+              id: "q8",
+              question: "Which control limits lateral movement?",
+              options: [
+                "Network segmentation",
+                "Disable backups",
+                "Open admin ports"
+              ],
+              correctAnswer: 0,
+              explanation: "Segmentation limits how far an attacker can move."
+            },
+            {
+              id: "q9",
+              question: "Hardening the management plane often includes:",
+              options: [
+                "Management VLAN and restricted access",
+                "Guest Wi-Fi on the same VLAN",
+                "Public admin interfaces"
+              ],
+              correctAnswer: 0,
+              explanation: "Separate management access reduces risk."
+            },
+            {
+              id: "q10",
+              question: "Least privilege helps because it:",
+              options: [
+                "Reduces blast radius",
+                "Increases attack surface",
+                "Eliminates logging"
+              ],
+              correctAnswer: 0,
+              explanation: "Smaller permissions reduce the impact of compromise."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Spot hardening gaps",
+          xp: 40,
+          steps: [
+            "Add a router, firewall, switch, two PCs, and a server.",
+            "Connect PCs and server to the switch, then switch to firewall, firewall to router.",
+            "List three services you would disable on the server if unused.",
+            "Identify one logging source you would always keep enabled."
+          ],
+          tips: "Least privilege and minimal services reduce exposure and simplify monitoring."
+        },
+        challenge: {
+          title: "Harden a branch network",
+          xp: 120,
+          rules: {
+            minDevices: 6,
+            minConnections: 5,
+            requiredTypes: {
+              router: 1,
+              switch: 1,
+              pc: 4
+            }
+          },
+          steps: [
+            "Build a small branch network with a router, switch, and four PCs.",
+            "Designate one PC as admin and the rest as users in your notes.",
+            "Describe which services should be disabled and which logs should be enabled."
+          ],
+          tips: "Focus on least privilege and reducing exposed services."
+        }
       },
       {
         title: "Unit 2: Firewalls & ACLs",
         about: "Control traffic with ACLs and firewall policy.",
-        sections: [
-          {
-            title: "Traffic control",
-            items: [
-              {
-                type: "Learn",
-                title: "Stateless vs stateful",
-                content: "Stateful firewalls track connections; stateless filters evaluate each packet.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "ACL design",
-                content: "Use least privilege and document every rule.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "Firewall policy lifecycle",
-                content: "Policies need review, change control, and clean-up over time.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "Rule ordering and implicit deny",
-                content: "ACLs are evaluated top-down and often end with an implicit deny.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Quiz",
-                title: "Firewall and ACL quiz",
-                duration: "8 min",
-                xp: 100
-              },
-              {
-                type: "Challenge",
-                title: "Build an ACL policy",
-                duration: "18 min",
-                xp: 120,
-                challenge: {
-                  rules: {
-                    minDevices: 4,
-                    minConnections: 3,
-                    requiredTypes: { router: 1, switch: 1, pc: 2 }
-                  },
-                  steps: [
-                    "Add a router, a switch, and two PCs.",
-                    "Connect PCs to the switch, then connect the switch to the router.",
-                    "Imagine the router enforcing ACL rules between the PCs."
-                  ],
-                  tips: "You're validating topology and segmentation awareness."
-                }
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Stateless vs stateful",
@@ -3109,7 +3204,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Stateful firewalls are different because they:",
-                options: ["Track connection state", "Ignore all ports", "Disable routing"],
+                options: [
+                  "Track connection state",
+                  "Ignore all ports",
+                  "Disable routing"
+                ],
                 correctIndex: 0,
                 explanation: "Stateful firewalls track active connections and allow return traffic."
               }
@@ -3142,7 +3241,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "ACLs are evaluated in what order?",
-                options: ["Top-down, first match wins", "Bottom-up", "Randomly"],
+                options: [
+                  "Top-down, first match wins",
+                  "Bottom-up",
+                  "Randomly"
+                ],
                 correctIndex: 0,
                 explanation: "ACLs are processed from top to bottom and the first match applies."
               }
@@ -3175,7 +3278,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Why review firewall rules periodically?",
-                options: ["Remove unused rules and reduce risk", "Make them longer", "Disable logging"],
+                options: [
+                  "Remove unused rules and reduce risk",
+                  "Make them longer",
+                  "Disable logging"
+                ],
                 correctIndex: 0,
                 explanation: "Unused rules increase risk and complexity over time."
               }
@@ -3209,7 +3316,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "An implicit deny at the end of an ACL means:",
-                options: ["All unmatched traffic is blocked", "All traffic is allowed", "Rules are ignored"],
+                options: [
+                  "All unmatched traffic is blocked",
+                  "All traffic is allowed",
+                  "Rules are ignored"
+                ],
                 correctIndex: 0,
                 explanation: "An implicit deny blocks any traffic not explicitly permitted."
               }
@@ -3217,136 +3328,137 @@ const COURSE_CONTENT = {
             objectives: [
               "Explain rule ordering",
               "Identify common ACL mistakes"
-            ],
-            quiz: {
-              title: "Firewall and ACL quiz",
-              xp: 100,
-              questions: [
-                {
-                  id: "q1",
-                  question: "Which is a best practice for ACLs?",
-                  options: ["Permit all by default", "Least privilege", "Random ordering"],
-                  correctAnswer: 1,
-                  explanation: "Least privilege reduces risk."
-                },
-                {
-                  id: "q2",
-                  question: "ACLs are evaluated:",
-                  options: ["Bottom-up", "Top-down", "Randomly"],
-                  correctAnswer: 1,
-                  explanation: "ACLs are processed from top to bottom."
-                },
-                {
-                  id: "q3",
-                  question: "Fill in the blank: Most ACLs end with an implicit ___.",
-                  options: ["allow", "deny", "route"],
-                  correctAnswer: 1,
-                  explanation: "Implicit deny blocks traffic not explicitly allowed."
-                },
-                {
-                  id: "q4",
-                  question: "Stateful firewalls are different because they:",
-                  options: ["Track connections", "Ignore ports", "Disable routing"],
-                  correctAnswer: 0,
-                  explanation: "Stateful firewalls track connection state."
-                },
-                {
-                  id: "q5",
-                  question: "A common mistake is to place a ___ rule before a specific rule.",
-                  options: ["deny all", "specific allow", "log only"],
-                  correctAnswer: 0,
-                  explanation: "A deny all early will block everything else."
-                },
-                {
-                  id: "q6",
-                  question: "Which aligns with least privilege?",
-                  options: ["Allow everything then block later", "Allow only required traffic", "Disable logging"],
-                  correctAnswer: 1,
-                  explanation: "Least privilege allows only what is needed."
-                },
-                {
-                  id: "q7",
-                  question: "Stateful firewalls allow return traffic because they keep a:",
-                  options: ["State table", "MAC table", "Routing table only"],
-                  correctAnswer: 0,
-                  explanation: "State tables track active connections."
-                },
-                {
-                  id: "q8",
-                  question: "Best rule order for ACLs is:",
-                  options: ["Specific rules first, then general rules", "General rules first", "Random ordering"],
-                  correctAnswer: 0,
-                  explanation: "Specific rules should appear before broad rules."
-                },
-                {
-                  id: "q9",
-                  question: "Why review firewall rules periodically?",
-                  options: ["Remove unused rules and reduce risk", "Make them longer", "Disable logging"],
-                  correctAnswer: 0,
-                  explanation: "Unused rules increase risk and complexity."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "Firewall and ACL quiz",
+          xp: 100,
+          questions: [
+            {
+              id: "q1",
+              question: "Which is a best practice for ACLs?",
+              options: [
+                "Permit all by default",
+                "Least privilege",
+                "Random ordering"
+              ],
+              correctAnswer: 1,
+              explanation: "Least privilege reduces risk."
+            },
+            {
+              id: "q2",
+              question: "ACLs are evaluated:",
+              options: [
+                "Bottom-up",
+                "Top-down",
+                "Randomly"
+              ],
+              correctAnswer: 1,
+              explanation: "ACLs are processed from top to bottom."
+            },
+            {
+              id: "q3",
+              question: "Fill in the blank: Most ACLs end with an implicit ___.",
+              options: [
+                "allow",
+                "deny",
+                "route"
+              ],
+              correctAnswer: 1,
+              explanation: "Implicit deny blocks traffic not explicitly allowed."
+            },
+            {
+              id: "q4",
+              question: "Stateful firewalls are different because they:",
+              options: [
+                "Track connections",
+                "Ignore ports",
+                "Disable routing"
+              ],
+              correctAnswer: 0,
+              explanation: "Stateful firewalls track connection state."
+            },
+            {
+              id: "q5",
+              question: "A common mistake is to place a ___ rule before a specific rule.",
+              options: [
+                "deny all",
+                "specific allow",
+                "log only"
+              ],
+              correctAnswer: 0,
+              explanation: "A deny all early will block everything else."
+            },
+            {
+              id: "q6",
+              question: "Which aligns with least privilege?",
+              options: [
+                "Allow everything then block later",
+                "Allow only required traffic",
+                "Disable logging"
+              ],
+              correctAnswer: 1,
+              explanation: "Least privilege allows only what is needed."
+            },
+            {
+              id: "q7",
+              question: "Stateful firewalls allow return traffic because they keep a:",
+              options: [
+                "State table",
+                "MAC table",
+                "Routing table only"
+              ],
+              correctAnswer: 0,
+              explanation: "State tables track active connections."
+            },
+            {
+              id: "q8",
+              question: "Best rule order for ACLs is:",
+              options: [
+                "Specific rules first, then general rules",
+                "General rules first",
+                "Random ordering"
+              ],
+              correctAnswer: 0,
+              explanation: "Specific rules should appear before broad rules."
+            },
+            {
+              id: "q9",
+              question: "Why review firewall rules periodically?",
+              options: [
+                "Remove unused rules and reduce risk",
+                "Make them longer",
+                "Disable logging"
+              ],
+              correctAnswer: 0,
+              explanation: "Unused rules increase risk and complexity."
+            }
+          ]
+        },
+        challenge: {
+          title: "Build an ACL policy",
+          xp: 120,
+          rules: {
+            minDevices: 4,
+            minConnections: 3,
+            requiredTypes: {
+              router: 1,
+              switch: 1,
+              pc: 2
+            }
+          },
+          steps: [
+            "Add a router, a switch, and two PCs.",
+            "Connect PCs to the switch, then connect the switch to the router.",
+            "Imagine the router enforcing ACL rules between the PCs."
+          ],
+          tips: "You're validating topology and segmentation awareness."
+        }
       },
       {
         title: "Unit 3: Monitoring & Incident Response",
         about: "Detect issues early and respond effectively.",
-        sections: [
-          {
-            title: "Operations",
-            items: [
-              {
-                type: "Learn",
-                title: "Logging and SIEM basics",
-                content: "Centralized logging helps detect anomalies and build timelines.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "Incident response workflow",
-                content: "Prepare, detect, contain, eradicate, and recover.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "Playbooks and tabletop exercises",
-                content: "Practice response steps before incidents happen.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Learn",
-                title: "Detection baselines and alerting",
-                content: "Baselines help you spot anomalies and tune alerts.",
-                duration: "12 min",
-                xp: 60
-              },
-              {
-                type: "Quiz",
-                title: "Monitoring and IR quiz",
-                duration: "8 min",
-                xp: 100
-              },
-              {
-                type: "Practice",
-                title: "Analyze a log snippet",
-                duration: "12 min",
-                xp: 40,
-                steps: [
-                  "Add a firewall and a server to the canvas.",
-                  "Connect the server to the firewall, then connect the firewall to the Internet cloud.",
-                  "In your notes, list two signals that would make a log entry suspicious.",
-                  "Explain how a SIEM would correlate repeated failures from one IP."
-                ],
-                tips: "Look for repeated failures, impossible travel, or unusual ports for quick wins."
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Logging and SIEM basics",
@@ -3371,7 +3483,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "A SIEM is used to:",
-                options: ["Correlate and analyze logs", "Block all traffic", "Assign IP addresses"],
+                options: [
+                  "Correlate and analyze logs",
+                  "Block all traffic",
+                  "Assign IP addresses"
+                ],
                 correctIndex: 0,
                 explanation: "SIEM systems aggregate and analyze logs for security insights."
               }
@@ -3404,7 +3520,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Which IR phase comes first?",
-                options: ["Prepare", "Contain", "Recover"],
+                options: [
+                  "Prepare",
+                  "Contain",
+                  "Recover"
+                ],
                 correctIndex: 0,
                 explanation: "Preparation ensures your team and tools are ready before an incident occurs."
               }
@@ -3437,7 +3557,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Tabletop exercises help teams:",
-                options: ["Practice response without production impact", "Encrypt all traffic", "Assign IP addresses"],
+                options: [
+                  "Practice response without production impact",
+                  "Encrypt all traffic",
+                  "Assign IP addresses"
+                ],
                 correctIndex: 0,
                 explanation: "Tabletops test process and communication safely."
               }
@@ -3471,7 +3595,11 @@ const COURSE_CONTENT = {
               {
                 type: "check",
                 question: "Fill in the blank: A baseline describes ___ behavior.",
-                options: ["normal", "unknown", "hostile"],
+                options: [
+                  "normal",
+                  "unknown",
+                  "hostile"
+                ],
                 correctIndex: 0,
                 explanation: "Baselines define what normal looks like so anomalies stand out."
               }
@@ -3479,82 +3607,128 @@ const COURSE_CONTENT = {
             objectives: [
               "Explain what a baseline is",
               "Describe how to tune alerts"
-            ],
-            quiz: {
-              title: "Monitoring and IR quiz",
-              xp: 100,
-              questions: [
-                {
-                  id: "q1",
-                  question: "Which comes first in IR?",
-                  options: ["Contain", "Prepare", "Recover"],
-                  correctAnswer: 1,
-                  explanation: "Preparation ensures your team and tools are ready."
-                },
-                {
-                  id: "q2",
-                  question: "A SIEM is used to:",
-                  options: ["Block all traffic", "Correlate and analyze logs", "Assign IP addresses"],
-                  correctAnswer: 1,
-                  explanation: "SIEM systems aggregate and analyze logs for security insights."
-                },
-                {
-                  id: "q3",
-                  question: "Fill in the blank: A baseline describes ___ behavior.",
-                  options: ["normal", "unknown", "hostile"],
-                  correctAnswer: 0,
-                  explanation: "Baselines describe normal behavior."
-                },
-                {
-                  id: "q4",
-                  question: "Why tune alerts?",
-                  options: ["To increase noise", "To make alerts actionable", "To disable logging"],
-                  correctAnswer: 1,
-                  explanation: "Tuned alerts reduce noise and improve response."
-                },
-                {
-                  id: "q5",
-                  question: "Containment is used to:",
-                  options: ["Spread the incident", "Limit damage", "Erase evidence"],
-                  correctAnswer: 1,
-                  explanation: "Containment limits impact."
-                },
-                {
-                  id: "q6",
-                  question: "Good logs should include:",
-                  options: ["Timestamps and user actions", "Only usernames", "Only IP addresses"],
-                  correctAnswer: 0,
-                  explanation: "Timestamps and actions are critical for investigations."
-                },
-                {
-                  id: "q7",
-                  question: "Which phase comes after containment?",
-                  options: ["Eradicate", "Prepare", "Detect"],
-                  correctAnswer: 0,
-                  explanation: "After containment, remove root cause during eradication."
-                },
-                {
-                  id: "q8",
-                  question: "Tabletop exercises help teams:",
-                  options: ["Practice response without production impact", "Encrypt traffic", "Assign IPs"],
-                  correctAnswer: 0,
-                  explanation: "Tabletops test process and communication safely."
-                },
-                {
-                  id: "q9",
-                  question: "A good alert should be:",
-                  options: ["Actionable and low-noise", "As loud as possible", "Hidden by default"],
-                  correctAnswer: 0,
-                  explanation: "Actionable alerts reduce fatigue and speed response."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "Monitoring and IR quiz",
+          xp: 100,
+          questions: [
+            {
+              id: "q1",
+              question: "Which comes first in IR?",
+              options: [
+                "Contain",
+                "Prepare",
+                "Recover"
+              ],
+              correctAnswer: 1,
+              explanation: "Preparation ensures your team and tools are ready."
+            },
+            {
+              id: "q2",
+              question: "A SIEM is used to:",
+              options: [
+                "Block all traffic",
+                "Correlate and analyze logs",
+                "Assign IP addresses"
+              ],
+              correctAnswer: 1,
+              explanation: "SIEM systems aggregate and analyze logs for security insights."
+            },
+            {
+              id: "q3",
+              question: "Fill in the blank: A baseline describes ___ behavior.",
+              options: [
+                "normal",
+                "unknown",
+                "hostile"
+              ],
+              correctAnswer: 0,
+              explanation: "Baselines describe normal behavior."
+            },
+            {
+              id: "q4",
+              question: "Why tune alerts?",
+              options: [
+                "To increase noise",
+                "To make alerts actionable",
+                "To disable logging"
+              ],
+              correctAnswer: 1,
+              explanation: "Tuned alerts reduce noise and improve response."
+            },
+            {
+              id: "q5",
+              question: "Containment is used to:",
+              options: [
+                "Spread the incident",
+                "Limit damage",
+                "Erase evidence"
+              ],
+              correctAnswer: 1,
+              explanation: "Containment limits impact."
+            },
+            {
+              id: "q6",
+              question: "Good logs should include:",
+              options: [
+                "Timestamps and user actions",
+                "Only usernames",
+                "Only IP addresses"
+              ],
+              correctAnswer: 0,
+              explanation: "Timestamps and actions are critical for investigations."
+            },
+            {
+              id: "q7",
+              question: "Which phase comes after containment?",
+              options: [
+                "Eradicate",
+                "Prepare",
+                "Detect"
+              ],
+              correctAnswer: 0,
+              explanation: "After containment, remove root cause during eradication."
+            },
+            {
+              id: "q8",
+              question: "Tabletop exercises help teams:",
+              options: [
+                "Practice response without production impact",
+                "Encrypt traffic",
+                "Assign IPs"
+              ],
+              correctAnswer: 0,
+              explanation: "Tabletops test process and communication safely."
+            },
+            {
+              id: "q9",
+              question: "A good alert should be:",
+              options: [
+                "Actionable and low-noise",
+                "As loud as possible",
+                "Hidden by default"
+              ],
+              correctAnswer: 0,
+              explanation: "Actionable alerts reduce fatigue and speed response."
+            }
+          ]
+        },
+        sandbox: {
+          title: "Analyze a log snippet",
+          xp: 40,
+          steps: [
+            "Add a firewall and a server to the canvas.",
+            "Connect the server to the firewall, then connect the firewall to the Internet cloud.",
+            "In your notes, list two signals that would make a log entry suspicious.",
+            "Explain how a SIEM would correlate repeated failures from one IP."
+          ],
+          tips: "Look for repeated failures, impossible travel, or unusual ports for quick wins."
+        }
       }
     ]
   },
-
   "8": {
     id: "8",
     title: "WAN & BGP Design",
@@ -3568,33 +3742,6 @@ const COURSE_CONTENT = {
       {
         title: "Unit 1: WAN and BGP",
         about: "Learn WAN connectivity and BGP fundamentals.",
-        sections: [
-          {
-            title: "WAN",
-            items: [
-              {
-                type: "Learn",
-                title: "WAN technologies",
-                content: "MPLS, SD‑WAN, and VPNs connect sites over long distances.",
-                duration: "9 min",
-                xp: 40
-              },
-              {
-                type: "Learn",
-                title: "BGP basics",
-                content: "BGP is the Internet routing protocol that exchanges routes between ASes.",
-                duration: "10 min",
-                xp: 40
-              },
-              {
-                type: "Quiz",
-                title: "WAN quick check",
-                duration: "6 min",
-                xp: 60
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "WAN technologies",
@@ -3618,7 +3765,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "Which WAN technology provides application-aware routing over multiple links?",
-                options: ["MPLS", "SD-WAN", "Leased line"],
+                options: [
+                  "MPLS",
+                  "SD-WAN",
+                  "Leased line"
+                ],
                 correctIndex: 1,
                 explanation: "SD-WAN uses software-defined policies for intelligent path selection."
               }
@@ -3651,7 +3802,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What does BGP use to select the best route?",
-                options: ["Bandwidth cost", "Path attributes like AS-PATH", "Hop count only"],
+                options: [
+                  "Bandwidth cost",
+                  "Path attributes like AS-PATH",
+                  "Hop count only"
+                ],
                 correctIndex: 1,
                 explanation: "BGP uses multiple path attributes including AS-PATH and LOCAL_PREF."
               }
@@ -3660,54 +3815,73 @@ const COURSE_CONTENT = {
               "Explain what BGP does",
               "Describe key BGP path attributes",
               "Compare eBGP and iBGP"
-            ],
-            quiz: {
-              title: "WAN quick check",
-              xp: 60,
-              questions: [
-                {
-                  id: "q1",
-                  question: "BGP is used for:",
-                  options: ["LAN switching", "Internet routing", "Wi‑Fi encryption"],
-                  correctAnswer: 1,
-                  explanation: "BGP is the routing protocol of the Internet."
-                },
-                {
-                  id: "q2",
-                  question: "SD-WAN uses ___ to choose the best path for traffic.",
-                  options: ["Software-defined policies", "Static routes only", "MAC addresses"],
-                  correctAnswer: 0,
-                  explanation: "SD-WAN applies application-aware policies across multiple links."
-                },
-                {
-                  id: "q3",
-                  question: "BGP selects routes primarily using:",
-                  options: ["Path attributes like AS-PATH", "Hop count only", "Cable length"],
-                  correctAnswer: 0,
-                  explanation: "BGP uses attributes such as AS-PATH and LOCAL_PREF for route selection."
-                },
-                {
-                  id: "q4",
-                  question: "eBGP runs between:",
-                  options: ["Different Autonomous Systems", "Switches on the same LAN", "Wireless access points"],
-                  correctAnswer: 0,
-                  explanation: "eBGP exchanges routes between separate Autonomous Systems."
-                },
-                {
-                  id: "q5",
-                  question: "MPLS is typically described as:",
-                  options: ["A private low-latency carrier service", "A free open-source tool", "A wireless protocol"],
-                  correctAnswer: 0,
-                  explanation: "MPLS provides dedicated paths through a service provider network."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "WAN quick check",
+          xp: 60,
+          questions: [
+            {
+              id: "q1",
+              question: "BGP is used for:",
+              options: [
+                "LAN switching",
+                "Internet routing",
+                "Wi‑Fi encryption"
+              ],
+              correctAnswer: 1,
+              explanation: "BGP is the routing protocol of the Internet."
+            },
+            {
+              id: "q2",
+              question: "SD-WAN uses ___ to choose the best path for traffic.",
+              options: [
+                "Software-defined policies",
+                "Static routes only",
+                "MAC addresses"
+              ],
+              correctAnswer: 0,
+              explanation: "SD-WAN applies application-aware policies across multiple links."
+            },
+            {
+              id: "q3",
+              question: "BGP selects routes primarily using:",
+              options: [
+                "Path attributes like AS-PATH",
+                "Hop count only",
+                "Cable length"
+              ],
+              correctAnswer: 0,
+              explanation: "BGP uses attributes such as AS-PATH and LOCAL_PREF for route selection."
+            },
+            {
+              id: "q4",
+              question: "eBGP runs between:",
+              options: [
+                "Different Autonomous Systems",
+                "Switches on the same LAN",
+                "Wireless access points"
+              ],
+              correctAnswer: 0,
+              explanation: "eBGP exchanges routes between separate Autonomous Systems."
+            },
+            {
+              id: "q5",
+              question: "MPLS is typically described as:",
+              options: [
+                "A private low-latency carrier service",
+                "A free open-source tool",
+                "A wireless protocol"
+              ],
+              correctAnswer: 0,
+              explanation: "MPLS provides dedicated paths through a service provider network."
+            }
+          ]
+        }
       }
     ]
   },
-
   "9": {
     id: "9",
     title: "Automation & Monitoring",
@@ -3721,33 +3895,6 @@ const COURSE_CONTENT = {
       {
         title: "Unit 1: Automation and Observability",
         about: "Learn why automation matters and how monitoring works.",
-        sections: [
-          {
-            title: "Automation",
-            items: [
-              {
-                type: "Learn",
-                title: "Network automation overview",
-                content: "Automation reduces errors by standardizing changes and validations.",
-                duration: "9 min",
-                xp: 40
-              },
-              {
-                type: "Learn",
-                title: "Monitoring & SNMP",
-                content: "SNMP exposes device metrics so you can track performance and uptime.",
-                duration: "10 min",
-                xp: 40
-              },
-              {
-                type: "Quiz",
-                title: "Automation quick check",
-                duration: "6 min",
-                xp: 60
-              }
-            ]
-          }
-        ],
         lessons: [
           {
             title: "Network automation overview",
@@ -3771,7 +3918,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What is the main benefit of network automation?",
-                options: ["It eliminates all hardware", "It reduces manual errors and speeds up changes", "It replaces all security tools"],
+                options: [
+                  "It eliminates all hardware",
+                  "It reduces manual errors and speeds up changes",
+                  "It replaces all security tools"
+                ],
                 correctIndex: 1,
                 explanation: "Automation reduces errors and makes changes faster and more consistent."
               }
@@ -3804,7 +3955,11 @@ const COURSE_CONTENT = {
                 type: "check",
                 title: "Quick check",
                 question: "What is an SNMP trap?",
-                options: ["A scheduled poll from the server", "An unsolicited alert sent by a device", "A type of firewall rule"],
+                options: [
+                  "A scheduled poll from the server",
+                  "An unsolicited alert sent by a device",
+                  "A type of firewall rule"
+                ],
                 correctIndex: 1,
                 explanation: "SNMP traps are alerts sent proactively by devices when something changes."
               }
@@ -3813,59 +3968,71 @@ const COURSE_CONTENT = {
               "Describe how SNMP works",
               "Compare SNMP polling and traps",
               "Explain why SNMPv3 is preferred"
-            ],
-            quiz: {
-              title: "Automation quick check",
-              xp: 60,
-              questions: [
-                {
-                  id: "q1",
-                  question: "SNMP is commonly used for:",
-                  options: ["Routing", "Monitoring", "Encryption"],
-                  correctAnswer: 1,
-                  explanation: "SNMP is a monitoring protocol."
-                },
-                {
-                  id: "q2",
-                  question: "An SNMP trap is:",
-                  options: ["An unsolicited alert sent by a device", "A scheduled poll from the server", "A type of firewall rule"],
-                  correctAnswer: 0,
-                  explanation: "Traps are alerts devices send proactively when thresholds are exceeded."
-                },
-                {
-                  id: "q3",
-                  question: "Infrastructure as Code means:",
-                  options: ["Defining network state in version-controlled files", "Writing code on physical routers", "Replacing all hardware with software"],
-                  correctAnswer: 0,
-                  explanation: "IaC stores the desired configuration in files that are reviewed and deployed like software."
-                },
-                {
-                  id: "q4",
-                  question: "SNMPv3 improves on earlier versions by adding:",
-                  options: ["Authentication and encryption", "Faster polling only", "Wireless support"],
-                  correctAnswer: 0,
-                  explanation: "SNMPv3 adds authentication and encryption to protect monitoring data."
-                },
-                {
-                  id: "q5",
-                  question: "The main benefit of network automation is:",
-                  options: ["Reducing manual errors and speeding up changes", "Eliminating all hardware", "Removing the need for monitoring"],
-                  correctAnswer: 0,
-                  explanation: "Automation makes changes faster, more consistent, and less error-prone."
-                }
-              ]
-            }
+            ]
           }
-        ]
+        ],
+        quiz: {
+          title: "Automation quick check",
+          xp: 60,
+          questions: [
+            {
+              id: "q1",
+              question: "SNMP is commonly used for:",
+              options: [
+                "Routing",
+                "Monitoring",
+                "Encryption"
+              ],
+              correctAnswer: 1,
+              explanation: "SNMP is a monitoring protocol."
+            },
+            {
+              id: "q2",
+              question: "An SNMP trap is:",
+              options: [
+                "An unsolicited alert sent by a device",
+                "A scheduled poll from the server",
+                "A type of firewall rule"
+              ],
+              correctAnswer: 0,
+              explanation: "Traps are alerts devices send proactively when thresholds are exceeded."
+            },
+            {
+              id: "q3",
+              question: "Infrastructure as Code means:",
+              options: [
+                "Defining network state in version-controlled files",
+                "Writing code on physical routers",
+                "Replacing all hardware with software"
+              ],
+              correctAnswer: 0,
+              explanation: "IaC stores the desired configuration in files that are reviewed and deployed like software."
+            },
+            {
+              id: "q4",
+              question: "SNMPv3 improves on earlier versions by adding:",
+              options: [
+                "Authentication and encryption",
+                "Faster polling only",
+                "Wireless support"
+              ],
+              correctAnswer: 0,
+              explanation: "SNMPv3 adds authentication and encryption to protect monitoring data."
+            },
+            {
+              id: "q5",
+              question: "The main benefit of network automation is:",
+              options: [
+                "Reducing manual errors and speeding up changes",
+                "Eliminating all hardware",
+                "Removing the need for monitoring"
+              ],
+              correctAnswer: 0,
+              explanation: "Automation makes changes faster, more consistent, and less error-prone."
+            }
+          ]
+        }
       }
     ]
   }
 };
-
-if (typeof window !== "undefined") {
-  window.COURSE_CONTENT = COURSE_CONTENT;
-}
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = COURSE_CONTENT;
-}

@@ -17,27 +17,20 @@
 
   // start up — read url params, find the quiz, render it
   async function init() {
-    const params    = new URLSearchParams(window.location.search);
-    const courseId  = params.get("course") || params.get("course_id") || params.get("id");
-    const contentId = params.get("content_id") || params.get("content");
-    const lessonNum = Number(params.get("lesson") || 0);
+    const params   = new URLSearchParams(window.location.search);
+    const courseId = params.get("course") || params.get("course_id");
+    const unitIdx  = Math.max(0, Number(params.get("unit") ?? 0));
 
     const user = readJson("netology_user") || readJson("user");
 
-    if (!user?.email || !courseId || !lessonNum) {
+    if (!user?.email || !courseId) {
       window.location.href = "login.html";
       return;
     }
 
-    // try content key first, then fall back to matching by id
-    let course = CONTENT[contentId] || CONTENT[courseId] || null;
-    if (!course) {
-      course = Object.values(CONTENT).find((c) => String(c.id) === String(courseId)) || null;
-    }
-
-    // back-to-course url used by the back buttons
-    const resolvedId = course?.id ? String(course.id) : (contentId || courseId);
-    const backUrl = `course.html?id=${courseId}${resolvedId !== courseId ? "&content_id=" + resolvedId : ""}`;
+    // direct lookup — no counting
+    const course = CONTENT[String(courseId)] || null;
+    const backUrl = `course.html?id=${courseId}`;
 
     if (!course) {
       alert("Course content not found.");
@@ -45,21 +38,23 @@
       return;
     }
 
-    // find the quiz for this lesson number
-    const quiz = findQuiz(course, lessonNum);
+    // quiz lives directly on the unit
+    const rawQuiz = course.units?.[unitIdx]?.quiz || null;
 
-    if (!quiz || !quiz.questions?.length) {
-      alert("No quiz found for this lesson yet.");
+    if (!rawQuiz?.questions?.length) {
+      alert("No quiz found for this unit.");
       window.location.href = backUrl;
       return;
     }
 
-    // get the module name for the breadcrumb
-    const unitTitle = findUnitTitle(course, lessonNum);
+    const quiz = normaliseQuiz(rawQuiz);
+    const unitTitle = course.units[unitIdx]?.title || "Module";
+    // DB stores completions by unitIdx+1
+    const lessonNum = unitIdx + 1;
 
     const state = {
       courseId,
-      contentId: resolvedId,
+      unitIdx,
       lessonNum,
       email: user.email,
       courseTitle: course.title || "",
@@ -67,10 +62,10 @@
       title: quiz.title,
       maxXp: quiz.xp,
       questions: quiz.questions,
-      index: 0,    // which question we're on
-      selected: null, // which option the user clicked
+      index: 0,
+      selected: null,
       answered: false,
-      answers: []    // true = correct, false = wrong, per question
+      answers: []
     };
 
     // already done — skip straight to results
@@ -88,23 +83,6 @@
     renderQuestion(state);
   }
 
-  // find the quiz for a lesson number
-  // quiz questions live on the lesson object (unit.lessons[n].quiz)
-  // lesson numbers are sequential across all units: unit1 has 1-4, unit2 has 5-8, etc.
-  function findQuiz(course, lessonNum) {
-    if (!course?.units) return null;
-    let count = 0;
-    for (const unit of course.units) {
-      for (const lesson of (unit.lessons || [])) {
-        count++;
-        if (count === lessonNum && lesson.quiz?.questions) {
-          return normaliseQuiz(lesson.quiz);
-        }
-      }
-    }
-    return null;
-  }
-
   // normalise a raw quiz object into a consistent shape
   function normaliseQuiz(raw) {
     return {
@@ -118,20 +96,6 @@
         explanation: q.explanation || ""
       }))
     };
-  }
-
-  // get the unit title for the breadcrumb
-  function findUnitTitle(course, lessonNum) {
-    if (!course?.units) return "";
-    let count = 0;
-    for (const unit of course.units) {
-      for (const lesson of (unit.lessons || [])) {
-        count++;
-        if (count === lessonNum) return unit.title || "Module";
-      }
-    }
-
-    return "";
   }
 
   // fill the header card with quiz title, xp, breadcrumb

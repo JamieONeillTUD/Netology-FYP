@@ -11,20 +11,9 @@
   // read a JSON value out of localStorage without crashing if it's missing or broken
   const readJson = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
 
-  // look up how much xp a lesson is worth from the section items in course_content
-  // lesson numbers are sequential across all units (1, 2, 3 … n)
-  function xpForLesson(course, lessonNum) {
-    let count = 0;
-    for (const unit of course.units) {
-      for (const section of (unit.sections || [])) {
-        for (const item of (section.items || [])) {
-          if ((item.type || "").toLowerCase() === "learn") {
-            count++;
-            if (count === lessonNum) return item.xp;
-          }
-        }
-      }
-    }
+  // look up how much xp a lesson is worth directly from the unit
+  function xpForLesson(course, unitIdx, lessonIdx) {
+    return Number(course.units?.[unitIdx]?.lessons?.[lessonIdx]?.xp || 0);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -33,10 +22,10 @@
 
   async function start() {
     // read the url parameters
-    const params   = new URLSearchParams(window.location.search);
-    const courseId = params.get("course_id") || params.get("course") || params.get("id");
-    const contentId = params.get("content_id") || params.get("content");
-    const lessonNum = Math.max(1, Number(params.get("lesson") || 1));
+    const params    = new URLSearchParams(window.location.search);
+    const courseId  = params.get("course") || params.get("course_id");
+    const unitIdx   = Math.max(0, Number(params.get("unit")  ?? 0));
+    const lessonIdx = Math.max(0, Number(params.get("lesson") ?? 0));
 
     // get the logged-in user from localStorage
     const user = readJson("netology_user") || readJson("user");
@@ -46,32 +35,18 @@
       return;
     }
 
-    // find the course — try the content key first, then fall back to matching by id field
-    let course = CONTENT[contentId] || CONTENT[courseId] || null;
-    if (!course) {
-      course = Object.values(CONTENT).find((c) => String(c.id) === String(courseId)) || null;
-    }
+    // look up the course directly from COURSE_CONTENT
+    const course = CONTENT[String(courseId)] || null;
 
     if (!course) {
       showError("No course content found for this lesson.");
       return;
     }
 
-    // walk through all units and count lessons until we reach the one we want
-    let count = 0;
-    let lesson = null;
-    let unitTitle = "Module";
-    for (const unit of (course.units || [])) {
-      for (const l of (unit.lessons || [])) {
-        count++;
-        if (count === lessonNum) {
-          lesson = l;
-          unitTitle = unit.title || "Module";
-          break;
-        }
-      }
-      if (lesson) break;
-    }
+    // direct lookup: no counting, just index into units and lessons
+    const unit   = course.units?.[unitIdx];
+    const lesson = unit?.lessons?.[lessonIdx] || null;
+    const unitTitle = unit?.title || "Module";
 
     if (!lesson) {
       showError("We couldn't find this lesson. Try going back to the course.");
@@ -117,31 +92,33 @@
       return;
     }
 
-    // count how many lessons are in the whole course (used to show/hide the next lesson button)
-    const totalLessons = (course.units || []).reduce((n, u) => n + (u.lessons?.length || 0), 0);
+    // count total lessons in this unit for next-lesson navigation
+    const totalLessonsInUnit = unit.lessons?.length || 0;
+    const hasNextLesson = lessonIdx + 1 < totalLessonsInUnit;
 
-    // set both back-to-course links to return the user to the exact course page they came from
-    const backUrl = `course.html?id=${courseId}${contentId ? "&content_id=" + contentId : ""}`;
-    const backTop = document.getElementById("backToCourseTop");
+    // set both back-to-course links
+    const backUrl = `course.html?id=${courseId}`;
+    const backTop    = document.getElementById("backToCourseTop");
     const backBottom = document.getElementById("backToCourseBtn");
-    if (backTop) backTop.href = backUrl;
+    if (backTop)    backTop.href    = backUrl;
     if (backBottom) backBottom.href = backUrl;
 
     // everything the lesson needs is stored in this one object and passed between functions
     const state = {
       courseId,
-      contentId,
-      lessonNum,
+      unitIdx,
+      lessonIdx,
       email: user.email,
       lesson,
       unitTitle,
       steps,
-      totalLessons,
-      lessonXp: xpForLesson(course, lessonNum),  // xp from the section item in course_content
-      index: 0,       // which step we're on
-      picked: null,   // which option the user clicked on the current mcq
+      totalLessonsInUnit,
+      hasNextLesson,
+      lessonXp: xpForLesson(course, unitIdx, lessonIdx),
+      index: 0,
+      picked: null,
       answered: false,
-      results: [],    // true = correct, false = wrong, "read" = reading step seen
+      results: [],
       xpEarned: 0
     };
 
@@ -150,10 +127,10 @@
     const set = (id, text) => { const e = el(id); if (e) e.textContent = text; };
 
     // fill the header with lesson info
-    set("lessonKicker",  `Lesson ${lessonNum}`);
+    set("lessonKicker",  `Unit ${unitIdx + 1} · Lesson ${lessonIdx + 1}`);
     set("lessonTitle",   lesson.title || "Lesson");
     set("lessonMeta",    `${unitTitle} • ${steps.length} steps`);
-    set("lessonXpLabel", `${state.lessonXp} XP`);
+    set("lessonXpLabel", `${state.lessonXp || ""} XP`);
     document.title = `Netology – ${lesson.title || "Lesson"}`;
 
     // show the page (hides the loading skeleton)
@@ -165,17 +142,11 @@
     on("submitBtn",   () => submitAnswer(state));
     on("continueBtn", () => nextStep(state));
     on("retryBtn", () => {
-      // reload the same lesson from scratch
-      const q = new URLSearchParams({ course_id: state.courseId });
-      if (state.contentId) q.set("content_id", state.contentId);
-      q.set("lesson", String(state.lessonNum));
+      const q = new URLSearchParams({ course: state.courseId, unit: String(state.unitIdx), lesson: String(state.lessonIdx) });
       window.location.href = `lesson.html?${q}`;
     });
     on("nextLessonBtn", () => {
-      // go to the next lesson in this course
-      const q = new URLSearchParams({ course_id: state.courseId });
-      if (state.contentId) q.set("content_id", state.contentId);
-      q.set("lesson", String(state.lessonNum + 1));
+      const q = new URLSearchParams({ course: state.courseId, unit: String(state.unitIdx), lesson: String(state.lessonIdx + 1) });
       window.location.href = `lesson.html?${q}`;
     });
 
@@ -433,30 +404,32 @@
     // add this lesson to the list of completed lessons
     const compKey  = `netology_completions:${state.email}:${state.courseId}`;
     const compData = readJson(compKey) || { lesson: [], quiz: [], challenge: [] };
-    if (!compData.lesson.includes(state.lessonNum)) {
-      compData.lesson.push(state.lessonNum);
+    const dbKey = state.unitIdx + 1;
+    if (!compData.lesson.includes(dbKey)) {
+      compData.lesson.push(dbKey);
       localStorage.setItem(compKey, JSON.stringify(compData));
     }
 
-    // update the "started courses" record so the dashboard can show recent activity
+    // update the "started courses" record
     const startKey = `netology_started_courses:${state.email}`;
     const started  = readJson(startKey) || [];
     const existing = started.find((c) => String(c.id) === String(state.courseId));
     if (existing) {
       existing.lastViewed = Date.now();
-      existing.lastLesson = state.lessonNum;
+      existing.lastUnit = state.unitIdx;
+      existing.lastLesson = state.lessonIdx;
     } else {
-      started.push({ id: String(state.courseId), lastViewed: Date.now(), lastLesson: state.lessonNum });
+      started.push({ id: String(state.courseId), lastViewed: Date.now(), lastUnit: state.unitIdx, lastLesson: state.lessonIdx });
     }
     localStorage.setItem(startKey, JSON.stringify(started));
 
-    // append an entry to the progress log (used by the progress page graphs)
+    // append to the progress log
     const logKey = `netology_progress_log:${state.email}`;
     const log    = readJson(logKey) || [];
     log.push({
       type:          "lesson",
       course_id:     state.courseId,
-      lesson_number: state.lessonNum,
+      lesson_number: dbKey,
       xp:            xpEarned,
       ts:            Date.now(),
       date:          new Date().toISOString().slice(0, 10)
@@ -531,9 +504,9 @@
       }
     }
 
-    // hide the next lesson button if this was the last lesson in the course
+    // hide the next lesson button if this was the last lesson in the unit
     const nextBtn = el("nextLessonBtn");
-    if (nextBtn) nextBtn.style.display = state.lessonNum < state.totalLessons ? "" : "none";
+    if (nextBtn) nextBtn.style.display = state.hasNextLesson ? "" : "none";
 
     animateIn("resultsCard");
   }
@@ -576,7 +549,7 @@
         body: JSON.stringify({
           email:         state.email,
           course_id:     String(state.courseId),
-          lesson_number: state.lessonNum,
+          lesson_number: state.unitIdx + 1,
           earned_xp:     xpEarned
         })
       });

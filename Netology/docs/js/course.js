@@ -33,7 +33,6 @@
   const state = {
     user: null,
     courseId: null,
-    contentId: null,
     course: {
       id: null,
       title: "",
@@ -42,7 +41,6 @@
       requiredLevel: 1,
       estimatedTime: "—",
       totalXP: 0,
-      totalLessons: 0,
       modules: []
     },
     completed: {
@@ -120,21 +118,12 @@
     const raw = findRawCourse(courseId);
     if (!raw) return null;
 
-    const units = Array.isArray(raw.units) ? raw.units : [];
-    const modules = [];
-    let lessonNum = 1;
-
-    for (const unit of units) {
-      const items = buildItems(unit, lessonNum);
-      const learnCount = items.filter(i => i.type === "learn").length;
-      lessonNum += learnCount;
-      modules.push({
-        id: unit.id || `module-${modules.length}`,
-        title: unit.title || "Module",
-        description: unit.about || "",
-        items
-      });
-    }
+    const modules = (raw.units || []).map((unit, unitIdx) => ({
+      id: `unit-${unitIdx}`,
+      title: unit.title || "Module",
+      description: unit.about || "",
+      items: buildItems(unit, unitIdx)
+    }));
 
     return {
       id: String(courseId),
@@ -142,58 +131,65 @@
       description: raw.description || "",
       difficulty: String(raw.difficulty || "novice").toLowerCase(),
       requiredLevel: Number(raw.required_level || 1),
-      estimatedTime: raw.estimatedTime || raw.estimated_time || "—",
-      totalXP: Number(raw.xpReward || raw.total_xp || 0),
-      totalLessons: Number(raw.total_lessons || 0),
+      estimatedTime: raw.estimatedTime || "—",
+      totalXP: Number(raw.xpReward || 0),
       modules
     };
   }
 
-  // turns a unit's sections into a flat list of lesson/quiz/sandbox/challenge items
-  function buildItems(unit, startNum) {
-    // flatten all sections into one list of entries
-    const entries = (unit.sections || []).flatMap(s => s.items || []);
+  // builds the item list for one unit from the new flat structure:
+  // unit.lessons[], unit.quiz, unit.sandbox, unit.challenge
+  function buildItems(unit, unitIdx) {
+    const items = [];
 
-    const items = entries.map(entry => ({
-      type: itemType(entry),
-      title: entry.title,
-      content: entry.content || "",
-      duration: entry.duration || "—",
-      xpReward: Number(entry.xp || 0),
-      lessonNumber: 0,
-      unitTitle: unit.title || "",
-      unitDescription: unit.about || "",
-      challengeRules: entry.challenge || null,
-      steps: entry.steps || [],
-      tips: entry.tips || "",
-      isAutoAssigned: false
-    }));
+    (unit.lessons || []).forEach((lesson, lessonIdx) => {
+      items.push({
+        type: "learn",
+        title: lesson.title || `Lesson ${lessonIdx + 1}`,
+        xpReward: Number(lesson.xp || 0),
+        unitIdx,
+        lessonIdx,
+        unitTitle: unit.title || ""
+      });
+    });
 
-    // assign sequential lesson numbers
-    let num = startNum;
-    let lastLearn = startNum - 1;
+    if (unit.quiz) {
+      items.push({
+        type: "quiz",
+        title: unit.quiz.title || "Quiz",
+        xpReward: Number(unit.quiz.xp || 0),
+        unitIdx,
+        lessonIdx: null,
+        unitTitle: unit.title || ""
+      });
+    }
 
-    for (const item of items) {
-      if (item.type === "learn") {
-        item.lessonNumber = num++;
-        item.isAutoAssigned = true;
-        lastLearn = item.lessonNumber;
-      } else {
-        item.lessonNumber = Math.max(1, lastLearn);
-        item.isAutoAssigned = true;
-      }
+    if (unit.sandbox) {
+      items.push({
+        type: "sandbox",
+        title: unit.sandbox.title || "Practice",
+        xpReward: Number(unit.sandbox.xp || 0),
+        unitIdx,
+        lessonIdx: null,
+        unitTitle: unit.title || "",
+        steps: unit.sandbox.steps || [],
+        tips: unit.sandbox.tips || ""
+      });
+    }
+
+    if (unit.challenge) {
+      items.push({
+        type: "challenge",
+        title: unit.challenge.title || "Challenge",
+        xpReward: Number(unit.challenge.xp || 0),
+        unitIdx,
+        lessonIdx: null,
+        unitTitle: unit.title || "",
+        challengeRules: unit.challenge
+      });
     }
 
     return items;
-  }
-
-  // maps a course_content item type to our internal type
-  function itemType(entry) {
-    const t = String(entry?.type || "").toLowerCase().trim();
-    if (t === "quiz") return "quiz";
-    if (t === "practice" || t === "sandbox") return "sandbox";
-    if (t === "challenge") return "challenge";
-    return "learn";
   }
 
   // hooks up the logo/brand links
@@ -331,11 +327,13 @@
   }
 
   // checks if a single item is completed
+  // DB stores completions keyed by unitIdx+1 (unit 0 → lesson_number 1)
   function isDone(item) {
+    const key = item.unitIdx + 1;
     return (
-      state.completed.lesson.has(item.lessonNumber) ||
-      state.completed.quiz.has(item.lessonNumber) ||
-      state.completed.challenge.has(item.lessonNumber)
+      state.completed.lesson.has(key) ||
+      state.completed.quiz.has(key) ||
+      state.completed.challenge.has(key)
     );
   }
 
@@ -455,7 +453,7 @@
     setText("sideXPEarned", String(progress.earnedXP));
 
     const continueBtn = document.getElementById("continueBtn");
-    if (continueBtn) continueBtn.onclick = () => openLesson(next || all[0]);
+    if (continueBtn) continueBtn.onclick = () => { if (next || all[0]) openLesson(next || all[0]); };
 
     const reviewBtn = document.getElementById("reviewBtn");
     if (reviewBtn) {
@@ -567,7 +565,7 @@
     // title and meta
     const body = newEl("div", "crs-lesson-body");
     body.appendChild(newEl("div", "crs-lesson-title", item.title));
-    body.appendChild(newEl("div", "crs-lesson-meta", `${item.duration} · ${item.xpReward} XP`));
+    body.appendChild(newEl("div", "crs-lesson-meta", `${item.xpReward ? item.xpReward + " XP" : ""}`));
     row.appendChild(body);
 
     // type badge
@@ -605,44 +603,47 @@
     return wrap;
   }
 
-  // saves data to localStorage and returns a sandbox URL
-  function sandboxUrl(params, storageKey, extra) {
-    const base = { courseId: params.courseId, contentId: params.contentId, lesson: params.lesson,
-      lessonTitle: params.item.title || "", unitTitle: params.item.unitTitle || "",
-      courseTitle: state.course.title || "" };
+  // saves sandbox/challenge data to localStorage and returns the URL
+  function sandboxUrl(courseId, unitIdx, mode, storageKey, extra) {
+    const base = {
+      courseId,
+      unit: unitIdx,
+      courseTitle: state.course.title || ""
+    };
     try { localStorage.setItem(storageKey, JSON.stringify({ ...base, ...extra })); } catch {}
-    return `sandbox.html?${params.query}`;
+    const q = new URLSearchParams({ course: courseId, unit: String(unitIdx), mode });
+    return `sandbox.html?${q}`;
   }
 
   // builds the right URL for any item type
   function buildUrl(item) {
     const courseId = String(state.courseId);
-    const contentId = String(state.contentId || state.courseId);
-    const lesson = String(item.lessonNumber);
-    const base = { course_id: courseId, lesson, content_id: contentId };
+    const unitIdx  = item.unitIdx;
 
-    if (item.type === "quiz") return `quiz.html?${new URLSearchParams(base)}`;
+    if (item.type === "learn") {
+      return `lesson.html?${new URLSearchParams({ course: courseId, unit: String(unitIdx), lesson: String(item.lessonIdx) })}`;
+    }
+
+    if (item.type === "quiz") {
+      return `quiz.html?${new URLSearchParams({ course: courseId, unit: String(unitIdx) })}`;
+    }
 
     if (item.type === "sandbox") {
-      return sandboxUrl(
-        { courseId, contentId, lesson, item, query: new URLSearchParams({ ...base, mode: "practice" }) },
-        "netology_active_tutorial",
-        { steps: item.steps || [], tips: item.tips || "", xp: item.xpReward || 0 }
-      );
+      return sandboxUrl(courseId, unitIdx, "practice", "netology_active_tutorial", {
+        steps: item.steps || [],
+        tips: item.tips || "",
+        xp: item.xpReward || 0
+      });
     }
 
     if (item.type === "challenge") {
-      return sandboxUrl(
-        { courseId, contentId, lesson, item, query: new URLSearchParams({ ...base, challenge: "1" }) },
-        "netology_active_challenge",
-        { challenge: item.challengeRules || {}, challengeXp: item.xpReward || 0 }
-      );
+      return sandboxUrl(courseId, unitIdx, "challenge", "netology_active_challenge", {
+        challenge: item.challengeRules || {},
+        challengeXp: item.xpReward || 0
+      });
     }
 
-    // default: lesson page
-    const params = new URLSearchParams({ course_id: courseId, lesson });
-    if (state.contentId) params.set("content_id", contentId);
-    return `lesson.html?${params}`;
+    return "courses.html";
   }
 
   // navigates to a lesson/quiz/sandbox/challenge
@@ -653,8 +654,7 @@
   // runs when the page loads
   async function init() {
     const params = new URLSearchParams(window.location.search);
-    state.courseId = params.get("id") || params.get("course_id") || "1";
-    state.contentId = params.get("content_id") || state.courseId;
+    state.courseId = params.get("id") || params.get("course") || params.get("course_id") || "1";
 
     const cached = getUser();
     state.user = cached;
