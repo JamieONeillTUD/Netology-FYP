@@ -294,9 +294,57 @@
           grid.appendChild(buildCard(course, progress, level));
         }
       }
+
+      renderProgress(courses, progress);
     } catch (err) {
       console.error("Error loading courses:", err);
     }
+  }
+
+  // renders the "Your Learning Progress" section at the bottom of the page
+  function renderProgress(courses, progress) {
+    const container = document.getElementById("myProgressContainer");
+    const placeholder = document.getElementById("noProgressPlaceholder");
+    if (!container) return;
+
+    const started = courses.filter(c => {
+      const pct = Number((progress.get(String(c.id)) || {}).progress_pct || 0);
+      return pct > 0;
+    });
+
+    if (!started.length) {
+      container.innerHTML = "";
+      if (placeholder) placeholder.classList.remove("d-none");
+      return;
+    }
+
+    if (placeholder) placeholder.classList.add("d-none");
+    container.innerHTML = "";
+
+    started.forEach(course => {
+      const entry = progress.get(String(course.id)) || {};
+      const pct = Math.min(100, Math.max(0, Number(entry.progress_pct || 0)));
+      const id = String(course.id || "");
+      const diff = parseDifficulty(course.difficulty);
+      const diffClass = diff === "intermediate" ? "int" : diff === "advanced" ? "adv" : "nov";
+
+      const col = document.createElement("div");
+      col.className = "col-12 col-md-6 col-xl-4 mb-3";
+      col.innerHTML = `
+        <div class="net-card p-3" style="cursor:pointer" onclick="location.href='course.html?id=${encodeURIComponent(id)}'">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="net-diffbadge net-badge-${diffClass}">${diff.charAt(0).toUpperCase() + diff.slice(1)}</span>
+            <span class="fw-semibold text-truncate">${escapeHtml(course.title || "Course")}</span>
+          </div>
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>Progress</span><span>${pct}%</span>
+          </div>
+          <div class="net-course-bar net-course-bar--wide">
+            <div class="net-course-bar-fill" style="width:${pct}%"></div>
+          </div>
+        </div>`;
+      container.appendChild(col);
+    });
   }
 
   // hooks up the difficulty filter buttons

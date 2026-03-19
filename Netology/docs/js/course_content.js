@@ -4237,3 +4237,6 @@ const COURSE_CONTENT = {
     ]
   }
 };
+
+// expose globally so all pages can use window.COURSE_CONTENT
+window.COURSE_CONTENT = COURSE_CONTENT;

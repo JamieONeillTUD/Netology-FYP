@@ -220,8 +220,18 @@
       console.warn("Could not fetch course progress:", err);
     }
 
+    // Also check localStorage for courses the user has visited,
+    // so cards still show when the API is cold-starting or returns nothing.
+    const startedKey = `netology_started_courses:${email}`;
+    let localStarted = new Set();
+    try {
+      const raw = localStorage.getItem(startedKey);
+      const list = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(list)) list.forEach(e => e?.id && localStarted.add(String(e.id)));
+    } catch {}
+
     // Dashboard only shows courses the user has actually started.
-    state.courses = allCourses.filter(c => c.progress_pct > 0);
+    state.courses = allCourses.filter(c => c.progress_pct > 0 || localStarted.has(c.id));
     return state.courses;
   }
 
