@@ -185,20 +185,44 @@
     }
   }
 
-  // Fetches the courses this user is enrolled in.
+  // Fetches the courses this user has started.
+  // COURSE_CONTENT is the source of truth for all static data (title, XP, lesson counts).
+  // The API is only used to overlay progress_pct and status per course.
   async function fetchCourses(email) {
     if (!email) { state.courses = []; return []; }
 
+    // Build the base list entirely from COURSE_CONTENT — always accurate.
+    const allCourses = Object.entries(window.COURSE_CONTENT || {}).map(([id, c]) => ({
+      id: String(id),
+      title: c.title || "Course",
+      difficulty: c.difficulty || "novice",
+      category: c.category || "Core",
+      xp_reward: c.xpReward || 0,
+      total_lessons: (c.units || []).reduce((s, u) => s + (u.lessons?.length || 0), 0),
+      progress_pct: 0,
+      status: "not-started"
+    }));
+
+    // Overlay progress_pct and status from the API — nothing else.
     try {
       const endpoint = ENDPOINTS.courses?.userCourses || "/user-courses";
       const data = await apiGet(endpoint, { email });
-      state.courses = Array.isArray(data) ? data : (Array.isArray(data.courses) ? data.courses : []);
-      return state.courses;
+      const list = Array.isArray(data) ? data : (Array.isArray(data.courses) ? data.courses : []);
+      const progressMap = new Map(list.map(c => [String(c.id || c.course_id || ""), c]));
+      allCourses.forEach(c => {
+        const p = progressMap.get(c.id);
+        if (p) {
+          c.progress_pct = Math.min(100, Math.max(0, Number(p.progress_pct || 0)));
+          c.status = p.status || "not-started";
+        }
+      });
     } catch (err) {
-      console.warn("Could not fetch enrolled courses:", err);
-      state.courses = [];
-      return [];
+      console.warn("Could not fetch course progress:", err);
     }
+
+    // Dashboard only shows courses the user has actually started.
+    state.courses = allCourses.filter(c => c.progress_pct > 0);
+    return state.courses;
   }
 
   // Records today's login for streak tracking.
@@ -617,13 +641,17 @@
 
     courses.forEach(course => {
       const pct = Math.min(100, Math.max(0, Number(course.progress_pct || 0)));
-      const id = course.id || "";
-      const href = id ? `course.html?course_id=${encodeURIComponent(id)}` : "courses.html";
+      const id = String(course.id || course.course_id || "");
+      const href = id ? `course.html?id=${encodeURIComponent(id)}` : "courses.html";
       const diff = normDiff(course.difficulty);
       const title = course.title || course.name || "Course";
       const cat = course.category || "";
-      const lessons = course.total_lessons || 0;
-      const xp = course.xp_reward || 0;
+
+      // always read lesson count and XP from COURSE_CONTENT (source of truth)
+      const staticCourse = window.COURSE_CONTENT?.[id] || {};
+      const lessons = (staticCourse.units || []).reduce((s, u) => s + (u.lessons?.length || 0), 0)
+        || course.total_lessons || 0;
+      const xp = staticCourse.xpReward || course.xp_reward || 0;
 
       const card = document.createElement("div");
       card.className = "net-course-card net-course-card--sm";

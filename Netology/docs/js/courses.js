@@ -59,20 +59,32 @@
     return '<i class="bi bi-circle-fill"></i>';
   }
 
-  // loads courses from API, falls back to static data
+  // loads courses from API merged with static COURSE_CONTENT
+  // COURSE_CONTENT is always the canonical source; API supplies progress fields
   async function fetchCourses() {
+    if (!window.COURSE_CONTENT) return [];
+
+    // build base list from static content (IDs 1-9)
+    const staticList = Object.entries(window.COURSE_CONTENT).map(([id, data]) =>
+      enrichCourse({ id, ...data })
+    );
+
     try {
       const res = await apiGet(ENDPOINTS.courses?.list || "/courses");
-      const list = getArray(res, "courses");
-      if (list.length) return list.map(course => enrichCourse(course));
+      const apiList = getArray(res, "courses");
+      if (apiList.length) {
+        // merge API fields (e.g. total_lessons from DB) into static entries
+        const apiMap = new Map(apiList.map(c => [String(c.id || c.course_id || ""), c]));
+        return staticList.map(course => {
+          const api = apiMap.get(String(course.id)) || {};
+          return enrichCourse({ ...api, ...course });
+        });
+      }
     } catch (err) {
       console.warn("Could not fetch courses from API:", err);
     }
 
-    if (!window.COURSE_CONTENT) return [];
-    return Object.entries(window.COURSE_CONTENT).map(([id, data]) => {
-      return enrichCourse({ id, ...data });
-    });
+    return staticList;
   }
 
   // fills in missing course fields from static data
@@ -91,7 +103,8 @@
       difficulty: parseDifficulty(course?.difficulty || fallback?.difficulty),
       category: course?.category || fallback?.category || "Core",
       required_level: Number(course?.required_level || fallback?.required_level || 1),
-      xp_reward: Number(course?.xp_reward || fallback?.xpReward || fallback?.totalXP || 0),
+      // always use xpReward from COURSE_CONTENT as source of truth
+      xp_reward: Number(fallback?.xpReward || course?.xp_reward || 0),
       module_count: modules,
       objective_count: objectives.total,
       module_objective_counts: objectives.perModule,
@@ -138,35 +151,28 @@
     return { total, perModule };
   }
 
-  // counts objectives in one unit
+  // counts objectives in one unit:
+  // sum of lesson.objectives arrays + 1 each for quiz, sandbox, challenge
   function countObjectives(unit) {
     let count = 0;
-    const lessons = unit?.lessons || [];
 
-    // check explicit objectives first, then interactive blocks
-    for (const lesson of lessons) {
+    for (const lesson of (unit?.lessons || [])) {
       const explicit = lesson?.objectives?.length || 0;
-      if (explicit > 0) { count += explicit; continue; }
-
-      const blocks = lesson?.blocks || [];
-      count += blocks.filter(block => {
-        const type = String(block?.type || "").toLowerCase();
-        return type === "check" || type === "activity" || type === "practice";
-      }).length;
-    }
-
-    // if nothing found, try counting from sections instead
-    if (count === 0) {
-      for (const section of (unit?.sections || [])) {
-        for (const item of (section?.items || [])) {
-          const steps = item?.steps?.length || 0;
-          const challengeSteps = item?.challenge?.steps?.length || 0;
-          count += (steps > 0 || challengeSteps > 0)
-            ? Math.max(steps, challengeSteps)
-            : 1;
-        }
+      if (explicit > 0) {
+        count += explicit;
+      } else {
+        // fall back to counting interactive blocks
+        count += (lesson?.blocks || []).filter(b => {
+          const t = String(b?.type || "").toLowerCase();
+          return t === "check" || t === "activity";
+        }).length;
       }
     }
+
+    // each of quiz/sandbox/challenge counts as one objective
+    if (unit?.quiz)      count += 1;
+    if (unit?.sandbox)   count += 1;
+    if (unit?.challenge) count += 1;
 
     return count;
   }
@@ -275,7 +281,7 @@
       ${locked ? '<div class="net-course-lock"><i class="bi bi-lock"></i></div>' : ""}`;
 
     if (!locked) {
-      const url = `course.html?course_id=${encodeURIComponent(id)}`;
+      const url = `course.html?id=${encodeURIComponent(id)}`;
       const btn = card.querySelector(".net-course-cta");
       if (btn) btn.addEventListener("click", () => { window.location.href = url; });
       card.style.cursor = "pointer";
