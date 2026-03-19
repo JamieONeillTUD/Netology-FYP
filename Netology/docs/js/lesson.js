@@ -11,6 +11,21 @@
   // read a JSON value out of localStorage without crashing if it's missing or broken
   const readJson = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
 
+  // look up how much xp a lesson is worth from the section items in course_content
+  function xpForLesson(course, lessonNum) {
+    let count = 0;
+    for (const unit of course.units) {
+      for (const section of unit.sections) {
+        for (const item of section.items) {
+          if (item.type.toLowerCase() === "learn") {
+            count++;
+            if (count === lessonNum) return item.xp;
+          }
+        }
+      }
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     start().catch((err) => console.error("lesson crashed on load:", err));
   });
@@ -121,7 +136,7 @@
       unitTitle,
       steps,
       totalLessons,
-      lessonXp: 50,   // total xp available for this lesson
+      lessonXp: xpForLesson(course, lessonNum),  // xp from the section item in course_content
       index: 0,       // which step we're on
       picked: null,   // which option the user clicked on the current mcq
       answered: false,

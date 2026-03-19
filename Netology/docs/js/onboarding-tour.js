@@ -1,47 +1,24 @@
-// onboarding-tour.js – onboarding tour UI, stage progression, and completion tracking
+// onboarding-tour.js – onboarding tour overlay, stage progression, and completion tracking
 
 (() => {
   "use strict";
 
-  /*
-   File map:
-   1) Core settings + small helpers.
-   2) API helpers used by onboarding requests.
-   3) Local user XP sync helper used after onboarding completion.
-   4) Onboarding tour class.
-   5) Cross-page onboarding stage router.
-  */
+  // app.js is always loaded first so these globals are guaranteed
+  const API_BASE = window.API_BASE;
+  const ENDPOINTS = window.ENDPOINTS;
 
-  // -------------------------------------------------------
-  // 1) Core settings + small helpers
-  // -------------------------------------------------------
+  // storage keys
+  const STAGE_KEY = "netology_onboarding_stage";
+  const USER_KEY = "netology_onboarding_user";
+  const SESSION_KEY = "netology_onboarding_session";
+  const COMPLETED_PREFIX = "netology_onboarding_completed_";
+  const SKIPPED_PREFIX = "netology_onboarding_skipped_";
 
-  const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
-  const ENDPOINTS = window.ENDPOINTS || {};
-  const XP = window.NetologyXP || null;
+  // tour stage order
+  const FLOW = ["dashboard", "courses", "course", "sandbox", "account", "wrapup"];
 
-  const ONBOARDING_KEYS = {
-    stage: "netology_onboarding_stage",
-    user: "netology_onboarding_user",
-    session: "netology_onboarding_session"
-  };
-
-  const ONBOARDING_USER_KEYS = {
-    completedPrefix: "netology_onboarding_completed_",
-    skippedPrefix: "netology_onboarding_skipped_"
-  };
-
-  const ONBOARDING_PATHS = {
-    steps: "/api/onboarding/steps",
-    start: "/api/onboarding/start",
-    stepComplete: "/api/onboarding/step/:id",
-    complete: "/api/onboarding/complete",
-    skip: "/api/onboarding/skip"
-  };
-
-  const ONBOARDING_FLOW_DEFAULT = ["dashboard", "courses", "course", "sandbox", "account", "wrapup"];
-
-  const ONBOARDING_STAGE_URLS_DEFAULT = {
+  // page url for each stage
+  const STAGE_URLS = {
     dashboard: "dashboard.html",
     courses: "courses.html",
     course: "course.html?id=1",
@@ -50,7 +27,8 @@
     wrapup: "dashboard.html"
   };
 
-  const ONBOARDING_STEPS_DEFAULT = {
+  // tooltip steps shown on each page
+  const STEPS = {
     dashboard: [
       { target: "dashboard-header", title: "Welcome to Netology", description: "An interactive, gamified way to learn computer networking by doing." },
       { target: "dashboard-stats", title: "Quick Stats", description: "XP, streaks, challenges, and sandbox activity in one place." },
@@ -97,187 +75,96 @@
     ]
   };
 
-  // Keep existing window.ONBOARDING_* overrides if present.
-  // Otherwise, register built-in defaults from this file.
-  function ensureOnboardingConfig() {
-    if (!Array.isArray(window.ONBOARDING_FLOW) || !window.ONBOARDING_FLOW.length) {
-      window.ONBOARDING_FLOW = [...ONBOARDING_FLOW_DEFAULT];
-    }
-
-    if (!window.ONBOARDING_STAGE_URLS || typeof window.ONBOARDING_STAGE_URLS !== "object") {
-      window.ONBOARDING_STAGE_URLS = { ...ONBOARDING_STAGE_URLS_DEFAULT };
-    }
-
-    if (!window.ONBOARDING_STEPS || typeof window.ONBOARDING_STEPS !== "object") {
-      window.ONBOARDING_STEPS = ONBOARDING_STEPS_DEFAULT;
-    }
-  }
-
-  function parseJsonSafely(value, fallbackValue = null) {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return fallbackValue;
-    }
-  }
-
   function normalizeEmail(value) {
     return String(value || "").trim().toLowerCase();
   }
 
-  function resolveApiUrl(path) {
-    return API_BASE ? `${API_BASE}${path}` : path;
+  // post json to the api (app.js only exposes apiGet, not apiPost)
+  async function apiPost(path, payload = {}) {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    return response.json();
   }
 
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+  // update stored user xp after onboarding awards bonus xp
+  function bumpStoredUserXp(email, deltaXp) {
+    if (!deltaXp) return;
+    const xpSystem = window.NetologyXP;
+
+    ["user", "netology_user"].forEach((storageKey) => {
+      let userData;
+      try { userData = JSON.parse(localStorage.getItem(storageKey)); } catch { return; }
+      if (!userData || normalizeEmail(userData.email) !== normalizeEmail(email)) return;
+
+      const updated = xpSystem?.applyXpToUser
+        ? xpSystem.applyXpToUser(userData, deltaXp)
+        : { ...userData, xp: Math.max(0, Number(userData.xp || 0) + Number(deltaXp)) };
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    });
   }
 
-  function onboardingCompletedKey(email) {
-    return `${ONBOARDING_USER_KEYS.completedPrefix}${normalizeEmail(email)}`;
-  }
-
-  function onboardingSkippedKey(email) {
-    return `${ONBOARDING_USER_KEYS.skippedPrefix}${normalizeEmail(email)}`;
-  }
-
-  function clearOnboardingStage() {
-    localStorage.removeItem(ONBOARDING_KEYS.stage);
-  }
-
+  // stage user for onboarding (called from login/signup via window.NetologyOnboarding)
   function stageUserForOnboarding(email, stage = "dashboard") {
     const normalizedEmail = normalizeEmail(email);
     if (!normalizedEmail) return;
-
-    localStorage.setItem(ONBOARDING_KEYS.stage, String(stage || "dashboard"));
-    localStorage.setItem(ONBOARDING_KEYS.user, normalizedEmail);
+    localStorage.setItem(STAGE_KEY, stage || "dashboard");
+    localStorage.setItem(USER_KEY, normalizedEmail);
   }
 
+  // toggle session flag that keeps the tour alive across page navigations
   function setOnboardingSessionActive(isActive) {
     try {
-      if (isActive) {
-        sessionStorage.setItem(ONBOARDING_KEYS.session, "true");
-        return;
-      }
-      sessionStorage.removeItem(ONBOARDING_KEYS.session);
-    } catch {
-      // Ignore session storage failures.
-    }
+      if (isActive) sessionStorage.setItem(SESSION_KEY, "true");
+      else sessionStorage.removeItem(SESSION_KEY);
+    } catch { /* ignore */ }
   }
 
-  function getOnboardingPath(pathKey) {
-    return ENDPOINTS.onboarding?.[pathKey] || ONBOARDING_PATHS[pathKey] || "";
-  }
-
-  function showInfoMessage(message, type = "info") {
-    if (window.NetologyToast?.showMessageToast) {
-      window.NetologyToast.showMessageToast(String(message || ""), type, 3200);
-      return;
-    }
-    alert(String(message || ""));
-  }
-
-  ensureOnboardingConfig();
-
-  // -------------------------------------------------------
-  // 2) API helpers used by onboarding requests
-  // -------------------------------------------------------
-
-  async function defaultApiGet(path, queryParams = {}) {
-    const resolvedUrl = API_BASE
-      ? new URL(`${API_BASE}${path}`)
-      : new URL(path, window.location.origin);
-
-    Object.entries(queryParams || {}).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === "") return;
-      resolvedUrl.searchParams.set(key, String(value));
-    });
-
-    const response = await fetch(resolvedUrl.toString());
-    return response.json();
-  }
-
-  async function defaultApiPost(path, payload = {}) {
-    const resolvedUrl = resolveApiUrl(path);
-    const response = await fetch(resolvedUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload || {})
-    });
-    return response.json();
-  }
-
-  const apiGet = typeof window.apiGet === "function" ? window.apiGet : defaultApiGet;
-  const apiPost = typeof window.apiPost === "function" ? window.apiPost : defaultApiPost;
-
-  // -------------------------------------------------------
-  // 3) Local XP sync helper after onboarding completion
-  // -------------------------------------------------------
-
-  function applyXpToUser(userData, additionalXp) {
-    if (XP?.applyXpToUser) return XP.applyXpToUser(userData, additionalXp);
-    const nextTotalXp = Math.max(0, Number(userData?.xp || 0) + Number(additionalXp || 0));
-    return { ...(userData || {}), xp: nextTotalXp };
-  }
-
-  function bumpStoredUserXp(email, deltaXp) {
-    if (!deltaXp) return;
-
-    ["user", "netology_user"].forEach((storageKey) => {
-      const currentUser = parseJsonSafely(localStorage.getItem(storageKey), null);
-      if (!currentUser || normalizeEmail(currentUser.email) !== normalizeEmail(email)) return;
-
-      const updatedUser = applyXpToUser(currentUser, deltaXp);
-      localStorage.setItem(storageKey, JSON.stringify(updatedUser));
-    });
-  }
-
+  // mark onboarding as fully completed and clean up storage
   function markOnboardingComplete() {
-    clearOnboardingStage();
+    localStorage.removeItem(STAGE_KEY);
 
-    const onboardingUser = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.user));
-    if (onboardingUser) {
-      localStorage.setItem(onboardingCompletedKey(onboardingUser), "true");
-    }
+    const onboardingUser = normalizeEmail(localStorage.getItem(USER_KEY));
+    if (onboardingUser) localStorage.setItem(COMPLETED_PREFIX + onboardingUser, "true");
 
-    localStorage.removeItem(ONBOARDING_KEYS.user);
+    localStorage.removeItem(USER_KEY);
     setOnboardingSessionActive(false);
 
     ["user", "netology_user"].forEach((storageKey) => {
-      const userData = parseJsonSafely(localStorage.getItem(storageKey), null);
+      let userData;
+      try { userData = JSON.parse(localStorage.getItem(storageKey)); } catch { return; }
       if (!userData) return;
       userData.onboarding_completed = true;
       localStorage.setItem(storageKey, JSON.stringify(userData));
     });
   }
 
+  // mark onboarding as skipped and clean up storage
   function markOnboardingSkipped() {
-    clearOnboardingStage();
+    localStorage.removeItem(STAGE_KEY);
 
-    const onboardingUser = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.user));
-    if (onboardingUser) {
-      localStorage.setItem(onboardingSkippedKey(onboardingUser), "true");
-    }
+    const onboardingUser = normalizeEmail(localStorage.getItem(USER_KEY));
+    if (onboardingUser) localStorage.setItem(SKIPPED_PREFIX + onboardingUser, "true");
 
-    localStorage.removeItem(ONBOARDING_KEYS.user);
+    localStorage.removeItem(USER_KEY);
     setOnboardingSessionActive(false);
   }
 
-  // -------------------------------------------------------
-  // 4) Onboarding tour class
-  // -------------------------------------------------------
+  // check if a user already completed or skipped onboarding
+  function isOnboardingDone(email) {
+    const normalizedEmail = normalizeEmail(email);
+    return localStorage.getItem(COMPLETED_PREFIX + normalizedEmail) === "true"
+      || localStorage.getItem(SKIPPED_PREFIX + normalizedEmail) === "true";
+  }
+
+  // tour overlay class
 
   class OnboardingTour {
     constructor(userEmail, options = {}) {
       this.userEmail = userEmail;
-      this.options = options;
       this.steps = Array.isArray(options.steps) ? options.steps : [];
-      this.allowApi = options.allowApi !== false;
       this.onComplete = options.onComplete;
       this.onSkip = options.onSkip;
 
@@ -298,29 +185,24 @@
       this.escapeHandler = null;
     }
 
+    // start the tour
     async init() {
       try {
-        // Steps can come from per-page onboarding config or API fallback.
-        if (!this.steps.length && this.allowApi) {
-          const stepPath = getOnboardingPath("steps");
-          const responseData = await apiGet(stepPath);
-          this.steps = Array.isArray(responseData?.steps) ? responseData.steps : [];
-        }
-
         if (!this.steps.length) {
-          console.warn("Onboarding steps are missing. Tour was not started.");
+          console.warn("Onboarding: no steps provided.");
           return;
         }
 
-        if (this.allowApi) {
-          const startPath = getOnboardingPath("start");
-          await apiPost(startPath, { user_email: this.userEmail });
-        }
-
         this.isActive = true;
-        this.createBackdrop();
-        this.createSpotlight();
-        this.createTooltip();
+        this.backdropElement = this.createOverlayElement("onboarding-backdrop");
+        this.spotlightElement = this.createOverlayElement("onboarding-spotlight");
+
+        this.tooltipElement = this.createOverlayElement("onboarding-tooltip");
+        this.tooltipElement.setAttribute("role", "dialog");
+        this.tooltipElement.setAttribute("aria-live", "polite");
+        this.tooltipElement.setAttribute("aria-modal", "true");
+        this.tooltipElement.setAttribute("tabindex", "0");
+
         this.lockScreen();
         await this.showStep(0, 1);
       } catch (error) {
@@ -328,266 +210,183 @@
       }
     }
 
-    createBackdrop() {
-      this.backdropElement = document.createElement("div");
-      this.backdropElement.className = "onboarding-backdrop";
-      document.body.appendChild(this.backdropElement);
+    // create and append a div with the given class name
+    createOverlayElement(className) {
+      const element = document.createElement("div");
+      element.className = className;
+      document.body.appendChild(element);
+      return element;
     }
 
-    createSpotlight() {
-      this.spotlightElement = document.createElement("div");
-      this.spotlightElement.className = "onboarding-spotlight";
-      document.body.appendChild(this.spotlightElement);
-    }
-
-    createTooltip() {
-      this.tooltipElement = document.createElement("div");
-      this.tooltipElement.className = "onboarding-tooltip";
-      this.tooltipElement.setAttribute("role", "dialog");
-      this.tooltipElement.setAttribute("aria-live", "polite");
-      this.tooltipElement.setAttribute("aria-modal", "true");
-      this.tooltipElement.setAttribute("tabindex", "0");
-      document.body.appendChild(this.tooltipElement);
-    }
-
+    // prevent scrolling and attach keyboard/resize handlers
     lockScreen() {
       if (this.isScreenLocked) return;
-
       this.isScreenLocked = true;
+
       document.documentElement.classList.add("net-onboarding-lock");
       document.body.classList.add("net-onboarding-lock");
 
-      const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
-      if (scrollbarWidth > 0) {
-        document.body.style.paddingRight = `${scrollbarWidth}px`;
-      }
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
 
-      this.attachScrollBlockers();
-      this.attachResizeHandler();
-
-      this.escapeHandler = (event) => {
-        if (event.key === "Escape") {
-          this.skipTour();
-        }
-      };
-      window.addEventListener("keydown", this.escapeHandler);
-    }
-
-    unlockScreen() {
-      if (!this.isScreenLocked) return;
-
-      this.isScreenLocked = false;
-      document.documentElement.classList.remove("net-onboarding-lock");
-      document.body.classList.remove("net-onboarding-lock");
-      document.body.style.paddingRight = "";
-
-      this.detachScrollBlockers();
-      this.detachResizeHandler();
-
-      if (this.escapeHandler) {
-        window.removeEventListener("keydown", this.escapeHandler);
-        this.escapeHandler = null;
-      }
-    }
-
-    attachScrollBlockers() {
-      if (this.scrollBlocker || this.keyBlocker) return;
-
-      this.scrollBlocker = (event) => {
-        if (!this.isActive) return;
-        event.preventDefault();
-      };
-
+      this.scrollBlocker = (event) => { if (this.isActive) event.preventDefault(); };
       this.keyBlocker = (event) => {
         if (!this.isActive) return;
-        const blockedKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "];
-        if (blockedKeys.includes(event.key)) {
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) {
           event.preventDefault();
         }
       };
+      this.escapeHandler = (event) => { if (event.key === "Escape") this.skipTour(); };
 
       window.addEventListener("wheel", this.scrollBlocker, { passive: false });
       window.addEventListener("touchmove", this.scrollBlocker, { passive: false });
       window.addEventListener("keydown", this.keyBlocker, { passive: false });
-    }
+      window.addEventListener("keydown", this.escapeHandler);
 
-    detachScrollBlockers() {
-      if (this.scrollBlocker) {
-        window.removeEventListener("wheel", this.scrollBlocker);
-        window.removeEventListener("touchmove", this.scrollBlocker);
-        this.scrollBlocker = null;
-      }
-
-      if (this.keyBlocker) {
-        window.removeEventListener("keydown", this.keyBlocker);
-        this.keyBlocker = null;
-      }
-    }
-
-    attachResizeHandler() {
-      if (this.resizeHandler) return;
       this.resizeHandler = () => this.refreshPositions();
       window.addEventListener("resize", this.resizeHandler);
     }
 
-    detachResizeHandler() {
-      if (!this.resizeHandler) return;
-      window.removeEventListener("resize", this.resizeHandler);
-      this.resizeHandler = null;
+    // restore normal scrolling and remove all handlers
+    unlockScreen() {
+      if (!this.isScreenLocked) return;
+      this.isScreenLocked = false;
+
+      document.documentElement.classList.remove("net-onboarding-lock");
+      document.body.classList.remove("net-onboarding-lock");
+      document.body.style.paddingRight = "";
+
+      if (this.scrollBlocker) {
+        window.removeEventListener("wheel", this.scrollBlocker);
+        window.removeEventListener("touchmove", this.scrollBlocker);
+      }
+      if (this.keyBlocker) window.removeEventListener("keydown", this.keyBlocker);
+      if (this.escapeHandler) window.removeEventListener("keydown", this.escapeHandler);
+      if (this.resizeHandler) window.removeEventListener("resize", this.resizeHandler);
+
+      this.scrollBlocker = this.keyBlocker = this.escapeHandler = this.resizeHandler = null;
     }
 
+    // recalculate spotlight and tooltip positions
     refreshPositions() {
       const step = this.steps[this.currentStepIndex];
       if (!step || !this.currentTarget) return;
-
       this.updateSpotlight(this.currentTarget);
       this.updateTooltip(step, this.currentTarget);
     }
 
-    activateTab(tabName) {
-      if (!tabName) return;
-
-      const tabButton = document.querySelector(`[role="tab"][data-tab="${tabName}"]`);
-      if (tabButton && typeof tabButton.click === "function") {
-        tabButton.click();
-      }
-    }
-
+    // wait for animation frames
     waitForFrames(count = 2) {
       return new Promise((resolve) => {
-        let frameCount = 0;
-
-        const tick = () => {
-          frameCount += 1;
-          if (frameCount >= count) {
-            resolve();
-            return;
-          }
-          requestAnimationFrame(tick);
-        };
-
-        requestAnimationFrame(tick);
+        let framesCompleted = 0;
+        const onFrame = () => { if (++framesCompleted >= count) resolve(); else requestAnimationFrame(onFrame); };
+        requestAnimationFrame(onFrame);
       });
     }
 
+    // wait until smooth scroll finishes
     waitForScrollToSettle(timeoutMs = 900) {
       return new Promise((resolve) => {
         let lastScrollY = window.scrollY;
-        let stableFrames = 0;
+        let stableFrameCount = 0;
         const startTime = performance.now();
 
-        const tick = () => {
+        const onFrame = () => {
           const currentScrollY = window.scrollY;
-
-          if (Math.abs(currentScrollY - lastScrollY) < 1) {
-            stableFrames += 1;
-          } else {
-            stableFrames = 0;
-            lastScrollY = currentScrollY;
-          }
-
-          if (stableFrames >= 2 || performance.now() - startTime > timeoutMs) {
-            resolve();
-            return;
-          }
-
-          requestAnimationFrame(tick);
+          if (Math.abs(currentScrollY - lastScrollY) < 1) stableFrameCount++; else { stableFrameCount = 0; lastScrollY = currentScrollY; }
+          if (stableFrameCount >= 2 || performance.now() - startTime > timeoutMs) resolve();
+          else requestAnimationFrame(onFrame);
         };
-
-        requestAnimationFrame(tick);
+        requestAnimationFrame(onFrame);
       });
     }
 
+    // scroll the target element into view
     async focusTarget(targetElement) {
       if (!targetElement) return;
 
-      this.detachScrollBlockers();
+      // temporarily allow scrolling so we can scroll to the target
+      if (this.scrollBlocker) {
+        window.removeEventListener("wheel", this.scrollBlocker);
+        window.removeEventListener("touchmove", this.scrollBlocker);
+      }
       await this.waitForFrames(1);
 
       const targetRect = targetElement.getBoundingClientRect();
-      const centeredTop = Math.max(
-        0,
-        window.scrollY + targetRect.top - (window.innerHeight / 2 - targetRect.height / 2)
-      );
-
-      const distance = Math.abs(window.scrollY - centeredTop);
-      if (distance >= 4) {
+      const centeredTop = Math.max(0, window.scrollY + targetRect.top - (window.innerHeight / 2 - targetRect.height / 2));
+      if (Math.abs(window.scrollY - centeredTop) >= 4) {
         window.scrollTo({ top: centeredTop, behavior: "smooth" });
         await this.waitForScrollToSettle();
       }
 
-      this.attachScrollBlockers();
+      // re-attach scroll blockers
+      if (this.scrollBlocker) {
+        window.addEventListener("wheel", this.scrollBlocker, { passive: false });
+        window.addEventListener("touchmove", this.scrollBlocker, { passive: false });
+      }
     }
 
+    // show a step, skipping any targets missing from the page
     async showStep(stepIndex, direction = 1) {
-      let cursor = stepIndex;
-      const visitedIndexes = new Set();
+      let stepCursor = stepIndex;
+      const visited = new Set();
 
-      while (cursor >= 0 && cursor < this.steps.length) {
-        if (visitedIndexes.has(cursor)) break;
-        visitedIndexes.add(cursor);
+      while (stepCursor >= 0 && stepCursor < this.steps.length) {
+        if (visited.has(stepCursor)) break;
+        visited.add(stepCursor);
 
-        const step = this.steps[cursor];
+        const step = this.steps[stepCursor];
+
+        // switch tab if this step requires it
         if (step?.tab) {
-          this.activateTab(step.tab);
+          const tabButton = document.querySelector(`[role="tab"][data-tab="${step.tab}"]`);
+          if (tabButton) tabButton.click();
           await this.waitForFrames();
         }
 
         const targetElement = document.querySelector(`[data-tour="${step.target}"]`);
-        if (!targetElement) {
-          console.warn(`Tour target [data-tour="${step.target}"] not found. Skipping step.`);
-          cursor += direction;
-          continue;
-        }
+        if (!targetElement) { stepCursor += direction; continue; }
 
-        this.currentStepIndex = cursor;
+        this.currentStepIndex = stepCursor;
         this.currentTarget = targetElement;
 
-        const token = ++this.stepToken;
+        const scrollToken = ++this.stepToken;
         await this.focusTarget(targetElement);
-        if (token !== this.stepToken) return;
+        if (scrollToken !== this.stepToken) return;
 
         this.updateSpotlight(targetElement);
         this.updateTooltip(step, targetElement);
         return;
       }
 
-      console.warn("No remaining onboarding targets found for this page.");
-
-      if (typeof this.onComplete === "function") {
-        await this.onComplete();
-        this.closeTour();
-        return;
-      }
-
+      // no valid targets left on this page
+      if (typeof this.onComplete === "function") { await this.onComplete(); this.closeTour(); return; }
       await this.completeTour();
     }
 
+    // position the spotlight around the target
     updateSpotlight(targetElement) {
       if (this.lastHighlightedElement && this.lastHighlightedElement !== targetElement) {
         this.lastHighlightedElement.classList.remove("onboarding-target-active");
       }
-
       targetElement.classList.add("onboarding-target-active");
       this.lastHighlightedElement = targetElement;
 
       const targetRect = targetElement.getBoundingClientRect();
       const padding = 10;
-
       let top = Math.max(8, targetRect.top - padding);
       let left = Math.max(8, targetRect.left - padding);
       let width = Math.max(24, targetRect.width + padding * 2);
       let height = Math.max(24, targetRect.height + padding * 2);
-
       width = Math.min(window.innerWidth - left - 8, width);
       height = Math.min(window.innerHeight - top - 8, height);
 
-      this.spotlightElement.style.top = `${top}px`;
-      this.spotlightElement.style.left = `${left}px`;
-      this.spotlightElement.style.width = `${width}px`;
-      this.spotlightElement.style.height = `${height}px`;
+      Object.assign(this.spotlightElement.style, {
+        top: `${top}px`, left: `${left}px`, width: `${width}px`, height: `${height}px`
+      });
     }
 
+    // render and position the tooltip
     updateTooltip(step, targetElement) {
       const targetRect = targetElement.getBoundingClientRect();
       const totalSteps = this.steps.length;
@@ -596,104 +395,67 @@
 
       this.tooltipElement.classList.remove("is-intro");
       this.tooltipElement.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <span style="font-size:11px; color:#06b6d4; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:11px;color:#06b6d4;font-weight:600;letter-spacing:.04em;text-transform:uppercase">
             Step ${currentStepNumber} of ${totalSteps}
           </span>
         </div>
-        <h3>${escapeHtml(step.title)}</h3>
-        <p>${escapeHtml(step.description)}</p>
-        <div style="margin-top:16px; display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap;">
+        <h3>${step.title}</h3>
+        <p>${step.description}</p>
+        <div style="margin-top:16px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap">
           ${isLastStep
             ? '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish &#8250;</button>'
             : '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Continue &#8250;</button>'}
           <button class="btn-tour-secondary" onclick="window.onboardingTour.skipTour()">Skip</button>
           <button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()"
-            ${this.currentStepIndex === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ""}>
-            &#8249; Back
-          </button>
+            ${this.currentStepIndex === 0 ? 'disabled style="opacity:.4;cursor:not-allowed"' : ""}>&#8249; Back</button>
         </div>
       `;
 
-      this.tooltipElement.style.top = "0";
-      this.tooltipElement.style.left = "0";
-      this.tooltipElement.style.visibility = "hidden";
-
-      const margin = 16;
-      const gap = 18;
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+      // measure off-screen then position
+      this.tooltipElement.style.cssText = "top:0;left:0;visibility:hidden";
+      const edgeMargin = 16;
+      const tooltipGap = 18;
+      const viewWidth = window.innerWidth;
+      const viewHeight = window.innerHeight;
       const tooltipWidth = this.tooltipElement.offsetWidth;
       const tooltipHeight = this.tooltipElement.offsetHeight;
 
-      const centerX = targetRect.left + targetRect.width / 2;
-      let left = Math.min(
-        Math.max(centerX - tooltipWidth / 2, margin),
-        viewportWidth - tooltipWidth - margin
-      );
+      const targetCenterX = targetRect.left + targetRect.width / 2;
+      let left = Math.min(Math.max(targetCenterX - tooltipWidth / 2, edgeMargin), viewWidth - tooltipWidth - edgeMargin);
 
-      const spaceBelow = viewportHeight - targetRect.bottom;
+      const spaceBelow = viewHeight - targetRect.bottom;
       const spaceAbove = targetRect.top;
       let top;
+      if (spaceBelow >= tooltipHeight + tooltipGap) top = targetRect.bottom + tooltipGap;
+      else if (spaceAbove >= tooltipHeight + tooltipGap) top = targetRect.top - tooltipHeight - tooltipGap;
+      else top = viewHeight - tooltipHeight - edgeMargin;
 
-      if (spaceBelow >= tooltipHeight + gap) {
-        top = targetRect.bottom + gap;
-      } else if (spaceAbove >= tooltipHeight + gap) {
-        top = targetRect.top - tooltipHeight - gap;
-      } else {
-        top = viewportHeight - tooltipHeight - margin;
-      }
+      top = Math.max(edgeMargin, Math.min(top, viewHeight - tooltipHeight - edgeMargin));
+      left = Math.max(edgeMargin, Math.min(left, viewWidth - tooltipWidth - edgeMargin));
 
-      top = Math.max(margin, Math.min(top, viewportHeight - tooltipHeight - margin));
-      left = Math.max(margin, Math.min(left, viewportWidth - tooltipWidth - margin));
-
-      this.tooltipElement.style.top = `${top}px`;
-      this.tooltipElement.style.left = `${left}px`;
-      this.tooltipElement.style.visibility = "";
-
-      if (typeof this.tooltipElement.focus === "function") {
-        this.tooltipElement.focus({ preventScroll: true });
-      }
+      this.tooltipElement.style.cssText = `top:${top}px;left:${left}px`;
+      this.tooltipElement.focus?.({ preventScroll: true });
     }
 
     nextStep() {
-      if (this.currentStepIndex >= this.steps.length - 1) return;
-      this.showStep(this.currentStepIndex + 1, 1);
+      if (this.currentStepIndex < this.steps.length - 1) this.showStep(this.currentStepIndex + 1, 1);
     }
 
     prevStep() {
-      if (this.currentStepIndex <= 0) return;
-      this.showStep(this.currentStepIndex - 1, -1);
+      if (this.currentStepIndex > 0) this.showStep(this.currentStepIndex - 1, -1);
     }
 
     async completeTour() {
-      if (typeof this.onComplete === "function") {
-        await this.onComplete();
-        this.closeTour();
-        return;
-      }
-
-      const completePath = getOnboardingPath("complete");
-      await apiPost(completePath, { user_email: this.userEmail });
-
+      if (typeof this.onComplete === "function") { await this.onComplete(); this.closeTour(); return; }
+      await apiPost(ENDPOINTS.onboarding.complete, { user_email: this.userEmail });
       this.closeTour();
       window.location.href = "/dashboard.html";
     }
 
     async skipTour() {
-      if (typeof this.onSkip === "function") {
-        await this.onSkip();
-        this.closeTour();
-        return;
-      }
-
-      try {
-        const skipPath = getOnboardingPath("skip");
-        await apiPost(skipPath, { user_email: this.userEmail });
-      } catch {
-        // Ignore skip request failure.
-      }
-
+      if (typeof this.onSkip === "function") { await this.onSkip(); this.closeTour(); return; }
+      try { await apiPost(ENDPOINTS.onboarding.skip, { user_email: this.userEmail }); } catch { /* ignore */ }
       this.closeTour();
       window.location.href = "/dashboard.html";
     }
@@ -701,169 +463,107 @@
     closeTour() {
       this.isActive = false;
       this.currentTarget = null;
-
       if (this.lastHighlightedElement) {
         this.lastHighlightedElement.classList.remove("onboarding-target-active");
         this.lastHighlightedElement = null;
       }
-
-      if (this.backdropElement) this.backdropElement.remove();
-      if (this.spotlightElement) this.spotlightElement.remove();
-      if (this.tooltipElement) this.tooltipElement.remove();
-
-      this.backdropElement = null;
-      this.spotlightElement = null;
-      this.tooltipElement = null;
-
+      [this.backdropElement, this.spotlightElement, this.tooltipElement].forEach(element => element?.remove());
+      this.backdropElement = this.spotlightElement = this.tooltipElement = null;
       this.unlockScreen();
     }
   }
 
-  // -------------------------------------------------------
-  // 5) Cross-page onboarding stage router
-  // -------------------------------------------------------
-
-  function getOnboardingFlow() {
-    const configuredFlow = window.ONBOARDING_FLOW;
-    if (Array.isArray(configuredFlow) && configuredFlow.length) return configuredFlow;
-    return ONBOARDING_FLOW_DEFAULT;
-  }
-
-  function getOnboardingStageUrl(stage) {
-    const stageUrls = window.ONBOARDING_STAGE_URLS || ONBOARDING_STAGE_URLS_DEFAULT;
-    return stageUrls[stage] || `${stage}.html`;
-  }
-
-  function startOnboardingTour(userEmail, options = {}) {
-    window.onboardingTour = new OnboardingTour(userEmail, options);
-    window.onboardingTour.init();
-  }
-
-  function isOnboardingBlockedForEmail(email) {
-    const normalizedEmail = normalizeEmail(email);
-    const completed = localStorage.getItem(onboardingCompletedKey(normalizedEmail)) === "true";
-    const skipped = localStorage.getItem(onboardingSkippedKey(normalizedEmail)) === "true";
-    return completed || skipped;
-  }
-
+  // entry point – called by each page to check if the tour should start on this stage
   function maybeStartOnboardingTour(stageKey, userEmail) {
     if (!stageKey || !userEmail) return false;
 
     const normalizedEmail = normalizeEmail(userEmail);
-    const onboardingUser = normalizeEmail(localStorage.getItem(ONBOARDING_KEYS.user));
-
-    if (!onboardingUser) return false;
-
-    if (onboardingUser !== normalizedEmail) {
-      clearOnboardingStage();
+    const onboardingUser = normalizeEmail(localStorage.getItem(USER_KEY));
+    if (!onboardingUser || onboardingUser !== normalizedEmail) {
+      if (onboardingUser) localStorage.removeItem(STAGE_KEY);
       return false;
     }
 
-    let sessionAllowed = false;
-    try {
-      sessionAllowed = sessionStorage.getItem(ONBOARDING_KEYS.session) === "true";
-    } catch {
-      sessionAllowed = false;
+    // check session flag
+    let sessionActive = false;
+    try { sessionActive = sessionStorage.getItem(SESSION_KEY) === "true"; } catch { /* ignore */ }
+    if (!sessionActive) { localStorage.removeItem(STAGE_KEY); return false; }
+
+    // already done?
+    if (isOnboardingDone(normalizedEmail)) return false;
+
+    // check stage matches
+    let currentStage = (localStorage.getItem(STAGE_KEY) || "").trim();
+    if (currentStage && !FLOW.includes(currentStage)) {
+      currentStage = FLOW.includes("sandbox") ? "sandbox" : FLOW[0] || "";
+      if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
+      else { localStorage.removeItem(STAGE_KEY); return false; }
     }
-
-    if (!sessionAllowed) {
-      clearOnboardingStage();
-      return false;
-    }
-
-    if (isOnboardingBlockedForEmail(normalizedEmail)) return false;
-
-    const flow = getOnboardingFlow();
-    let currentStage = String(localStorage.getItem(ONBOARDING_KEYS.stage) || "").trim();
-
-    if (currentStage && !flow.includes(currentStage)) {
-      currentStage = flow.includes("sandbox") ? "sandbox" : flow[0] || "";
-      if (currentStage) localStorage.setItem(ONBOARDING_KEYS.stage, currentStage);
-      else clearOnboardingStage();
-    }
-
     if (!currentStage || currentStage !== stageKey) return false;
 
-    const configuredSteps = window.ONBOARDING_STEPS || ONBOARDING_STEPS_DEFAULT;
-    const stageSteps = configuredSteps[stageKey] || [];
+    const stageSteps = (STEPS[stageKey] || []);
     if (!stageSteps.length) return false;
 
-    const stageIndex = flow.indexOf(stageKey);
-    const nextStage = stageIndex >= 0 ? flow[stageIndex + 1] : null;
+    const stageIndex = FLOW.indexOf(stageKey);
+    const nextStage = stageIndex >= 0 ? FLOW[stageIndex + 1] : null;
 
+    // called when the user finishes all steps on this page
     const handleComplete = async () => {
       if (nextStage) {
-        localStorage.setItem(ONBOARDING_KEYS.stage, nextStage);
-
+        localStorage.setItem(STAGE_KEY, nextStage);
         try {
-          const stepPath = getOnboardingPath("stepComplete")
-            .replace(":id", encodeURIComponent(stageKey));
-
-          await apiPost(stepPath, {
-            user_email: normalizedEmail,
-            stage: stageKey
+          await apiPost(ENDPOINTS.onboarding.stepComplete.replace(":id", encodeURIComponent(stageKey)), {
+            user_email: normalizedEmail, stage: stageKey
           });
-        } catch {
-          // Ignore step completion network failure.
-        }
-
-        window.location.href = getOnboardingStageUrl(nextStage);
+        } catch { /* ignore */ }
+        window.location.href = STAGE_URLS[nextStage] || `${nextStage}.html`;
         return;
       }
 
+      // final stage – complete onboarding and award achievements
       try {
-        const completePath = getOnboardingPath("complete");
-        const completeData = await apiPost(completePath, { user_email: normalizedEmail });
-        const unlocks = Array.isArray(completeData?.newly_unlocked) ? completeData.newly_unlocked : [];
+        const result = await apiPost(ENDPOINTS.onboarding.complete, { user_email: normalizedEmail });
+        const unlocks = Array.isArray(result?.newly_unlocked) ? result.newly_unlocked : [];
         if (unlocks.length && window.NetologyAchievements?.queueUnlocks) {
           window.NetologyAchievements.queueUnlocks(normalizedEmail, unlocks);
         }
-        const achievementXp = Number(completeData?.achievement_xp_added || 0);
-        if (achievementXp > 0) {
-          bumpStoredUserXp(normalizedEmail, achievementXp);
-        }
-      } catch {
-        // Ignore completion network failure.
-      }
+        const achievementXp = Number(result?.achievement_xp_added || 0);
+        if (achievementXp > 0) bumpStoredUserXp(normalizedEmail, achievementXp);
+      } catch { /* ignore */ }
 
       markOnboardingComplete();
-
       if (!window.location.pathname.endsWith("dashboard.html")) {
-        window.location.href = getOnboardingStageUrl("dashboard");
+        window.location.href = STAGE_URLS.dashboard || "dashboard.html";
       }
     };
 
+    // called when the user clicks skip
     const handleSkip = async () => {
-      try {
-        const skipPath = getOnboardingPath("skip");
-        await apiPost(skipPath, { user_email: normalizedEmail });
-      } catch {
-        // Ignore skip network failure.
-      }
-
+      try { await apiPost(ENDPOINTS.onboarding.skip, { user_email: normalizedEmail }); } catch { /* ignore */ }
       markOnboardingSkipped();
-      showInfoMessage("Onboarding skipped. You can restart the tour from your dashboard anytime.", "info");
+      if (window.NetologyToast?.showMessageToast) {
+        window.NetologyToast.showMessageToast("Onboarding skipped. You can restart the tour from your dashboard anytime.", "info", 3200);
+      }
     };
 
-    startOnboardingTour(normalizedEmail, {
+    // create and start the tour
+    window.onboardingTour = new OnboardingTour(normalizedEmail, {
       steps: stageSteps,
-      stage: stageKey,
       onComplete: handleComplete,
-      onSkip: handleSkip,
-      allowApi: false
+      onSkip: handleSkip
     });
-
+    window.onboardingTour.init();
     return true;
   }
 
+  // expose public api
   window.markOnboardingComplete = markOnboardingComplete;
   window.markOnboardingSkipped = markOnboardingSkipped;
   window.maybeStartOnboardingTour = maybeStartOnboardingTour;
 
-  // Small public API used by app.js for onboarding handoff on auth pages.
   window.NetologyOnboarding = {
     stageUser: stageUserForOnboarding,
     setSessionActive: setOnboardingSessionActive,
-    isUserDone: isOnboardingBlockedForEmail
+    isUserDone: isOnboardingDone
   };
 })();

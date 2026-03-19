@@ -88,27 +88,17 @@
     renderQuestion(state);
   }
 
-  // find the quiz for this lesson — learn items count up, quizzes share the number of the learn item before them
+  // find the quiz for a lesson number
+  // quiz questions live on the lesson object (unit.lessons[n].quiz), not on the section Quiz items
   function findQuiz(course, lessonNum) {
     if (!course?.units) return null;
-    let learnCount = 0;
-    let lastLearn  = 0;
+    let lessonCount = 0;
     for (const unit of course.units) {
-      // section-based structure
-      for (const section of (unit.sections || [])) {
-        for (const item of (section.items || [])) {
-          const type = String(item.type || "").toLowerCase();
-          if (type === "learn" || type === "lesson" || type === "text") { learnCount++; lastLearn = learnCount; }
-          if ((type === "quiz" || type === "test") && lastLearn === lessonNum) {
-            if (item.quiz?.questions) return normaliseQuiz(item.quiz);
-          }
-        }
-      }
-      // lesson-based structure
       for (const lesson of (unit.lessons || [])) {
-        const type = String(lesson.type || "learn").toLowerCase();
-        if (type === "learn" || type === "lesson" || type === "text") { learnCount++; lastLearn = learnCount; }
-        if (lesson.quiz?.questions && lastLearn === lessonNum) return normaliseQuiz(lesson.quiz);
+        lessonCount++;
+        if (lessonCount === lessonNum && lesson.quiz?.questions) {
+          return normaliseQuiz(lesson.quiz);
+        }
       }
     }
     return null;
@@ -137,15 +127,6 @@
       for (const lesson of (unit.lessons || [])) {
         count++;
         if (count === lessonNum) return unit.title || "Module";
-      }
-      for (const section of (unit.sections || [])) {
-        for (const item of (section.items || [])) {
-          const type = String(item.type || "").toLowerCase();
-          if (type === "learn" || type === "lesson" || type === "text") {
-            count++;
-            if (count === lessonNum) return unit.title || "Module";
-          }
-        }
       }
     }
     return "";

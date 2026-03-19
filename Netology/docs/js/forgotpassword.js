@@ -1,144 +1,117 @@
-// Password reset form handler
+// forgotpassword.js - handles the forgot password form and reset
 
 (() => {
   "use strict";
 
-  // CONFIGURATION
-
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   const ENDPOINTS = window.ENDPOINTS || {};
 
-  // UTILITIES
-
-  function getById(elementId) {
-    return document.getElementById(elementId);
+  // toggle the is-invalid class on a form input
+  function setInvalid(inputElement, isInvalid) {
+    if (inputElement) inputElement.classList.toggle("is-invalid", Boolean(isInvalid));
   }
 
-  function isValidEmail(value) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || "").trim());
-  }
-
-  function apiUrl(path) {
-    return API_BASE ? `${API_BASE}${path}` : path;
-  }
-
-  function authPath(pathKey, fallbackPath) {
-    return ENDPOINTS.auth?.[pathKey] || fallbackPath;
-  }
-
-  function setInvalidState(inputElement, isInvalid) {
-    if (!inputElement) return;
-    inputElement.classList.toggle("is-invalid", Boolean(isInvalid));
-  }
-
-  // BANNER & TOAST HELPERS
-
-  function showToast(message, type = "info") {
+  // show a popup toast message, falls back to alert
+  function showToast(message, toastType = "info") {
     if (!message) return;
     if (window.NetologyToast?.showMessageToast) {
-      window.NetologyToast.showMessageToast(String(message), type, 3200);
+      window.NetologyToast.showMessageToast(String(message), toastType, 3200);
       return;
     }
     alert(String(message));
   }
 
-  function showForgotBanner(message, type = "error") {
+  // show the inline banner at top of the forgot form
+  function showBanner(message, bannerType = "error") {
     if (window.NetologyToast?.showInlineBanner) {
       window.NetologyToast.showInlineBanner({
-        bannerId: "forgotBanner",
-        message,
-        type,
+        bannerId: "forgotBanner", message: message, type: bannerType,
         timeoutMs: 4500,
-        fallbackToPopupType: type === "success" ? "success" : "error",
+        fallbackToPopupType: bannerType === "success" ? "success" : "error",
         timerKey: "forgot"
       });
       return;
     }
-
-    const banner = getById("forgotBanner");
-    if (banner) banner.classList.add("d-none");
-    showToast(message, type === "success" ? "success" : "error");
+    const bannerElement = document.getElementById("forgotBanner");
+    if (bannerElement) bannerElement.classList.add("d-none");
+    showToast(message, bannerType === "success" ? "success" : "error");
   }
 
-  function hideForgotBanner() {
+  // hide the forgot banner
+  function hideBanner() {
     if (window.NetologyToast?.hideInlineBanner) {
       window.NetologyToast.hideInlineBanner("forgotBanner", "forgot");
       return;
     }
-
-    const banner = getById("forgotBanner");
-    if (banner) banner.classList.add("d-none");
+    const bannerElement = document.getElementById("forgotBanner");
+    if (bannerElement) bannerElement.classList.add("d-none");
   }
 
-  // PASSWORD TOGGLE
-
-  function initPasswordToggles() {
-    const toggleButtons = document.querySelectorAll('[data-toggle="password"]');
-
-    toggleButtons.forEach((buttonElement) => {
-      if (buttonElement.dataset.bound === "true") return;
-      buttonElement.dataset.bound = "true";
-
-      buttonElement.addEventListener("click", () => {
-        const targetSelector = buttonElement.getAttribute("data-target");
-        const inputElement = targetSelector ? document.querySelector(targetSelector) : null;
-        if (!inputElement) return;
-
-        const isPasswordHidden = inputElement.getAttribute("type") === "password";
-        inputElement.setAttribute("type", isPasswordHidden ? "text" : "password");
-
-        const iconElement = buttonElement.querySelector("i");
-        if (iconElement) iconElement.className = isPasswordHidden ? "bi bi-eye-slash" : "bi bi-eye";
+  // set up show/hide toggle buttons on password fields
+  function setupPasswordToggles() {
+    document.querySelectorAll('[data-toggle="password"]').forEach((toggleButton) => {
+      if (toggleButton.dataset.bound === "true") return;
+      toggleButton.dataset.bound = "true";
+      toggleButton.addEventListener("click", () => {
+        const targetSelector = toggleButton.getAttribute("data-target");
+        const passwordInput = targetSelector ? document.querySelector(targetSelector) : null;
+        if (!passwordInput) return;
+        const isHidden = passwordInput.getAttribute("type") === "password";
+        passwordInput.setAttribute("type", isHidden ? "text" : "password");
+        const toggleIcon = toggleButton.querySelector("i");
+        if (toggleIcon) toggleIcon.className = isHidden ? "bi bi-eye-slash" : "bi bi-eye";
       });
     });
   }
 
-  // FORGOT PASSWORD HANDLER
-
-  function handleForgotPasswordSubmit(formElement) {
+  // set up the forgot password form submit handler
+  function setupForgotForm(formElement) {
     if (!formElement) return;
 
     formElement.addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      const emailInput = getById("fp_email");
-      const passwordInput = getById("fp_password");
-      const confirmPasswordInput = getById("fp_confirm");
+      const emailInput = document.getElementById("fp_email");
+      const passwordInput = document.getElementById("fp_password");
+      const confirmInput = document.getElementById("fp_confirm");
+      const formView = document.getElementById("forgotFormView");
+      const successView = document.getElementById("forgotSuccessView");
 
-      const formViewElement = getById("forgotFormView");
-      const successViewElement = getById("forgotSuccessView");
-
-      hideForgotBanner();
-      setInvalidState(emailInput, false);
-      setInvalidState(passwordInput, false);
-      setInvalidState(confirmPasswordInput, false);
+      hideBanner();
+      setInvalid(emailInput, false);
+      setInvalid(passwordInput, false);
+      setInvalid(confirmInput, false);
 
       const email = String(emailInput?.value || "").trim();
       const password = String(passwordInput?.value || "").trim();
-      const confirmPassword = String(confirmPasswordInput?.value || "").trim();
+      const confirmPassword = String(confirmInput?.value || "").trim();
 
-      // Validation
-      if (!isValidEmail(email)) {
-        setInvalidState(emailInput, true);
-        showForgotBanner("Please enter a valid email address.", "warning");
+      // validate the email
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+        setInvalid(emailInput, true);
+        showBanner("Please enter a valid email address.", "warning");
         return;
       }
 
+      // validate the password length
       if (password.length < 8) {
-        setInvalidState(passwordInput, true);
-        showForgotBanner("Password must be at least 8 characters.", "warning");
+        setInvalid(passwordInput, true);
+        showBanner("Password must be at least 8 characters.", "warning");
         return;
       }
 
+      // check that passwords match
       if (password !== confirmPassword) {
-        setInvalidState(confirmPasswordInput, true);
-        showForgotBanner("Passwords do not match.", "warning");
+        setInvalid(confirmInput, true);
+        showBanner("Passwords do not match.", "warning");
         return;
       }
 
-      // Submit
+      // submit to the server
       try {
-        const response = await fetch(apiUrl(authPath("forgotPassword", "/forgot-password")), {
+        const resetPath = ENDPOINTS.auth?.forgotPassword || "/forgot-password";
+        const resetUrl = API_BASE ? `${API_BASE}${resetPath}` : resetPath;
+        const response = await fetch(resetUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password })
@@ -146,33 +119,30 @@
 
         const responseData = await response.json();
         if (!responseData?.success) {
-          showForgotBanner(responseData?.message || "Reset failed.", "error");
+          showBanner(responseData?.message || "Reset failed.", "error");
           return;
         }
 
         showToast("Password updated successfully.", "success");
-        formViewElement?.classList.add("d-none");
-        successViewElement?.classList.remove("d-none");
+        formView?.classList.add("d-none");
+        successView?.classList.remove("d-none");
       } catch {
-        showForgotBanner("Server error. Please try again.", "error");
+        showBanner("Server error. Please try again.", "error");
       }
     });
   }
 
-  // INITIALIZATION
-
-  function initForgotPasswordPage() {
-    const forgotFormElement = getById("forgotForm");
-    if (forgotFormElement) {
-      handleForgotPasswordSubmit(forgotFormElement);
-      initPasswordToggles();
-    }
+  // start everything when the page is ready
+  function initForgotPage() {
+    const forgotForm = document.getElementById("forgotForm");
+    if (!forgotForm) return;
+    setupForgotForm(forgotForm);
+    setupPasswordToggles();
   }
 
-  // Run when DOM is ready
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initForgotPasswordPage, { once: true });
+    document.addEventListener("DOMContentLoaded", initForgotPage, { once: true });
   } else {
-    initForgotPasswordPage();
+    initForgotPage();
   }
 })();
