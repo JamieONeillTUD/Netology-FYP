@@ -154,7 +154,8 @@
 
     for (const unit of units) {
       const items = buildItems(unit, lessonNum);
-      lessonNum += items.length;
+      const learnCount = items.filter(i => i.type === "learn").length;
+      lessonNum += learnCount;
       modules.push({
         id: unit.id || `module-${modules.length}`,
         title: unit.title || "Module",
