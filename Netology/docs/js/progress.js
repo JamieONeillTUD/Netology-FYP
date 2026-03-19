@@ -881,32 +881,34 @@
 
   // link builders
   function buildCourseLink(courseId, contentId) {
-    return "course.html?id=" + courseId + (contentId ? "&content_id=" + contentId : "");
+    return "course.html?id=" + courseId;
   }
 
+  // lessonNumber here is unitIdx + 1, so unit = lessonNumber - 1
   function buildLessonLink(courseId, contentId, lessonNumber) {
-    return "lesson.html?course_id=" + courseId + (contentId ? "&content_id=" + contentId : "") + "&lesson=" + lessonNumber;
+    const unitIdx = lessonNumber - 1;
+    return "lesson.html?course=" + courseId + "&unit=" + unitIdx + "&lesson=0";
   }
 
   function buildChallengeLink(courseId, contentId, lessonNumber) {
-    return "sandbox.html?course_id=" + courseId + (contentId ? "&content_id=" + contentId : "") + "&lesson=" + lessonNumber + "&mode=challenge&challenge=1";
+    const unitIdx = lessonNumber - 1;
+    return "sandbox.html?course=" + courseId + "&unit=" + unitIdx + "&mode=challenge";
   }
 
   function buildTutorialLink(courseId, contentId, lessonNumber) {
-    return "sandbox.html?course_id=" + courseId + (contentId ? "&content_id=" + contentId : "") + "&lesson=" + lessonNumber + "&mode=practice";
+    const unitIdx = lessonNumber - 1;
+    return "sandbox.html?course=" + courseId + "&unit=" + unitIdx + "&mode=practice";
   }
 
   function buildModuleLink(courseId, contentId, moduleId) {
-    return "course.html?id=" + courseId + (contentId ? "&content_id=" + contentId : "") + (moduleId ? "&module=" + moduleId : "");
+    return "course.html?id=" + courseId;
   }
 
   // data fetching
+  // Always builds from COURSE_CONTENT — the single source of truth for static data.
+  // Only overlays progress_pct and status from the API (what the user has done).
   async function fetchUserCourses(email) {
-    const data = await window.apiGet(ENDPOINTS.courses.userCourses, { email: email });
-
-    if (data && data.success && Array.isArray(data.courses)) return data.courses;
-
-    return Object.entries(window.COURSE_CONTENT || {}).map(function (entry) {
+    const allCourses = Object.entries(window.COURSE_CONTENT || {}).map(function (entry) {
       const id = entry[0];
       const course = entry[1];
       return {
@@ -915,10 +917,30 @@
         description: course.description || "",
         difficulty: course.difficulty || "novice",
         estimated_time: course.estimatedTime || "",
+        xp_reward: course.xpReward || 0,
+        total_lessons: (course.units || []).reduce(function (s, u) { return s + (u.lessons ? u.lessons.length : 0); }, 0),
         progress_pct: 0,
         status: "not-started"
       };
     });
+
+    // Overlay only progress_pct and status from the API.
+    try {
+      const data = await window.apiGet(ENDPOINTS.courses.userCourses, { email: email });
+      const list = (data && Array.isArray(data.courses)) ? data.courses : (Array.isArray(data) ? data : []);
+      const progressMap = new Map(list.map(function (c) { return [String(c.id || c.course_id || ""), c]; }));
+      allCourses.forEach(function (c) {
+        const p = progressMap.get(c.id);
+        if (p) {
+          c.progress_pct = Math.min(100, Math.max(0, Number(p.progress_pct || 0)));
+          c.status = p.status || "not-started";
+        }
+      });
+    } catch (err) {
+      console.warn("Could not overlay course progress:", err);
+    }
+
+    return allCourses;
   }
 
   function getStartedCoursesMap(email) {

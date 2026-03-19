@@ -59,32 +59,14 @@
     return '<i class="bi bi-circle-fill"></i>';
   }
 
-  // loads courses from API merged with static COURSE_CONTENT
-  // COURSE_CONTENT is always the canonical source; API supplies progress fields
-  async function fetchCourses() {
+  // builds the course list directly from COURSE_CONTENT — no API call needed.
+  // All static data (titles, XP, lesson counts, difficulty) lives in COURSE_CONTENT.
+  // The API is only used by fetchProgress() below to get per-user progress_pct.
+  function fetchCourses() {
     if (!window.COURSE_CONTENT) return [];
-
-    // build base list from static content (IDs 1-9)
-    const staticList = Object.entries(window.COURSE_CONTENT).map(([id, data]) =>
+    return Object.entries(window.COURSE_CONTENT).map(([id, data]) =>
       enrichCourse({ id, ...data })
     );
-
-    try {
-      const res = await apiGet(ENDPOINTS.courses?.list || "/courses");
-      const apiList = getArray(res, "courses");
-      if (apiList.length) {
-        // merge API fields (e.g. total_lessons from DB) into static entries
-        const apiMap = new Map(apiList.map(c => [String(c.id || c.course_id || ""), c]));
-        return staticList.map(course => {
-          const api = apiMap.get(String(course.id)) || {};
-          return enrichCourse({ ...api, ...course });
-        });
-      }
-    } catch (err) {
-      console.warn("Could not fetch courses from API:", err);
-    }
-
-    return staticList;
   }
 
   // fills in missing course fields from static data
@@ -297,7 +279,7 @@
   // loads everything and puts cards into the page
   async function loadCourses(user) {
     try {
-      const courses = await fetchCourses();
+      const courses = fetchCourses();
       if (!courses.length) return;
 
       const progress = await fetchProgress(user.email);
