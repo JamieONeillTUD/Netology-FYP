@@ -3,18 +3,10 @@
 from flask import Blueprint, jsonify, request
 
 from achievement_engine import evaluate_achievements_for_event
-from db import get_db_connection
+from db import email_from, get_db_connection, to_int
 from xp_system import add_xp_to_user
 
 courses = Blueprint("courses", __name__)
-
-
-def to_int(value, default=0):
-    # Safely converts any value to int (DB rows and request params can be strings or None).
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return int(default)
 
 
 def course_row(row):
@@ -95,7 +87,7 @@ def get_course():
 @courses.route("/user-courses", methods=["GET"])
 def user_courses():
     # Return all courses with the user's progress status.
-    email = (request.args.get("email") or "").strip().lower()
+    email = email_from(request.args.get("email"))
     if not email:
         return jsonify({"success": False, "message": "Email required."}), 400
 
@@ -133,7 +125,7 @@ def user_courses():
 def complete_lesson():
     # Record a completed lesson, update progress, and award XP.
     data = request.get_json(silent=True) or request.form or {}
-    email = (data.get("email") or "").strip().lower()
+    email = email_from(data.get("email"))
     course_id = to_int(data.get("course_id"), 0)
     lesson_number = to_int(data.get("lesson_number"), 0)
     if not email or course_id <= 0 or lesson_number <= 0:
@@ -168,16 +160,20 @@ def complete_lesson():
         )
         first_time = cur.rowcount == 1
 
-        # Calculate progress
-        cur.execute("SELECT COUNT(*) FROM user_lessons WHERE user_email = %s AND course_id = %s", (email, course_id))
-        lessons_done = to_int(cur.fetchone()[0], 0)
-        progress = min(100, int(lessons_done / total_lessons * 100))
-        is_complete = lessons_done >= total_lessons
+        # Only recalculate and update progress on first completion
+        if first_time:
+            cur.execute(
+                "SELECT COUNT(*) FROM user_lessons WHERE user_email = %s AND course_id = %s",
+                (email, course_id),
+            )
+            lessons_done = to_int(cur.fetchone()[0], 0)
+            progress = min(100, int(lessons_done / total_lessons * 100))
+            is_complete = lessons_done >= total_lessons
+            cur.execute(
+                "UPDATE user_courses SET progress = %s, completed = %s, updated_at = CURRENT_TIMESTAMP WHERE user_email = %s AND course_id = %s",
+                (progress, is_complete, email, course_id),
+            )
 
-        cur.execute(
-            "UPDATE user_courses SET progress = %s, completed = %s, updated_at = CURRENT_TIMESTAMP WHERE user_email = %s AND course_id = %s",
-            (progress, is_complete, email, course_id),
-        )
         conn.commit()
 
         xp_added = 0
@@ -203,7 +199,7 @@ def complete_lesson():
 def complete_quiz():
     # Record a completed quiz and award XP.
     data = request.get_json(silent=True) or request.form or {}
-    email = (data.get("email") or "").strip().lower()
+    email = email_from(data.get("email"))
     course_id = to_int(data.get("course_id"), 0)
     lesson_number = to_int(data.get("lesson_number"), -1)
     if not email or course_id <= 0 or lesson_number < 0:
@@ -249,7 +245,7 @@ def complete_quiz():
 def complete_challenge():
     # Record a completed challenge and award XP.
     data = request.get_json(silent=True) or request.form or {}
-    email = (data.get("email") or "").strip().lower()
+    email = email_from(data.get("email"))
     course_id = to_int(data.get("course_id"), 0)
     lesson_number = to_int(data.get("lesson_number"), -1)
     if not email or course_id <= 0 or lesson_number < 0:
@@ -294,7 +290,7 @@ def complete_challenge():
 @courses.route("/user-course-status", methods=["GET"])
 def user_course_status():
     # Return which lessons, quizzes, and challenges a user has done in a course.
-    email = (request.args.get("email") or "").strip().lower()
+    email = email_from(request.args.get("email"))
     course_id = to_int(request.args.get("course_id"), 0)
     if not email or course_id <= 0:
         return jsonify({"success": False, "message": "Email and course_id required."}), 400
@@ -302,14 +298,27 @@ def user_course_status():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT lesson_number FROM user_lessons WHERE user_email = %s AND course_id = %s ORDER BY lesson_number", (email, course_id))
-        lessons = [to_int(r[0]) for r in cur.fetchall()]
-
-        cur.execute("SELECT lesson_number FROM user_quizzes WHERE user_email = %s AND course_id = %s ORDER BY lesson_number", (email, course_id))
-        quizzes = [to_int(r[0]) for r in cur.fetchall()]
-
-        cur.execute("SELECT lesson_number FROM user_challenges WHERE user_email = %s AND course_id = %s ORDER BY lesson_number", (email, course_id))
-        challenges = [to_int(r[0]) for r in cur.fetchall()]
+        # Single query instead of three separate ones
+        cur.execute(
+            """
+            SELECT 'lesson'    AS kind, lesson_number FROM user_lessons    WHERE user_email = %s AND course_id = %s
+            UNION ALL
+            SELECT 'quiz'      AS kind, lesson_number FROM user_quizzes    WHERE user_email = %s AND course_id = %s
+            UNION ALL
+            SELECT 'challenge' AS kind, lesson_number FROM user_challenges WHERE user_email = %s AND course_id = %s
+            ORDER BY lesson_number
+            """,
+            (email, course_id, email, course_id, email, course_id),
+        )
+        lessons, quizzes, challenges = [], [], []
+        for kind, lesson_number in cur.fetchall():
+            n = to_int(lesson_number)
+            if kind == "lesson":
+                lessons.append(n)
+            elif kind == "quiz":
+                quizzes.append(n)
+            else:
+                challenges.append(n)
 
         return jsonify({"success": True, "lessons": lessons, "quizzes": quizzes, "challenges": challenges})
     except Exception as e:
@@ -323,7 +332,7 @@ def user_course_status():
 @courses.route("/user-progress-summary", methods=["GET"])
 def user_progress_summary():
     # Return overall progress counts (lessons, quizzes, challenges, courses).
-    email = (request.args.get("email") or "").strip().lower()
+    email = email_from(request.args.get("email"))
     if not email:
         return jsonify({"success": False, "message": "Email required."}), 400
 

@@ -12724,32 +12724,6 @@ body[data-theme="dark"] .les-mcq-letter {
   color: var(--net-teal);
 }
 
-.net-courses-page .net-course-module-breakdown {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-bottom: 0.55rem;
-}
-
-.net-courses-page .net-module-objective-chip {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  border: 1px solid rgba(13, 148, 136, 0.22);
-  background: rgba(20, 184, 166, 0.09);
-  color: #0f766e;
-  font-size: 0.67rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  padding: 0.2rem 0.48rem;
-}
-
-.net-courses-page .net-module-objective-chip.is-more {
-  border-style: dashed;
-  background: rgba(148, 163, 184, 0.14);
-  color: rgba(15, 23, 42, 0.75);
-}
-
 .net-courses-page .net-course-desc {
   margin-top: 0.45rem;
 }

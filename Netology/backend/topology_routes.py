@@ -4,22 +4,9 @@ import json
 
 from flask import Blueprint, jsonify, request
 
-from db import get_db_connection
+from db import email_from, get_db_connection, to_int
 
 topology = Blueprint("topology", __name__)
-
-
-def to_int(value, default=None):
-    # Safe int conversion, returns default on failure.
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def email_from(value):
-    # Lowercase and strip an email string.
-    return str(value or "").strip().lower()
 
 
 # ── Auto-session (background save while in a lesson) ─────────────────────────
@@ -29,8 +16,8 @@ def save_lesson_session():
     # Auto-save sandbox state for the current course+lesson.
     data = request.get_json(silent=True) or {}
     email = email_from(data.get("email"))
-    course_id = to_int(data.get("course_id"))
-    lesson_number = to_int(data.get("lesson_number"))
+    course_id = to_int(data.get("course_id"), None)
+    lesson_number = to_int(data.get("lesson_number"), None)
     devices = data.get("devices")
     connections = data.get("connections")
 
@@ -68,8 +55,8 @@ def save_lesson_session():
 def load_lesson_session():
     # Auto-load sandbox state for the current course+lesson.
     email = email_from(request.args.get("email"))
-    course_id = to_int(request.args.get("course_id"))
-    lesson_number = to_int(request.args.get("lesson_number"))
+    course_id = to_int(request.args.get("course_id"), None)
+    lesson_number = to_int(request.args.get("lesson_number"), None)
 
     if not email or course_id is None or lesson_number is None:
         return jsonify({"success": False, "message": "email, course_id and lesson_number are required."}), 400
@@ -105,11 +92,11 @@ def save_topology():
     # Save a named topology snapshot.
     data = request.get_json(silent=True) or {}
     email = email_from(data.get("email"))
-    name = data.get("name")
+    name = (data.get("name") or "").strip() or "Untitled"
     devices = data.get("devices")
     connections = data.get("connections")
 
-    if not email or not devices or connections is None:
+    if not email or devices is None or connections is None:
         return jsonify({"success": False, "message": "Missing data"}), 400
 
     conn = get_db_connection()
@@ -144,7 +131,7 @@ def load_topologies():
             (email,),
         )
         topologies = [
-            {"id": r[0], "name": r[1], "created_at": r[2]}
+            {"id": r[0], "name": r[1], "created_at": r[2].isoformat() if r[2] else None}
             for r in cur.fetchall()
         ]
         return jsonify({"success": True, "topologies": topologies})
@@ -158,11 +145,18 @@ def load_topologies():
 
 @topology.route("/load-topology/<int:tid>", methods=["GET"])
 def load_topology(tid):
-    # Load one named save by ID.
+    # Load one named save by ID — ownership is verified via email param.
+    email = email_from(request.args.get("email"))
+    if not email:
+        return jsonify({"success": False, "message": "Email required."}), 400
+
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT devices, connections FROM saved_topologies WHERE id = %s", (tid,))
+        cur.execute(
+            "SELECT devices, connections FROM saved_topologies WHERE id = %s AND user_email = %s",
+            (tid, email),
+        )
         row = cur.fetchone()
         if not row:
             return jsonify({"success": False, "message": "Not found"}), 404

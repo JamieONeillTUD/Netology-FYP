@@ -3,16 +3,8 @@
 import json
 from datetime import datetime, timedelta
 
-from db import get_db_connection
+from db import get_db_connection, to_int
 from xp_system import add_xp_to_user, get_level_progress
-
-
-def to_int(val, default=0):
-    # Safe int conversion, returns default on failure.
-    try:
-        return int(val)
-    except (TypeError, ValueError):
-        return int(default)
 
 
 def parse_rule(raw):
@@ -43,13 +35,6 @@ def login_streak(dates_desc):
     return streak
 
 
-def row_count(cur, sql, params):
-    # Run a COUNT query and return the result as int.
-    cur.execute(sql, params)
-    row = cur.fetchone()
-    return to_int(row[0]) if row else 0
-
-
 def load_stats(cur, email):
     # Load all user stats needed for achievement rule checks.
     cur.execute(
@@ -64,20 +49,38 @@ def load_stats(cur, email):
     level, _, _ = get_level_progress(total_xp)
     level = max(to_int(row[1], level), level)
 
-    cur.execute("SELECT login_date FROM user_logins WHERE user_email = %s ORDER BY login_date DESC LIMIT 365", (email,))
+    cur.execute(
+        "SELECT login_date FROM user_logins WHERE user_email = %s ORDER BY login_date DESC LIMIT 365",
+        (email,),
+    )
     dates = [r[0] for r in cur.fetchall()]
+
+    # All six counts in one round-trip
+    cur.execute(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM user_logins     WHERE user_email = %s),
+            (SELECT COUNT(*) FROM user_courses    WHERE user_email = %s),
+            (SELECT COUNT(*) FROM user_courses    WHERE user_email = %s AND completed = TRUE),
+            (SELECT COUNT(*) FROM user_lessons    WHERE user_email = %s),
+            (SELECT COUNT(*) FROM user_quizzes    WHERE user_email = %s),
+            (SELECT COUNT(*) FROM user_challenges WHERE user_email = %s)
+        """,
+        (email, email, email, email, email, email),
+    )
+    counts = cur.fetchone()
 
     return {
         "onboarding_completed": bool(row[2]),
         "total_xp": total_xp,
         "level": level,
-        "logins_total": row_count(cur, "SELECT COUNT(*) FROM user_logins WHERE user_email = %s", (email,)),
-        "login_streak": login_streak(dates),
-        "courses_started": row_count(cur, "SELECT COUNT(*) FROM user_courses WHERE user_email = %s", (email,)),
-        "courses_completed": row_count(cur, "SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = TRUE", (email,)),
-        "lessons_completed": row_count(cur, "SELECT COUNT(*) FROM user_lessons WHERE user_email = %s", (email,)),
-        "quizzes_completed": row_count(cur, "SELECT COUNT(*) FROM user_quizzes WHERE user_email = %s", (email,)),
-        "challenges_completed": row_count(cur, "SELECT COUNT(*) FROM user_challenges WHERE user_email = %s", (email,)),
+        "logins_total":          to_int(counts[0]),
+        "login_streak":          login_streak(dates),
+        "courses_started":       to_int(counts[1]),
+        "courses_completed":     to_int(counts[2]),
+        "lessons_completed":     to_int(counts[3]),
+        "quizzes_completed":     to_int(counts[4]),
+        "challenges_completed":  to_int(counts[5]),
     }
 
 
@@ -140,14 +143,17 @@ def evaluate_achievements_for_event(email, event=None):
     try:
         unlocked = []
 
+        # Fetch the catalog once — it doesn't change between passes.
+        cur.execute(
+            "SELECT id, name, description, icon, xp_reward, rarity, unlock_criteria FROM achievements ORDER BY id"
+        )
+        catalog = cur.fetchall()
+
         # Multiple passes so XP from one unlock can chain-trigger another.
         for _ in range(5):
             stats = load_stats(cur, email)
             if not stats:
                 break
-
-            cur.execute("SELECT id, name, description, icon, xp_reward, rarity, unlock_criteria FROM achievements ORDER BY id")
-            catalog = cur.fetchall()
 
             cur.execute("SELECT achievement_id FROM user_achievements WHERE user_email = %s", (email,))
             done = {r[0] for r in cur.fetchall()}

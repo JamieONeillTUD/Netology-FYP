@@ -98,21 +98,16 @@
     return objectiveCount;
   }
 
-  // count objectives per module and get the total
+  // count total objectives across all modules
   function getObjectiveStatistics(courseData) {
     var units = courseData.units || [];
-    if (!units.length) return { total: 0, perModule: [] };
-
-    var objectivesPerModule = [];
     var totalObjectives = 0;
 
     for (var unitIndex = 0; unitIndex < units.length; unitIndex++) {
-      var count = countObjectivesInUnit(units[unitIndex]);
-      objectivesPerModule.push(count);
-      totalObjectives += count;
+      totalObjectives += countObjectivesInUnit(units[unitIndex]);
     }
 
-    return { total: totalObjectives, perModule: objectivesPerModule };
+    return { total: totalObjectives };
   }
 
   // build the full course list from COURSE_CONTENT
@@ -137,7 +132,6 @@
         moduleCount: countModulesInCourse(courseData),
         totalLessons: countTotalLessonsInCourse(courseData),
         totalObjectives: objectiveStats.total,
-        objectivesPerModule: objectiveStats.perModule,
         estimatedTime: courseData.estimatedTime || ""
       });
     }
@@ -184,19 +178,6 @@
     return grouped;
   }
 
-  // build the small module objective chips like "M1: 3 obj."
-  function buildModuleObjectiveChips(objectivesPerModule) {
-    if (!objectivesPerModule || !objectivesPerModule.length) return "";
-
-    var chipHtml = "";
-    for (var index = 0; index < objectivesPerModule.length; index++) {
-      var count = objectivesPerModule[index];
-      chipHtml += '<span class="net-module-chip">M' + (index + 1) + ": " + count + " obj.</span>";
-    }
-
-    return chipHtml;
-  }
-
   // return "lesson" or "lessons" depending on the count
   function pluralise(count, word) {
     return count + " " + (count === 1 ? word : word + "s");
@@ -218,8 +199,6 @@
     if (isLocked) cardElement.classList.add("locked");
     if (isInProgress) cardElement.classList.add("in-progress");
     if (isComplete) cardElement.classList.add("completed");
-
-    var moduleChipsHtml = buildModuleObjectiveChips(course.objectivesPerModule);
 
     var experiencePointsHtml = "";
     if (course.experiencePointsReward > 0) {
@@ -266,7 +245,6 @@
       +   '<span class="net-course-stat-pill"><i class="bi bi-check2-square"></i>' + pluralise(course.totalObjectives, "objective") + "</span>"
       +   estimatedTimeHtml
       + "</div>"
-      + (moduleChipsHtml ? '<div class="net-course-module-breakdown">' + moduleChipsHtml + "</div>" : "")
       + '<div class="net-course-desc">' + escapeTextForHtml(course.description || "") + "</div>"
       + experiencePointsHtml
       + '<div class="net-course-footer">'

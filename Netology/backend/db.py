@@ -1,4 +1,4 @@
-# db.py — Database connection helper.
+# db.py — Database connection helper and shared utilities.
 
 import os
 import psycopg
@@ -15,3 +15,16 @@ def get_db_connection():
         f"sslmode={os.getenv('DB_SSLMODE', 'disable')}"
     )
     return psycopg.connect(dsn)
+
+
+def to_int(value, default=0):
+    # Safely converts any value to int. Returns default on failure.
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def email_from(value):
+    # Lowercase and strip whitespace from an email string.
+    return str(value or "").strip().lower()

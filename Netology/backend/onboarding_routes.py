@@ -3,7 +3,7 @@
 from flask import Blueprint, jsonify, request
 
 from achievement_engine import evaluate_achievements_for_event
-from db import get_db_connection
+from db import email_from, get_db_connection
 
 onboarding = Blueprint("onboarding", __name__)
 
@@ -12,7 +12,7 @@ onboarding = Blueprint("onboarding", __name__)
 def start_onboarding():
     # Mark onboarding as started.
     data = request.get_json(silent=True) or {}
-    user_email = data.get("user_email")
+    user_email = email_from(data.get("user_email"))
     if not user_email:
         return jsonify({"error": "user_email required"}), 400
 
@@ -37,7 +37,7 @@ def start_onboarding():
 def complete_onboarding():
     # Mark onboarding as complete.
     data = request.get_json(silent=True) or {}
-    user_email = data.get("user_email")
+    user_email = email_from(data.get("user_email"))
     if not user_email:
         return jsonify({"error": "user_email required"}), 400
 
@@ -73,7 +73,7 @@ def complete_onboarding():
 def skip_onboarding():
     # Skip the onboarding tour.
     data = request.get_json(silent=True) or {}
-    user_email = data.get("user_email")
+    user_email = email_from(data.get("user_email"))
     if not user_email:
         return jsonify({"error": "user_email required"}), 400
 
@@ -105,7 +105,7 @@ def get_onboarding_steps():
 def complete_onboarding_step(stage_id):
     # Record completion of a single onboarding stage step.
     data = request.get_json(silent=True) or {}
-    user_email = data.get("user_email")
+    user_email = email_from(data.get("user_email"))
     if not user_email:
         return jsonify({"error": "user_email required"}), 400
 

@@ -1,9 +1,8 @@
 # user_routes.py — Progress, activity, streak, and challenge APIs.
 
-from datetime import datetime, timedelta
-
 from flask import Blueprint, jsonify, request
 
+from achievement_engine import login_streak
 from db import get_db_connection
 
 user_api = Blueprint("user_api", __name__)
@@ -80,8 +79,8 @@ def get_user_activity():
                     "xp": int(row[1]), "lessons": int(row[2]),
                     "quizzes": int(row[3]), "challenges": int(row[4]), "logins": int(row[5]),
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            print("get_user_activity (daily_activity table) error:", e)
 
         # Fill in any gaps from xp_log
         try:
@@ -109,8 +108,8 @@ def get_user_activity():
                     "challenges":max(ex.get("challenges", 0), int(row[4])),
                     "logins":    ex.get("logins", 0),
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            print("get_user_activity (xp_log fallback) error:", e)
 
         # Login counts from user_logins
         try:
@@ -128,8 +127,8 @@ def get_user_activity():
                 ex = by_date.get(key, {})
                 ex["logins"] = max(ex.get("logins", 0), int(row[1]))
                 by_date[key] = ex
-        except Exception:
-            pass
+        except Exception as e:
+            print("get_user_activity (user_logins) error:", e)
 
         activity = []
         for date_key in sorted(by_date.keys()):
@@ -234,21 +233,7 @@ def get_user_streaks():
             (email,),
         )
         dates = sorted({r[0] for r in cur.fetchall()}, reverse=True)
-
-        if not dates:
-            return jsonify({"success": True, "current_streak": 0})
-
-        # Count back from today
-        streak = 0
-        check = datetime.now().date()
-        for d in dates:
-            if d == check:
-                streak += 1
-                check -= timedelta(days=1)
-            elif d < check:
-                break
-
-        return jsonify({"success": True, "current_streak": streak})
+        return jsonify({"success": True, "current_streak": login_streak(dates)})
     except Exception as e:
         print("get_user_streaks error:", e)
         return jsonify({"success": False, "message": "Could not load streaks"}), 500

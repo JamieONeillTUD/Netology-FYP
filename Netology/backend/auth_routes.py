@@ -4,24 +4,11 @@ from flask import Blueprint, jsonify, request
 from flask_bcrypt import Bcrypt
 
 from achievement_engine import evaluate_achievements_for_event
-from db import get_db_connection
+from db import email_from, get_db_connection, to_int
 from xp_system import add_xp_to_user, get_level_progress, rank_for_level
 
 auth = Blueprint("auth", __name__)
 bcrypt = Bcrypt()
-
-
-def to_int(value, default=0):
-    # Safely converts any value to int (DB rows and request params can be strings or None).
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def email_from(raw):
-    # Lowercase + strip whitespace from an email string.
-    return (raw or "").strip().lower()
 
 
 def valid_email(email):
@@ -140,7 +127,7 @@ def login():
             "username": user[4],
             **xp_payload(user[3]),
             "start_level": start_level(user[5]),
-            "is_first_login": user[6] is not False,
+            "is_first_login": bool(user[6]),
             "onboarding_completed": bool(user[7]),
             "email": email,
         })
@@ -195,6 +182,7 @@ def user_info():
 @auth.route("/award-xp", methods=["POST"])
 def award_xp():
     # Award XP for a one-time action (skips if already awarded).
+    # Check and award happen in one connection to minimise the race window.
     data = request.get_json(silent=True) or {}
     email = email_from(data.get("email"))
     action = (data.get("action") or "").strip()
@@ -206,19 +194,31 @@ def award_xp():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Check if this action was already awarded
         cur.execute("SELECT 1 FROM xp_log WHERE user_email = %s AND action = %s LIMIT 1", (email, action))
         already = cur.fetchone() is not None
+
+        xp_added = 0
+        if not already:
+            cur.execute("UPDATE users SET xp = xp + %s WHERE email = %s RETURNING xp", (xp, email))
+            row = cur.fetchone()
+            if row:
+                new_level, _, _ = get_level_progress(row[0])
+                cur.execute(
+                    "UPDATE users SET numeric_level = %s, level = %s WHERE email = %s",
+                    (new_level, rank_for_level(new_level), email),
+                )
+                cur.execute(
+                    "INSERT INTO xp_log (user_email, action, xp_awarded) VALUES (%s, %s, %s)",
+                    (email, action, xp),
+                )
+                xp_added = xp
+        conn.commit()
     except Exception as e:
         print("Award XP error:", e)
         return jsonify({"success": False, "message": "Could not award XP."}), 500
     finally:
         cur.close()
         conn.close()
-
-    xp_added = 0
-    if not already:
-        xp_added, _ = add_xp_to_user(email, xp, action=action)
 
     new_achievements = evaluate_achievements_for_event(email, "xp_award")
     achievement_xp = sum(to_int(a.get("xp_added")) for a in new_achievements)
@@ -246,7 +246,10 @@ def record_login():
             "INSERT INTO user_logins (user_email, login_date) VALUES (%s, CURRENT_DATE) ON CONFLICT (user_email, login_date) DO NOTHING",
             (email,),
         )
-        cur.execute("SELECT login_date FROM user_logins WHERE user_email = %s ORDER BY login_date", (email,))
+        cur.execute(
+            "SELECT login_date FROM user_logins WHERE user_email = %s ORDER BY login_date LIMIT 365",
+            (email,),
+        )
         rows = cur.fetchall()
         conn.commit()
 
