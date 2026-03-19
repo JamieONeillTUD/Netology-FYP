@@ -184,34 +184,6 @@ ALTER TABLE user_lessons    ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 
 ALTER TABLE user_quizzes    ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 0;
 ALTER TABLE user_challenges ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 0;
 
--- Legacy completion tables (kept for backward compat)
-CREATE TABLE IF NOT EXISTS lesson_completions (
-    id SERIAL PRIMARY KEY,
-    user_email    VARCHAR(255) REFERENCES users(email)  ON DELETE CASCADE,
-    course_id     INTEGER      REFERENCES courses(id)   ON DELETE CASCADE,
-    lesson_number INTEGER NOT NULL,
-    completed_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_email, course_id, lesson_number)
-);
-
-CREATE TABLE IF NOT EXISTS quiz_completions (
-    id SERIAL PRIMARY KEY,
-    user_email    VARCHAR(255) REFERENCES users(email)  ON DELETE CASCADE,
-    course_id     INTEGER      REFERENCES courses(id)   ON DELETE CASCADE,
-    lesson_number INTEGER NOT NULL,
-    completed_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_email, course_id, lesson_number)
-);
-
-CREATE TABLE IF NOT EXISTS challenge_completions (
-    id SERIAL PRIMARY KEY,
-    user_email    VARCHAR(255) REFERENCES users(email)  ON DELETE CASCADE,
-    course_id     INTEGER      REFERENCES courses(id)   ON DELETE CASCADE,
-    lesson_number INTEGER NOT NULL,
-    completed_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_email, course_id, lesson_number)
-);
-
 
 -- ─── XP LOG ──────────────────────────────────────────────
 -- Audit trail of every XP award.
@@ -333,24 +305,6 @@ CREATE TABLE IF NOT EXISTS user_tour_progress (
 );
 
 
--- ─── LESSONS (OPTIONAL SERVER-SIDE METADATA) ─────────────
--- Full lesson content lives in course_content.js client-side.
-
-CREATE TABLE IF NOT EXISTS lessons (
-    id           SERIAL PRIMARY KEY,
-    course_id    INTEGER      REFERENCES courses(id) ON DELETE CASCADE,
-    title        VARCHAR(150) NOT NULL,
-    description  TEXT,
-    order_number INTEGER DEFAULT 1,
-    xp_value     INTEGER DEFAULT 10,
-    slide_count  INTEGER DEFAULT 0,
-    avg_time_seconds INTEGER DEFAULT 0
-);
-
-ALTER TABLE lessons ADD COLUMN IF NOT EXISTS slide_count      INTEGER DEFAULT 0;
-ALTER TABLE lessons ADD COLUMN IF NOT EXISTS avg_time_seconds INTEGER DEFAULT 0;
-
-
 -- ─── SANDBOX ─────────────────────────────────────────────
 -- Saved topologies + per-lesson sandbox state.
 
@@ -372,52 +326,6 @@ CREATE TABLE IF NOT EXISTS lesson_sessions (
     connections    JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_email, course_id, lesson_number)
-);
-
-
--- ─── LESSON SLIDES ───────────────────────────────────────
-
-CREATE TABLE IF NOT EXISTS lesson_slides (
-    id             SERIAL PRIMARY KEY,
-    lesson_id      INTEGER NOT NULL REFERENCES lessons(id)  ON DELETE CASCADE,
-    course_id      INTEGER NOT NULL REFERENCES courses(id)  ON DELETE CASCADE,
-    slide_number   INTEGER NOT NULL,
-    slide_type     VARCHAR(50)  DEFAULT 'text',
-    title          VARCHAR(255) NOT NULL,
-    content        TEXT,
-    code_snippet   TEXT,
-    code_language  VARCHAR(50),
-    image_url      VARCHAR(500),
-    video_url      VARCHAR(500),
-    explanation    TEXT,
-    challenge_id   INTEGER,
-    estimated_time_seconds INTEGER DEFAULT 300,
-    is_required    BOOLEAN   DEFAULT TRUE,
-    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(lesson_id, slide_number)
-);
-
-CREATE TABLE IF NOT EXISTS user_slide_progress (
-    id                 SERIAL,
-    user_email         VARCHAR(255) NOT NULL REFERENCES users(email)        ON DELETE CASCADE,
-    slide_id           INTEGER      NOT NULL REFERENCES lesson_slides(id)   ON DELETE CASCADE,
-    lesson_id          INTEGER      NOT NULL REFERENCES lessons(id)         ON DELETE CASCADE,
-    viewed_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at       TIMESTAMP,
-    time_spent_seconds INTEGER   DEFAULT 0,
-    notes              TEXT,
-    is_bookmarked      BOOLEAN   DEFAULT FALSE,
-    PRIMARY KEY (user_email, slide_id)
-);
-
-CREATE TABLE IF NOT EXISTS user_slide_bookmarks (
-    id            SERIAL PRIMARY KEY,
-    user_email    VARCHAR(255) NOT NULL REFERENCES users(email)      ON DELETE CASCADE,
-    slide_id      INTEGER      NOT NULL REFERENCES lesson_slides(id) ON DELETE CASCADE,
-    note          TEXT,
-    bookmarked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_email, slide_id)
 );
 
 
@@ -561,5 +469,5 @@ ON CONFLICT (title, challenge_type) DO UPDATE SET
 
 
 -- =========================================================
--- DONE – 20 tables | 9 courses | 20 achievements | 11 challenges
+-- DONE – 13 tables | 9 courses | 20 achievements | 11 challenges
 -- =========================================================
