@@ -1,7 +1,4 @@
-"""
-gunicorn.conf.py – Gunicorn configuration for Render deployment.
-Ensures the server binds to 0.0.0.0 on the PORT that Render injects.
-"""
+# gunicorn.conf.py — Gunicorn config for Render deployment.
 
 import os
 

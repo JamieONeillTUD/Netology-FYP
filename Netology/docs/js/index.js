@@ -1,30 +1,21 @@
-// Landing page with smooth scroll animations
+// index.js — Landing page smooth scroll and fade-in animations.
 
 (() => {
   "use strict";
 
-  function initializeLandingPage() {
-    console.log("Landing page loaded");
-
+  function init() {
     // Smooth scrolling for anchor links
     document.querySelectorAll('a[href^="#"]').forEach((link) => {
-      link.addEventListener("click", (event) => {
-        const targetId = link.getAttribute("href").substring(1);
-        const targetElement = document.getElementById(targetId);
-
-        if (targetElement) {
-          event.preventDefault();
-          targetElement.scrollIntoView({ behavior: "smooth" });
+      link.addEventListener("click", (e) => {
+        const el = document.getElementById(link.getAttribute("href").substring(1));
+        if (el) {
+          e.preventDefault();
+          el.scrollIntoView({ behavior: "smooth" });
         }
       });
     });
 
-    // Add subtle fade-in animation to cards on scroll
-    const observerOptions = {
-      threshold: 0.1,
-      rootMargin: "0px 0px -50px 0px"
-    };
-
+    // Fade in cards and features as they scroll into view
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -33,29 +24,20 @@
           observer.unobserve(entry.target);
         }
       });
-    }, observerOptions);
+    }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
 
-    // Observe all article cards
-    document.querySelectorAll(".net-figma-step").forEach((card) => {
-      card.style.opacity = "0";
-      card.style.transform = "translateY(20px)";
-      card.style.transition = "opacity 600ms ease, transform 600ms ease";
-      observer.observe(card);
-    });
-
-    // Observe feature items
-    document.querySelectorAll(".net-figma-feature-item").forEach((item) => {
-      item.style.opacity = "0";
-      item.style.transform = "translateY(20px)";
-      item.style.transition = "opacity 600ms ease, transform 600ms ease";
-      observer.observe(item);
+    document.querySelectorAll(".net-figma-step, .net-figma-feature-item").forEach((el) => {
+      el.style.opacity = "0";
+      el.style.transform = "translateY(20px)";
+      el.style.transition = "opacity 600ms ease, transform 600ms ease";
+      observer.observe(el);
     });
   }
 
   // Run when DOM is ready
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initializeLandingPage);
+    document.addEventListener("DOMContentLoaded", init);
   } else {
-    initializeLandingPage();
+    init();
   }
 })();

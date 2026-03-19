@@ -1,27 +1,4 @@
-<!--
-Student Number: C22320301
-Student Name:   Jamie O'Neill
-Course Code:    TU857/4
-Date:           18/02/2026
-
-HTML
----------------------------------------
-lesson.html – Netology Interactive Lesson Player
-
-Purpose:
-- Step-by-step interactive lesson player, loaded via URL params ?course_id=&lesson=&content_id=
-- Slide-out sidebar + sticky top navbar
-- Lesson top bar: back button, animated step progress bar, streak pill, XP pill
-- Intro screen: lesson title, description, time/XP/steps metadata, learning objectives
-- Step screen: three step types — Learn (content cards), MCQ (check blocks), Matching (pairs)
-- Feedback overlay: correct/incorrect result, explanation text, XP earned
-- Completion screen: trophy, stats summary (XP / accuracy / streak / time),
-  step review, and Next Lesson / Review / Back to Course actions
-
-Notes:
-- Lesson step data sourced from course_content.js; XP posted to API on completion
-- Scripts: app.js → course_content.js → lesson.js
--->
+<!-- lesson.html – interactive step-by-step lesson, styled like the quiz page -->
 
 <!doctype html>
 <html lang="en">
@@ -30,292 +7,207 @@ Notes:
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Lesson</title>
 
-  <!-- Vendor -->
+  <!-- Vendor: Bootstrap + Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-  <!-- App CSS -->
+  <!-- Netology CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body class="net-bg net-landing net-lesson-page net-loading">
+<body class="net-bg net-quiz-page net-loading">
 
-  <!-- Sidebar Backdrop -->
-  <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
+  <!-- Topbar -->
+  <header class="net-topbar net-quiz-topbar" role="banner">
+    <div class="container d-flex align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="net-logo" aria-hidden="true"></div>
+        <div>
+          <div class="net-brand">Netology</div>
+          <div class="net-subtitle small">Lesson Mode</div>
+        </div>
+      </div>
 
-  <!-- Sidebar -->
-  <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
-    <div class="net-sidehead">
-      <div class="d-flex align-items-center justify-content-between gap-2">
-        <a href="dashboard.html" class="net-brandchip" id="sideBrandHome" aria-label="Netology home">
-          <div class="net-logo" aria-hidden="true"></div>
-          <div class="net-brandname">Netology</div>
+      <div class="d-flex align-items-center gap-2">
+        <a id="backToCourseTop" href="course.html" class="btn btn-outline-light btn-sm net-quiz-back" aria-label="Back to course">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Course
         </a>
-        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu" type="button">
-          <i class="bi bi-x-lg" aria-hidden="true"></i>
-        </button>
-      </div>
-    </div>
-    <nav class="net-sidenav" aria-label="Sidebar navigation">
-      <a class="net-sidelink" href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
-      <a class="net-sidelink" href="account.html"><i class="bi bi-person-circle"></i> My Profile</a>
-      <a class="net-sidelink" href="courses.html"><i class="bi bi-journal-bookmark"></i> My Courses</a>
-      <a class="net-sidelink" href="sandbox.html"><i class="bi bi-diagram-3"></i> Network Sandbox</a>
-      <a class="net-sidelink" href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
-    </nav>
-    <div class="net-sidefoot">
-      <div class="net-userbox">
-        <div class="d-flex align-items-center gap-3">
-          <div class="net-avatar-sm" id="sideAvatar">S</div>
-          <div class="flex-grow-1 min-width-0">
-            <div class="fw-semibold text-truncate" id="sideUserName">Student</div>
-            <div class="small text-muted text-truncate" id="sideUserEmail">email@example.com</div>
-          </div>
-          <span class="badge text-bg-light border" id="sideLevelBadge">Lv 1</span>
-        </div>
-        <div class="mt-3">
-          <div class="d-flex justify-content-between align-items-center small mb-1">
-            <span class="text-muted">XP</span>
-            <span class="fw-semibold" id="sideXPText">0/100</span>
-          </div>
-          <div class="progress" style="height: 8px;">
-            <div class="progress-bar net-progress" id="sideXPBar" style="width:0%"></div>
-          </div>
-        </div>
-      </div>
-      <div class="d-grid mt-3">
-        <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
-          <i class="bi bi-box-arrow-right me-2"></i>Logout
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- Top Nav -->
-  <header class="net-topnav sticky-top" role="banner">
-    <div class="container-fluid">
-      <div class="net-topnav-inner">
-        <div class="net-topnav-left">
-          <button class="net-hambtn" id="openSidebarBtn" type="button" aria-label="Open menu">
-            <span class="net-hambtn-bars" aria-hidden="true"><span></span><span></span><span></span></span>
-          </button>
-        </div>
-        <div class="net-topnav-center">
-          <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
-            <span class="net-logo net-logo-sm" aria-hidden="true"></span>
-            <h2 class="net-brand-text">Netology</h2>
-          </a>
-        </div>
-        <div class="net-topnav-right position-relative">
-          <div class="position-relative">
-            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
-              <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
-              <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
-            </button>
-            <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
-              <div class="net-ddhead">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="net-avatar-sm" id="ddAvatar" aria-hidden="true">S</div>
-                  <div class="min-width-0">
-                    <div class="fw-semibold text-truncate" id="ddName">Student</div>
-                    <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
-                  </div>
-                </div>
-                <div class="d-flex flex-wrap gap-2 mt-2">
-                  <span class="badge text-bg-light border" id="ddLevel">Level 1</span>
-                  <span class="badge text-bg-light border" id="ddRank">Novice</span>
-                </div>
-              </div>
-              <a href="account.html"><i class="bi bi-person-circle"></i> My Account</a>
-              <a href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
-              <div class="net-ddsep"></div>
-              <button class="danger" id="topLogoutBtn" type="button">
-                <i class="bi bi-box-arrow-right"></i> Logout
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </header>
 
-  <!-- Lesson Top Bar (progress + close) -->
-  <div class="les-topbar" id="lessonTopBar">
-    <div class="les-topbar-inner">
-      <a href="course.html" class="les-close-btn les-back-btn" id="lesCloseBtn" aria-label="Back to course">
-        <i class="bi bi-arrow-left"></i>
-        <span>Back</span>
-      </a>
-      <div class="les-progress-wrap">
-        <div class="les-progress-bar">
-          <div class="les-progress-fill" id="lesProgressFill" style="width: 0%"></div>
-        </div>
-      </div>
-      <div class="les-streak-pill" id="lesStreakPill" aria-label="Current streak">
-        <i class="bi bi-fire"></i>
-        <span id="lesStreakCount">0</span>
-      </div>
-      <div class="les-xp-pill" id="lesXpPill">
-        <i class="bi bi-lightning-charge-fill"></i>
-        <span id="lesXpCount">0</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Loading Skeleton -->
-  <main class="les-main" role="main">
-    <div class="les-loading-screen" id="lesLoadingScreen">
-      <div class="les-loading-spinner"></div>
-      <p class="les-loading-text">Preparing your lesson...</p>
-    </div>
-
-    <!-- Lesson Intro Screen -->
-    <section class="les-screen les-intro-screen" id="lesIntroScreen" style="display:none;">
-      <div class="les-intro-card">
-        <div class="les-intro-badge" id="lesIntroBadge">
-          <i class="bi bi-book"></i>
-        </div>
-        <div class="les-intro-kicker" id="lesIntroKicker">LESSON 1</div>
-        <h1 class="les-intro-title" id="lesIntroTitle">Lesson Title</h1>
-        <p class="les-intro-desc" id="lesIntroDesc">What you'll learn in this lesson.</p>
-
-        <div class="les-intro-meta">
-          <div class="les-intro-meta-item">
-            <i class="bi bi-clock"></i>
-            <span id="lesIntroTime">10 min</span>
-          </div>
-          <div class="les-intro-meta-item">
-            <i class="bi bi-lightning-charge-fill"></i>
-            <span id="lesIntroXP">50 XP</span>
-          </div>
-          <div class="les-intro-meta-item">
-            <i class="bi bi-bar-chart-steps"></i>
-            <span id="lesIntroSteps">8 steps</span>
-          </div>
-        </div>
-
-        <div class="les-intro-objectives" id="lesIntroObjectives">
-          <!-- Filled by JS -->
-        </div>
-
-        <div class="les-resume-hint" id="lesResumeHint" style="display:none;">
-          Resume at 0% complete
-        </div>
-
-        <button class="les-btn les-btn-primary les-btn-lg" id="lesStartBtn">
-          <span>Start Lesson</span>
-          <i class="bi bi-arrow-right"></i>
-        </button>
-      </div>
+  <main class="container my-4" role="main" aria-label="Lesson page">
+    <section class="net-card p-4 net-loading-only" aria-label="Loading lesson">
+      <div class="net-skel net-w-60 mb-3"></div>
+      <div class="net-skel net-w-90 mb-2"></div>
+      <div class="net-skel net-w-80 mb-2"></div>
+      <div class="net-skel net-w-60"></div>
     </section>
 
-    <!-- Step Container (exercises render here) -->
-    <section class="les-screen les-step-screen" id="lesStepScreen" style="display:none;">
-      <div class="les-step-container" id="lesStepContainer">
-        <!-- Dynamic step content renders here -->
+    <div class="net-loading-hide">
+      <div class="mb-3">
+        <nav class="net-breadcrumb" aria-label="Breadcrumb">
+          <a href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
+          <i class="bi bi-chevron-right"></i>
+          <a href="courses.html">Courses</a>
+          <i class="bi bi-chevron-right"></i>
+          <span id="breadcrumbCourse">Course</span>
+          <i class="bi bi-chevron-right"></i>
+          <span id="breadcrumbLesson">Lesson</span>
+        </nav>
       </div>
 
-      <!-- Step Footer -->
-      <div class="les-step-footer" id="lesStepFooter">
-        <div class="les-step-footer-inner">
-          <button class="les-btn les-btn-ghost" id="lesSkipBtn" style="display:none;">
-            Skip
-          </button>
-          <button class="les-btn les-btn-primary" id="lesCheckBtn" disabled>
-            Check
-          </button>
-        </div>
-      </div>
-    </section>
+      <!-- Header Card -->
+      <div class="net-quiz-shell net-card p-4 p-lg-5 mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+          <div>
+            <div class="net-quiz-kicker net-section-eyebrow" id="lessonKicker">Lesson</div>
+            <h1 class="h3 net-section-title mb-2" id="lessonTitle">Loading lesson...</h1>
+            <div class="text-muted net-section-sub" id="lessonMeta">Preparing content...</div>
+          </div>
 
-    <!-- Feedback Overlay -->
-    <div class="les-feedback-overlay" id="lesFeedbackOverlay" style="display:none;" role="alert">
-      <div class="les-feedback-card" id="lesFeedbackCard">
-        <div class="les-feedback-icon" id="lesFeedbackIcon">
-          <i class="bi bi-check-circle-fill"></i>
+          <div class="net-quiz-xp-pill" aria-label="Lesson XP">
+            <span class="net-quiz-xp-ico" aria-hidden="true">
+              <i class="bi bi-lightning-charge-fill"></i>
+            </span>
+            <span class="fw-semibold" id="lessonXpLabel">0 XP</span>
+          </div>
         </div>
-        <div class="les-feedback-title" id="lesFeedbackTitle">Correct!</div>
-        <div class="les-feedback-text" id="lesFeedbackText"></div>
-        <div class="les-feedback-xp" id="lesFeedbackXP" style="display:none;">
-          <i class="bi bi-lightning-charge-fill"></i>
-          <span id="lesFeedbackXPAmount">+10 XP</span>
+
+        <!-- Progress bar -->
+        <div class="mt-4" aria-label="Lesson progress">
+          <div class="d-flex justify-content-between small text-muted mb-2">
+            <span id="lessonStepText">Step 1 of 1</span>
+            <span id="lessonPctText">0%</span>
+          </div>
+          <div class="progress" style="height: 10px;">
+            <div id="lessonProgressBar" class="progress-bar bg-teal" style="width:0%"></div>
+          </div>
         </div>
-        <button class="les-btn les-btn-primary" id="lesFeedbackContinue">Continue</button>
       </div>
+
+      <!-- Step Card (content, MCQ, and feedback render here) -->
+      <section id="stepCard" class="net-card net-quiz-card p-4 p-lg-5" aria-label="Current step">
+        <div class="net-quiz-question-head">
+          <div>
+            <div class="net-quiz-kicker mb-1" id="stepTag">Learn</div>
+            <h2 class="h4 mb-0 net-quiz-question" id="stepTitle">Loading...</h2>
+          </div>
+
+          <div class="net-quiz-chip" id="stepCountChip" aria-label="Step counter">
+            1/1
+          </div>
+        </div>
+
+        <!-- Step content injected by lesson.js -->
+        <div class="mt-4" id="stepContent" aria-label="Step content"></div>
+
+        <!-- MCQ options (shown for check blocks only) -->
+        <div class="mt-4 d-grid gap-2 net-quiz-options d-none" id="optionsBox" aria-label="Answer options">
+          <!-- buttons injected by lesson.js -->
+        </div>
+
+        <!-- Feedback box (inline like quiz) -->
+        <div id="feedbackBox" class="net-quiz-feedback mt-4 d-none" role="status" aria-live="polite">
+          <div class="d-flex gap-3 align-items-start">
+            <div class="net-quiz-feedback-ico" id="feedbackIcon" aria-hidden="true">
+              <i class="bi bi-check-lg"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="fw-semibold mb-1" id="feedbackTitle">Correct</div>
+              <div class="text-muted" id="feedbackText">Explanation goes here.</div>
+              <div class="mt-3 d-flex align-items-center gap-2 net-quiz-xp-earned d-none" id="xpEarnedRow">
+                <span aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></span>
+                <span class="fw-semibold" id="xpEarnedText">+0 XP</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex flex-wrap justify-content-end gap-2 mt-4" role="group" aria-label="Step actions">
+          <button id="submitBtn" class="btn btn-teal net-quiz-primary" type="button" aria-label="Check answer" disabled>
+            Check Answer
+          </button>
+          <button id="continueBtn" class="btn btn-teal net-quiz-primary d-none" type="button" aria-label="Continue">
+            Continue →
+          </button>
+        </div>
+      </section>
+
+      <!-- Mini Progress Card -->
+      <section id="progressCard" class="net-card net-quiz-progress-card p-3 p-lg-4 mt-3" aria-label="Lesson progress overview">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+          <div class="fw-semibold">Lesson Progress</div>
+          <div class="small text-muted">
+            <span id="progressCompleted">0</span> completed •
+            <span id="progressRemaining">0</span> remaining
+          </div>
+        </div>
+        <div id="miniProgress" class="net-quiz-progress-bars"></div>
+      </section>
+
+      <!-- Results Card -->
+      <section id="resultsCard" class="net-card net-quiz-results p-4 p-lg-5 d-none" aria-label="Lesson results">
+        <div class="text-center">
+          <div id="resultsBadge" class="net-quiz-result-badge mb-3" aria-hidden="true">
+            <i class="bi bi-trophy-fill"></i>
+          </div>
+          <h2 class="h3 mb-2" id="resultsTitle">Lesson Complete!</h2>
+          <p class="text-muted mb-4" id="resultsSubtitle">Here's how you did.</p>
+
+          <div class="row g-3 justify-content-center mb-4">
+            <div class="col-12 col-md-4">
+              <div class="net-quiz-stat">
+                <div class="net-quiz-stat-value" id="statCorrect">0/0</div>
+                <div class="net-quiz-stat-label">Correct</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="net-quiz-stat">
+                <div class="net-quiz-stat-value" id="statAccuracy">0%</div>
+                <div class="net-quiz-stat-label">Accuracy</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div class="net-quiz-stat">
+                <div class="net-quiz-stat-value" id="statXp">0</div>
+                <div class="net-quiz-stat-label">XP Earned</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Per-step review -->
+          <div id="stepReview" class="text-start mb-4"></div>
+
+          <div class="d-flex flex-wrap gap-2 justify-content-center" role="group" aria-label="Results actions">
+            <button id="nextLessonBtn" class="btn btn-teal net-quiz-primary" type="button" aria-label="Next lesson">
+              Next Lesson →
+            </button>
+            <button id="retryBtn" class="btn btn-outline-secondary net-quiz-secondary" type="button" aria-label="Retry lesson">
+              Retry Lesson
+            </button>
+            <a id="backToCourseBtn" class="btn btn-outline-secondary net-quiz-secondary" href="course.html" aria-label="Back to course">
+              Back to Course
+            </a>
+          </div>
+
+        </div>
+      </section>
+
     </div>
-
-    <!-- Completion Screen -->
-    <section class="les-screen les-complete-screen" id="lesCompleteScreen" style="display:none;">
-      <div class="les-complete-card">
-        <div class="les-confetti-container" id="lesConfetti"></div>
-
-        <div class="les-complete-badge">
-          <i class="bi bi-trophy-fill"></i>
-        </div>
-        <h2 class="les-complete-title">Lesson Complete!</h2>
-        <p class="les-complete-subtitle" id="lesCompleteSubtitle">Great work mastering this topic.</p>
-
-        <div class="les-complete-stats">
-          <div class="les-complete-stat">
-            <div class="les-complete-stat-value" id="lesCompleteXP">0</div>
-            <div class="les-complete-stat-label">XP Earned</div>
-          </div>
-          <div class="les-complete-stat">
-            <div class="les-complete-stat-value" id="lesCompleteAccuracy">0%</div>
-            <div class="les-complete-stat-label">Accuracy</div>
-          </div>
-          <div class="les-complete-stat">
-            <div class="les-complete-stat-value" id="lesCompleteStreak">0</div>
-            <div class="les-complete-stat-label">Best Streak</div>
-          </div>
-          <div class="les-complete-stat">
-            <div class="les-complete-stat-value" id="lesCompleteTime">0:00</div>
-            <div class="les-complete-stat-label">Time</div>
-          </div>
-        </div>
-
-        <div class="les-complete-review" id="lesCompleteReview">
-          <!-- Step review items rendered by JS -->
-        </div>
-
-        <div class="les-complete-actions">
-          <button class="les-btn les-btn-primary les-btn-lg" id="lesNextLessonBtn">
-            <span>Next Lesson</span>
-            <i class="bi bi-arrow-right"></i>
-          </button>
-          <button class="les-btn les-btn-ghost" id="lesReviewBtn">
-            <i class="bi bi-arrow-repeat"></i>
-            <span>Review Mistakes</span>
-          </button>
-          <a class="les-btn les-btn-ghost" id="lesBackToCourseBtn" href="course.html">
-            <i class="bi bi-arrow-left"></i>
-            <span>Back to Course</span>
-          </a>
-        </div>
-      </div>
-    </section>
-
   </main>
 
-  <!-- XP Popup (floats from bottom) -->
-  <div class="les-xp-popup" id="lesXpPopup" aria-hidden="true">
-    <i class="bi bi-lightning-charge-fill"></i>
-    <span id="lesXpPopupText">+10 XP</span>
-  </div>
+  <footer class="text-center border-top py-3 bg-white" role="contentinfo">
+    <p class="small text-muted mb-0">2026 – Jamie O'Neill – TU857/4</p>
+  </footer>
 
-  <!-- Streak Popup -->
-  <div class="les-streak-popup" id="lesStreakPopup" aria-hidden="true">
-    <div class="les-streak-popup-inner">
-      <i class="bi bi-fire"></i>
-      <span id="lesStreakPopupText">3 in a row!</span>
-    </div>
-  </div>
-
-  <script src="js/ui-theme.js"></script>
-  <script src="js/ui-toasts.js"></script>
+  <!-- Scripts: config + content before lesson logic -->
+  <script src="js/theme.js"></script>
+  <script src="js/toasts.js"></script>
   <script src="js/app.js"></script>
-  <script src="js/onboarding-tour.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/lesson.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,513 +1,364 @@
-// Signup wizard and account creation
+// signup.js — Signup wizard and account creation.
 
 (() => {
   "use strict";
 
-  // CONFIGURATION
-
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   const ENDPOINTS = window.ENDPOINTS || {};
 
-  const SIGNUP_FIELD_IDS = [
-    "first_name", "last_name", "username", "dob", "email", "password", "confirm_password"
+  // Each signup field and its empty-field error
+  const FIELDS = [
+    { id: "first_name", msg: "Please enter your first name." },
+    { id: "last_name", msg: "Please enter your last name." },
+    { id: "username", msg: "Please choose a username." },
+    { id: "dob", msg: "Please select your date of birth." },
+    { id: "email", msg: "Please enter your email address." },
+    { id: "password", msg: "Please enter a password." },
+    { id: "confirm_password", msg: "Please confirm your password." }
   ];
 
-  const REQUIRED_SIGNUP_FIELDS = [
-    { valueKey: "firstName", fieldId: "first_name", message: "Please enter your first name." },
-    { valueKey: "lastName", fieldId: "last_name", message: "Please enter your last name." },
-    { valueKey: "username", fieldId: "username", message: "Please choose a username." },
-    { valueKey: "dateOfBirth", fieldId: "dob", message: "Please select your date of birth." },
-    { valueKey: "email", fieldId: "email", message: "Please enter your email address." },
-    { valueKey: "password", fieldId: "password", message: "Please enter a password." },
-    { valueKey: "confirmPassword", fieldId: "confirm_password", message: "Please confirm your password." }
-  ];
-
-  const SIGNUP_WIZARD_STEP_TITLES = {
-    1: "Your details",
-    2: "Your level",
-    3: "Your reasons",
-    4: "Review"
-  };
-
-  const SIGNUP_REVIEW_FIELDS = [
-    { reviewId: "reviewFirst", inputId: "first_name" },
-    { reviewId: "reviewLast", inputId: "last_name" },
-    { reviewId: "reviewUser", inputId: "username" },
-    { reviewId: "reviewEmail", inputId: "email" },
-    { reviewId: "reviewDob", inputId: "dob" }
-  ];
-
-  // UTILITIES
-
-  function getById(elementId) {
-    return document.getElementById(elementId);
-  }
-
-  function parseJsonSafely(jsonString) {
-    try {
-      return jsonString ? JSON.parse(jsonString) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  function normalizeEmail(value) {
-    return String(value || "").trim().toLowerCase();
-  }
-
-  function isValidEmail(value) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || "").trim());
-  }
-
-  function normalizeTier(value, fallback = "novice") {
-    const normalized = String(value || "").trim().toLowerCase();
-    if (["novice", "intermediate", "advanced"].includes(normalized)) return normalized;
-    return fallback;
-  }
-
-  function apiUrl(path) {
-    return API_BASE ? `${API_BASE}${path}` : path;
-  }
-
-  function authPath(pathKey, fallbackPath) {
-    return ENDPOINTS.auth?.[pathKey] || fallbackPath;
-  }
-
-  function setInvalidState(inputElement, isInvalid) {
-    if (!inputElement) return;
-    inputElement.classList.toggle("is-invalid", Boolean(isInvalid));
-  }
-
-  // BANNER & TOAST HELPERS
-
-  function showToast(message, type = "info") {
-    if (!message) return;
+  // Shows a popup toast message, falls back to alert.
+  function toast(msg, type = "info") {
+    if (!msg) return;
     if (window.NetologyToast?.showMessageToast) {
-      window.NetologyToast.showMessageToast(String(message), type, 3200);
+      window.NetologyToast.showMessageToast(String(msg), type, 3200);
       return;
     }
-    alert(String(message));
+    alert(String(msg));
   }
 
-  function showSignupBanner(message, type = "error") {
+  // Shows the inline banner at top of the signup form.
+  function showBanner(msg, type = "error") {
     if (window.NetologyToast?.showInlineBanner) {
       window.NetologyToast.showInlineBanner({
-        bannerId: "signupBanner",
-        message,
-        type,
+        bannerId: "signupBanner", message: msg, type,
         timeoutMs: 4500,
         fallbackToPopupType: type === "success" ? "success" : "error",
         timerKey: "signup"
       });
       return;
     }
-
-    const banner = getById("signupBanner");
-    if (banner) banner.classList.add("d-none");
-    showToast(message, type === "success" ? "success" : "error");
+    const el = document.getElementById("signupBanner");
+    if (el) el.classList.add("d-none");
+    toast(msg, type === "success" ? "success" : "error");
   }
 
-  function hideSignupBanner() {
+  // Hides the signup banner.
+  function hideBanner() {
     if (window.NetologyToast?.hideInlineBanner) {
       window.NetologyToast.hideInlineBanner("signupBanner", "signup");
       return;
     }
-
-    const banner = getById("signupBanner");
-    if (banner) banner.classList.add("d-none");
+    const el = document.getElementById("signupBanner");
+    if (el) el.classList.add("d-none");
   }
 
-  // PASSWORD TOGGLE
-
+  // Sets up show/hide buttons on password fields.
   function initPasswordToggles() {
-    const toggleButtons = document.querySelectorAll('[data-toggle="password"]');
+    document.querySelectorAll('[data-toggle="password"]').forEach((btn) => {
+      if (btn.dataset.bound === "true") return;
+      btn.dataset.bound = "true";
 
-    toggleButtons.forEach((buttonElement) => {
-      if (buttonElement.dataset.bound === "true") return;
-      buttonElement.dataset.bound = "true";
+      btn.addEventListener("click", () => {
+        const input = btn.getAttribute("data-target") ? document.querySelector(btn.getAttribute("data-target")) : null;
+        if (!input) return;
 
-      buttonElement.addEventListener("click", () => {
-        const targetSelector = buttonElement.getAttribute("data-target");
-        const inputElement = targetSelector ? document.querySelector(targetSelector) : null;
-        if (!inputElement) return;
+        const hidden = input.type === "password";
+        input.type = hidden ? "text" : "password";
 
-        const isPasswordHidden = inputElement.getAttribute("type") === "password";
-        inputElement.setAttribute("type", isPasswordHidden ? "text" : "password");
-
-        const iconElement = buttonElement.querySelector("i");
-        if (iconElement) iconElement.className = isPasswordHidden ? "bi bi-eye-slash" : "bi bi-eye";
+        const icon = btn.querySelector("i");
+        if (icon) icon.className = hidden ? "bi bi-eye-slash" : "bi bi-eye";
       });
     });
   }
 
-  // FORM HELPERS
-
-  function getSignupFieldRefs() {
+  // Grabs all form field elements.
+  function getFields() {
     const refs = {};
-    SIGNUP_FIELD_IDS.forEach((fieldId) => {
-      refs[fieldId] = getById(fieldId);
-    });
+    FIELDS.forEach((f) => { refs[f.id] = document.getElementById(f.id); });
     return refs;
   }
 
-  function collectSignupFormValues(fieldRefs) {
-    return {
-      firstName: String(fieldRefs.first_name?.value || "").trim(),
-      lastName: String(fieldRefs.last_name?.value || "").trim(),
-      username: String(fieldRefs.username?.value || "").trim(),
-      dateOfBirth: String(fieldRefs.dob?.value || "").trim(),
-      email: String(fieldRefs.email?.value || "").trim(),
-      password: String(fieldRefs.password?.value || "").trim(),
-      confirmPassword: String(fieldRefs.confirm_password?.value || "").trim()
-    };
+  // Reads and trims all form field values.
+  function getValues(fields) {
+    const vals = {};
+    FIELDS.forEach((f) => { vals[f.id] = String(fields[f.id]?.value || "").trim(); });
+    return vals;
   }
 
-  function clearInvalidStates(inputElements) {
-    (inputElements || []).forEach((inputElement) => setInvalidState(inputElement, false));
+  // Finds the first empty required field.
+  function findMissing(vals) {
+    return FIELDS.find((f) => !vals[f.id]) || null;
   }
 
-  function findMissingRequiredSignupField(signupValues) {
-    return REQUIRED_SIGNUP_FIELDS.find((field) => !signupValues[field.valueKey]) || null;
-  }
-
-  function validateSignupIdentityValues(signupValues, includeRequiredChecks = true) {
-    if (includeRequiredChecks) {
-      const missingField = findMissingRequiredSignupField(signupValues);
-      if (missingField) {
-        return {
-          fieldId: missingField.fieldId,
-          message: missingField.message
-        };
-      }
+  // Checks all fields, returns the first error or null.
+  function validate(vals, checkRequired = true) {
+    if (checkRequired) {
+      const missing = findMissing(vals);
+      if (missing) return missing;
     }
-
-    if (signupValues.email && !isValidEmail(signupValues.email)) {
-      return { fieldId: "email", message: "That email format does not look right. Please check and try again." };
+    if (vals.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(vals.email.trim())) {
+      return { id: "email", msg: "That email format does not look right. Please check and try again." };
     }
-
-    if (signupValues.password && signupValues.password.length < 8) {
-      return { fieldId: "password", message: "Password must be at least 8 characters." };
+    if (vals.password && vals.password.length < 8) {
+      return { id: "password", msg: "Password must be at least 8 characters." };
     }
-
-    if (signupValues.password && signupValues.confirmPassword && signupValues.password !== signupValues.confirmPassword) {
-      return { fieldId: "confirm_password", message: "Your passwords do not match. Please confirm your password." };
+    if (vals.password && vals.confirm_password && vals.password !== vals.confirm_password) {
+      return { id: "confirm_password", msg: "Your passwords do not match. Please confirm your password." };
     }
-
     return null;
   }
 
-  function getSelectedSignupLevelInput() {
+  // Gets the checked level radio button.
+  function selectedLevel() {
     return document.querySelector('input[name="level"]:checked');
   }
 
-  function getSelectedSignupReasons() {
-    return Array.from(document.querySelectorAll('input[name="reasons"]:checked'))
-      .map((inputElement) => inputElement.value);
+  // Gets all checked reason checkboxes as an array of values.
+  function selectedReasons() {
+    return Array.from(document.querySelectorAll('input[name="reasons"]:checked')).map((el) => el.value);
   }
 
-  // OVERLAY & CONFETTI
-
-  function openOverlay(overlayId) {
-    const overlay = getById(overlayId);
-    if (!overlay) return null;
-
-    overlay.classList.remove("d-none");
-    overlay.setAttribute("aria-hidden", "false");
+  // Shows a full-screen overlay by id.
+  function openOverlay(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    el.classList.remove("d-none");
+    el.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
-    return overlay;
+    return el;
   }
 
-  function fillSignupConfetti(overlayElement) {
-    if (!overlayElement) return;
-
-    const confettiContainer = overlayElement.querySelector(".net-signup-success-confetti");
-    if (!confettiContainer || confettiContainer.childElementCount > 0) return;
+  // Fills the success overlay with confetti pieces.
+  function fillConfetti(overlay) {
+    if (!overlay) return;
+    const box = overlay.querySelector(".net-signup-success-confetti");
+    if (!box || box.childElementCount > 0) return;
 
     const colors = ["#06b6d4", "#14b8a6", "#38bdf8", "#67e8f9", "#a78bfa", "#0d9488", "#22d3ee"];
-
-    for (let pieceIndex = 0; pieceIndex < 55; pieceIndex += 1) {
-      const confettiPiece = document.createElement("span");
+    for (let i = 0; i < 55; i++) {
+      const piece = document.createElement("span");
       const size = 4 + Math.random() * 8;
-
-      confettiPiece.style.left = `${Math.random() * 100}%`;
-      confettiPiece.style.width = `${size}px`;
-      confettiPiece.style.height = `${size}px`;
-      confettiPiece.style.background = colors[Math.floor(Math.random() * colors.length)];
-      confettiPiece.style.animationDelay = `${Math.random() * 2}s`;
-      confettiPiece.style.animationDuration = `${2.5 + Math.random() * 2.5}s`;
-      confettiPiece.style.boxShadow = `0 0 ${size}px ${colors[Math.floor(Math.random() * colors.length)]}`;
-
-      confettiContainer.appendChild(confettiPiece);
+      piece.style.left = `${Math.random() * 100}%`;
+      piece.style.width = `${size}px`;
+      piece.style.height = `${size}px`;
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.animationDelay = `${Math.random() * 2}s`;
+      piece.style.animationDuration = `${2.5 + Math.random() * 2.5}s`;
+      piece.style.boxShadow = `0 0 ${size}px ${colors[Math.floor(Math.random() * colors.length)]}`;
+      box.appendChild(piece);
     }
   }
 
-  // AUTO-LOGIN AFTER SIGNUP
+  // Logs the user in right after signup so they skip the login page.
+  async function autoLogin(email, password) {
+    const body = new FormData();
+    body.append("email", email);
+    body.append("password", password);
 
-  async function tryAutoLoginAfterSignup(email, password, selectedTier) {
-    const loginFormData = new FormData();
-    loginFormData.append("email", email);
-    loginFormData.append("password", password);
+    const loginPath = ENDPOINTS.auth?.login || "/login";
+    const res = await fetch(API_BASE ? `${API_BASE}${loginPath}` : loginPath, { method: "POST", body });
+    const data = await res.json();
+    if (!data?.success) return false;
 
-    const response = await fetch(apiUrl(authPath("login", "/login")), {
-      method: "POST",
-      body: loginFormData
-    });
+    const safe = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
 
-    const loginData = await response.json();
-    if (!loginData?.success) return false;
-
-    const normalizedEmail = normalizeEmail(email);
-    const unlockTier = normalizeTier(selectedTier || loginData.start_level || "novice");
-
-    const sessionPayload = {
-      email: normalizedEmail,
-      first_name: loginData.first_name,
-      last_name: loginData.last_name,
-      username: loginData.username,
-      level: loginData.level,
-      rank: loginData.rank || loginData.level,
-      numeric_level: Number.isFinite(Number(loginData.numeric_level)) ? Number(loginData.numeric_level) : 1,
-      xp: Number.isFinite(Number(loginData.xp)) ? Number(loginData.xp) : 0,
-      xp_into_level: Number.isFinite(Number(loginData.xp_into_level)) ? Number(loginData.xp_into_level) : 0,
-      next_level_xp: Number.isFinite(Number(loginData.next_level_xp)) ? Number(loginData.next_level_xp) : 100,
+    const session = {
+      email: String(email || "").trim().toLowerCase(),
+      first_name: data.first_name,
+      last_name: data.last_name,
+      username: data.username,
+      level: data.level,
+      rank: data.rank || data.level,
+      numeric_level: safe(data.numeric_level) || 1,
+      xp: safe(data.xp),
+      xp_into_level: safe(data.xp_into_level),
+      next_level_xp: safe(data.next_level_xp) || 100,
       is_first_login: true,
       onboarding_completed: false
     };
 
-    localStorage.setItem("user", JSON.stringify(sessionPayload));
-    localStorage.setItem("netology_user", JSON.stringify(sessionPayload));
+    localStorage.setItem("user", JSON.stringify(session));
+    localStorage.setItem("netology_user", JSON.stringify(session));
 
-    const onboardingApi = window.NetologyOnboarding || null;
-    if (onboardingApi?.stageUser) {
-      onboardingApi.stageUser(normalizedEmail, "dashboard");
-    }
-    if (onboardingApi?.setSessionActive) {
-      onboardingApi.setSessionActive(true);
-    }
+    const onboarding = window.NetologyOnboarding || null;
+    if (onboarding?.stageUser) onboarding.stageUser(session.email, "dashboard");
+    if (onboarding?.setSessionActive) onboarding.setSessionActive(true);
 
     return true;
   }
 
-  // WIZARD
+  // Sets up the multi-step signup wizard.
+  function initWizard(form) {
+    const pages = Array.from(document.querySelectorAll(".net-step-page"));
+    const label = document.getElementById("stepLabel");
+    const title = document.getElementById("stepTitle");
+    const bar = document.getElementById("stepProgress");
+    const backBtn = document.getElementById("backBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const submitBtn = document.getElementById("submitBtn");
 
-  function initSignupWizard(formElement) {
-    const signupPages = Array.from(document.querySelectorAll(".net-step-page"));
-    const stepLabelElement = getById("stepLabel");
-    const stepTitleElement = getById("stepTitle");
-    const stepProgressElement = getById("stepProgress");
-    const backButton = getById("backBtn");
-    const nextButton = getById("nextBtn");
-    const submitButton = getById("submitBtn");
+    const total = 4;
+    let step = 1;
 
-    const totalSteps = 4;
-    let currentStep = 1;
+    if (!form || !pages.length || !label || !title || !bar || !backBtn || !nextBtn || !submitBtn) return;
 
-    if (!formElement || !signupPages.length || !stepLabelElement || !stepTitleElement || !stepProgressElement || !backButton || !nextButton || !submitButton) {
-      return;
-    }
-
-    // Clear invalid on input
-    SIGNUP_FIELD_IDS.forEach((fieldId) => {
-      const inputElement = getById(fieldId);
-      if (!inputElement) return;
-      inputElement.addEventListener("input", () => setInvalidState(inputElement, false));
+    // Clear red border when user starts typing
+    FIELDS.forEach((f) => {
+      const el = document.getElementById(f.id);
+      if (el) el.addEventListener("input", () => el.classList.remove("is-invalid"));
     });
 
-    backButton.addEventListener("click", () => {
-      if (currentStep <= 1) return;
-      showStep(currentStep - 1);
-    });
-
-    nextButton.addEventListener("click", () => {
-      if (!validateStep(currentStep)) return;
-      if (currentStep >= totalSteps) return;
-      showStep(currentStep + 1);
-    });
+    backBtn.addEventListener("click", () => { if (step > 1) showStep(step - 1); });
+    nextBtn.addEventListener("click", () => { if (validateStep(step) && step < total) showStep(step + 1); });
 
     showStep(1);
 
-    function showStep(stepNumber) {
-      currentStep = stepNumber;
+    // Switches to step n and updates the UI.
+    function showStep(n) {
+      step = n;
+      pages.forEach((p) => p.classList.add("d-none"));
+      const page = document.querySelector(`.net-step-page[data-step="${step}"]`);
+      if (page) page.classList.remove("d-none");
 
-      signupPages.forEach((pageElement) => pageElement.classList.add("d-none"));
-      const currentPage = document.querySelector(`.net-step-page[data-step="${currentStep}"]`);
-      if (currentPage) currentPage.classList.remove("d-none");
+      label.textContent = `Step ${step} of ${total}`;
+      title.textContent = ["Your details", "Your level", "Your reasons", "Review"][step - 1] || "";
+      bar.style.width = `${(step / total) * 100}%`;
 
-      stepLabelElement.textContent = `Step ${currentStep} of ${totalSteps}`;
-      stepTitleElement.textContent = SIGNUP_WIZARD_STEP_TITLES[currentStep] || "";
-      stepProgressElement.style.width = `${(currentStep / totalSteps) * 100}%`;
-
-      const stepPills = document.querySelectorAll(".net-step-pill");
-      stepPills.forEach((pillElement) => {
-        const pillStep = Number(pillElement.getAttribute("data-pill") || "0");
-        pillElement.classList.toggle("is-active", pillStep === currentStep);
-        pillElement.classList.toggle("is-done", pillStep < currentStep);
+      // Mark step pills as active/done
+      document.querySelectorAll(".net-step-pill").forEach((pill) => {
+        const s = Number(pill.getAttribute("data-pill") || 0);
+        pill.classList.toggle("is-active", s === step);
+        pill.classList.toggle("is-done", s < step);
       });
 
-      backButton.disabled = currentStep === 1;
+      backBtn.disabled = step === 1;
+      nextBtn.classList.toggle("d-none", step === total);
+      submitBtn.classList.toggle("d-none", step !== total);
 
-      if (currentStep === totalSteps) {
-        nextButton.classList.add("d-none");
-        submitButton.classList.remove("d-none");
-        fillReviewValues();
-      } else {
-        nextButton.classList.remove("d-none");
-        submitButton.classList.add("d-none");
-      }
-
-      hideSignupBanner();
+      if (step === total) fillReview();
+      hideBanner();
     }
 
-    function validateStep(stepNumber) {
-      if (stepNumber === 1) return validateStepOne();
-      if (stepNumber === 2) return validateStepTwo();
-      if (stepNumber === 3) return validateStepThree();
+    // Runs the right validation for the current step.
+    function validateStep(n) {
+      if (n === 1) return validateDetails();
+      if (n === 2) return validateLevel();
+      if (n === 3) return validateReasons();
       return true;
     }
 
-    function validateStepOne() {
-      const fieldRefs = getSignupFieldRefs();
-      const signupValues = collectSignupFormValues(fieldRefs);
-      const issue = validateSignupIdentityValues(signupValues);
-
-      clearInvalidStates(Object.values(fieldRefs));
-
+    // Checks all personal detail fields on step 1.
+    function validateDetails() {
+      const fields = getFields();
+      const vals = getValues(fields);
+      const issue = validate(vals);
+      Object.values(fields).forEach((el) => { if (el) el.classList.remove("is-invalid"); });
       if (issue) {
-        const invalidInput = getById(issue.fieldId);
-        setInvalidState(invalidInput, true);
-        showSignupBanner(issue.message, "warning");
-        invalidInput?.focus();
+        const el = document.getElementById(issue.id);
+        if (el) el.classList.add("is-invalid");
+        showBanner(issue.msg, "warning");
+        el?.focus();
         return false;
       }
-
       return true;
     }
 
-    function validateStepTwo() {
-      const selectedLevel = getSelectedSignupLevelInput();
-      if (selectedLevel) return true;
-      showSignupBanner("Please choose your starting level.", "warning");
+    // Makes sure a level is picked on step 2.
+    function validateLevel() {
+      if (selectedLevel()) return true;
+      showBanner("Please choose your starting level.", "warning");
       return false;
     }
 
-    function validateStepThree() {
-      const selectedReasons = getSelectedSignupReasons();
-      if (selectedReasons.length > 0) return true;
-      showSignupBanner("Please select at least one reason to continue.", "warning");
+    // Makes sure at least one reason is checked on step 3.
+    function validateReasons() {
+      if (selectedReasons().length > 0) return true;
+      showBanner("Please select at least one reason to continue.", "warning");
       return false;
     }
 
-    function setReviewText(elementId, value) {
-      const element = getById(elementId);
-      if (element) element.textContent = value;
-    }
-
-    function fillReviewValues() {
-      SIGNUP_REVIEW_FIELDS.forEach(({ reviewId, inputId }) => {
-        setReviewText(reviewId, getById(inputId)?.value || "-");
+    // Fills the review page with the user's entered values.
+    function fillReview() {
+      [["reviewFirst", "first_name"], ["reviewLast", "last_name"], ["reviewUser", "username"],
+       ["reviewEmail", "email"], ["reviewDob", "dob"]].forEach(([rid, fid]) => {
+        const el = document.getElementById(rid);
+        if (el) el.textContent = document.getElementById(fid)?.value || "-";
       });
-
-      const selectedLevel = getSelectedSignupLevelInput();
-      setReviewText("reviewLevel", selectedLevel ? selectedLevel.value : "-");
-
-      const selectedReasons = getSelectedSignupReasons();
-      setReviewText("reviewReasons", selectedReasons.length ? selectedReasons.join(", ") : "None selected");
+      const lvl = selectedLevel();
+      const r = document.getElementById("reviewLevel");
+      if (r) r.textContent = lvl ? lvl.value : "-";
+      const reasons = selectedReasons();
+      const rr = document.getElementById("reviewReasons");
+      if (rr) rr.textContent = reasons.length ? reasons.join(", ") : "None selected";
     }
   }
 
-  function handleSignupSubmit(formElement) {
-    if (!formElement) return;
+  // Handles the final form submit — register, auto-login, show success.
+  function initSubmit(form) {
+    if (!form) return;
 
-    formElement.addEventListener("submit", async (event) => {
-      event.preventDefault();
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-      const fieldRefs = getSignupFieldRefs();
-      const signupValues = collectSignupFormValues(fieldRefs);
-      const selectedLevel = getSelectedSignupLevelInput();
-      const selectedReasons = getSelectedSignupReasons();
+      const fields = getFields();
+      const vals = getValues(fields);
+      const level = selectedLevel();
+      const reasons = selectedReasons();
 
-      if (findMissingRequiredSignupField(signupValues)) {
-        showSignupBanner("Please complete all required fields before creating your account.", "warning");
+      if (findMissing(vals)) {
+        showBanner("Please complete all required fields before creating your account.", "warning");
         return;
       }
+      const issue = validate(vals, false);
+      if (issue) { showBanner(issue.msg, "warning"); return; }
+      if (!level) { showBanner("Please choose your starting level.", "warning"); return; }
+      if (!reasons.length) { showBanner("Please select at least one reason. This helps personalise your learning.", "warning"); return; }
 
-      const valueIssue = validateSignupIdentityValues(signupValues, false);
-      if (valueIssue) {
-        showSignupBanner(valueIssue.message, "warning");
-        return;
-      }
-
-      if (!selectedLevel) {
-        showSignupBanner("Please choose your starting level.", "warning");
-        return;
-      }
-
-      if (selectedReasons.length === 0) {
-        showSignupBanner("Please select at least one reason. This helps personalise your learning.", "warning");
-        return;
-      }
-
-      const selectedTier = normalizeTier(selectedLevel.value, "novice");
-      localStorage.setItem("unlock_tier_pending", selectedTier);
+      const raw = String(level.value || "").trim().toLowerCase();
+      const tier = ["novice", "intermediate", "advanced"].includes(raw) ? raw : "novice";
+      localStorage.setItem("unlock_tier_pending", tier);
 
       try {
-        const response = await fetch(apiUrl(authPath("register", "/register")), {
-          method: "POST",
-          body: new FormData(formElement)
-        });
+        const regPath = ENDPOINTS.auth?.register || "/register";
+        const res = await fetch(API_BASE ? `${API_BASE}${regPath}` : regPath, { method: "POST", body: new FormData(form) });
+        const data = await res.json();
 
-        const responseData = await response.json();
-
-        if (!responseData?.success) {
-          showToast(responseData?.message || "Signup failed. Try again.", "error");
+        if (!data?.success) {
+          toast(data?.message || "Signup failed. Try again.", "error");
           return;
         }
 
-        let autoLoginWorked = false;
-        try {
-          autoLoginWorked = await tryAutoLoginAfterSignup(signupValues.email, signupValues.password, selectedTier);
-        } catch {
-          autoLoginWorked = false;
-        }
+        let loggedIn = false;
+        try { loggedIn = await autoLogin(vals.email, vals.password); } catch { loggedIn = false; }
 
-        const overlayElement = openOverlay("signupSuccessOverlay");
-        if (overlayElement) {
-          fillSignupConfetti(overlayElement);
-          setTimeout(() => {
-            window.location.href = autoLoginWorked ? "dashboard.html" : "login.html";
-          }, 3800);
+        const overlay = openOverlay("signupSuccessOverlay");
+        if (overlay) {
+          fillConfetti(overlay);
+          setTimeout(() => { window.location.href = loggedIn ? "dashboard.html" : "login.html"; }, 3800);
           return;
         }
 
-        showToast(
-          autoLoginWorked ? "Account created! Heading to your dashboard..." : "Account created! Please sign in.",
-          "success"
-        );
-
-        setTimeout(() => {
-          window.location.href = autoLoginWorked ? "dashboard.html" : "login.html";
-        }, 1200);
+        toast(loggedIn ? "Account created! Heading to your dashboard..." : "Account created! Please sign in.", "success");
+        setTimeout(() => { window.location.href = loggedIn ? "dashboard.html" : "login.html"; }, 1200);
       } catch {
-        showToast("Server error. Please try again.", "error");
+        toast("Server error. Please try again.", "error");
       }
     });
   }
 
-  // INITIALIZATION
-
-  function initSignupPage() {
-    const signupFormElement = getById("signupForm");
-    if (signupFormElement) {
-      initSignupWizard(signupFormElement);
-      handleSignupSubmit(signupFormElement);
-      initPasswordToggles();
-    }
+  // Kicks everything off when the page loads.
+  function init() {
+    const form = document.getElementById("signupForm");
+    if (!form) return;
+    initWizard(form);
+    initSubmit(form);
+    initPasswordToggles();
   }
 
-  // Run when DOM is ready
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initSignupPage, { once: true });
+    document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {
-    initSignupPage();
+    init();
   }
 })();

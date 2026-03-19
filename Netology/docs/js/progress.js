@@ -1,11 +1,4 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: progress.js
-Purpose: Shows user progress with category tabs and split in-progress/completed views.
-Notes: Simplified structure, improved naming, and kept the same progress behavior.
----------------------------------------------------------
-*/
+// progress.js – progress page: course/lesson/quiz/challenge tabs, charts, and completions
 
 (() => {
   "use strict";

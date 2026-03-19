@@ -1,13 +1,11 @@
-"""
-db.py – Database connection helper
-"""
+# db.py — Database connection helper.
 
 import os
 import psycopg
 
 
 def get_db_connection():
-    """Return a new PostgreSQL connection."""
+    # Open a new PostgreSQL connection using DATABASE_URL or individual env vars.
     dsn = os.getenv("DATABASE_URL") or (
         f"host={os.getenv('DB_HOST', 'localhost')} "
         f"dbname={os.getenv('DB_NAME', 'postgres')} "

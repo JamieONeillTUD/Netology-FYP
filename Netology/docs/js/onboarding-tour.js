@@ -1,11 +1,4 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: onboarding-tour.js
-Purpose: Onboarding runtime (tour UI, stage progression, and completion markers).
-Notes: Contains built-in default flow/URL/step config used across onboarding pages.
----------------------------------------------------------
-*/
+// onboarding-tour.js – onboarding tour UI, stage progression, and completion tracking
 
 (() => {
   "use strict";

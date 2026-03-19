@@ -1,295 +1,199 @@
-// Login form and session setup
+// login.js — Login form and session setup.
 
 (() => {
   "use strict";
 
-  // CONFIGURATION
-
   const API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   const ENDPOINTS = window.ENDPOINTS || {};
 
-  // UTILITIES
-
-  function getById(elementId) {
-    return document.getElementById(elementId);
+  // Toggles the is-invalid class on an input.
+  function setInvalid(el, on) {
+    if (el) el.classList.toggle("is-invalid", Boolean(on));
   }
 
-  function parseJsonSafely(jsonString) {
-    try {
-      return jsonString ? JSON.parse(jsonString) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  function normalizeEmail(value) {
-    return String(value || "").trim().toLowerCase();
-  }
-
-  function isValidEmail(value) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || "").trim());
-  }
-
-  function apiUrl(path) {
-    return API_BASE ? `${API_BASE}${path}` : path;
-  }
-
-  function authPath(pathKey, fallbackPath) {
-    return ENDPOINTS.auth?.[pathKey] || fallbackPath;
-  }
-
-  function setInvalidState(inputElement, isInvalid) {
-    if (!inputElement) return;
-    inputElement.classList.toggle("is-invalid", Boolean(isInvalid));
-  }
-
-  // BANNER & TOAST HELPERS
-
-  function showToast(message, type = "info") {
-    if (!message) return;
+  // Shows a popup toast, falls back to alert.
+  function toast(msg, type) {
+    if (!msg) return;
     if (window.NetologyToast?.showMessageToast) {
-      window.NetologyToast.showMessageToast(String(message), type, 3200);
+      window.NetologyToast.showMessageToast(String(msg), type || "info", 3200);
       return;
     }
-    alert(String(message));
+    alert(String(msg));
   }
 
-  function showLoginBanner(message, type = "error") {
+  // Shows the inline banner at top of login form.
+  function showBanner(msg, type) {
+    type = type || "error";
     if (window.NetologyToast?.showInlineBanner) {
       window.NetologyToast.showInlineBanner({
-        bannerId: "loginBanner",
-        message,
-        type,
+        bannerId: "loginBanner", message: msg, type,
         timeoutMs: 4000,
         fallbackToPopupType: type === "success" ? "success" : "error",
         timerKey: "login"
       });
       return;
     }
-
-    const banner = getById("loginBanner");
-    if (banner) banner.classList.add("d-none");
-    showToast(message, type === "success" ? "success" : "error");
+    const el = document.getElementById("loginBanner");
+    if (el) el.classList.add("d-none");
+    toast(msg, type === "success" ? "success" : "error");
   }
 
-  // PASSWORD TOGGLE
-
+  // Sets up show/hide buttons on password fields.
   function initPasswordToggles() {
-    const toggleButtons = document.querySelectorAll('[data-toggle="password"]');
-
-    toggleButtons.forEach((buttonElement) => {
-      if (buttonElement.dataset.bound === "true") return;
-      buttonElement.dataset.bound = "true";
-
-      buttonElement.addEventListener("click", () => {
-        const targetSelector = buttonElement.getAttribute("data-target");
-        const inputElement = targetSelector ? document.querySelector(targetSelector) : null;
-        if (!inputElement) return;
-
-        const isPasswordHidden = inputElement.getAttribute("type") === "password";
-        inputElement.setAttribute("type", isPasswordHidden ? "text" : "password");
-
-        const iconElement = buttonElement.querySelector("i");
-        if (iconElement) iconElement.className = isPasswordHidden ? "bi bi-eye-slash" : "bi bi-eye";
+    document.querySelectorAll('[data-toggle="password"]').forEach((btn) => {
+      if (btn.dataset.bound === "true") return;
+      btn.dataset.bound = "true";
+      btn.addEventListener("click", () => {
+        const input = btn.getAttribute("data-target");
+        const el = input ? document.querySelector(input) : null;
+        if (!el) return;
+        const hidden = el.getAttribute("type") === "password";
+        el.setAttribute("type", hidden ? "text" : "password");
+        const icon = btn.querySelector("i");
+        if (icon) icon.className = hidden ? "bi bi-eye-slash" : "bi bi-eye";
       });
     });
   }
 
-  // OVERLAY & SESSION
-
-  function openOverlay(overlayId) {
-    const overlay = getById(overlayId);
-    if (!overlay) return null;
-
+  // Shows the success overlay with the user's first name.
+  function showOverlay(firstName) {
+    const overlay = document.getElementById("loginSuccessOverlay");
+    if (!overlay) return false;
     overlay.classList.remove("d-none");
     overlay.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
-    return overlay;
-  }
 
-  function showLoginSuccessOverlay(firstName) {
-    const overlayElement = openOverlay("loginSuccessOverlay");
-    if (!overlayElement) return false;
-
-    const nameElement = getById("loginSuccessName");
-    if (nameElement) {
-      const safeFirstName = String(firstName || "").trim();
-      nameElement.textContent = safeFirstName || "there";
-    }
-
+    const name = document.getElementById("loginSuccessName");
+    if (name) name.textContent = String(firstName || "").trim() || "there";
     return true;
   }
 
-  function persistUserSession(userPayload) {
-    if (!userPayload) return;
-
-    localStorage.setItem("user", JSON.stringify(userPayload));
-    localStorage.setItem("netology_user", JSON.stringify(userPayload));
-    if (userPayload.email) localStorage.setItem("netology_last_email", String(userPayload.email));
+  // Saves user data to localStorage.
+  function saveSession(user) {
+    if (!user) return;
+    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("netology_user", JSON.stringify(user));
+    if (user.email) localStorage.setItem("netology_last_email", String(user.email));
   }
 
-  function buildLoginPayload(loginData, email) {
+  // Builds a clean user object from the server response.
+  function buildUser(data, email) {
+    const num = (v) => Number.isFinite(Number(v)) ? Number(v) : undefined;
     return {
       email,
-      first_name: loginData.first_name,
-      last_name: loginData.last_name,
-      username: loginData.username,
-      level: loginData.level,
-      rank: loginData.rank || loginData.level,
-      numeric_level: Number.isFinite(Number(loginData.numeric_level)) ? Number(loginData.numeric_level) : undefined,
-      xp: Number.isFinite(Number(loginData.xp)) ? Number(loginData.xp) : 0,
-      xp_into_level: Number.isFinite(Number(loginData.xp_into_level)) ? Number(loginData.xp_into_level) : undefined,
-      next_level_xp: Number.isFinite(Number(loginData.next_level_xp)) ? Number(loginData.next_level_xp) : undefined,
-      is_first_login: Boolean(loginData.is_first_login),
-      onboarding_completed: Boolean(loginData.onboarding_completed)
+      first_name: data.first_name,
+      last_name: data.last_name,
+      username: data.username,
+      level: data.level,
+      rank: data.rank || data.level,
+      numeric_level: num(data.numeric_level),
+      xp: num(data.xp) ?? 0,
+      xp_into_level: num(data.xp_into_level),
+      next_level_xp: num(data.next_level_xp),
+      is_first_login: Boolean(data.is_first_login),
+      onboarding_completed: Boolean(data.onboarding_completed)
     };
   }
 
-  // ONBOARDING
+  // Sets up the login form submit handler.
+  function initForm(form) {
+    if (!form) return;
 
-  function getOnboardingApi() {
-    return window.NetologyOnboarding || null;
-  }
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-  function stageOnboardingForUser(email) {
-    const onboardingApi = getOnboardingApi();
-    if (!onboardingApi?.stageUser) return;
-    onboardingApi.stageUser(email, "dashboard");
-  }
+      const emailEl = document.getElementById("email");
+      const passwordEl = document.getElementById("password");
+      const email = String(emailEl?.value || "").trim();
+      const password = String(passwordEl?.value || "").trim();
 
-  function setOnboardingSessionActive(isActive) {
-    const onboardingApi = getOnboardingApi();
-    if (!onboardingApi?.setSessionActive) return;
-    onboardingApi.setSessionActive(isActive);
-  }
+      setInvalid(emailEl, false);
+      setInvalid(passwordEl, false);
 
-  function isOnboardingDoneForUser(email) {
-    const onboardingApi = getOnboardingApi();
-    if (!onboardingApi?.isUserDone) return false;
-    return Boolean(onboardingApi.isUserDone(email));
-  }
-
-  // LOGIN HANDLER
-
-  function handleLoginSubmit(formElement) {
-    if (!formElement) return;
-
-    formElement.addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const emailInput = getById("email");
-      const passwordInput = getById("password");
-
-      const email = String(emailInput?.value || "").trim();
-      const password = String(passwordInput?.value || "").trim();
-
-      setInvalidState(emailInput, false);
-      setInvalidState(passwordInput, false);
-
-      // Validation
+      // Validate fields.
       if (!email) {
-        setInvalidState(emailInput, true);
-        showLoginBanner("Please enter your email address.", "warning");
-        emailInput?.focus();
+        setInvalid(emailEl, true);
+        showBanner("Please enter your email address.", "warning");
+        emailEl?.focus();
         return;
       }
-
-      if (!isValidEmail(email)) {
-        setInvalidState(emailInput, true);
-        showLoginBanner("That email format does not look right. Please check and try again.", "warning");
-        emailInput?.focus();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+        setInvalid(emailEl, true);
+        showBanner("That email format does not look right. Please check and try again.", "warning");
+        emailEl?.focus();
         return;
       }
-
       if (!password) {
-        setInvalidState(passwordInput, true);
-        showLoginBanner("Please enter your password.", "warning");
-        passwordInput?.focus();
+        setInvalid(passwordEl, true);
+        showBanner("Please enter your password.", "warning");
+        passwordEl?.focus();
         return;
       }
-
       if (password.length < 8) {
-        setInvalidState(passwordInput, true);
-        showLoginBanner("Password must be at least 8 characters.", "warning");
-        passwordInput?.focus();
+        setInvalid(passwordEl, true);
+        showBanner("Password must be at least 8 characters.", "warning");
+        passwordEl?.focus();
         return;
       }
 
-      // Submit
+      // Submit to server.
       try {
-        const response = await fetch(apiUrl(authPath("login", "/login")), {
-          method: "POST",
-          body: new FormData(formElement)
-        });
+        const path = ENDPOINTS.auth?.login || "/login";
+        const url = API_BASE ? `${API_BASE}${path}` : path;
+        const res = await fetch(url, { method: "POST", body: new FormData(form) });
+        const data = await res.json().catch(() => null);
 
-        const responseData = await response.json().catch(() => null);
-        if (!response.ok || !responseData?.success) {
-          const isInvalidCredentials = response.status === 401;
-          if (isInvalidCredentials) {
-            setInvalidState(emailInput, true);
-            setInvalidState(passwordInput, true);
-          }
-
-          showLoginBanner(
-            responseData?.message ||
-              (isInvalidCredentials
-                ? "Incorrect email or password. Please try again."
-                : "Login failed. Please try again in a moment."),
+        if (!res.ok || !data?.success) {
+          const wrongCreds = res.status === 401;
+          if (wrongCreds) { setInvalid(emailEl, true); setInvalid(passwordEl, true); }
+          showBanner(
+            data?.message || (wrongCreds
+              ? "Incorrect email or password. Please try again."
+              : "Login failed. Please try again in a moment."),
             "error"
           );
           return;
         }
 
-        // Build and persist session
-        const normalizedEmail = normalizeEmail(email);
-        const loginPayload = buildLoginPayload(responseData, normalizedEmail);
-        persistUserSession(loginPayload);
+        // Save session.
+        const cleanEmail = String(email).trim().toLowerCase();
+        const user = buildUser(data, cleanEmail);
+        saveSession(user);
 
-        // Onboarding setup
-        const hasEmailCompletion =
-          Boolean(responseData.onboarding_completed) ||
-          isOnboardingDoneForUser(normalizedEmail);
-
-        const shouldStartOnboarding =
-          !hasEmailCompletion &&
-          Boolean(responseData.is_first_login);
-
-        if (shouldStartOnboarding) {
-          stageOnboardingForUser(normalizedEmail);
-          setOnboardingSessionActive(true);
+        // Start onboarding for first-time users.
+        const onboarding = window.NetologyOnboarding;
+        const done = Boolean(data.onboarding_completed) || Boolean(onboarding?.isUserDone?.(cleanEmail));
+        if (!done && data.is_first_login) {
+          onboarding?.stageUser?.(cleanEmail, "dashboard");
+          onboarding?.setSessionActive?.(true);
         }
 
-        // Show success
-        const overlayShown = showLoginSuccessOverlay(responseData.first_name || loginPayload.first_name);
-        if (!overlayShown) {
-          const firstName = responseData.first_name || loginPayload.first_name || "there";
-          showLoginBanner(`Welcome back, ${firstName}! Redirecting...`, "success");
+        // Show success overlay or banner, then redirect.
+        const shown = showOverlay(data.first_name || user.first_name);
+        if (!shown) {
+          const name = data.first_name || user.first_name || "there";
+          showBanner(`Welcome back, ${name}! Redirecting...`, "success");
         }
 
-        setTimeout(() => {
-          window.location.href = "dashboard.html";
-        }, overlayShown ? 2200 : 900);
-      } catch (error) {
-        console.error("Login request failed", error);
-        showLoginBanner("Cannot reach the server right now. Please check your connection and try again.", "error");
+        setTimeout(() => { window.location.href = "dashboard.html"; }, shown ? 2200 : 900);
+      } catch (err) {
+        console.error("Login request failed", err);
+        showBanner("Cannot reach the server right now. Please check your connection and try again.", "error");
       }
     });
   }
 
-  // INITIALIZATION
-
-  function initLoginPage() {
-    const loginFormElement = getById("loginForm");
-    if (loginFormElement) {
-      handleLoginSubmit(loginFormElement);
-      initPasswordToggles();
-    }
+  // Start everything when the DOM is ready.
+  function init() {
+    const form = document.getElementById("loginForm");
+    if (!form) return;
+    initForm(form);
+    initPasswordToggles();
   }
 
-  // Run when DOM is ready
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initLoginPage, { once: true });
+    document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {
-    initLoginPage();
+    init();
   }
 })();

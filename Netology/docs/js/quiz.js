@@ -1,969 +1,548 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O’Neill
-File: quiz.js
-Purpose: Runs the quiz page from loading questions to saving results and awarding XP.
-Notes: Rewritten with simpler structure, clearer names, and short student-friendly comments.
----------------------------------------------------------
-*/
+// quiz.js – runs the quiz page: loads questions, checks answers, awards xp, shows results
 
-const RESULTS_PASS_PERCENT = 70;
-const DEFAULT_QUIZ_XP = 40;
-const ENDPOINTS = window.ENDPOINTS || {};
-const XP = window.NetologyXP || null;
+(function () {
+  "use strict";
 
-// Use shared API helper when available.
-const apiGet = typeof window.apiGet === "function"
-  ? window.apiGet
-  : async function apiGetFallback(path, params = {}) {
-    const base = String(window.API_BASE || "").trim();
-    const url = base
-      ? new URL(base.replace(/\/$/, "") + path)
-      : new URL(path, window.location.origin);
+  // course content is loaded by course_content.js before this file runs
+  const CONTENT   = typeof COURSE_CONTENT !== "undefined" ? COURSE_CONTENT : {};
+  const API_BASE  = window.API_BASE || "";
+  const ENDPOINTS = window.ENDPOINTS || {};
 
-    Object.entries(params).forEach(([paramName, paramValue]) => {
-      if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
-        url.searchParams.set(paramName, String(paramValue));
-      }
-    });
+  // read a json value out of localStorage, returns null if missing or broken
+  const readJson = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
 
-    const response = await fetch(url.toString());
-    return response.json();
-  };
-
-document.addEventListener("DOMContentLoaded", () => {
-  initQuizPage().catch((error) => {
-    console.error("Quiz init failed:", error);
+  document.addEventListener("DOMContentLoaded", () => {
+    init().catch((err) => console.error("quiz crashed on load:", err));
   });
-});
 
-// Main page startup.
-async function initQuizPage() {
-  const quizParams = readQuizParams();
-  const currentUser = readUserFromStorage();
+  // start up — read url params, find the quiz, render it
+  async function init() {
+    const params    = new URLSearchParams(window.location.search);
+    const courseId  = params.get("course") || params.get("course_id") || params.get("id");
+    const contentId = params.get("content_id") || params.get("content");
+    const lessonNum = Number(params.get("lesson") || 0);
 
-  if (!currentUser.email || !quizParams.courseId || !quizParams.lessonNumber) {
-    redirectToLogin();
-    return;
-  }
+    const user = readJson("netology_user") || readJson("user");
 
-  let resolvedCourse = resolveCourseContent(quizParams.courseId, quizParams.contentId);
-  if (!resolvedCourse.course || resolvedCourse.fallback) {
-    const titleHint = await fetchCourseTitle(quizParams.courseId);
-    if (titleHint) {
-      resolvedCourse = resolveCourseContent(quizParams.courseId, quizParams.contentId, titleHint);
+    if (!user?.email || !courseId || !lessonNum) {
+      window.location.href = "login.html";
+      return;
     }
-  }
 
-  const resolvedContentId = resolvedCourse.id || quizParams.contentId || quizParams.courseId;
-  syncContentIdInUrl(resolvedContentId, quizParams.contentId);
-
-  const backUrl = buildCourseUrl(quizParams.courseId, quizParams.lessonNumber, resolvedContentId);
-  wireBackLinks(backUrl);
-
-  const quizModel = resolvedCourse.course
-    ? getQuizModelFromCourse(resolvedCourse.course, quizParams.lessonNumber)
-    : null;
-
-  if (!quizModel || !Array.isArray(quizModel.questions) || quizModel.questions.length === 0) {
-    alert("No quiz found for this lesson yet.");
-    window.location.href = backUrl;
-    return;
-  }
-
-  const moduleTitle = resolvedCourse.course
-    ? resolveUnitTitle(resolvedCourse.course, quizParams.lessonNumber)
-    : "";
-
-  const state = createQuizState({
-    courseId: quizParams.courseId,
-    lessonNumber: quizParams.lessonNumber,
-    email: currentUser.email,
-    model: quizModel,
-    courseTitle: resolvedCourse.course?.title || "",
-    moduleTitle
-  });
-
-  const savedAttempt = readAttempt(state);
-  if (savedAttempt?.completed) {
-    renderResultsFromSaved(state, savedAttempt, backUrl);
-    return;
-  }
-
-  renderHeader(state);
-  wireActionButtons(state);
-  renderQuestion(state);
-}
-
-// Read course/lesson/content from query string.
-function readQuizParams() {
-  const params = new URLSearchParams(window.location.search);
-  return {
-    courseId: params.get("course") || params.get("course_id") || params.get("id"),
-    contentId: params.get("content_id") || params.get("content"),
-    lessonNumber: Number(params.get("lesson") || 0)
-  };
-}
-
-// Read current user from local storage.
-function readUserFromStorage() {
-  return (
-    parseJsonSafe(localStorage.getItem("netology_user"))
-    || parseJsonSafe(localStorage.getItem("user"))
-    || {}
-  );
-}
-
-// Keep content_id in the URL so links stay stable.
-function syncContentIdInUrl(resolvedContentId, currentContentId) {
-  if (!resolvedContentId) return;
-  if (String(resolvedContentId) === String(currentContentId || "")) return;
-
-  const url = new URL(window.location.href);
-  url.searchParams.set("content_id", String(resolvedContentId));
-  url.searchParams.delete("content");
-  history.replaceState(null, "", url.toString());
-}
-
-function redirectToLogin() {
-  window.location.href = "login.html";
-}
-
-// Build return link to course page.
-function buildCourseUrl(courseId, lessonNumber, contentId) {
-  const params = new URLSearchParams();
-  params.set("id", courseId);
-  if (contentId) params.set("content_id", contentId);
-  if (lessonNumber) params.set("lesson", String(lessonNumber));
-  return `course.html?${params.toString()}`;
-}
-
-// Try to read course title from API as a fallback resolver hint.
-async function fetchCourseTitle(courseId) {
-  if (!courseId) return "";
-
-  try {
-    const data = await apiGet(ENDPOINTS.courses?.courseDetails || "/course", { id: courseId });
-    if (data?.success && data?.title) return data.title;
-  } catch {
-    // Ignore API fallback errors.
-  }
-
-  return "";
-}
-
-// Resolve a course object from COURSE_CONTENT by id, content id, or title.
-function resolveCourseContent(courseId, contentId, titleHint) {
-  if (typeof COURSE_CONTENT === "undefined") {
-    return { course: null, id: null, fallback: false };
-  }
-
-  const content = COURSE_CONTENT || {};
-  const lookupKeys = [contentId, courseId].filter(Boolean).map(String);
-
-  for (const lookupKey of lookupKeys) {
-    if (content[lookupKey]) {
-      return {
-        course: content[lookupKey],
-        id: String(content[lookupKey]?.id || lookupKey),
-        fallback: false
-      };
+    // try content key first, then fall back to matching by id
+    let course = CONTENT[contentId] || CONTENT[courseId] || null;
+    if (!course) {
+      course = Object.values(CONTENT).find((c) => String(c.id) === String(courseId)) || null;
     }
-  }
 
-  const allCourses = Object.values(content);
-  const byId = allCourses.find((courseEntry) => {
-    return String(courseEntry?.id || "") === String(contentId || courseId);
-  });
-  if (byId) {
-    return {
-      course: byId,
-      id: String(byId.id || contentId || courseId),
-      fallback: false
+    // back-to-course url used by the back buttons
+    const resolvedId = course?.id ? String(course.id) : (contentId || courseId);
+    const backUrl = `course.html?id=${courseId}${resolvedId !== courseId ? "&content_id=" + resolvedId : ""}`;
+
+    if (!course) {
+      alert("Course content not found.");
+      window.location.href = backUrl;
+      return;
+    }
+
+    // find the quiz for this lesson number
+    const quiz = findQuiz(course, lessonNum);
+
+    if (!quiz || !quiz.questions?.length) {
+      alert("No quiz found for this lesson yet.");
+      window.location.href = backUrl;
+      return;
+    }
+
+    // get the module name for the breadcrumb
+    const unitTitle = findUnitTitle(course, lessonNum);
+
+    const state = {
+      courseId,
+      contentId: resolvedId,
+      lessonNum,
+      email: user.email,
+      courseTitle: course.title || "",
+      unitTitle,
+      title: quiz.title,
+      maxXp: quiz.xp,
+      questions: quiz.questions,
+      index: 0,    // which question we're on
+      selected: null, // which option the user clicked
+      answered: false,
+      answers: []    // true = correct, false = wrong, per question
     };
-  }
 
-  const normalizedTitle = String(titleHint || "").trim().toLowerCase();
-  if (normalizedTitle) {
-    const byTitle = allCourses.find((courseEntry) => {
-      return String(courseEntry?.title || "").trim().toLowerCase() === normalizedTitle;
-    });
-
-    if (byTitle) {
-      return {
-        course: byTitle,
-        id: String(byTitle.id || contentId || courseId),
-        fallback: false
-      };
-    }
-  }
-
-  const firstContentKey = Object.keys(content)[0];
-  if (firstContentKey) {
-    return {
-      course: content[firstContentKey],
-      id: String(content[firstContentKey]?.id || firstContentKey),
-      fallback: true
-    };
-  }
-
-  return { course: null, id: null, fallback: false };
-}
-
-// Find module title for breadcrumb by lesson number.
-function resolveUnitTitle(course, lessonNumber) {
-  if (!course || !Array.isArray(course.units)) return "";
-
-  let lessonCounter = 1;
-
-  for (let unitIndex = 0; unitIndex < course.units.length; unitIndex += 1) {
-    const unitEntry = course.units[unitIndex];
-    const unitTitle = unitEntry.title || unitEntry.name || `Module ${unitIndex + 1}`;
-
-    if (Array.isArray(unitEntry.lessons) && unitEntry.lessons.length) {
-      for (let lessonIndex = 0; lessonIndex < unitEntry.lessons.length; lessonIndex += 1) {
-        if (lessonCounter === lessonNumber) return unitTitle;
-        lessonCounter += 1;
-      }
-      continue;
+    // already done — skip straight to results
+    const saved = readJson(attemptKey(state));
+    if (saved?.completed) {
+      fillHeader(state);
+      wireBackLinks(backUrl);
+      showResults(state, saved);
+      return;
     }
 
-    if (Array.isArray(unitEntry.sections)) {
-      for (const section of unitEntry.sections) {
-        const sectionItems = Array.isArray(section.items) ? section.items : [];
-        for (const sectionItem of sectionItems) {
-          if (String(sectionItem?.type || "").toLowerCase() !== "learn") continue;
-          if (lessonCounter === lessonNumber) return unitTitle;
-          lessonCounter += 1;
+    fillHeader(state);
+    wireBackLinks(backUrl);
+    wireButtons(state);
+    renderQuestion(state);
+  }
+
+  // find the quiz for this lesson — learn items count up, quizzes share the number of the learn item before them
+  function findQuiz(course, lessonNum) {
+    if (!course?.units) return null;
+    let learnCount = 0;
+    let lastLearn  = 0;
+    for (const unit of course.units) {
+      // section-based structure
+      for (const section of (unit.sections || [])) {
+        for (const item of (section.items || [])) {
+          const type = String(item.type || "").toLowerCase();
+          if (type === "learn" || type === "lesson" || type === "text") { learnCount++; lastLearn = learnCount; }
+          if ((type === "quiz" || type === "test") && lastLearn === lessonNum) {
+            if (item.quiz?.questions) return normaliseQuiz(item.quiz);
+          }
         }
       }
+      // lesson-based structure
+      for (const lesson of (unit.lessons || [])) {
+        const type = String(lesson.type || "learn").toLowerCase();
+        if (type === "learn" || type === "lesson" || type === "text") { learnCount++; lastLearn = learnCount; }
+        if (lesson.quiz?.questions && lastLearn === lessonNum) return normaliseQuiz(lesson.quiz);
+      }
     }
-  }
-
-  return "";
-}
-
-function wireBackLinks(backUrl) {
-  const topLink = document.getElementById("backToCourseTop");
-  const bottomLink = document.getElementById("backToCourseBtn");
-  if (topLink) topLink.href = backUrl;
-  if (bottomLink) bottomLink.href = backUrl;
-}
-
-function renderHeader(state) {
-  setText("quizTitle", state.title);
-  setText("quizMeta", `Lesson ${state.lessonNumber} • ${state.questions.length} questions`);
-  setText("quizXpLabel", `${state.maxXp} XP`);
-  setText("breadcrumbCourse", state.courseTitle || "Course");
-  setText("breadcrumbModule", state.moduleTitle || "Module");
-  setText("breadcrumbQuiz", `Lesson ${state.lessonNumber}`);
-
-  document.body.classList.remove("net-loading");
-  document.body.classList.add("net-loaded");
-}
-
-function wireActionButtons(state) {
-  const submitButton = document.getElementById("submitBtn");
-  const nextButton = document.getElementById("nextBtn");
-  const retryButton = document.getElementById("retryBtn");
-
-  if (submitButton) submitButton.addEventListener("click", () => submitAnswer(state));
-  if (nextButton) nextButton.addEventListener("click", () => nextQuestion(state));
-  if (retryButton) retryButton.addEventListener("click", () => retryQuiz(state));
-}
-
-function createQuizState({ courseId, lessonNumber, email, model, courseTitle, moduleTitle }) {
-  return {
-    courseId,
-    lessonNumber,
-    email,
-    courseTitle,
-    moduleTitle,
-    title: model.title,
-    maxXp: model.xp,
-    questions: model.questions,
-    currentIndex: 0,
-    selected: null,
-    showFeedback: false,
-    answers: []
-  };
-}
-
-function parseJsonSafe(rawValue) {
-  try {
-    return JSON.parse(rawValue);
-  } catch {
     return null;
   }
-}
 
-// Refresh user data from server after backend XP updates.
-async function refreshUserFromServer(email) {
-  try {
-    if (!email) return;
-
-    const data = await apiGet(ENDPOINTS.auth?.userInfo || "/user-info", { email });
-    if (!data?.success) return;
-
-    const localUser = readUserFromStorage();
-    const unlockTier = String(
-      data.start_level
-      || localUser?.unlock_tier
-      || localUser?.unlock_level
-      || localUser?.unlockTier
-      || "novice"
-    ).trim().toLowerCase();
-
-    const mergedUser = {
-      ...(localUser || {}),
-      email,
-      first_name: data.first_name || localUser?.first_name,
-      last_name: data.last_name || localUser?.last_name,
-      username: data.username || localUser?.username,
-      xp: Number(data.xp || data.total_xp || localUser?.xp || 0),
-      unlock_tier: ["novice", "intermediate", "advanced"].includes(unlockTier) ? unlockTier : "novice"
-    };
-
-    localStorage.setItem("user", JSON.stringify(mergedUser));
-    localStorage.setItem("netology_user", JSON.stringify(mergedUser));
-  } catch {
-    // Ignore refresh errors.
-  }
-}
-
-// XP math helpers.
-function totalXpForLevel(level) {
-  return XP?.totalXpForLevel ? XP.totalXpForLevel(level) : 0;
-}
-
-function levelFromTotalXp(totalXp) {
-  return XP?.levelFromTotalXp ? XP.levelFromTotalXp(totalXp) : 1;
-}
-
-function rankForLevel(level) {
-  return XP?.rankForLevel ? XP.rankForLevel(level) : "Novice";
-}
-
-function applyXpToUser(user, xpToAdd) {
-  if (XP?.applyXpToUser) return XP.applyXpToUser(user, xpToAdd);
-  const nextTotalXp = Math.max(0, Number(user?.xp || 0) + Number(xpToAdd || 0));
-  return { ...(user || {}), xp: nextTotalXp };
-}
-
-function bumpUserXP(email, xpToAdd) {
-  if (!email || !xpToAdd) return;
-
-  const rawUser = localStorage.getItem("netology_user") || localStorage.getItem("user");
-  const localUser = parseJsonSafe(rawUser) || {};
-  if (localUser.email !== email) return;
-
-  const updatedUser = applyXpToUser(localUser, xpToAdd);
-
-  if (localStorage.getItem("netology_user")) {
-    localStorage.setItem("netology_user", JSON.stringify(updatedUser));
-  }
-  if (localStorage.getItem("user")) {
-    localStorage.setItem("user", JSON.stringify(updatedUser));
-  }
-}
-
-function logProgressEvent(email, payload) {
-  if (!email) return;
-
-  const entry = {
-    type: payload.type,
-    course_id: payload.course_id,
-    lesson_number: payload.lesson_number,
-    xp: Number(payload.xp || 0),
-    ts: Date.now(),
-    date: new Date().toISOString().slice(0, 10)
-  };
-
-  const key = `netology_progress_log:${email}`;
-  const list = parseJsonSafe(localStorage.getItem(key)) || [];
-  list.push(entry);
-  localStorage.setItem(key, JSON.stringify(list));
-}
-
-function trackCourseStart(email, courseId, lessonNumber) {
-  if (!email || !courseId) return;
-
-  const key = `netology_started_courses:${email}`;
-  const startedList = parseJsonSafe(localStorage.getItem(key)) || [];
-  const existingCourse = startedList.find((courseEntry) => String(courseEntry.id) === String(courseId));
-
-  const nextData = {
-    id: String(courseId),
-    lastViewed: Date.now(),
-    lastLesson: Number(lessonNumber || 0) || undefined
-  };
-
-  if (existingCourse) {
-    existingCourse.lastViewed = nextData.lastViewed;
-    if (nextData.lastLesson) existingCourse.lastLesson = nextData.lastLesson;
-  } else {
-    startedList.push(nextData);
-  }
-
-  localStorage.setItem(key, JSON.stringify(startedList));
-}
-
-// Mark this quiz as completed in local records.
-function markQuizCompletion(state, result) {
-  const key = `netology_completions:${state.email}:${state.courseId}`;
-  const data = parseJsonSafe(localStorage.getItem(key)) || { lesson: [], quiz: [], challenge: [] };
-  const quizList = data.quiz || data.quizzes || [];
-
-  if (quizList.includes(Number(state.lessonNumber))) return;
-
-  quizList.push(Number(state.lessonNumber));
-  data.quiz = quizList;
-  localStorage.setItem(key, JSON.stringify(data));
-
-  trackCourseStart(state.email, state.courseId, state.lessonNumber);
-  logProgressEvent(state.email, {
-    type: "quiz",
-    course_id: state.courseId,
-    lesson_number: state.lessonNumber,
-    xp: Number(result.earnedXP || 0)
-  });
-  bumpUserXP(state.email, Number(result.earnedXP || 0));
-}
-
-// Read quiz data from lesson content.
-function getQuizModelFromCourse(course, lessonNumber) {
-  if (!course || !Array.isArray(course.units)) return null;
-
-  const lessonEntries = [];
-  let lessonCounter = 1;
-
-  course.units.forEach((unitEntry) => {
-    const lessons = Array.isArray(unitEntry?.lessons) ? unitEntry.lessons : [];
-    lessons.forEach((lessonEntry) => {
-      lessonEntries.push({ index: lessonCounter, lesson: lessonEntry });
-      lessonCounter += 1;
-    });
-  });
-
-  const matchedEntry = lessonEntries.find((entry) => Number(entry.index) === Number(lessonNumber));
-  if (!matchedEntry?.lesson) return null;
-
-  const lessonQuiz = matchedEntry.lesson.quiz;
-  const defaultTitle = `Lesson ${lessonNumber} Quiz`;
-
-  if (lessonQuiz && Array.isArray(lessonQuiz.questions)) {
+  // normalise a raw quiz object into a consistent shape
+  function normaliseQuiz(raw) {
     return {
-      title: lessonQuiz.title || defaultTitle,
-      xp: Number(lessonQuiz.xp || DEFAULT_QUIZ_XP),
-      questions: lessonQuiz.questions.map((questionEntry, questionIndex) => ({
-        id: questionEntry.id || `q${questionIndex + 1}`,
-        question: questionEntry.question || "",
-        options: Array.isArray(questionEntry.options) ? questionEntry.options : [],
-        correctAnswer: Number(questionEntry.correctAnswer || 0),
-        explanation: questionEntry.explanation || ""
+      title: raw.title || "Quiz",
+      xp: Number(raw.xp || 40),
+      questions: raw.questions.map((q, i) => ({
+        id: q.id || `q${i + 1}`,
+        question: q.question || "",
+        options: Array.isArray(q.options) ? q.options : [],
+        correctAnswer: Number(q.correctAnswer ?? 0),
+        explanation: q.explanation || ""
       }))
     };
   }
 
-  if (lessonQuiz && lessonQuiz.question && Array.isArray(lessonQuiz.options)) {
-    return {
-      title: defaultTitle,
-      xp: Number(lessonQuiz.xp || DEFAULT_QUIZ_XP),
-      questions: [
-        {
-          id: "q1",
-          question: lessonQuiz.question,
-          options: lessonQuiz.options,
-          correctAnswer: Number(lessonQuiz.answer || 0),
-          explanation: lessonQuiz.explain || ""
-        }
-      ]
-    };
-  }
-
-  return null;
-}
-
-function attemptKey(state) {
-  return `netology_quiz_attempt:${state.email}:${state.courseId}:${state.lessonNumber}`;
-}
-
-function readAttempt(state) {
-  try {
-    return JSON.parse(localStorage.getItem(attemptKey(state)) || "null");
-  } catch {
-    return null;
-  }
-}
-
-function writeAttempt(state, payload) {
-  localStorage.setItem(attemptKey(state), JSON.stringify(payload));
-}
-
-// Render current question and answers.
-function renderQuestion(state) {
-  const currentQuestion = state.questions[state.currentIndex];
-  if (!currentQuestion) return;
-
-  state.selected = null;
-  state.showFeedback = false;
-
-  const totalQuestions = state.questions.length;
-  const progressPercent = Math.round((state.currentIndex / totalQuestions) * 100);
-
-  setText("quizStepText", `Question ${state.currentIndex + 1} of ${totalQuestions}`);
-  setText("quizPctText", `${progressPercent}%`);
-  setText("questionCountChip", `${state.currentIndex + 1}/${totalQuestions}`);
-  setText("questionText", currentQuestion.question || "Question");
-  setText("questionTag", "Question");
-
-  const progressBar = document.getElementById("quizProgressBar");
-  if (progressBar) progressBar.style.width = `${progressPercent}%`;
-
-  const optionsBox = document.getElementById("optionsBox");
-  if (!optionsBox) return;
-
-  optionsBox.replaceChildren();
-  currentQuestion.options.forEach((optionText, optionIndex) => {
-    const optionButton = buildOptionButton(state, optionText, optionIndex);
-    optionsBox.appendChild(optionButton);
-  });
-
-  hideFeedback();
-  setSubmitEnabled(false);
-  showNext(false);
-  renderMiniProgress(state);
-
-  animateCard("quizCard");
-
-  const progressCard = document.getElementById("progressCard");
-  if (progressCard) progressCard.classList.remove("d-none");
-}
-
-function buildOptionButton(state, optionText, optionIndex) {
-  const optionButton = document.createElement("button");
-  optionButton.type = "button";
-  optionButton.className = "net-quiz-option";
-  optionButton.setAttribute("aria-label", `Select answer: ${optionText}`);
-
-  const optionLetter = String.fromCharCode(65 + optionIndex);
-
-  const letterElement = document.createElement("span");
-  letterElement.className = "net-quiz-option-letter";
-  letterElement.setAttribute("aria-hidden", "true");
-  letterElement.textContent = optionLetter;
-
-  const textElement = document.createElement("span");
-  textElement.className = "net-quiz-option-text";
-  textElement.textContent = String(optionText ?? "");
-
-  const statusElement = document.createElement("span");
-  statusElement.className = "net-quiz-option-status";
-  statusElement.setAttribute("aria-hidden", "true");
-
-  optionButton.append(letterElement, textElement, statusElement);
-  optionButton.addEventListener("click", () => {
-    selectAnswer(state, optionIndex, optionButton);
-  });
-
-  return optionButton;
-}
-
-function renderMiniProgress(state) {
-  const miniProgress = document.getElementById("miniProgress");
-  if (!miniProgress) return;
-
-  const totalQuestions = state.questions.length;
-  const answeredCount = state.answers.filter((answerValue) => typeof answerValue === "boolean").length;
-  const correctCount = state.answers.filter((answerValue) => answerValue === true).length;
-  const remainingCount = Math.max(0, totalQuestions - answeredCount);
-
-  setText("progressCorrectCount", correctCount);
-  setText("progressRemaining", remainingCount);
-
-  miniProgress.replaceChildren();
-
-  for (let questionIndex = 0; questionIndex < totalQuestions; questionIndex += 1) {
-    const segment = document.createElement("span");
-    segment.className = "net-quiz-progress-bar";
-
-    const answerState = state.answers[questionIndex];
-    if (typeof answerState === "boolean") {
-      segment.classList.add(answerState ? "is-correct" : "is-wrong");
-    } else if (questionIndex === state.currentIndex) {
-      segment.classList.add("is-current");
-    }
-
-    miniProgress.appendChild(segment);
-  }
-}
-
-function selectAnswer(state, optionIndex, clickedButton) {
-  if (state.showFeedback) return;
-
-  state.selected = optionIndex;
-
-  const optionsBox = document.getElementById("optionsBox");
-  if (optionsBox) {
-    Array.from(optionsBox.querySelectorAll("button")).forEach((buttonElement) => {
-      buttonElement.classList.remove("is-selected");
-    });
-  }
-
-  if (clickedButton) clickedButton.classList.add("is-selected");
-  setSubmitEnabled(true);
-}
-
-function submitAnswer(state) {
-  if (state.selected === null || state.selected === undefined) return;
-
-  const currentQuestion = state.questions[state.currentIndex];
-  const isCorrect = Number(state.selected) === Number(currentQuestion.correctAnswer);
-
-  state.answers[state.currentIndex] = isCorrect;
-  state.showFeedback = true;
-
-  applyOptionResultStyles(currentQuestion, state.selected, isCorrect);
-
-  const xpEarned = xpPerQuestion(state, isCorrect);
-  showFeedback(isCorrect, currentQuestion.explanation || "", xpEarned);
-  renderMiniProgress(state);
-
-  setSubmitEnabled(false);
-  showNext(true);
-
-  const nextButton = document.getElementById("nextBtn");
-  const isLastQuestion = state.currentIndex === state.questions.length - 1;
-  if (nextButton) {
-    nextButton.textContent = isLastQuestion ? "View Results →" : "Next →";
-  }
-}
-
-function applyOptionResultStyles(currentQuestion, selectedIndex, isCorrect) {
-  const optionsBox = document.getElementById("optionsBox");
-  if (!optionsBox) return;
-
-  const buttons = Array.from(optionsBox.querySelectorAll("button"));
-
-  buttons.forEach((buttonElement, buttonIndex) => {
-    buttonElement.disabled = true;
-    buttonElement.classList.remove("is-correct", "is-wrong");
-
-    const isCorrectOption = buttonIndex === Number(currentQuestion.correctAnswer);
-    const isWrongSelection = buttonIndex === Number(selectedIndex) && !isCorrect;
-
-    if (isCorrectOption) buttonElement.classList.add("is-correct");
-    if (isWrongSelection) buttonElement.classList.add("is-wrong");
-
-    const statusElement = buttonElement.querySelector(".net-quiz-option-status");
-    updateOptionStatusIcon(statusElement, isCorrectOption, isWrongSelection);
-  });
-}
-
-function updateOptionStatusIcon(statusElement, isCorrectOption, isWrongSelection) {
-  if (!statusElement) return;
-
-  statusElement.replaceChildren();
-
-  if (isCorrectOption) {
-    const iconElement = document.createElement("i");
-    iconElement.className = "bi bi-check-lg";
-    iconElement.setAttribute("aria-hidden", "true");
-    statusElement.appendChild(iconElement);
-    return;
-  }
-
-  if (isWrongSelection) {
-    const iconElement = document.createElement("i");
-    iconElement.className = "bi bi-x-lg";
-    iconElement.setAttribute("aria-hidden", "true");
-    statusElement.appendChild(iconElement);
-  }
-}
-
-function nextQuestion(state) {
-  const isLastQuestion = state.currentIndex === state.questions.length - 1;
-  if (isLastQuestion) {
-    finishQuiz(state);
-    return;
-  }
-
-  state.currentIndex += 1;
-  renderQuestion(state);
-}
-
-// Clear saved attempt and restart.
-function retryQuiz(state) {
-  localStorage.removeItem(attemptKey(state));
-  window.location.reload();
-}
-
-// Finish quiz, save attempt, update progress, and show results.
-async function finishQuiz(state) {
-  const totalQuestions = state.questions.length;
-  const correctCount = state.answers.filter((answerValue) => answerValue === true).length;
-  const rawPercent = totalQuestions ? (correctCount / totalQuestions) * 100 : 0;
-  const localEarnedXp = Math.round((rawPercent / 100) * state.maxXp);
-
-  const result = {
-    completed: true,
-    correctCount,
-    total: totalQuestions,
-    percentage: Math.round(rawPercent),
-    earnedXP: localEarnedXp,
-    answers: state.answers
-  };
-
-  const awardResponse = await awardQuizXpOnce(state, localEarnedXp);
-  const finalEarnedXp =
-    Number(awardResponse?.xpAwarded ?? localEarnedXp)
-    + Number(awardResponse?.achievementXp || 0);
-
-  result.earnedXP = finalEarnedXp;
-  if (awardResponse?.alreadyCompleted) {
-    result.alreadyCompleted = true;
-  }
-
-  writeAttempt(state, result);
-  markQuizCompletion(state, result);
-
-  if (awardResponse?.usedBackend) {
-    await refreshUserFromServer(state.email);
-  }
-
-  renderResults(state, result);
-  maybeShowResultToast(result);
-}
-
-function maybeShowResultToast(result) {
-  if (result.alreadyCompleted) return;
-  if (typeof window.showCelebrateToast !== "function") return;
-
-  const passed = result.percentage >= RESULTS_PASS_PERCENT;
-  const perfect = result.percentage === 100;
-
-  const title = perfect
-    ? "Perfect quiz score"
-    : (passed ? "Quiz completed" : "Quiz attempt saved");
-
-  const message = perfect
-    ? "Outstanding accuracy."
-    : (passed ? "Nice work — keep going." : "Review the lesson and try again.");
-
-  window.showCelebrateToast({
-    title,
-    message,
-    sub: `Score ${result.correctCount}/${result.total}`,
-    xp: result.earnedXP || 0,
-    mini: true,
-    type: passed ? "success" : "info",
-    duration: 20000
-  });
-}
-
-function renderResultsFromSaved(state, savedAttempt, backUrl) {
-  markQuizCompletion(state, savedAttempt || {});
-  renderHeader(state);
-  renderResults(state, savedAttempt);
-  wireBackLinks(backUrl);
-}
-
-function renderResults(state, result) {
-  const quizCard = document.getElementById("quizCard");
-  const resultsCard = document.getElementById("resultsCard");
-  const progressCard = document.getElementById("progressCard");
-
-  if (quizCard) quizCard.classList.add("d-none");
-  if (resultsCard) resultsCard.classList.remove("d-none");
-  if (progressCard) progressCard.classList.add("d-none");
-
-  setText("quizStepText", "Completed");
-  setText("quizPctText", "100%");
-
-  const progressBar = document.getElementById("quizProgressBar");
-  if (progressBar) progressBar.style.width = "100%";
-
-  setText("statCorrect", `${result.correctCount}/${result.total}`);
-  setText("statPct", `${result.percentage}%`);
-  setText("statXp", `${result.earnedXP}`);
-
-  const passed = result.percentage >= RESULTS_PASS_PERCENT;
-  const perfect = result.percentage === 100;
-
-  renderResultsBadge(perfect, passed);
-
-  if (perfect) {
-    setText("resultsTitle", "Perfect Score!");
-    setText("resultsSubtitle", "Outstanding work — you got everything correct.");
-  } else if (passed) {
-    setText("resultsTitle", "Quiz Passed!");
-    setText("resultsSubtitle", "Nice job — keep going to the next lesson.");
-  } else {
-    setText("resultsTitle", "Keep Practicing!");
-    setText("resultsSubtitle", "Review the lesson and retry — you’ll get it.");
-  }
-
-  animateCard("resultsCard");
-}
-
-function renderResultsBadge(perfect, passed) {
-  const badge = document.getElementById("resultsBadge");
-  if (!badge) return;
-
-  badge.replaceChildren();
-
-  const iconElement = document.createElement("i");
-  iconElement.setAttribute("aria-hidden", "true");
-
-  if (perfect) {
-    iconElement.className = "bi bi-trophy-fill";
-  } else if (passed) {
-    iconElement.className = "bi bi-check2-circle";
-  } else {
-    iconElement.className = "bi bi-lightbulb";
-  }
-
-  badge.appendChild(iconElement);
-}
-
-// Show right/wrong feedback under the question.
-function showFeedback(isCorrect, explanation, xpEarned) {
-  const box = document.getElementById("feedbackBox");
-  const icon = document.getElementById("feedbackIcon");
-  const title = document.getElementById("feedbackTitle");
-  const text = document.getElementById("feedbackText");
-
-  if (!box || !icon || !title || !text) return;
-
-  box.classList.remove("d-none", "is-correct", "is-wrong", "is-show");
-  icon.replaceChildren();
-
-  const iconElement = document.createElement("i");
-  iconElement.setAttribute("aria-hidden", "true");
-
-  if (isCorrect) {
-    box.classList.add("is-correct");
-    iconElement.className = "bi bi-check-lg";
-    title.textContent = "Correct";
-  } else {
-    box.classList.add("is-wrong");
-    iconElement.className = "bi bi-x-lg";
-    title.textContent = "Incorrect";
-  }
-
-  icon.appendChild(iconElement);
-  text.textContent = explanation || "Explanation not available.";
-  box.classList.add("is-show");
-
-  const xpRow = document.getElementById("xpEarnedRow");
-  const xpText = document.getElementById("xpEarnedText");
-  if (xpRow && xpText) {
-    if (isCorrect) {
-      xpRow.classList.remove("d-none");
-      xpText.textContent = `+${xpEarned} XP`;
-    } else {
-      xpRow.classList.add("d-none");
-    }
-  }
-}
-
-function hideFeedback() {
-  const box = document.getElementById("feedbackBox");
-  if (!box) return;
-
-  box.classList.add("d-none");
-  box.classList.remove("is-show", "is-correct", "is-wrong");
-}
-
-function setSubmitEnabled(enabled) {
-  const submitButton = document.getElementById("submitBtn");
-  if (submitButton) submitButton.disabled = !enabled;
-}
-
-function showNext(show) {
-  const nextButton = document.getElementById("nextBtn");
-  const submitButton = document.getElementById("submitBtn");
-  if (!nextButton || !submitButton) return;
-
-  if (show) {
-    nextButton.classList.remove("d-none");
-    submitButton.classList.add("d-none");
-  } else {
-    nextButton.classList.add("d-none");
-    submitButton.classList.remove("d-none");
-  }
-}
-
-function xpPerQuestion(state, isCorrect) {
-  if (!isCorrect) return 0;
-  const xpPerQuestionValue = Math.round(state.maxXp / Math.max(state.questions.length, 1));
-  return Math.max(xpPerQuestionValue, 1);
-}
-
-function animateCard(elementId) {
-  const card = document.getElementById(elementId);
-  if (!card) return;
-
-  card.classList.remove("net-quiz-enter");
-  void card.offsetWidth;
-  card.classList.add("net-quiz-enter");
-}
-
-function awardKey(state) {
-  return `netology_quiz_awarded:${state.email}:${state.courseId}:${state.lessonNumber}`;
-}
-
-// Award XP once using backend route when available.
-async function awardQuizXpOnce(state, earnedXp) {
-  if (localStorage.getItem(awardKey(state)) === "1") {
-    return { xpAwarded: 0, achievementXp: 0, newlyUnlocked: [], alreadyCompleted: true, usedBackend: false };
-  }
-
-  const apiBase = window.API_BASE;
-  if (!apiBase) {
-    localStorage.setItem(awardKey(state), "1");
-    return { xpAwarded: Number(earnedXp || 0), achievementXp: 0, newlyUnlocked: [], alreadyCompleted: false, usedBackend: false };
-  }
-
-  try {
-    const endpoint = ENDPOINTS.courses?.completeQuiz || "/complete-quiz";
-    const response = await fetch(`${apiBase}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: state.email,
-        course_id: state.courseId,
-        lesson_number: state.lessonNumber,
-        earned_xp: earnedXp
-      })
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (data?.success) {
-      localStorage.setItem(awardKey(state), "1");
-      const newlyUnlocked = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
-      if (newlyUnlocked.length && window.NetologyAchievements?.queueUnlocks) {
-        window.NetologyAchievements.queueUnlocks(state.email, newlyUnlocked);
+  // get the unit title for the breadcrumb
+  function findUnitTitle(course, lessonNum) {
+    if (!course?.units) return "";
+    let count = 0;
+    for (const unit of course.units) {
+      for (const lesson of (unit.lessons || [])) {
+        count++;
+        if (count === lessonNum) return unit.title || "Module";
       }
+      for (const section of (unit.sections || [])) {
+        for (const item of (section.items || [])) {
+          const type = String(item.type || "").toLowerCase();
+          if (type === "learn" || type === "lesson" || type === "text") {
+            count++;
+            if (count === lessonNum) return unit.title || "Module";
+          }
+        }
+      }
+    }
+    return "";
+  }
 
-      return {
-        xpAwarded: Number(data.xp_added || 0),
-        achievementXp: Number(data.achievement_xp_added || 0),
-        newlyUnlocked,
-        alreadyCompleted: Boolean(data.already_completed),
-        usedBackend: true
-      };
+  // fill the header card with quiz title, xp, breadcrumb
+  function fillHeader(state) {
+    const set = (id, text) => { const e = document.getElementById(id); if (e) e.textContent = text; };
+    set("quizTitle", state.title);
+    set("quizMeta", `${state.title} • ${state.questions.length} questions`);
+    set("quizXpLabel", `${state.maxXp} XP`);
+    set("breadcrumbCourse", state.courseTitle || "Course");
+    set("breadcrumbModule", state.unitTitle || "Module");
+    set("breadcrumbQuiz", "Quiz");
+    document.body.classList.remove("net-loading");
+    document.body.classList.add("net-loaded");
+  }
+
+  // set both back-to-course links
+  function wireBackLinks(backUrl) {
+    const top = document.getElementById("backToCourseTop");
+    const btn = document.getElementById("backToCourseBtn");
+    if (top) top.href = backUrl;
+    if (btn) btn.href = backUrl;
+  }
+
+  // wire up the submit, next and retry buttons
+  function wireButtons(state) {
+    const on = (id, fn) => { const b = document.getElementById(id); if (b) b.addEventListener("click", fn); };
+    on("submitBtn", () => submitAnswer(state));
+    on("nextBtn",   () => nextQuestion(state));
+    on("retryBtn",  () => { localStorage.removeItem(attemptKey(state)); window.location.reload(); });
+  }
+
+  // draw the current question on screen
+  function renderQuestion(state) {
+    const q = state.questions[state.index];
+    if (!q) return;
+
+    state.selected = null;
+    state.answered = false;
+
+    const set = (id, text) => { const e = document.getElementById(id); if (e) e.textContent = text; };
+    const el  = (id) => document.getElementById(id);
+
+    const total = state.questions.length;
+    const pct   = Math.round((state.index / total) * 100);
+
+    set("quizStepText", `Question ${state.index + 1} of ${total}`);
+    set("quizPctText", `${pct}%`);
+    set("questionCountChip", `${state.index + 1}/${total}`);
+    set("questionText", q.question || "Question");
+    set("questionTag", "Question");
+
+    const bar = el("quizProgressBar");
+    if (bar) bar.style.width = `${pct}%`;
+
+    // build the option buttons
+    const box = el("optionsBox");
+    if (box) {
+      box.replaceChildren();
+      q.options.forEach((text, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "net-quiz-option";
+        btn.setAttribute("aria-label", `Select answer: ${text}`);
+
+        const letter = document.createElement("span");
+        letter.className = "net-quiz-option-letter";
+        letter.textContent = String.fromCharCode(65 + i); // A, B, C …
+
+        const label = document.createElement("span");
+        label.className = "net-quiz-option-text";
+        label.textContent = String(text ?? "");
+
+        const status = document.createElement("span");
+        status.className = "net-quiz-option-status";
+
+        btn.append(letter, label, status);
+        btn.addEventListener("click", () => {
+          if (state.answered) return;
+          state.selected = i;
+          box.querySelectorAll("button").forEach((b) => b.classList.remove("is-selected"));
+          btn.classList.add("is-selected");
+          const sub = document.getElementById("submitBtn");
+          if (sub) sub.disabled = false;
+        });
+        box.appendChild(btn);
+      });
     }
 
-    return { xpAwarded: Number(earnedXp || 0), achievementXp: 0, newlyUnlocked: [], alreadyCompleted: false, usedBackend: false };
-  } catch (error) {
-    console.error("awardQuizXpOnce error:", error);
-    return { xpAwarded: Number(earnedXp || 0), achievementXp: 0, newlyUnlocked: [], alreadyCompleted: false, usedBackend: false };
+    const fb = el("feedbackBox");
+    if (fb) { fb.classList.add("d-none"); fb.classList.remove("is-show", "is-correct", "is-wrong"); }
+    const sub  = el("submitBtn");
+    const next = el("nextBtn");
+    if (sub)  { sub.classList.remove("d-none"); sub.disabled = true; }
+    if (next) next.classList.add("d-none");
+    updateMiniProgress(state);
+    animateIn("quizCard");
+    const progressCard = el("progressCard");
+    if (progressCard) progressCard.classList.remove("d-none");
   }
-}
 
-function setText(elementId, text) {
-  const element = document.getElementById(elementId);
-  if (element) element.textContent = text;
-}
+  // lock options, show right/wrong feedback, reveal next button
+  function submitAnswer(state) {
+    if (state.selected === null) return;
+
+    const q         = state.questions[state.index];
+    const isCorrect = state.selected === q.correctAnswer;
+
+    state.answered = true;
+    state.answers[state.index] = isCorrect;
+
+    const set = (id, text) => { const e = document.getElementById(id); if (e) e.textContent = text; };
+    const el  = (id) => document.getElementById(id);
+
+    // colour options green/red
+    const box = el("optionsBox");
+    if (box) {
+      box.querySelectorAll("button").forEach((btn, i) => {
+        btn.disabled = true;
+        btn.classList.remove("is-correct", "is-wrong");
+
+        const isRight = i === q.correctAnswer;
+        const isBad = i === state.selected && !isCorrect;
+        if (isRight) btn.classList.add("is-correct");
+        if (isBad)   btn.classList.add("is-wrong");
+
+        // add tick or cross icon
+        const statusSpan = btn.querySelector(".net-quiz-option-status");
+        if (statusSpan) {
+          statusSpan.replaceChildren();
+          if (isRight || isBad) {
+            const icon = document.createElement("i");
+            icon.className = isRight ? "bi bi-check-lg" : "bi bi-x-lg";
+            icon.setAttribute("aria-hidden", "true");
+            statusSpan.appendChild(icon);
+          }
+        }
+      });
+    }
+
+    // xp split equally across questions, only for correct answers
+    const xpEarned = isCorrect
+      ? Math.max(1, Math.round(state.maxXp / Math.max(state.questions.length, 1)))
+      : 0;
+
+    const fb    = el("feedbackBox");
+    const fbIcon = el("feedbackIcon");
+    if (fb && fbIcon) {
+      fb.classList.remove("d-none", "is-correct", "is-wrong", "is-show");
+      fbIcon.replaceChildren();
+      const icon = document.createElement("i");
+      icon.setAttribute("aria-hidden", "true");
+      if (isCorrect) {
+        fb.classList.add("is-correct");
+        icon.className = "bi bi-check-lg";
+        set("feedbackTitle", "Correct");
+      } else {
+        fb.classList.add("is-wrong");
+        icon.className = "bi bi-x-lg";
+        set("feedbackTitle", "Incorrect");
+      }
+      fbIcon.appendChild(icon);
+      set("feedbackText", q.explanation || "Explanation not available.");
+      fb.classList.add("is-show");
+
+      const xpRow  = el("xpEarnedRow");
+      const xpText = el("xpEarnedText");
+      if (xpRow && xpText) {
+        if (isCorrect) {
+          xpRow.classList.remove("d-none");
+          xpText.textContent = `+${xpEarned} XP`;
+        } else {
+          xpRow.classList.add("d-none");
+        }
+      }
+    }
+
+    updateMiniProgress(state);
+
+    // swap submit for next
+    const sub  = el("submitBtn");
+    const next = el("nextBtn");
+    if (sub)  sub.classList.add("d-none");
+    if (next) {
+      next.classList.remove("d-none");
+      next.textContent = state.index === state.questions.length - 1 ? "View Results →" : "Next →";
+    }
+  }
+
+  // move to the next question, or finish if this was the last one
+  function nextQuestion(state) {
+    if (state.index === state.questions.length - 1) {
+      finish(state);
+      return;
+    }
+    state.index++;
+    renderQuestion(state);
+  }
+
+  // all done — tally score, post to server, save and show results
+  async function finish(state) {
+    const total = state.questions.length;
+    const correct = state.answers.filter((a) => a === true).length;
+    const pct = total ? Math.round((correct / total) * 100) : 0;
+    const localXp = Math.round((pct / 100) * state.maxXp);
+    const result  = { completed: true, correctCount: correct, total, percentage: pct, earnedXP: localXp, answers: state.answers };
+    const award   = await submitToServer(state, localXp);
+    result.earnedXP = Number(award.xpAwarded ?? localXp) + Number(award.achievementXp || 0);
+    if (award.alreadyCompleted) result.alreadyCompleted = true;
+    localStorage.setItem(attemptKey(state), JSON.stringify(result));
+    saveCompletion(state, result);
+    showResults(state, result);
+    showToast(result);
+  }
+
+  // post to the backend and return how much xp was awarded
+  async function submitToServer(state, earnedXp) {
+    if (localStorage.getItem(awardKey(state)) === "1") return { xpAwarded: 0, achievementXp: 0, alreadyCompleted: true };
+    if (!API_BASE) {
+      localStorage.setItem(awardKey(state), "1");
+      return { xpAwarded: earnedXp, achievementXp: 0, alreadyCompleted: false };
+    }
+
+    try {
+      const url = `${API_BASE}${ENDPOINTS.courses?.completeQuiz || "/complete-quiz"}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: state.email,
+          course_id: state.courseId,
+          lesson_number: state.lessonNum,
+          earned_xp: earnedXp
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (data?.success) {
+        localStorage.setItem(awardKey(state), "1");
+
+        const unlocked = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
+        if (unlocked.length && window.NetologyAchievements?.queueUnlocks) {
+          window.NetologyAchievements.queueUnlocks(state.email, unlocked);
+        }
+
+        return {
+          xpAwarded: Number(data.xp_added || 0),
+          achievementXp: Number(data.achievement_xp_added || 0),
+          alreadyCompleted: Boolean(data.already_completed)
+        };
+      }
+    } catch (err) {
+      console.warn("could not save quiz completion to server:", err);
+    }
+
+    return { xpAwarded: earnedXp, achievementXp: 0, alreadyCompleted: false };
+  }
+
+  // save quiz completion to localStorage
+  function saveCompletion(state, result) {
+    const compKey  = `netology_completions:${state.email}:${state.courseId}`;
+    const compData = readJson(compKey) || { lesson: [], quiz: [], challenge: [] };
+    if (!compData.quiz.includes(Number(state.lessonNum))) {
+      compData.quiz.push(Number(state.lessonNum));
+      localStorage.setItem(compKey, JSON.stringify(compData));
+    }
+
+    // bump the user's xp in localStorage
+    for (const key of ["netology_user", "user"]) {
+      const stored = readJson(key);
+      if (!stored || stored.email !== state.email) continue;
+      const xpSystem = window.NetologyXP;
+      const updated  = xpSystem?.applyXpToUser
+        ? xpSystem.applyXpToUser(stored, result.earnedXP)
+        : { ...stored, xp: Math.max(0, Number(stored.xp || 0) + Number(result.earnedXP || 0)) };
+      localStorage.setItem(key, JSON.stringify(updated));
+    }
+
+    // keep the started-courses record up to date
+    const startKey = `netology_started_courses:${state.email}`;
+    const started  = readJson(startKey) || [];
+    const existing = started.find((c) => String(c.id) === String(state.courseId));
+    if (existing) {
+      existing.lastViewed = Date.now();
+      existing.lastLesson = state.lessonNum;
+    } else {
+      started.push({ id: String(state.courseId), lastViewed: Date.now(), lastLesson: state.lessonNum });
+    }
+    localStorage.setItem(startKey, JSON.stringify(started));
+
+    // add to the progress log
+    const logKey = `netology_progress_log:${state.email}`;
+    const log    = readJson(logKey) || [];
+    log.push({
+      type: "quiz",
+      course_id: state.courseId,
+      lesson_number: state.lessonNum,
+      xp: Number(result.earnedXP || 0),
+      ts: Date.now(),
+      date: new Date().toISOString().slice(0, 10)
+    });
+    localStorage.setItem(logKey, JSON.stringify(log));
+  }
+
+  // hide the question card and show results
+  function showResults(state, result) {
+    const set = (id, text) => { const e = document.getElementById(id); if (e) e.textContent = text; };
+    const el  = (id) => document.getElementById(id);
+    el("quizCard")?.classList.add("d-none");
+    el("resultsCard")?.classList.remove("d-none");
+    el("progressCard")?.classList.add("d-none");
+    set("quizStepText", "Completed");
+    set("quizPctText", "100%");
+    const bar = el("quizProgressBar");
+    if (bar) bar.style.width = "100%";
+    set("statCorrect", `${result.correctCount}/${result.total}`);
+    set("statPct",     `${result.percentage}%`);
+    set("statXp",      String(result.earnedXP));
+    const perfect = result.percentage === 100;
+    const passed = result.percentage >= 40;
+    const badge = el("resultsBadge");
+    if (badge) {
+      badge.replaceChildren();
+      const icon = document.createElement("i");
+      icon.setAttribute("aria-hidden", "true");
+      icon.className = perfect ? "bi bi-trophy-fill" : passed ? "bi bi-check2-circle" : "bi bi-lightbulb";
+      badge.appendChild(icon);
+    }
+
+    set("resultsTitle", perfect ? "Perfect Score!" : passed ? "Quiz Passed!" : "Keep Practicing!");
+    set("resultsSubtitle",
+      perfect ? "Outstanding work — you got everything correct."
+      : passed ? "Nice job — keep going to the next lesson."
+      : "Review the lesson and retry — you'll get it.");
+
+    animateIn("resultsCard");
+  }
+
+  // redraw the mini progress bar segments
+  function updateMiniProgress(state) {
+    const box = document.getElementById("miniProgress");
+    if (!box) return;
+
+    const total = state.questions.length;
+    const correct = state.answers.filter((a) => a === true).length;
+    const remaining = Math.max(0, total - state.answers.filter((a) => typeof a === "boolean").length);
+
+    const set = (id, text) => { const e = document.getElementById(id); if (e) e.textContent = text; };
+    set("progressCorrectCount", correct);
+    set("progressRemaining",    remaining);
+
+    box.replaceChildren();
+    for (let i = 0; i < total; i++) {
+      const seg = document.createElement("span");
+      seg.className = "net-quiz-progress-bar";
+      const a = state.answers[i];
+      if (typeof a === "boolean") seg.classList.add(a ? "is-correct" : "is-wrong");
+      else if (i === state.index) seg.classList.add("is-current");
+      box.appendChild(seg);
+    }
+  }
+
+  // show a celebration toast when the quiz ends
+  function showToast(result) {
+    if (result.alreadyCompleted) return;
+    if (typeof window.showCelebrateToast !== "function") return;
+    const passed = result.percentage >= 40;
+    const perfect = result.percentage === 100;
+
+    window.showCelebrateToast({
+      title: perfect ? "Perfect quiz score" : passed ? "Quiz completed" : "Quiz attempt saved",
+      message: perfect ? "Outstanding accuracy." : passed ? "Nice work — keep going." : "Review the lesson and try again.",
+      sub: `Score ${result.correctCount}/${result.total}`,
+      xp: result.earnedXP || 0,
+      mini: true,
+      type: passed ? "success" : "info",
+      duration: 20000
+    });
+  }
+
+  // slide-in animation
+  function animateIn(id) {
+    const card = document.getElementById(id);
+    if (!card) return;
+    card.classList.remove("net-quiz-enter");
+    void card.offsetWidth;
+    card.classList.add("net-quiz-enter");
+  }
+
+  function attemptKey(state) {
+    return `netology_quiz_attempt:${state.email}:${state.courseId}:${state.lessonNum}`;
+  }
+  function awardKey(state) {
+    return `netology_quiz_awarded:${state.email}:${state.courseId}:${state.lessonNum}`;
+  }
+
+})();
