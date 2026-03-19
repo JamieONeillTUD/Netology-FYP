@@ -1,11 +1,4 @@
-/*
----------------------------------------------------------
-Student: C22320301 - Jamie O'Neill
-File: account.js
-Purpose: Account page UI + profile/stats/activity data.
-Notes: Straightforward version with no utility helpers.
----------------------------------------------------------
-*/
+// account.js — account page: profile, preferences, security, and activity heatmap
 
 (() => {
   "use strict";
@@ -13,7 +6,7 @@ Notes: Straightforward version with no utility helpers.
   const ENDPOINTS = window.ENDPOINTS || {};
   const XP = window.NetologyXP || {};
   const TABS = ["profile", "preferences", "security", "activity"];
-  const HEATMAP_DAYS = 90;
+  const HEATMAP_DAYS = 30;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", startPage, { once: true });
@@ -21,21 +14,50 @@ Notes: Straightforward version with no utility helpers.
     startPage();
   }
 
-  async function startPage() {
-    let user = null;
+  // sets text content on an element by id (does nothing if the element doesn't exist)
+  function setText(id, text) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = String(text ?? "");
+  }
 
+  // sets the value attribute on an input/field by id
+  function setValue(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.value = String(value ?? "");
+  }
+
+  // sets the css width on an element by id (used for progress bars)
+  function setWidth(id, percent) {
+    const element = document.getElementById(id);
+    if (element) element.style.width = `${Math.max(0, Math.min(100, Number(percent) || 0))}%`;
+  }
+
+  // reads user data from localStorage
+  function getSavedUser() {
     try {
-      user = JSON.parse(localStorage.getItem("netology_user") || "null");
+      return JSON.parse(localStorage.getItem("netology_user") || "null");
     } catch {
-      user = null;
+      return null;
     }
+  }
 
+  // fetches JSON from the API using the correct base URL
+  async function apiFetch(path, params) {
+    const base = String(window.API_BASE || "").trim().replace(/\/$/, "");
+    const url = new URL(base ? `${base}${path}` : path, window.location.origin);
+    for (const [key, value] of Object.entries(params || {})) {
+      url.searchParams.set(key, String(value));
+    }
+    const response = await fetch(url.toString());
+    return response.json();
+  }
+
+  // ── page setup ─────────────────────────────────────────────────────────────
+
+  async function startPage() {
+    let user = getSavedUser();
     if (!user) {
-      try {
-        user = JSON.parse(localStorage.getItem("user") || "null");
-      } catch {
-        user = null;
-      }
+      try { user = JSON.parse(localStorage.getItem("user") || "null"); } catch { user = null; }
     }
 
     if (!user?.email) {
@@ -46,7 +68,7 @@ Notes: Straightforward version with no utility helpers.
     setupSidebar();
     setupUserDropdown();
     setupLogout();
-    fillTopAndSideIdentity(user);
+    fillIdentity(user);
     setupTabs();
     setupAppearance();
     setupRestartOnboarding(user);
@@ -60,6 +82,8 @@ Notes: Straightforward version with no utility helpers.
       window.maybeStartOnboardingTour("account", user.email);
     }
   }
+
+  // ── sidebar, dropdown, logout ──────────────────────────────────────────────
 
   function setupSidebar() {
     const openButton = document.getElementById("openSidebarBtn");
@@ -90,9 +114,7 @@ Notes: Straightforward version with no utility helpers.
     backdrop?.addEventListener("click", closeSidebar);
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && sidebar?.classList.contains("is-open")) {
-        closeSidebar();
-      }
+      if (event.key === "Escape" && sidebar?.classList.contains("is-open")) closeSidebar();
     });
   }
 
@@ -134,47 +156,34 @@ Notes: Straightforward version with no utility helpers.
     document.getElementById("sideLogoutBtn")?.addEventListener("click", logout);
   }
 
-  function fillTopAndSideIdentity(user) {
-    const name = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.username || "Student";
+  // ── fill user identity into navbar, sidebar, and dropdown ──────────────────
+
+  function fillIdentity(user) {
+    const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.username || "Student";
     const email = String(user?.email || "");
-    const avatarInitial = (name.charAt(0) || "S").toUpperCase();
+    const initial = (fullName.charAt(0) || "S").toUpperCase();
 
-    const level = typeof XP.levelFromTotalXp === "function" ? XP.levelFromTotalXp(Number(user?.xp || 0)) : 1;
-    const rank = typeof XP.rankForLevel === "function" ? XP.rankForLevel(level) : "Novice";
+    const level = typeof XP.levelFromTotalXp === "function"
+      ? XP.levelFromTotalXp(Number(user?.xp || 0))
+      : 1;
+    const rank = typeof XP.rankForLevel === "function"
+      ? XP.rankForLevel(level)
+      : "Novice";
 
-    const topAvatar = document.getElementById("topAvatar");
-    if (topAvatar) topAvatar.textContent = avatarInitial;
-
-    const ddAvatar = document.getElementById("ddAvatar");
-    if (ddAvatar) ddAvatar.textContent = avatarInitial;
-
-    const ddName = document.getElementById("ddName");
-    if (ddName) ddName.textContent = name;
-
-    const ddEmail = document.getElementById("ddEmail");
-    if (ddEmail) ddEmail.textContent = email;
-
-    const ddLevel = document.getElementById("ddLevel");
-    if (ddLevel) ddLevel.textContent = `Level ${level}`;
-
-    const ddRank = document.getElementById("ddRank");
-    if (ddRank) ddRank.textContent = rank;
-
-    const sideAvatar = document.getElementById("sideAvatar");
-    if (sideAvatar) sideAvatar.textContent = avatarInitial;
-
-    const sideUserName = document.getElementById("sideUserName");
-    if (sideUserName) sideUserName.textContent = name;
-
-    const sideUserEmail = document.getElementById("sideUserEmail");
-    if (sideUserEmail) sideUserEmail.textContent = email;
-
-    const sideLevelBadge = document.getElementById("sideLevelBadge");
-    if (sideLevelBadge) sideLevelBadge.textContent = `Lv ${level}`;
-
-    const profileAvatar = document.getElementById("profileAvatar");
-    if (profileAvatar) profileAvatar.textContent = avatarInitial;
+    setText("topAvatar", initial);
+    setText("ddAvatar", initial);
+    setText("ddName", fullName);
+    setText("ddEmail", email);
+    setText("ddLevel", `Level ${level}`);
+    setText("ddRank", rank);
+    setText("sideAvatar", initial);
+    setText("sideUserName", fullName);
+    setText("sideUserEmail", email);
+    setText("sideLevelBadge", `Lv ${level}`);
+    setText("profileAvatar", initial);
   }
+
+  // ── tabs ───────────────────────────────────────────────────────────────────
 
   function setupTabs() {
     const buttons = Array.from(document.querySelectorAll("[role='tab']"));
@@ -194,9 +203,7 @@ Notes: Straightforward version with no utility helpers.
         panel.classList.toggle("d-none", panel.dataset.tab !== tabName);
       });
 
-      if (updateHash) {
-        history.replaceState(null, "", `#${tabName}`);
-      }
+      if (updateHash) history.replaceState(null, "", `#${tabName}`);
     };
 
     buttons.forEach((button) => {
@@ -215,6 +222,8 @@ Notes: Straightforward version with no utility helpers.
     });
   }
 
+  // ── appearance (theme + dyslexic font) ────────────────────────────────────
+
   function setupAppearance() {
     const themeInputs = Array.from(document.querySelectorAll('input[name="themeMode"]'));
     const dyslexicToggle = document.getElementById("dyslexicToggle");
@@ -227,24 +236,19 @@ Notes: Straightforward version with no utility helpers.
         window.NetologyTheme.setTheme(theme);
       } else {
         localStorage.setItem("netology_theme", theme);
-        const resolved =
-          theme === "system"
-            ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-            : theme;
+        const resolved = theme === "system"
+          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : theme;
         document.body?.setAttribute("data-theme", resolved);
       }
 
-      themeInputs.forEach((input) => {
-        input.checked = input.value === theme;
-      });
+      themeInputs.forEach((input) => { input.checked = input.value === theme; });
     };
 
     applyTheme(localStorage.getItem("netology_theme") || "light");
 
     themeInputs.forEach((input) => {
-      input.addEventListener("change", () => {
-        if (input.checked) applyTheme(input.value);
-      });
+      input.addEventListener("change", () => { if (input.checked) applyTheme(input.value); });
     });
 
     if (dyslexicToggle) {
@@ -264,6 +268,8 @@ Notes: Straightforward version with no utility helpers.
     }
   }
 
+  // ── restart onboarding button ─────────────────────────────────────────────
+
   function setupRestartOnboarding(user) {
     const button = document.getElementById("restartOnboardingBtn");
     const email = String(user?.email || "").trim().toLowerCase();
@@ -278,23 +284,18 @@ Notes: Straightforward version with no utility helpers.
       try {
         sessionStorage.setItem("netology_onboarding_session", "true");
         sessionStorage.removeItem("netology_welcome_shown");
-      } catch {
-        // Ignore storage errors.
-      }
+      } catch { /* ignore storage errors */ }
 
       window.location.href = "dashboard.html";
     });
   }
 
+  // ── load profile data ─────────────────────────────────────────────────────
+
   async function loadProfile(user) {
     try {
-      const base = String(window.API_BASE || "").trim().replace(/\/$/, "");
       const path = ENDPOINTS.auth?.userInfo || "/user-info";
-      const url = new URL(base ? `${base}${path}` : path, window.location.origin);
-      url.searchParams.set("email", String(user.email));
-
-      const response = await fetch(url.toString());
-      const userData = await response.json();
+      const userData = await apiFetch(path, { email: user.email });
 
       const totalXp = Math.max(0, Number(userData?.xp || 0));
       let level = 1;
@@ -306,7 +307,7 @@ Notes: Straightforward version with no utility helpers.
       if (typeof XP.resolveUserProgress === "function") {
         const resolved = XP.resolveUserProgress(userData || {});
         level = Number(resolved?.level || 1);
-        rank = String(userData?.rank || resolved?.rank || (typeof XP.rankForLevel === "function" ? XP.rankForLevel(level) : "Novice"));
+        rank = String(userData?.rank || resolved?.rank || "Novice");
         xpIntoLevel = Number(resolved?.xpIntoLevel || 0);
         nextLevelXp = Number(resolved?.nextLevelXp || 100);
         progressPercent = Math.max(0, Math.min(100, Number(resolved?.progressPercent || 0)));
@@ -338,119 +339,49 @@ Notes: Straightforward version with no utility helpers.
         }
       }
 
-      const profileName = document.getElementById("profileName");
-      if (profileName) profileName.textContent = displayName;
+      // fill all the profile fields
+      setText("profileName", displayName);
+      setText("profileEmail", user.email);
+      setText("profileSkillLine", `Level ${level} - ${rank}`);
+      setText("currentRankInput", rank);
+      setText("rankBadge", rank);
+      setText("levelBadge", `Level ${level}`);
+      setText("joinedDate", joinedDate);
+      setText("rankDisplayLarge", level);
+      setText("rankNameDisplay", rank);
+      setText("levelProgressText", `${xpIntoLevel} / ${nextLevelXp} XP`);
+      setText("headerXpProgressText", `${xpIntoLevel} / ${nextLevelXp} XP to next level`);
+      setText("totalXpDisplay", totalXp.toLocaleString());
+      setText("totalXpStat", totalXp.toLocaleString());
 
-      const profileEmail = document.getElementById("profileEmail");
-      if (profileEmail) profileEmail.textContent = user.email;
+      setValue("fullNameInput", displayName);
+      setValue("emailInput", user.email);
+      setValue("currentLevelInput", level);
+      setValue("memberSinceInput", joinedDate);
 
-      const fullNameInput = document.getElementById("fullNameInput");
-      if (fullNameInput) fullNameInput.value = displayName;
-
-      const emailInput = document.getElementById("emailInput");
-      if (emailInput) emailInput.value = user.email;
-
-      const currentLevelInput = document.getElementById("currentLevelInput");
-      if (currentLevelInput) currentLevelInput.value = level;
-
-      const currentRankInput = document.getElementById("currentRankInput");
-      if (currentRankInput) currentRankInput.textContent = rank;
-
-      const rankBadge = document.getElementById("rankBadge");
-      if (rankBadge) rankBadge.textContent = rank;
-
-      const levelBadge = document.getElementById("levelBadge");
-      if (levelBadge) levelBadge.textContent = `Level ${level}`;
-
-      const joinedDateEl = document.getElementById("joinedDate");
-      if (joinedDateEl) joinedDateEl.textContent = joinedDate;
-
-      const profileSkillLine = document.getElementById("profileSkillLine");
-      if (profileSkillLine) profileSkillLine.textContent = `Level ${level} - ${rank}`;
-
-      const memberSinceInput = document.getElementById("memberSinceInput");
-      if (memberSinceInput) memberSinceInput.value = joinedDate;
-
-      const rankDisplayLarge = document.getElementById("rankDisplayLarge");
-      if (rankDisplayLarge) rankDisplayLarge.textContent = level;
-
-      const rankNameDisplay = document.getElementById("rankNameDisplay");
-      if (rankNameDisplay) rankNameDisplay.textContent = rank;
-
-      const levelProgressBar = document.getElementById("levelProgressBar");
-      if (levelProgressBar) levelProgressBar.style.width = `${Math.max(0, Math.min(100, Number(progressPercent) || 0))}%`;
-
-      const levelProgressText = document.getElementById("levelProgressText");
-      if (levelProgressText) levelProgressText.textContent = `${xpIntoLevel} / ${nextLevelXp} XP`;
-
-      const headerXpProgressBar = document.getElementById("headerXpProgressBar");
-      if (headerXpProgressBar) headerXpProgressBar.style.width = `${Math.max(0, Math.min(100, Number(progressPercent) || 0))}%`;
-
-      const headerXpProgressText = document.getElementById("headerXpProgressText");
-      if (headerXpProgressText) headerXpProgressText.textContent = `${xpIntoLevel} / ${nextLevelXp} XP to next level`;
-
-      const totalXpDisplay = document.getElementById("totalXpDisplay");
-      if (totalXpDisplay) totalXpDisplay.textContent = totalXp.toLocaleString();
-
-      const totalXpStat = document.getElementById("totalXpStat");
-      if (totalXpStat) totalXpStat.textContent = totalXp.toLocaleString();
+      setWidth("levelProgressBar", progressPercent);
+      setWidth("headerXpProgressBar", progressPercent);
     } catch (error) {
       console.error("Error loading profile:", error);
     }
   }
 
+  // ── load stats (courses, achievements, streak) ────────────────────────────
+
   async function loadStats(user) {
     const email = user?.email;
     if (!email) return;
 
+    // fetch all three stat sources at once
     const [coursesData, achievementsData, streakData] = await Promise.all([
-      (async () => {
-        try {
-          const base = String(window.API_BASE || "").trim().replace(/\/$/, "");
-          const path = ENDPOINTS.courses?.userCourses || "/user-courses";
-          const url = new URL(base ? `${base}${path}` : path, window.location.origin);
-          url.searchParams.set("email", String(email));
-          const response = await fetch(url.toString());
-          return response.json();
-        } catch (error) {
-          console.error("Error loading courses:", error);
-          return null;
-        }
-      })(),
-      (async () => {
-        try {
-          const base = String(window.API_BASE || "").trim().replace(/\/$/, "");
-          const path = ENDPOINTS.achievements?.list || "/api/user/achievements";
-          const url = new URL(base ? `${base}${path}` : path, window.location.origin);
-          url.searchParams.set("user_email", String(email));
-          const response = await fetch(url.toString());
-          return response.json();
-        } catch (error) {
-          console.error("Error loading achievements:", error);
-          return null;
-        }
-      })(),
-      (async () => {
-        try {
-          const base = String(window.API_BASE || "").trim().replace(/\/$/, "");
-          const path = ENDPOINTS.progress?.userStreaks || "/api/user/streaks";
-          const url = new URL(base ? `${base}${path}` : path, window.location.origin);
-          url.searchParams.set("user_email", String(email));
-          const response = await fetch(url.toString());
-          return response.json();
-        } catch (error) {
-          console.error("Error loading streak:", error);
-          return null;
-        }
-      })()
+      apiFetch(ENDPOINTS.courses?.userCourses || "/user-courses", { email }).catch(() => null),
+      apiFetch(ENDPOINTS.achievements?.list || "/api/user/achievements", { user_email: email }).catch(() => null),
+      apiFetch(ENDPOINTS.progress?.userStreaks || "/api/user/streaks", { user_email: email }).catch(() => null)
     ]);
 
-    let courses = [];
-    if (Array.isArray(coursesData?.courses)) {
-      courses = coursesData.courses;
-    } else if (Array.isArray(coursesData)) {
-      courses = coursesData;
-    }
+    // count completed courses
+    const courses = Array.isArray(coursesData?.courses) ? coursesData.courses
+      : Array.isArray(coursesData) ? coursesData : [];
 
     const completedCount = courses.filter((course) => {
       const status = String(course?.status || "").toLowerCase();
@@ -458,50 +389,45 @@ Notes: Straightforward version with no utility helpers.
       return status === "completed" || progress >= 100;
     }).length;
 
-    let unlocked = [];
-    if (Array.isArray(achievementsData?.unlocked)) {
-      unlocked = achievementsData.unlocked;
-    } else if (Array.isArray(achievementsData)) {
-      unlocked = achievementsData;
-    }
+    // count unlocked achievements
+    const unlocked = Array.isArray(achievementsData?.unlocked) ? achievementsData.unlocked
+      : Array.isArray(achievementsData) ? achievementsData : [];
 
+    // read streak days
     const streakDays = Number(streakData?.current_streak || 0);
 
-    const coursesCompletedDisplay = document.getElementById("coursesCompletedDisplay");
-    if (coursesCompletedDisplay) coursesCompletedDisplay.textContent = completedCount;
+    // fill the stat numbers
+    setText("coursesCompletedDisplay", completedCount);
+    setText("coursesCompletedStat", completedCount);
+    setText("achievementsDisplay", unlocked.length);
+    setText("achievementsStat", unlocked.length);
+    setText("streakDisplay", `${streakDays} days`);
+    setText("streakStat", streakDays);
 
-    const coursesCompletedStat = document.getElementById("coursesCompletedStat");
-    if (coursesCompletedStat) coursesCompletedStat.textContent = completedCount;
+    // render recent badge icons
+    renderRecentBadges(unlocked);
+  }
 
-    const achievementsDisplay = document.getElementById("achievementsDisplay");
-    if (achievementsDisplay) achievementsDisplay.textContent = unlocked.length;
+  // shows up to 4 earned badges (or lock placeholders if none)
+  function renderRecentBadges(unlocked) {
+    const container = document.getElementById("recentBadgesSmall");
+    if (!container) return;
 
-    const achievementsStat = document.getElementById("achievementsStat");
-    if (achievementsStat) achievementsStat.textContent = unlocked.length;
-
-    const streakDisplay = document.getElementById("streakDisplay");
-    if (streakDisplay) streakDisplay.textContent = `${streakDays} days`;
-
-    const streakStat = document.getElementById("streakStat");
-    if (streakStat) streakStat.textContent = streakDays;
-
-    const badgeContainer = document.getElementById("recentBadgesSmall");
-    if (!badgeContainer) return;
-
-    badgeContainer.innerHTML = "";
+    container.innerHTML = "";
 
     const recent = Array.isArray(unlocked) ? unlocked.slice(0, 4) : [];
+
     if (!recent.length) {
-      for (let i = 0; i < 4; i += 1) {
+      for (let i = 0; i < 4; i++) {
         const placeholder = document.createElement("span");
         placeholder.className = "net-badge-placeholder";
         placeholder.setAttribute("aria-label", "Locked badge");
 
-        const icon = document.createElement("i");
-        icon.className = "bi bi-lock-fill";
-        placeholder.appendChild(icon);
+        const lockIcon = document.createElement("i");
+        lockIcon.className = "bi bi-lock-fill";
+        placeholder.appendChild(lockIcon);
 
-        badgeContainer.appendChild(placeholder);
+        container.appendChild(placeholder);
       }
       return;
     }
@@ -513,23 +439,25 @@ Notes: Straightforward version with no utility helpers.
       badgeElement.title = String(badge?.name || "Badge");
 
       const rawIcon = String(badge?.icon || "").trim();
+      const iconElement = document.createElement("i");
+
       if (rawIcon.startsWith("bi-")) {
-        const icon = document.createElement("i");
-        icon.className = `bi ${rawIcon}`;
-        icon.setAttribute("aria-hidden", "true");
-        badgeElement.appendChild(icon);
+        iconElement.className = `bi ${rawIcon}`;
       } else if (rawIcon) {
         badgeElement.textContent = rawIcon;
+        container.appendChild(badgeElement);
+        return;
       } else {
-        const icon = document.createElement("i");
-        icon.className = "bi bi-patch-check-fill";
-        icon.setAttribute("aria-hidden", "true");
-        badgeElement.appendChild(icon);
+        iconElement.className = "bi bi-patch-check-fill";
       }
 
-      badgeContainer.appendChild(badgeElement);
+      iconElement.setAttribute("aria-hidden", "true");
+      badgeElement.appendChild(iconElement);
+      container.appendChild(badgeElement);
     });
   }
+
+  // ── load activity heatmap ─────────────────────────────────────────────────
 
   async function loadActivity(user) {
     const email = String(user?.email || "").trim().toLowerCase();
@@ -537,44 +465,34 @@ Notes: Straightforward version with no utility helpers.
 
     const totalsByDate = {};
 
-    const addCount = (dateKey, count) => {
+    // adds a count to a given date key
+    const addToDate = (dateKey, count) => {
       if (!dateKey) return;
-      const safeCount = Math.max(0, Number(count) || 0);
-      totalsByDate[dateKey] = (totalsByDate[dateKey] || 0) + safeCount;
+      totalsByDate[dateKey] = (totalsByDate[dateKey] || 0) + Math.max(0, Number(count) || 0);
     };
 
+    // turns any date-like value into a YYYY-MM-DD string
+    const toDateKey = (raw) => {
+      const text = String(raw || "").trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+      const parsed = new Date(text);
+      return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+    };
+
+    // 1. server activity data
     try {
-      const base = String(window.API_BASE || "").trim().replace(/\/$/, "");
       const path = ENDPOINTS.progress?.userActivity || "/api/user/activity";
-      const url = new URL(base ? `${base}${path}` : path, window.location.origin);
-      url.searchParams.set("user_email", email);
-      url.searchParams.set("range", String(HEATMAP_DAYS));
+      const data = await apiFetch(path, { user_email: email, range: HEATMAP_DAYS });
 
-      const response = await fetch(url.toString());
-      const data = await response.json();
-
-      let serverActivity = [];
-      if (Array.isArray(data?.activity)) {
-        serverActivity = data.activity;
-      } else if (Array.isArray(data)) {
-        serverActivity = data;
-      }
+      const serverActivity = Array.isArray(data?.activity) ? data.activity
+        : Array.isArray(data) ? data : [];
 
       serverActivity.forEach((entry) => {
-        let dateKey = "";
-        const rawDate = String(entry?.date || entry?.activity_date || "").trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-          dateKey = rawDate;
-        } else {
-          const parsed = new Date(rawDate);
-          if (!Number.isNaN(parsed.getTime())) {
-            dateKey = parsed.toISOString().slice(0, 10);
-          }
-        }
-
+        const dateKey = toDateKey(entry?.date || entry?.activity_date);
         const explicitCount = Number(entry?.count ?? entry?.activity_count ?? 0);
+
         if (explicitCount > 0) {
-          addCount(dateKey, explicitCount);
+          addToDate(dateKey, explicitCount);
           return;
         }
 
@@ -585,105 +503,61 @@ Notes: Straightforward version with no utility helpers.
         const xp = Number(entry?.xp ?? entry?.xp_earned ?? 0);
         const xpPoints = xp > 0 ? Math.max(1, Math.round(xp / 25)) : 0;
 
-        addCount(dateKey, lessons + quizzes + challenges + logins + xpPoints);
+        addToDate(dateKey, lessons + quizzes + challenges + logins + xpPoints);
       });
     } catch (error) {
       console.error("Error loading activity:", error);
     }
 
-    let progressLog = [];
+    // 2. local progress log (lesson/quiz completions stored offline)
     try {
-      const parsed = JSON.parse(localStorage.getItem(`netology_progress_log:${email}`) || "[]");
-      if (Array.isArray(parsed)) progressLog = parsed;
-    } catch {
-      progressLog = [];
-    }
-
-    progressLog.forEach((entry) => {
-      let dateKey = "";
-
-      const rawDate = String(entry?.date || "").trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-        dateKey = rawDate;
-      } else {
-        const ts = Number(entry?.ts);
-        if (Number.isFinite(ts)) {
-          const parsed = new Date(ts);
-          if (!Number.isNaN(parsed.getTime())) {
-            dateKey = parsed.toISOString().slice(0, 10);
+      const progressLog = JSON.parse(localStorage.getItem(`netology_progress_log:${email}`) || "[]");
+      if (Array.isArray(progressLog)) {
+        progressLog.forEach((entry) => {
+          let dateKey = toDateKey(entry?.date);
+          if (!dateKey && Number.isFinite(Number(entry?.ts))) {
+            dateKey = toDateKey(new Date(Number(entry.ts)).toISOString());
           }
-        } else {
-          const parsed = new Date(rawDate);
-          if (!Number.isNaN(parsed.getTime())) {
-            dateKey = parsed.toISOString().slice(0, 10);
-          }
-        }
+          const xpBonus = Number(entry?.xp || 0) > 0 ? 1 : 0;
+          addToDate(dateKey, 1 + xpBonus);
+        });
       }
+    } catch { /* ignore parse errors */ }
 
-      const extraXpPoint = Number(entry?.xp || 0) > 0 ? 1 : 0;
-      addCount(dateKey, 1 + extraXpPoint);
-    });
-
-    let loginLog = [];
+    // 3. local login log
     try {
-      const parsed = JSON.parse(localStorage.getItem(`netology_login_log:${email}`) || "[]");
-      if (Array.isArray(parsed)) loginLog = parsed;
-    } catch {
-      loginLog = [];
-    }
-
-    loginLog.forEach((value) => {
-      let dateKey = "";
-      const raw = String(value || "").trim();
-
-      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-        dateKey = raw;
-      } else {
-        const parsed = new Date(raw);
-        if (!Number.isNaN(parsed.getTime())) {
-          dateKey = parsed.toISOString().slice(0, 10);
-        }
+      const loginLog = JSON.parse(localStorage.getItem(`netology_login_log:${email}`) || "[]");
+      if (Array.isArray(loginLog)) {
+        loginLog.forEach((value) => addToDate(toDateKey(value), 1));
       }
+    } catch { /* ignore parse errors */ }
 
-      addCount(dateKey, 1);
-    });
-
-    const merged = Object.keys(totalsByDate)
-      .sort()
-      .map((date) => ({ date, count: totalsByDate[date] }));
-
-    const heatmap = document.getElementById("activityHeatmapContainer");
-    if (heatmap) {
-      heatmap.innerHTML = "";
-
-      const countByDate = {};
-      merged.forEach((entry) => {
-        const dateKey = String(entry?.date || "").trim();
-        if (!dateKey) return;
-        countByDate[dateKey] = (countByDate[dateKey] || 0) + Math.max(0, Number(entry?.count || 0));
-      });
-
+    // draw the heatmap grid
+    const heatmapContainer = document.getElementById("activityHeatmapContainer");
+    if (heatmapContainer) {
+      heatmapContainer.innerHTML = "";
       const today = new Date();
 
-      for (let offset = HEATMAP_DAYS - 1; offset >= 0; offset -= 1) {
+      for (let offset = HEATMAP_DAYS - 1; offset >= 0; offset--) {
         const date = new Date(today);
         date.setDate(today.getDate() - offset);
         const dateKey = date.toISOString().slice(0, 10);
-        const total = Number(countByDate[dateKey] || 0);
+        const total = Number(totalsByDate[dateKey] || 0);
 
-        const level = total <= 0 ? 0 : total <= 2 ? 1 : total <= 4 ? 2 : total <= 7 ? 3 : 4;
+        const intensity = total <= 0 ? 0 : total <= 2 ? 1 : total <= 4 ? 2 : total <= 7 ? 3 : 4;
 
         const cell = document.createElement("div");
-        cell.className = `activity-cell level-${level}`;
+        cell.className = `activity-cell level-${intensity}`;
         cell.title = `${dateKey}: ${total} activities`;
-        heatmap.appendChild(cell);
+        heatmapContainer.appendChild(cell);
       }
     }
 
-    const lastItem = merged[merged.length - 1];
-    if (lastItem?.date) {
-      const lastActiveText = document.getElementById("lastActiveText");
-      if (lastActiveText) lastActiveText.textContent = new Date(lastItem.date).toLocaleDateString();
+    // show last active date
+    const sortedDates = Object.keys(totalsByDate).sort();
+    const lastDate = sortedDates[sortedDates.length - 1];
+    if (lastDate) {
+      setText("lastActiveText", new Date(lastDate).toLocaleDateString());
     }
   }
 })();
