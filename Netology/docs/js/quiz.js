@@ -89,14 +89,15 @@
   }
 
   // find the quiz for a lesson number
-  // quiz questions live on the lesson object (unit.lessons[n].quiz), not on the section Quiz items
+  // quiz questions live on the lesson object (unit.lessons[n].quiz)
+  // lesson numbers are sequential across all units: unit1 has 1-4, unit2 has 5-8, etc.
   function findQuiz(course, lessonNum) {
     if (!course?.units) return null;
-    let lessonCount = 0;
+    let count = 0;
     for (const unit of course.units) {
       for (const lesson of (unit.lessons || [])) {
-        lessonCount++;
-        if (lessonCount === lessonNum && lesson.quiz?.questions) {
+        count++;
+        if (count === lessonNum && lesson.quiz?.questions) {
           return normaliseQuiz(lesson.quiz);
         }
       }
@@ -129,6 +130,7 @@
         if (count === lessonNum) return unit.title || "Module";
       }
     }
+
     return "";
   }
 

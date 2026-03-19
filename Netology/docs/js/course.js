@@ -109,43 +109,15 @@
     }
   }
 
-  // finds the COURSE_CONTENT key that matches a title
-  function findContentKey(title) {
-    if (!window.COURSE_CONTENT || !title) return null;
-    const lower = String(title).trim().toLowerCase();
-    return Object.keys(window.COURSE_CONTENT).find(key => {
-      return String(window.COURSE_CONTENT[key]?.title || "").trim().toLowerCase() === lower;
-    }) || null;
-  }
-
-  // looks up raw course data by id or title from COURSE_CONTENT
-  function findRawCourse(courseId, courseTitle) {
-    if (!window.COURSE_CONTENT) return null;
-
-    // try direct key match
-    if (window.COURSE_CONTENT[String(courseId)]) {
-      return window.COURSE_CONTENT[String(courseId)];
-    }
-
-    const all = Object.values(window.COURSE_CONTENT);
-
-    // match by the id field inside the object
-    const byId = all.find(c => String(c.id) === String(courseId));
-    if (byId) return byId;
-
-    // match by title (DB ids can differ from content keys)
-    if (courseTitle) {
-      const lower = String(courseTitle).trim().toLowerCase();
-      const byTitle = all.find(c => String(c.title || "").trim().toLowerCase() === lower);
-      if (byTitle) return byTitle;
-    }
-
-    return null;
+  // looks up raw course data by id from COURSE_CONTENT
+  // DB course IDs are 1-9, matching the COURSE_CONTENT keys directly
+  function findRawCourse(courseId) {
+    return window.COURSE_CONTENT?.[String(courseId)] || null;
   }
 
   // turns raw COURSE_CONTENT data into a clean course object
-  function loadCourseContent(courseId, courseTitle) {
-    const raw = findRawCourse(courseId, courseTitle);
+  function loadCourseContent(courseId) {
+    const raw = findRawCourse(courseId);
     if (!raw) return null;
 
     const units = Array.isArray(raw.units) ? raw.units : [];
@@ -175,30 +147,6 @@
       totalLessons: Number(raw.total_lessons || 0),
       modules
     };
-  }
-
-  // fetches course title from API, then matches by title in COURSE_CONTENT
-  async function loadCourseFromApi(courseId) {
-    try {
-      const res = await fetch(`${API_BASE}/course?id=${courseId}`);
-      const api = await res.json();
-      if (!api?.title) return null;
-
-      const course = loadCourseContent(courseId, api.title);
-      if (!course) return null;
-
-      course.totalXP = course.totalXP || Number(api.xp_reward || 0);
-      course.estimatedTime = course.estimatedTime || api.estimated_time || "—";
-      course.totalLessons = course.totalLessons || Number(api.total_lessons || 0);
-
-      const realKey = findContentKey(api.title);
-      if (realKey) state.contentId = realKey;
-
-      return course;
-    } catch (err) {
-      console.warn("Could not fetch course from API:", err);
-      return null;
-    }
   }
 
   // turns a unit's sections into a flat list of lesson/quiz/sandbox/challenge items
@@ -721,11 +669,8 @@
       loadUserStats(cached);
     }
 
-    // try loading from static content by id first
-    let course = loadCourseContent(state.courseId);
-
-    // DB ids can differ from COURSE_CONTENT keys, so fall back to title match
-    if (!course) course = await loadCourseFromApi(state.courseId);
+    // load course content by id (DB ids 1-9 match COURSE_CONTENT keys)
+    const course = loadCourseContent(state.courseId);
 
     if (course) {
       state.course = course;

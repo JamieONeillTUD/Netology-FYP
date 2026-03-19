@@ -78,7 +78,7 @@
   // fills in missing course fields from static data
   function enrichCourse(course) {
     const id = String(course?.id || "");
-    const fallback = getStaticCourse(id, course?.title);
+    const fallback = getStaticCourse(id);
     const lessons = countLessons(course, fallback);
     const modules = countModules(course, fallback);
     const objectives = getObjectiveStats(fallback);
@@ -100,24 +100,10 @@
     };
   }
 
-  // looks up a course in the static COURSE_CONTENT by key or title
-  function getStaticCourse(id, title) {
-    const content = window.COURSE_CONTENT;
-    if (!content) return {};
-    // try direct key match first
-    if (content[String(id)]) return content[String(id)];
-    // try matching by id field inside each entry
-    const byId = Object.values(content).find(c => String(c.id) === String(id));
-    if (byId) return byId;
-    // try matching by title (DB ids may differ from content keys)
-    if (title) {
-      const lower = String(title).trim().toLowerCase();
-      const byTitle = Object.values(content).find(c =>
-        String(c.title || "").trim().toLowerCase() === lower
-      );
-      if (byTitle) return byTitle;
-    }
-    return {};
+  // looks up a course in the static COURSE_CONTENT by id
+  // DB course IDs are 1-9, matching the COURSE_CONTENT keys directly
+  function getStaticCourse(id) {
+    return window.COURSE_CONTENT?.[String(id)] || {};
   }
 
   // counts how many lessons a course has

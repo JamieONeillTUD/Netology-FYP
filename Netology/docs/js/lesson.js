@@ -12,12 +12,13 @@
   const readJson = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
 
   // look up how much xp a lesson is worth from the section items in course_content
+  // lesson numbers are sequential across all units (1, 2, 3 … n)
   function xpForLesson(course, lessonNum) {
     let count = 0;
     for (const unit of course.units) {
-      for (const section of unit.sections) {
-        for (const item of section.items) {
-          if (item.type.toLowerCase() === "learn") {
+      for (const section of (unit.sections || [])) {
+        for (const item of (section.items || [])) {
+          if ((item.type || "").toLowerCase() === "learn") {
             count++;
             if (count === lessonNum) return item.xp;
           }

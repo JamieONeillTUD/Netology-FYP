@@ -1026,31 +1026,16 @@
     return counts;
   }
 
-  // course content helpers
+  // course content helpers — DB IDs 1-9 match COURSE_CONTENT keys directly
   function getCourseContent(course) {
     if (!course) return null;
-
-    const allContent = window.COURSE_CONTENT || {};
-    const courseTitle = String(course.title || "").trim().toLowerCase();
-
-    const byTitle = Object.values(allContent).find(function (c) {
-      return String(c && c.title ? c.title : "").trim().toLowerCase() === courseTitle;
-    });
-
-    return byTitle || allContent[String(course.id)] || null;
+    return (window.COURSE_CONTENT || {})[String(course.id)] || null;
   }
 
   function getCourseContentId(course) {
     if (!course) return null;
-
-    const allContent = window.COURSE_CONTENT || {};
-    const courseTitle = String(course.title || "").trim().toLowerCase();
-
-    const match = Object.values(allContent).find(function (c) {
-      return String(c && c.title ? c.title : "").trim().toLowerCase() === courseTitle;
-    });
-
-    return match && match.id ? String(match.id) : null;
+    const content = (window.COURSE_CONTENT || {})[String(course.id)];
+    return content && content.id ? String(content.id) : null;
   }
 
   function getAllCourseItems(course) {

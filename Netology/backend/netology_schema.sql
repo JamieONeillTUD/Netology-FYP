@@ -541,60 +541,30 @@ CREATE TABLE IF NOT EXISTS challenge_completions (
     UNIQUE (user_email, course_id, lesson_number)
 );
 
--- AI Prompt: Explain the SAMPLE COURSES (SAFE INSERT ONLY) section in clear, simple terms.
 -- =========================================================
--- SAMPLE COURSES (SAFE INSERT ONLY)
+-- SAMPLE COURSES (IDs 1–9, matching COURSE_CONTENT keys)
 -- =========================================================
-INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
-SELECT 'Networking Foundations',
-       'Build core networking knowledge from scratch: devices, Ethernet, and IP basics.',
-       12, 3, 800, 'Novice', 'Core', 1, '5.5 hrs'
-WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Networking Foundations');
+INSERT INTO courses (id, title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
+VALUES
+(1, 'Networking Foundations',       'Build core networking knowledge from scratch: devices, Ethernet, and IP basics.', 12, 3, 1295, 'Novice',       'Core',       1, '5.5 hrs'),
+(2, 'Ethernet & Switching Basics',  'Learn switching behavior and build your first switched network.',                  2,  1, 350,  'Novice',       'Switching',  1, '1.2 hrs'),
+(3, 'IP Addressing Essentials',     'Understand private vs public IPs and basic subnetting concepts.',                  2,  1, 360,  'Novice',       'IP',         1, '1.4 hrs'),
+(4, 'Subnetting & VLANs',          'Design efficient subnets, segment networks with VLANs, and connect them securely.', 12, 3, 950,  'Intermediate', 'Routing',    3, '6 hrs'),
+(5, 'Routing Fundamentals',        'Learn how routers move traffic between networks and how routing protocols work.',    2,  1, 420,  'Intermediate', 'Routing',    3, '1.6 hrs'),
+(6, 'Wireless & Network Services',  'Understand Wi-Fi standards and essential services like DHCP and DNS.',              2,  1, 450,  'Intermediate', 'Services',   3, '1.8 hrs'),
+(7, 'Network Security & Hardening', 'Secure networks with hardening, firewalls, ACLs, and monitoring best practices.',  12, 3, 1050, 'Advanced',     'Security',   5, '6.5 hrs'),
+(8, 'WAN & BGP Design',            'Explore WAN technologies and the basics of BGP routing.',                            2,  1, 520,  'Advanced',     'WAN',        5, '1.9 hrs'),
+(9, 'Automation & Monitoring',      'Automate routine tasks and monitor networks at scale.',                              2,  1, 560,  'Advanced',     'Automation', 5, '2.1 hrs')
+ON CONFLICT (id) DO UPDATE SET
+    title = EXCLUDED.title,
+    description = EXCLUDED.description,
+    total_lessons = EXCLUDED.total_lessons,
+    module_count = EXCLUDED.module_count,
+    xp_reward = EXCLUDED.xp_reward,
+    difficulty = EXCLUDED.difficulty,
+    category = EXCLUDED.category,
+    required_level = EXCLUDED.required_level,
+    estimated_time = EXCLUDED.estimated_time;
 
-INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
-SELECT 'Ethernet & Switching Basics',
-       'Learn switching behavior and build your first switched network.',
-       3, 1, 350, 'Novice', 'Switching', 1, '1.2 hrs'
-WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Ethernet & Switching Basics');
-
-INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
-SELECT 'IP Addressing Essentials',
-       'Understand private vs public IPs and basic subnetting concepts.',
-       3, 1, 360, 'Novice', 'IP', 1, '1.4 hrs'
-WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'IP Addressing Essentials');
-
-INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
-SELECT 'Routing Fundamentals',
-       'Learn how routers move traffic between networks and how routing protocols work.',
-       3, 1, 420, 'Intermediate', 'Routing', 3, '1.6 hrs'
-WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Routing Fundamentals');
-
-INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
-SELECT 'Subnetting & VLANs',
-       'Design efficient subnets, segment networks with VLANs, and connect them securely.',
-       12, 3, 950, 'Intermediate', 'Routing', 3, '6 hrs'
-WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Subnetting & VLANs');
-
-INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
-SELECT 'Wireless & Network Services',
-       'Understand Wi‑Fi standards and essential services like DHCP and DNS.',
-       3, 1, 450, 'Intermediate', 'Services', 3, '1.8 hrs'
-WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Wireless & Network Services');
-
-INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
-SELECT 'Automation & Monitoring',
-       'Automate routine tasks and monitor networks at scale.',
-       3, 1, 560, 'Advanced', 'Automation', 5, '2.1 hrs'
-WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Automation & Monitoring');
-
-INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
-SELECT 'Network Security & Hardening',
-       'Secure networks with hardening, firewalls, ACLs, and monitoring best practices.',
-       12, 3, 1050, 'Advanced', 'Security', 5, '6.5 hrs'
-WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Network Security & Hardening');
-
-INSERT INTO courses (title, description, total_lessons, module_count, xp_reward, difficulty, category, required_level, estimated_time)
-SELECT 'WAN & BGP Design',
-       'Explore WAN technologies and the basics of BGP routing.',
-       3, 1, 520, 'Advanced', 'WAN', 5, '1.9 hrs'
-WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'WAN & BGP Design');
+-- Ensure next auto-ID starts after 9
+SELECT setval('courses_id_seq', GREATEST((SELECT MAX(id) FROM courses), 9), true);
