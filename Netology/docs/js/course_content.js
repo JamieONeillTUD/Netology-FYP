@@ -26,7 +26,7 @@ const COURSE_CONTENT = {
     difficulty: "novice",
     required_level: 1,
     estimatedTime: "5.5 hrs",
-    xpReward: 1295,
+    xpReward: 840,
     category: "Core",
     units: [
       {
@@ -73,7 +73,8 @@ const COURSE_CONTENT = {
               "Identify common networked devices",
               "Explain why protocols are important",
               "Describe why networks exist"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "LAN vs WAN vs Internet",
@@ -112,7 +113,8 @@ const COURSE_CONTENT = {
               "Compare LANs and WANs",
               "Recognize why the Internet is a network of networks",
               "Explain how LANs connect to WANs"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "Network roles and services",
@@ -164,7 +166,8 @@ const COURSE_CONTENT = {
               "Identify client and server roles",
               "Describe common network services",
               "Explain why redundancy improves uptime"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "Topologies and traffic flow",
@@ -203,12 +206,13 @@ const COURSE_CONTENT = {
               "Identify common topologies",
               "Describe unicast vs broadcast traffic",
               "Explain how switches direct traffic"
-            ]
+            ],
+            xp: 20
           }
         ],
         quiz: {
           title: "Network basics quiz",
-          xp: 90,
+          xp: 80,
           questions: [
             {
               id: "q1",
@@ -324,7 +328,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Classify network types",
-          xp: 35,
+          xp: 40,
           steps: [
             {
               text: "Add a router to the canvas.",
@@ -416,7 +420,7 @@ const COURSE_CONTENT = {
         },
         challenge: {
           title: "Design a small office network",
-          xp: 100,
+          xp: 80,
           rules: {
             minDevices: 5,
             minConnections: 4,
@@ -488,7 +492,8 @@ const COURSE_CONTENT = {
               "Distinguish switches from routers",
               "Identify endpoints",
               "Explain where the default gateway fits"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "Ethernet frames and MAC addresses",
@@ -527,7 +532,8 @@ const COURSE_CONTENT = {
               "Describe the parts of an Ethernet frame",
               "Explain how MAC addresses are used",
               "Understand why switches flood unknown destinations"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "ARP and broadcast domains",
@@ -579,7 +585,8 @@ const COURSE_CONTENT = {
               "Explain how ARP works",
               "Define a broadcast domain",
               "Describe why routers block broadcasts"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "Switching loops and STP basics",
@@ -618,7 +625,8 @@ const COURSE_CONTENT = {
               "Explain why loops are harmful",
               "Describe what STP does",
               "Identify why redundancy still matters"
-            ]
+            ],
+            xp: 20
           }
         ],
         quiz: {
@@ -728,7 +736,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Trace a frame on a LAN",
-          xp: 35,
+          xp: 40,
           steps: [
             {
               text: "Add one switch to the canvas.",
@@ -784,7 +792,7 @@ const COURSE_CONTENT = {
         },
         challenge: {
           title: "Build a two-switch LAN",
-          xp: 110,
+          xp: 80,
           rules: {
             minDevices: 6,
             minConnections: 5,
@@ -842,7 +850,8 @@ const COURSE_CONTENT = {
               "Describe IPv4 addressing",
               "Recognize private address ranges",
               "Explain why IP accuracy matters"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "Subnet masks and gateways",
@@ -894,7 +903,8 @@ const COURSE_CONTENT = {
               "Interpret subnet masks",
               "Explain the role of the default gateway",
               "Identify common addressing mistakes"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "IP planning and common mistakes",
@@ -933,7 +943,8 @@ const COURSE_CONTENT = {
               "Explain why IP planning matters",
               "List common addressing mistakes",
               "Describe a simple planning approach"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "DHCP and DNS essentials",
@@ -985,7 +996,8 @@ const COURSE_CONTENT = {
               "Explain the DHCP DORA process",
               "Describe what DNS does",
               "Identify symptoms of DNS or DHCP issues"
-            ]
+            ],
+            xp: 20
           }
         ],
         quiz: {
@@ -1106,7 +1118,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Assign IP details",
-          xp: 35,
+          xp: 40,
           steps: [
             {
               text: "Add a router to the canvas.",
@@ -1187,7 +1199,7 @@ const COURSE_CONTENT = {
         },
         challenge: {
           title: "Subnet a small office",
-          xp: 110,
+          xp: 80,
           rules: {
             minDevices: 5,
             minConnections: 4,
@@ -1214,7 +1226,7 @@ const COURSE_CONTENT = {
     difficulty: "novice",
     required_level: 1,
     estimatedTime: "1.2 hrs",
-    xpReward: 285,
+    xpReward: 240,
     category: "Switching",
     units: [
       {
@@ -1257,7 +1269,8 @@ const COURSE_CONTENT = {
               "Compare how hubs and switches forward frames",
               "Explain MAC address learning and ageing",
               "Describe why switches are preferred over hubs"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "Spanning Tree basics",
@@ -1295,12 +1308,13 @@ const COURSE_CONTENT = {
               "Explain why switching loops are dangerous",
               "Describe how STP elects a root bridge",
               "Explain how STP prevents loops while keeping backup paths available"
-            ]
+            ],
+            xp: 20
           }
         ],
         quiz: {
           title: "Switching quick check",
-          xp: 50,
+          xp: 80,
           questions: [
             {
               id: "q1",
@@ -1350,7 +1364,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Inspect MAC tables",
-          xp: 25,
+          xp: 40,
           steps: [
             {
               text: "Add a switch and two PCs.",
@@ -1391,7 +1405,7 @@ const COURSE_CONTENT = {
         },
         challenge: {
           title: "Design a resilient switched LAN",
-          xp: 95,
+          xp: 80,
           rules: {
             minDevices: 6,
             minConnections: 5,
@@ -1417,7 +1431,7 @@ const COURSE_CONTENT = {
     difficulty: "novice",
     required_level: 1,
     estimatedTime: "1.4 hrs",
-    xpReward: 290,
+    xpReward: 240,
     category: "IP",
     units: [
       {
@@ -1459,7 +1473,8 @@ const COURSE_CONTENT = {
               "Identify IPv4 address classes by their first octet",
               "List the three private IP ranges",
               "Explain why CIDR replaced classful addressing"
-            ]
+            ],
+            xp: 20
           },
           {
             title: "Private vs public IPs",
@@ -1496,12 +1511,13 @@ const COURSE_CONTENT = {
               "Distinguish private from public IP addresses",
               "Explain how NAT enables Internet access for private devices",
               "List the three private IP ranges"
-            ]
+            ],
+            xp: 20
           }
         ],
         quiz: {
           title: "Addressing quick check",
-          xp: 50,
+          xp: 80,
           questions: [
             {
               id: "q1",
@@ -1551,7 +1567,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Configure a private LAN",
-          xp: 30,
+          xp: 40,
           steps: [
             {
               text: "Add one router, one switch, and two PCs.",
@@ -1617,7 +1633,7 @@ const COURSE_CONTENT = {
         },
         challenge: {
           title: "Plan an office IP layout",
-          xp: 95,
+          xp: 80,
           rules: {
             minDevices: 5,
             minConnections: 4,
@@ -1645,7 +1661,7 @@ const COURSE_CONTENT = {
     difficulty: "intermediate",
     required_level: 3,
     estimatedTime: "6 hrs",
-    xpReward: 1395,
+    xpReward: 1050,
     category: "Routing",
     units: [
       {
@@ -1689,7 +1705,8 @@ const COURSE_CONTENT = {
               "Explain why subnetting is used",
               "Describe how broadcasts are reduced",
               "Explain how subnetting improves security"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "CIDR and prefix lengths",
@@ -1728,7 +1745,8 @@ const COURSE_CONTENT = {
               "Read a CIDR prefix",
               "Relate prefix length to subnet size",
               "Calculate total vs usable addresses"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "VLSM and subnet strategy",
@@ -1766,7 +1784,8 @@ const COURSE_CONTENT = {
               "Explain what VLSM is",
               "Plan subnets of different sizes",
               "Describe why ordering matters"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "Subnetting by hand",
@@ -1804,12 +1823,13 @@ const COURSE_CONTENT = {
               "Calculate block sizes",
               "Find network and broadcast addresses",
               "Avoid overlapping subnets"
-            ]
+            ],
+            xp: 25
           }
         ],
         quiz: {
           title: "Subnetting fundamentals quiz",
-          xp: 90,
+          xp: 100,
           questions: [
             {
               id: "q1",
@@ -1925,7 +1945,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Calculate subnet ranges",
-          xp: 40,
+          xp: 50,
           steps: [
             "Add a router, a switch, and four PCs.",
             "Connect all PCs to the switch and the switch to the router.",
@@ -1936,7 +1956,7 @@ const COURSE_CONTENT = {
         },
         challenge: {
           title: "Design two subnets for a small business",
-          xp: 110,
+          xp: 100,
           rules: {
             minDevices: 6,
             minConnections: 5,
@@ -1993,7 +2013,8 @@ const COURSE_CONTENT = {
             objectives: [
               "Define a VLAN",
               "Explain why VLANs improve segmentation"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "VLAN planning and naming",
@@ -2031,7 +2052,8 @@ const COURSE_CONTENT = {
               "Create a simple VLAN naming scheme",
               "Explain why documentation matters",
               "Describe how VLAN plans scale"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "802.1Q trunking",
@@ -2068,7 +2090,8 @@ const COURSE_CONTENT = {
             objectives: [
               "Describe what trunking does",
               "Identify access vs trunk ports"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "Access vs trunk ports",
@@ -2106,12 +2129,13 @@ const COURSE_CONTENT = {
               "Describe access vs trunk ports",
               "Explain the native VLAN",
               "Identify common trunk misconfigurations"
-            ]
+            ],
+            xp: 25
           }
         ],
         quiz: {
           title: "VLANs quiz",
-          xp: 90,
+          xp: 100,
           questions: [
             {
               id: "q1",
@@ -2227,7 +2251,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Assign VLANs to ports",
-          xp: 40,
+          xp: 50,
           steps: [
             "Add two switches and four PCs.",
             "Connect two PCs to Switch A and two PCs to Switch B.",
@@ -2238,7 +2262,7 @@ const COURSE_CONTENT = {
         },
         challenge: {
           title: "Build a VLAN campus",
-          xp: 110,
+          xp: 100,
           rules: {
             minDevices: 6,
             minConnections: 5,
@@ -2294,7 +2318,8 @@ const COURSE_CONTENT = {
             objectives: [
               "Explain router-on-a-stick",
               "Identify when it's used"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "SVI on Layer 3 switches",
@@ -2331,7 +2356,8 @@ const COURSE_CONTENT = {
             objectives: [
               "Define an SVI",
               "Compare SVIs to router-on-a-stick"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "Inter-VLAN design patterns",
@@ -2369,7 +2395,8 @@ const COURSE_CONTENT = {
               "Compare inter-VLAN design options",
               "Explain trade-offs between patterns",
               "Describe where gateways should live"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "Troubleshooting inter-VLAN routing",
@@ -2406,12 +2433,13 @@ const COURSE_CONTENT = {
             objectives: [
               "Identify common inter-VLAN failures",
               "Describe a basic troubleshooting sequence"
-            ]
+            ],
+            xp: 25
           }
         ],
         quiz: {
           title: "Inter-VLAN routing quiz",
-          xp: 90,
+          xp: 100,
           questions: [
             {
               id: "q1",
@@ -2527,7 +2555,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Configure inter-VLAN routing",
-          xp: 45,
+          xp: 50,
           steps: [
             "Add a router, a switch, and three PCs.",
             "Connect all PCs to the switch and connect the switch to the router.",
@@ -2538,7 +2566,7 @@ const COURSE_CONTENT = {
         },
         challenge: {
           title: "Route between two VLANs",
-          xp: 110,
+          xp: 100,
           rules: {
             minDevices: 5,
             minConnections: 4,
@@ -2565,7 +2593,7 @@ const COURSE_CONTENT = {
     difficulty: "intermediate",
     required_level: 3,
     estimatedTime: "1.6 hrs",
-    xpReward: 140,
+    xpReward: 300,
     category: "Routing",
     units: [
       {
@@ -2607,7 +2635,8 @@ const COURSE_CONTENT = {
               "Compare static and dynamic routing",
               "Explain when to use static routes",
               "Describe the advantage of dynamic protocols"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "OSPF overview",
@@ -2644,12 +2673,13 @@ const COURSE_CONTENT = {
               "Describe how OSPF works",
               "Explain the role of the link-state database",
               "Identify the OSPF metric"
-            ]
+            ],
+            xp: 25
           }
         ],
         quiz: {
           title: "Routing quick check",
-          xp: 60,
+          xp: 100,
           questions: [
             {
               id: "q1",
@@ -2707,6 +2737,36 @@ const COURSE_CONTENT = {
               explanation: "OSPF uses Hello packets to form and maintain neighbour relationships."
             }
           ]
+        },
+        sandbox: {
+          title: "Compare routing methods",
+          xp: 50,
+          steps: [
+            "Add two routers (R1 and R2) and a PC to the canvas.",
+            "Connect the PC to R1, then R1 to R2 with a link.",
+            "On R1, note the command you would use to add a static route to the network behind R2.",
+            "Explain in one sentence why you would choose OSPF instead if there were five routers."
+          ],
+          tips: "Static routes are simple but do not scale — OSPF is the right choice when your network can change or grow."
+        },
+        challenge: {
+          title: "Design a routed network",
+          xp: 100,
+          rules: {
+            description: "You have three branch offices that must all be able to reach each other. Use the sandbox to plan and document your routing approach.",
+            objectives: [
+              "Connect all three branches via two routers",
+              "Choose between static and OSPF and justify your choice",
+              "Verify that a packet from Branch A can theoretically reach Branch C"
+            ]
+          },
+          steps: [
+            "Add three PCs (one per branch) and two routers to the canvas.",
+            "Connect Branch A PC to R1, Branch C PC to R2, Branch B PC to both R1 and R2.",
+            "Decide whether to use static routes or OSPF — note your reasoning.",
+            "Trace the path a packet takes from Branch A to Branch C."
+          ],
+          tips: "Think about what happens if one router link goes down — which routing method handles it better?"
         }
       }
     ]
@@ -2718,7 +2778,7 @@ const COURSE_CONTENT = {
     difficulty: "intermediate",
     required_level: 3,
     estimatedTime: "1.8 hrs",
-    xpReward: 140,
+    xpReward: 300,
     category: "Services",
     units: [
       {
@@ -2760,7 +2820,8 @@ const COURSE_CONTENT = {
               "Compare major Wi‑Fi standards",
               "Explain the difference between 2.4 GHz and 5 GHz",
               "Describe key features of Wi‑Fi 6"
-            ]
+            ],
+            xp: 25
           },
           {
             title: "DHCP & DNS basics",
@@ -2797,12 +2858,13 @@ const COURSE_CONTENT = {
               "Describe how DHCP works",
               "Explain the DORA process",
               "Describe the DNS hierarchy"
-            ]
+            ],
+            xp: 25
           }
         ],
         quiz: {
           title: "Services quick check",
-          xp: 60,
+          xp: 100,
           questions: [
             {
               id: "q1",
@@ -2860,6 +2922,36 @@ const COURSE_CONTENT = {
               explanation: "IP connectivity works but name resolution fails, so DNS is the culprit."
             }
           ]
+        },
+        sandbox: {
+          title: "Configure DHCP and DNS roles",
+          xp: 50,
+          steps: [
+            "Add a router, a server, and two PCs to the canvas.",
+            "Connect both PCs to the router, and the server to the router.",
+            "Mark the server as your DHCP server — list the four pieces of info it would hand to each PC.",
+            "Explain what would break for users if the DNS server went offline."
+          ],
+          tips: "DHCP and DNS are silent heroes — most users never notice them until they stop working."
+        },
+        challenge: {
+          title: "Troubleshoot a broken network service",
+          xp: 100,
+          rules: {
+            description: "A user complains they can ping 8.8.8.8 but cannot open any website. Use the sandbox to map out what is working and what is not.",
+            objectives: [
+              "Identify whether IP connectivity is working",
+              "Identify which specific service is failing",
+              "Propose a fix for the broken service"
+            ]
+          },
+          steps: [
+            "Add a PC, a router, and a DNS server to the canvas.",
+            "Connect the PC to the router and the router to the DNS server.",
+            "Confirm: if ping to 8.8.8.8 works, what layer is functioning correctly?",
+            "Explain what single change would restore website access."
+          ],
+          tips: "When IP works but names do not, always check DNS first."
         }
       }
     ]
@@ -2871,7 +2963,7 @@ const COURSE_CONTENT = {
     difficulty: "advanced",
     required_level: 5,
     estimatedTime: "6.5 hrs",
-    xpReward: 1340,
+    xpReward: 1260,
     category: "Security",
     units: [
       {
@@ -2914,7 +3006,8 @@ const COURSE_CONTENT = {
               "Define attack surface",
               "List common exposure points",
               "Explain why reduction matters"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "Threat modeling and risk",
@@ -2952,7 +3045,8 @@ const COURSE_CONTENT = {
               "Explain why threat modeling matters",
               "Prioritize risks by likelihood and impact",
               "Identify where to place controls"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "Hardening checklist",
@@ -2989,7 +3083,8 @@ const COURSE_CONTENT = {
             objectives: [
               "Describe key hardening actions",
               "Explain why patching is critical"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "Authentication and AAA",
@@ -3027,12 +3122,13 @@ const COURSE_CONTENT = {
               "Define AAA",
               "Explain least privilege",
               "Describe why MFA improves security"
-            ]
+            ],
+            xp: 30
           }
         ],
         quiz: {
           title: "Hardening fundamentals quiz",
-          xp: 100,
+          xp: 120,
           questions: [
             {
               id: "q1",
@@ -3148,7 +3244,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Spot hardening gaps",
-          xp: 40,
+          xp: 60,
           steps: [
             "Add a router, firewall, switch, two PCs, and a server.",
             "Connect PCs and server to the switch, then switch to firewall, firewall to router.",
@@ -3216,7 +3312,8 @@ const COURSE_CONTENT = {
             objectives: [
               "Compare stateless vs stateful behavior",
               "Explain why statefulness reduces rule count"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "ACL design",
@@ -3253,7 +3350,8 @@ const COURSE_CONTENT = {
             objectives: [
               "Explain ACL order of operations",
               "Apply least privilege to rule design"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "Firewall policy lifecycle",
@@ -3291,7 +3389,8 @@ const COURSE_CONTENT = {
               "Describe a firewall policy lifecycle",
               "Explain why rule cleanup matters",
               "Identify ways to control change risk"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "Rule ordering and implicit deny",
@@ -3328,12 +3427,13 @@ const COURSE_CONTENT = {
             objectives: [
               "Explain rule ordering",
               "Identify common ACL mistakes"
-            ]
+            ],
+            xp: 30
           }
         ],
         quiz: {
           title: "Firewall and ACL quiz",
-          xp: 100,
+          xp: 120,
           questions: [
             {
               id: "q1",
@@ -3454,6 +3554,17 @@ const COURSE_CONTENT = {
             "Imagine the router enforcing ACL rules between the PCs."
           ],
           tips: "You're validating topology and segmentation awareness."
+        },
+        sandbox: {
+          title: "Sketch an ACL policy",
+          xp: 60,
+          steps: [
+            "Add a router (with ACL capability), two VLANs, and the Internet cloud to the canvas.",
+            "Connect VLAN 10 (staff) and VLAN 20 (guest) to the router, then router to Internet.",
+            "List two traffic types you would explicitly permit from the staff VLAN.",
+            "List one traffic type you would block from the guest VLAN and explain why."
+          ],
+          tips: "ACLs are read top-to-bottom and stop at the first match — order your rules from most specific to least specific."
         }
       },
       {
@@ -3495,7 +3606,8 @@ const COURSE_CONTENT = {
             objectives: [
               "Define SIEM at a high level",
               "Explain why log centralization matters"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "Incident response workflow",
@@ -3532,7 +3644,8 @@ const COURSE_CONTENT = {
             objectives: [
               "List the IR phases",
               "Explain why documentation matters"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "Playbooks and tabletop exercises",
@@ -3570,7 +3683,8 @@ const COURSE_CONTENT = {
               "Explain what a playbook is",
               "Describe the value of tabletop exercises",
               "Identify gaps through practice"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "Detection baselines and alerting",
@@ -3607,12 +3721,13 @@ const COURSE_CONTENT = {
             objectives: [
               "Explain what a baseline is",
               "Describe how to tune alerts"
-            ]
+            ],
+            xp: 30
           }
         ],
         quiz: {
           title: "Monitoring and IR quiz",
-          xp: 100,
+          xp: 120,
           questions: [
             {
               id: "q1",
@@ -3717,7 +3832,7 @@ const COURSE_CONTENT = {
         },
         sandbox: {
           title: "Analyze a log snippet",
-          xp: 40,
+          xp: 60,
           steps: [
             "Add a firewall and a server to the canvas.",
             "Connect the server to the firewall, then connect the firewall to the Internet cloud.",
@@ -3725,6 +3840,26 @@ const COURSE_CONTENT = {
             "Explain how a SIEM would correlate repeated failures from one IP."
           ],
           tips: "Look for repeated failures, impossible travel, or unusual ports for quick wins."
+        },
+        challenge: {
+          title: "Design an incident response plan",
+          xp: 120,
+          rules: {
+            description: "A SIEM alert fires at 03:00 showing 500 failed SSH logins from a single external IP in 10 minutes, followed by one success. Plan your response.",
+            objectives: [
+              "Identify the likely attack type",
+              "List the first three actions you would take",
+              "Describe how you would prevent recurrence"
+            ]
+          },
+          steps: [
+            "Add a firewall, a jump host, and a SIEM server to the canvas.",
+            "Connect the Internet cloud through the firewall to the jump host.",
+            "Write down the attack type this pattern describes.",
+            "List your first three response actions in order of priority.",
+            "Propose one firewall rule change that would prevent this in future."
+          ],
+          tips: "Brute-force followed by a successful login means credentials may be compromised — containment before investigation."
         }
       }
     ]
@@ -3736,7 +3871,7 @@ const COURSE_CONTENT = {
     difficulty: "advanced",
     required_level: 5,
     estimatedTime: "1.9 hrs",
-    xpReward: 140,
+    xpReward: 360,
     category: "WAN",
     units: [
       {
@@ -3778,7 +3913,8 @@ const COURSE_CONTENT = {
               "Compare MPLS, SD-WAN, and VPN technologies",
               "Explain why SD-WAN is growing",
               "Describe trade-offs between WAN options"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "BGP basics",
@@ -3815,12 +3951,13 @@ const COURSE_CONTENT = {
               "Explain what BGP does",
               "Describe key BGP path attributes",
               "Compare eBGP and iBGP"
-            ]
+            ],
+            xp: 30
           }
         ],
         quiz: {
           title: "WAN quick check",
-          xp: 60,
+          xp: 120,
           questions: [
             {
               id: "q1",
@@ -3878,6 +4015,37 @@ const COURSE_CONTENT = {
               explanation: "MPLS provides dedicated paths through a service provider network."
             }
           ]
+        },
+        sandbox: {
+          title: "Map a WAN topology",
+          xp: 60,
+          steps: [
+            "Add two office routers (HQ and Branch) and an Internet cloud to the canvas.",
+            "Connect both routers to the cloud to represent a dual-ISP SD-WAN setup.",
+            "Label which link you would prefer for real-time traffic (VoIP) and which for bulk data.",
+            "Explain in one sentence why MPLS is preferred over the public Internet for sensitive traffic."
+          ],
+          tips: "SD-WAN policies apply quality-of-service rules per application — always mark real-time traffic as high priority."
+        },
+        challenge: {
+          title: "Troubleshoot a BGP session",
+          xp: 120,
+          rules: {
+            description: "Your BGP session with your upstream ISP is down. The physical link is up. Walk through a systematic troubleshooting approach.",
+            objectives: [
+              "Identify the most common causes of a BGP session failure",
+              "Describe the BGP state machine steps",
+              "Propose specific commands or checks you would run"
+            ]
+          },
+          steps: [
+            "Add two routers (your edge router and the ISP router) and an Internet cloud.",
+            "Connect both routers to each other to represent the eBGP peering link.",
+            "List the BGP states in order: Idle → Connect → Active → OpenSent → OpenConfirm → Established.",
+            "Identify two configuration mismatches (e.g. wrong AS number, wrong neighbor IP) that would prevent Established.",
+            "Write the single show command that tells you the current BGP neighbor state."
+          ],
+          tips: "Check AS numbers, neighbor IP addresses, and MD5 auth keys first — 90% of BGP session failures are one of these three."
         }
       }
     ]
@@ -3889,7 +4057,7 @@ const COURSE_CONTENT = {
     difficulty: "advanced",
     required_level: 5,
     estimatedTime: "2.1 hrs",
-    xpReward: 140,
+    xpReward: 360,
     category: "Automation",
     units: [
       {
@@ -3931,7 +4099,8 @@ const COURSE_CONTENT = {
               "Explain why network automation matters",
               "Describe Infrastructure as Code",
               "Identify common automation tools"
-            ]
+            ],
+            xp: 30
           },
           {
             title: "Monitoring & SNMP",
@@ -3968,12 +4137,13 @@ const COURSE_CONTENT = {
               "Describe how SNMP works",
               "Compare SNMP polling and traps",
               "Explain why SNMPv3 is preferred"
-            ]
+            ],
+            xp: 30
           }
         ],
         quiz: {
           title: "Automation quick check",
-          xp: 60,
+          xp: 120,
           questions: [
             {
               id: "q1",
@@ -4031,6 +4201,37 @@ const COURSE_CONTENT = {
               explanation: "Automation makes changes faster, more consistent, and less error-prone."
             }
           ]
+        },
+        sandbox: {
+          title: "Plan an automation workflow",
+          xp: 60,
+          steps: [
+            "Add three network devices (router, switch, firewall) and a management server to the canvas.",
+            "Connect all devices to the management server to represent out-of-band management.",
+            "List the three steps an Ansible playbook would follow to push a VLAN config to all switches.",
+            "Identify one risk of running an untested automation script on production devices."
+          ],
+          tips: "Always test automation in a staging environment first — a bad playbook can misconfigure every device simultaneously."
+        },
+        challenge: {
+          title: "Set up a monitoring baseline",
+          xp: 120,
+          rules: {
+            description: "You have been asked to set up basic monitoring for a 20-device network. Design what you would monitor, how you would alert, and what thresholds you would set.",
+            objectives: [
+              "Choose at least four metrics to monitor per device",
+              "Define alert thresholds for each metric",
+              "Describe how SNMP traps fit into your design"
+            ]
+          },
+          steps: [
+            "Add four device types (router, switch, firewall, server) and an NMS to the canvas.",
+            "Connect all devices to the NMS server.",
+            "List the four metrics you would poll via SNMP GET on each device.",
+            "Define a threshold for each metric that would trigger a warning alert.",
+            "Explain when you would use SNMP traps instead of polling."
+          ],
+          tips: "Start with interface utilisation, CPU, memory, and error counters — these cover 80% of real outages."
         }
       }
     ]
