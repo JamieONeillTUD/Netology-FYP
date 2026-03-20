@@ -445,46 +445,50 @@ Notes:
           </div>
 
           <div class="sbx-stage" id="sandboxStage">
+            <!-- Spacer creates scroll area for the full canvas size -->
+            <div class="sbx-canvas-spacer" id="sbxCanvasSpacer"></div>
             <svg class="sbx-connections" id="sbxConnections" aria-hidden="true"></svg>
             <div class="sbx-devices" id="sbxDevices"></div>
-            <div class="sbx-minimap" id="sbxMinimap" aria-label="Topology overview">
-              <svg id="sbxMinimapSvg"></svg>
-            </div>
-            <div class="sbx-empty" id="sbxEmptyState">
-              <div class="sbx-empty-inner">
-                <div class="sbx-empty-icon"><i class="bi bi-diagram-3"></i></div>
-                <div class="sbx-empty-title">Start building your network</div>
-                <div class="sbx-empty-sub">Drag a device from the left panel, or use the quick-start buttons below to add your first devices.</div>
-                <div class="sbx-empty-actions">
-                  <button class="sbx-empty-quick" data-quick-add="router" type="button"><i class="bi bi-diagram-3"></i> Router</button>
-                  <button class="sbx-empty-quick" data-quick-add="switch" type="button"><i class="bi bi-hdd-network"></i> Switch</button>
-                  <button class="sbx-empty-quick" data-quick-add="pc" type="button"><i class="bi bi-pc-display"></i> PC</button>
-                  <button class="sbx-empty-quick" data-quick-add="server" type="button"><i class="bi bi-server"></i> Server</button>
-                </div>
-                <div class="sbx-empty-hint"><i class="bi bi-keyboard me-1" aria-hidden="true"></i> Press <kbd>C</kbd> to connect, <kbd>V</kbd> to select, <kbd>Del</kbd> to delete</div>
-              </div>
-            </div>
+          </div>
 
-            <!-- Keyboard Shortcut Hint Bar -->
-            <div class="sbx-shortcut-bar" id="sbxShortcutBar">
-              <span class="sbx-shortcut"><kbd>V</kbd> Select</span>
-              <span class="sbx-shortcut"><kbd>C</kbd> Connect</span>
-              <span class="sbx-shortcut"><kbd>Del</kbd> Delete</span>
-              <span class="sbx-shortcut"><kbd>⌘Z</kbd> Undo</span>
-              <span class="sbx-shortcut"><kbd>⌘S</kbd> Save</span>
-              <span class="sbx-shortcut"><kbd>Esc</kbd> Deselect</span>
-            </div>
-
-            <!-- Connection Suggestions -->
-            <div class="sbx-conn-suggest" id="sbxConnSuggest" aria-live="polite" role="status">
-              <div class="sbx-conn-suggest-header">
-                <span class="sbx-conn-suggest-title">Try this next</span>
-                <button class="sbx-conn-suggest-close" id="sbxConnSuggestClose" type="button" aria-label="Dismiss suggestions">
-                  <i class="bi bi-x" aria-hidden="true"></i>
-                </button>
+          <!-- Overlays positioned relative to stage-wrap, outside of scroll container -->
+          <div class="sbx-minimap" id="sbxMinimap" aria-label="Topology overview">
+            <svg id="sbxMinimapSvg"></svg>
+          </div>
+          <div class="sbx-empty" id="sbxEmptyState">
+            <div class="sbx-empty-inner">
+              <div class="sbx-empty-icon"><i class="bi bi-diagram-3"></i></div>
+              <div class="sbx-empty-title">Start building your network</div>
+              <div class="sbx-empty-sub">Drag a device from the left panel, or use the quick-start buttons below to add your first devices.</div>
+              <div class="sbx-empty-actions">
+                <button class="sbx-empty-quick" data-quick-add="router" type="button"><i class="bi bi-diagram-3"></i> Router</button>
+                <button class="sbx-empty-quick" data-quick-add="switch" type="button"><i class="bi bi-hdd-network"></i> Switch</button>
+                <button class="sbx-empty-quick" data-quick-add="pc" type="button"><i class="bi bi-pc-display"></i> PC</button>
+                <button class="sbx-empty-quick" data-quick-add="server" type="button"><i class="bi bi-server"></i> Server</button>
               </div>
-              <div class="sbx-conn-suggest-body" id="sbxConnSuggestBody"></div>
+              <div class="sbx-empty-hint"><i class="bi bi-keyboard me-1" aria-hidden="true"></i> Press <kbd>C</kbd> to connect, <kbd>V</kbd> to select, <kbd>Del</kbd> to delete</div>
             </div>
+          </div>
+
+          <!-- Keyboard Shortcut Hint Bar -->
+          <div class="sbx-shortcut-bar" id="sbxShortcutBar">
+            <span class="sbx-shortcut"><kbd>V</kbd> Select</span>
+            <span class="sbx-shortcut"><kbd>C</kbd> Connect</span>
+            <span class="sbx-shortcut"><kbd>Del</kbd> Delete</span>
+            <span class="sbx-shortcut"><kbd>⌘Z</kbd> Undo</span>
+            <span class="sbx-shortcut"><kbd>⌘S</kbd> Save</span>
+            <span class="sbx-shortcut"><kbd>Esc</kbd> Deselect</span>
+          </div>
+
+          <!-- Connection Suggestions -->
+          <div class="sbx-conn-suggest" id="sbxConnSuggest" aria-live="polite" role="status">
+            <div class="sbx-conn-suggest-header">
+              <span class="sbx-conn-suggest-title">Try this next</span>
+              <button class="sbx-conn-suggest-close" id="sbxConnSuggestClose" type="button" aria-label="Dismiss suggestions">
+                <i class="bi bi-x" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div class="sbx-conn-suggest-body" id="sbxConnSuggestBody"></div>
           </div>
         </section>
 

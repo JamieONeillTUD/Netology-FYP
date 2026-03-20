@@ -4803,7 +4803,7 @@ body[data-theme="sunrise"] {
   transform: scale(1.2);
 }
 
-.sbx-stage-wrap { display: flex; flex-direction: column; height: 100%; overflow: hidden; border-radius: 12px; border: 1px solid var(--sbx-panel-border); position: relative; touch-action: none; }
+.sbx-stage-wrap { display: flex; flex-direction: column; height: 100%; overflow: hidden; border-radius: 12px; border: 1px solid var(--sbx-panel-border); position: relative; }
 .sbx-stage-wrap {
   border-radius: 16px;
   border-color: rgba(13,148,136,.18);
@@ -4862,7 +4862,7 @@ body[data-theme="sunrise"] {
 }
 
 .sbx-stage {
-  position: relative; flex: 1; overflow: hidden;
+  position: relative; flex: 1; overflow: auto;
   min-height: 600px;
   background-color: var(--sbx-canvas-bg);
   background-image:
@@ -4871,7 +4871,15 @@ body[data-theme="sunrise"] {
   background-size: 24px 24px, 100% 100%;
   background-position: 12px 12px, 0 0;
   cursor: default;
-  touch-action: none;
+  touch-action: auto;
+}
+
+/* Spacer that creates the scrollable canvas area */
+.sbx-canvas-spacer {
+  width: 3200px;
+  height: 2200px;
+  pointer-events: none;
+  position: relative;
 }
 .sbx-stage.is-drop { background-color: rgba(13,148,136,.03); outline: 2px dashed rgba(13,148,136,.3); outline-offset: -6px; }
 .sbx-stage.is-grid {

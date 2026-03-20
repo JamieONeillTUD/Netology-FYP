@@ -1571,7 +1571,7 @@ function confirmSaveTopology() {
   };
 
   var apiBase = String(window.API_BASE || "").replace(/\/$/, "");
-  var endpoint = (window.ENDPOINTS && window.ENDPOINTS.sandbox && window.ENDPOINTS.sandbox.save) || "/sandbox/save";
+  var endpoint = (window.ENDPOINTS && window.ENDPOINTS.sandbox && window.ENDPOINTS.sandbox.saveTopology) || "/save-topology";
 
   fetch(apiBase + endpoint, {
     method: "POST",
@@ -1580,11 +1580,13 @@ function confirmSaveTopology() {
   })
     .then(function (response) { return response.json(); })
     .then(function (data) {
-      if (data && !data.error) {
+      if (data && data.success) {
         showSandboxToast({ title: "Saved!", message: "Topology '" + name + "' saved.", variant: "success", timeout: 3000 });
-        bootstrap.Modal.getInstance(getById("saveTopologyModal"))?.hide();
+        var modalEl = getById("saveTopologyModal");
+        var modalInstance = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+        if (modalInstance) { modalInstance.hide(); }
       } else {
-        showSandboxToast({ title: "Save failed", message: data.error || "Unknown error.", variant: "danger", timeout: 3000 });
+        showSandboxToast({ title: "Save failed", message: (data && data.message) || "Unknown error.", variant: "danger", timeout: 3000 });
       }
     })
     .catch(function (error) {
@@ -1623,19 +1625,21 @@ function refreshTopologyList() {
   listElement.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
 
   var apiBase = String(window.API_BASE || "").replace(/\/$/, "");
-  var endpoint = (window.ENDPOINTS && window.ENDPOINTS.sandbox && window.ENDPOINTS.sandbox.list) || "/sandbox/list";
+  var endpoint = (window.ENDPOINTS && window.ENDPOINTS.sandbox && window.ENDPOINTS.sandbox.loadTopologies) || "/load-topologies";
 
   fetch(apiBase + endpoint + "?email=" + encodeURIComponent(user.email))
     .then(function (response) { return response.json(); })
     .then(function (data) {
-      if (!data || !data.length) {
+      var list = (data && data.topologies) || data || [];
+      if (!Array.isArray(list)) { list = []; }
+      if (list.length === 0) {
         listElement.innerHTML = "<tr><td colspan='3'>No saved topologies yet.</td></tr>";
         return;
       }
 
       listElement.innerHTML = "";
-      for (var i = 0; i < data.length; i++) {
-        var topology = data[i];
+      for (var i = 0; i < list.length; i++) {
+        var topology = list[i];
         var tr = document.createElement("tr");
 
         var nameCell = document.createElement("td");
@@ -1685,19 +1689,22 @@ function loadTopologyById(topologyId) {
   }
 
   var apiBase = String(window.API_BASE || "").replace(/\/$/, "");
-  var endpoint = (window.ENDPOINTS && window.ENDPOINTS.sandbox && window.ENDPOINTS.sandbox.load) || "/sandbox/load";
+  var endpointTemplate = (window.ENDPOINTS && window.ENDPOINTS.sandbox && window.ENDPOINTS.sandbox.loadTopology) || "/load-topology/:topologyId";
+  var endpoint = endpointTemplate.replace(":topologyId", encodeURIComponent(topologyId));
 
-  fetch(apiBase + endpoint + "?id=" + encodeURIComponent(topologyId) + "&email=" + encodeURIComponent(user.email))
+  fetch(apiBase + endpoint + "?email=" + encodeURIComponent(user.email))
     .then(function (response) { return response.json(); })
     .then(function (data) {
-      if (data && data.devices) {
+      if (data && data.success && data.devices) {
         replaceTopology(data.devices, data.connections || []);
         applyAutoNetworkDefaults();
         pushHistory();
         renderAll();
         addActionLog("Loaded topology: " + (data.name || "unnamed"));
         showSandboxToast({ title: "Loaded", message: "Topology loaded successfully.", variant: "success", timeout: 3000 });
-        bootstrap.Modal.getInstance(getById("topologyModal"))?.hide();
+        var topoModalEl = getById("topologyModal");
+        var topoModalInst = topoModalEl ? bootstrap.Modal.getInstance(topoModalEl) : null;
+        if (topoModalInst) { topoModalInst.hide(); }
       }
     })
     .catch(function () {
@@ -1718,12 +1725,13 @@ function deleteTopology(topologyId) {
   }
 
   var apiBase = String(window.API_BASE || "").replace(/\/$/, "");
-  var endpoint = (window.ENDPOINTS && window.ENDPOINTS.sandbox && window.ENDPOINTS.sandbox.delete) || "/sandbox/delete";
+  var endpointTemplate = (window.ENDPOINTS && window.ENDPOINTS.sandbox && window.ENDPOINTS.sandbox.deleteTopology) || "/delete-topology/:topologyId";
+  var endpoint = endpointTemplate.replace(":topologyId", encodeURIComponent(topologyId));
 
   fetch(apiBase + endpoint, {
-    method: "POST",
+    method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: topologyId, email: user.email })
+    body: JSON.stringify({ email: user.email })
   })
     .then(function () {
       refreshTopologyList();
@@ -2747,12 +2755,6 @@ function bindStage() {
   // Click on canvas to deselect or delete connections
   if (stage) {
     stage.addEventListener("click", function (event) {
-      // Don't deselect if we just panned
-      if (panMoved) {
-        panMoved = false;
-        return;
-      }
-
       // Check if clicking a connection delete button
       var deleteGroup = event.target.closest(".sbx-conn-delete-group");
       if (deleteGroup && deleteGroup.dataset.connId) {
@@ -2869,52 +2871,8 @@ function bindStage() {
   window.addEventListener("pointerup", endDrag);
   window.addEventListener("pointercancel", endDrag);
 
-  // Canvas background drag to pan (trackpad / mouse)
-  var isPanning = false;
-  var panStartX = 0;
-  var panStartY = 0;
-  var panMoved = false;
-
-  if (stageElement) {
-    stageElement.addEventListener("pointerdown", function (event) {
-      // Only pan if clicking on the background, not on a device
-      if (event.target.closest(".sbx-device") || event.target.closest(".sbx-device-action") || event.target.closest(".sbx-conn-delete-group")) {
-        return;
-      }
-      // Allow panning with left click on empty canvas
-      if (event.button === 0 && state.tool === TOOL.SELECT) {
-        isPanning = true;
-        panMoved = false;
-        panStartX = event.clientX - state.panX;
-        panStartY = event.clientY - state.panY;
-        stageElement.style.cursor = "grabbing";
-        event.preventDefault();
-      }
-    });
-
-    window.addEventListener("pointermove", function (event) {
-      if (!isPanning) {
-        return;
-      }
-      panMoved = true;
-      state.panX = event.clientX - panStartX;
-      state.panY = event.clientY - panStartY;
-      clampPanToBounds();
-    });
-
-    window.addEventListener("pointerup", function () {
-      if (isPanning) {
-        isPanning = false;
-        if (stageElement) {
-          stageElement.style.cursor = "";
-        }
-      }
-    });
-  }
-
   // Handle window resize
   window.addEventListener("resize", function () {
-    clampPanToBounds();
     updateZoomLabel();
     renderConnections();
     renderConnectionLabels();
@@ -3013,22 +2971,14 @@ function bindMouseWheelZoom() {
   if (!stageElement) {
     return;
   }
+  // Only intercept Ctrl+wheel for zoom — regular scroll/trackpad is native scrolling
   stageElement.addEventListener("wheel", function (event) {
-    event.preventDefault();
-
-    // Ctrl+wheel for zoom
     if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
       var zoomDelta = event.deltaY > 0 ? -0.1 : 0.1;
       setZoom(state.zoom + zoomDelta, event.clientX, event.clientY);
-      return;
     }
-
-    // Regular wheel for pan
-    state.panX -= event.deltaX;
-    state.panY -= event.deltaY;
-    clampPanToBounds();
-    updateZoomLabel();
-    renderConnectionLabels();
+    // Otherwise let the browser handle scroll natively
   }, { passive: false });
 }
 

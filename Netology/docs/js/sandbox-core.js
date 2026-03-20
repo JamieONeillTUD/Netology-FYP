@@ -294,81 +294,79 @@ function loadTerminalLayout() {
 }
 
 
-// Calculate the limits for how far you can pan the canvas
+// Panning is done via native scroll on the .sbx-stage element.
+// The stage has overflow:auto and the inner content is the full CANVAS_WIDTH x CANVAS_HEIGHT.
+// No CSS transforms are used for panning — the stage element never moves.
+
+// Dummy pan bounds for compatibility
 function getPanBounds() {
-  if (!stageElement) {
-    return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
-  }
-  var stageRect = stageElement.getBoundingClientRect();
-  var scaledWidth = CANVAS_WIDTH * state.zoom;
-  var scaledHeight = CANVAS_HEIGHT * state.zoom;
-  var minimumX = -(scaledWidth - stageRect.width * 0.5);
-  var maximumX = stageRect.width * 0.5;
-  var minimumY = -(scaledHeight - stageRect.height * 0.5);
-  var maximumY = stageRect.height * 0.5;
-  return { minX: minimumX, maxX: maximumX, minY: minimumY, maxY: maximumY };
+  return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
 }
 
-// Clamp the current pan position within the allowed bounds
+// This is now a no-op — panning is handled by native scroll
 function clampPanToBounds() {
-  var bounds = getPanBounds();
-  state.panX = clamp(state.panX, bounds.minX, bounds.maxX);
-  state.panY = clamp(state.panY, bounds.minY, bounds.maxY);
-  if (stage) {
-    stage.style.transform = "translate(" + state.panX + "px, " + state.panY + "px) scale(" + state.zoom + ")";
-  }
+  // No CSS transform needed — the stage is a scroll container
 }
 
 // Convert a screen position (mouse coordinates) to world position (canvas coordinates)
 function toWorldPoint(screenX, screenY) {
-  if (!stageElement) {
+  if (!stage) {
     return { x: screenX, y: screenY };
   }
-  var rect = stageElement.getBoundingClientRect();
-  var worldX = (screenX - rect.left - state.panX) / state.zoom;
-  var worldY = (screenY - rect.top - state.panY) / state.zoom;
+  var rect = stage.getBoundingClientRect();
+  // Account for scroll offset inside the stage viewport
+  var worldX = (screenX - rect.left + stage.scrollLeft) / state.zoom;
+  var worldY = (screenY - rect.top + stage.scrollTop) / state.zoom;
   return { x: worldX, y: worldY };
 }
 
 // Convert a world position to screen position
 function toScreenPoint(worldX, worldY) {
-  if (!stageElement) {
+  if (!stage) {
     return { x: worldX, y: worldY };
   }
-  var rect = stageElement.getBoundingClientRect();
-  var screenX = worldX * state.zoom + state.panX + rect.left;
-  var screenY = worldY * state.zoom + state.panY + rect.top;
+  var rect = stage.getBoundingClientRect();
+  // Account for scroll offset inside the stage viewport
+  var screenX = worldX * state.zoom - stage.scrollLeft + rect.left;
+  var screenY = worldY * state.zoom - stage.scrollTop + rect.top;
   return { x: screenX, y: screenY };
 }
 
-// Apply the canvas world size to the stage element
+// Apply the canvas world size to the spacer element (creates scroll area)
 function applyCanvasWorldSize() {
-  if (stage) {
-    stage.style.width = CANVAS_WIDTH + "px";
-    stage.style.height = CANVAS_HEIGHT + "px";
+  var spacer = getById("sbxCanvasSpacer");
+  if (spacer) {
+    spacer.style.width = CANVAS_WIDTH + "px";
+    spacer.style.height = CANVAS_HEIGHT + "px";
+  }
+  // Also set the SVG and device layer to match
+  if (connectionLayer) {
+    connectionLayer.setAttribute("width", String(CANVAS_WIDTH));
+    connectionLayer.setAttribute("height", String(CANVAS_HEIGHT));
+    connectionLayer.style.width = CANVAS_WIDTH + "px";
+    connectionLayer.style.height = CANVAS_HEIGHT + "px";
+  }
+  if (deviceLayer) {
+    deviceLayer.style.width = CANVAS_WIDTH + "px";
+    deviceLayer.style.height = CANVAS_HEIGHT + "px";
   }
 }
 
-// Reset the viewport to default zoom and centered position
+// Reset the viewport to default scroll position
 function resetViewport() {
   state.zoom = 1;
   state.panX = 0;
   state.panY = 0;
-  clampPanToBounds();
+  if (stage) {
+    stage.scrollLeft = 0;
+    stage.scrollTop = 0;
+  }
 }
 
-// Set the zoom level, optionally zooming towards the mouse position
+// Set the zoom level (zoom is disabled — canvas uses native scroll at 1:1 scale)
 function setZoom(newZoom, mouseX, mouseY) {
-  var clamped = clamp(newZoom, 0.25, 2);
-  if (mouseX !== undefined && mouseY !== undefined && stageElement) {
-    var rect = stageElement.getBoundingClientRect();
-    var offsetX = mouseX - rect.left;
-    var offsetY = mouseY - rect.top;
-    state.panX = offsetX - (offsetX - state.panX) * (clamped / state.zoom);
-    state.panY = offsetY - (offsetY - state.panY) * (clamped / state.zoom);
-  }
-  state.zoom = clamped;
-  clampPanToBounds();
+  // Zoom is disabled to keep the canvas simple and stable
+  state.zoom = 1;
   if (typeof updateZoomLabel === "function") {
     updateZoomLabel();
   }
