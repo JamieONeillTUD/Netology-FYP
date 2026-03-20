@@ -541,6 +541,20 @@ function generateInterfaces(deviceType) {
   return interfaces;
 }
 
+// Generate a clean device name like "Laptop-1", "Router-2" based on how many of that type exist
+function generateDeviceName(deviceType) {
+  var typeInfo = DEVICE_TYPES[deviceType] || DEVICE_TYPES.pc;
+  var label = typeInfo.label;
+  // Count how many devices of this type already exist
+  var count = 0;
+  for (var i = 0; i < state.devices.length; i++) {
+    if (state.devices[i].type === deviceType) {
+      count++;
+    }
+  }
+  return label + "-" + (count + 1);
+}
+
 // Create a full device object with all default values
 function normalizeDevice(partial) {
   var deviceId = partial.id || ("dev-" + Date.now() + "-" + Math.random().toString(36).substring(2, 8));
@@ -551,7 +565,7 @@ function normalizeDevice(partial) {
   var device = {
     id: deviceId,
     type: deviceType,
-    name: partial.name || (typeInfo.label + "-" + deviceId.substring(deviceId.length - 4)),
+    name: partial.name || generateDeviceName(deviceType),
     x: partial.x || 100,
     y: partial.y || 100,
     vlan: partial.vlan || 0,

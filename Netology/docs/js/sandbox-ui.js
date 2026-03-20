@@ -201,7 +201,7 @@ function renderDevices() {
 
     // Device name badge
     var nameBadge = document.createElement("div");
-    nameBadge.className = "sbx-device-name";
+    nameBadge.className = "sbx-device-label-badge";
     nameBadge.textContent = device.name;
     deviceElement.appendChild(nameBadge);
 
@@ -2139,11 +2139,56 @@ function registerConsoleApi() {
 
 
 // Bind tooltips on hover for elements with data-tooltip attribute
+var activeTooltip = null;
+var tooltipTimer = null;
+
 function bindTooltips() {
+  // Create a floating tooltip element
+  var tip = document.createElement("div");
+  tip.className = "sbx-tooltip";
+  tip.style.cssText = "position:fixed;z-index:9999;padding:5px 10px;border-radius:7px;" +
+    "font-size:.72rem;font-weight:600;color:#fff;pointer-events:none;" +
+    "background:rgba(15,23,42,.88);backdrop-filter:blur(6px);" +
+    "box-shadow:0 4px 12px rgba(0,0,0,.18);white-space:nowrap;" +
+    "opacity:0;transition:opacity .15s ease;max-width:260px;";
+  document.body.appendChild(tip);
+  activeTooltip = tip;
+
   document.addEventListener("mouseover", function (event) {
     var target = event.target.closest("[data-tooltip]");
+    if (!target) {
+      return;
+    }
+    // Remove any native title so it doesn't double up
+    target.removeAttribute("title");
+    var text = target.getAttribute("data-tooltip");
+    if (!text) {
+      return;
+    }
+    clearTimeout(tooltipTimer);
+    tooltipTimer = setTimeout(function () {
+      tip.textContent = text;
+      tip.style.opacity = "1";
+      // Position near the element
+      var rect = target.getBoundingClientRect();
+      var tipX = rect.left + rect.width / 2;
+      var tipY = rect.bottom + 8;
+      // Keep it on screen
+      tip.style.left = Math.min(tipX, window.innerWidth - 180) + "px";
+      tip.style.top = tipY + "px";
+      tip.style.transform = "translateX(-50%)";
+      // If it would go below the viewport, show above
+      if (tipY + 40 > window.innerHeight) {
+        tip.style.top = (rect.top - 32) + "px";
+      }
+    }, 350);
+  });
+
+  document.addEventListener("mouseout", function (event) {
+    var target = event.target.closest("[data-tooltip]");
     if (target) {
-      target.title = target.getAttribute("data-tooltip");
+      clearTimeout(tooltipTimer);
+      tip.style.opacity = "0";
     }
   });
 }
@@ -2435,11 +2480,12 @@ function bindPanels() {
         workspace.classList.add("left-hidden");
       }
       if (leftOpenButton) {
-        leftOpenButton.style.display = "";
+        leftOpenButton.style.display = "flex";
       }
     });
   }
   if (leftOpenButton) {
+    leftOpenButton.style.display = "none";
     leftOpenButton.addEventListener("click", function () {
       if (leftPanel) {
         leftPanel.style.display = "";
@@ -2457,11 +2503,12 @@ function bindPanels() {
         workspace.classList.add("right-hidden");
       }
       if (rightOpenButton) {
-        rightOpenButton.style.display = "";
+        rightOpenButton.style.display = "flex";
       }
     });
   }
   if (rightOpenButton) {
+    rightOpenButton.style.display = "none";
     rightOpenButton.addEventListener("click", function () {
       showRightPanel();
     });
@@ -2700,6 +2747,12 @@ function bindStage() {
   // Click on canvas to deselect or delete connections
   if (stage) {
     stage.addEventListener("click", function (event) {
+      // Don't deselect if we just panned
+      if (panMoved) {
+        panMoved = false;
+        return;
+      }
+
       // Check if clicking a connection delete button
       var deleteGroup = event.target.closest(".sbx-conn-delete-group");
       if (deleteGroup && deleteGroup.dataset.connId) {
@@ -2815,6 +2868,49 @@ function bindStage() {
 
   window.addEventListener("pointerup", endDrag);
   window.addEventListener("pointercancel", endDrag);
+
+  // Canvas background drag to pan (trackpad / mouse)
+  var isPanning = false;
+  var panStartX = 0;
+  var panStartY = 0;
+  var panMoved = false;
+
+  if (stageElement) {
+    stageElement.addEventListener("pointerdown", function (event) {
+      // Only pan if clicking on the background, not on a device
+      if (event.target.closest(".sbx-device") || event.target.closest(".sbx-device-action") || event.target.closest(".sbx-conn-delete-group")) {
+        return;
+      }
+      // Allow panning with left click on empty canvas
+      if (event.button === 0 && state.tool === TOOL.SELECT) {
+        isPanning = true;
+        panMoved = false;
+        panStartX = event.clientX - state.panX;
+        panStartY = event.clientY - state.panY;
+        stageElement.style.cursor = "grabbing";
+        event.preventDefault();
+      }
+    });
+
+    window.addEventListener("pointermove", function (event) {
+      if (!isPanning) {
+        return;
+      }
+      panMoved = true;
+      state.panX = event.clientX - panStartX;
+      state.panY = event.clientY - panStartY;
+      clampPanToBounds();
+    });
+
+    window.addEventListener("pointerup", function () {
+      if (isPanning) {
+        isPanning = false;
+        if (stageElement) {
+          stageElement.style.cursor = "";
+        }
+      }
+    });
+  }
 
   // Handle window resize
   window.addEventListener("resize", function () {
