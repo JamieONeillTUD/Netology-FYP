@@ -217,30 +217,36 @@ Notes:
           <button class="sbx-float-btn is-active" id="toolSelectBtn" data-tool="select" type="button"
             data-tooltip="Select / Move (V)">
             <i class="bi bi-cursor-fill"></i>
+            <span class="sbx-float-btn-label">Select</span>
           </button>
           <button class="sbx-float-btn" id="toolConnectBtn" data-tool="connect" type="button"
             data-tooltip="Connect devices (C)">
             <i class="bi bi-lightning-fill"></i>
+            <span class="sbx-float-btn-label">Connect</span>
           </button>
         </div>
         <div class="sbx-float-sep"></div>
-        <div class="sbx-float-group" id="connTypeGroup">
-          <button class="sbx-float-btn is-active" data-conn-type="ethernet" type="button"
-            data-tooltip="Ethernet – standard cable link">
-            <i class="bi bi-ethernet"></i>
-          </button>
-          <button class="sbx-float-btn" data-conn-type="fiber" type="button"
-            data-tooltip="Fiber – high-speed optical link">
-            <i class="bi bi-activity"></i>
-          </button>
-          <button class="sbx-float-btn" data-conn-type="serial" type="button"
-            data-tooltip="Serial – WAN / point-to-point">
-            <i class="bi bi-three-dots"></i>
-          </button>
-          <button class="sbx-float-btn" data-conn-type="wireless" type="button"
-            data-tooltip="Wireless – 802.11 radio link">
-            <i class="bi bi-wifi"></i>
-          </button>
+        <div class="sbx-float-group" id="connTypeGroup" style="display:none;">
+          <div class="sbx-conn-dropdown">
+            <button class="sbx-float-btn" id="connTypeDropBtn" type="button" data-tooltip="Connection type">
+              <i class="bi bi-ethernet"></i>
+              <i class="bi bi-chevron-down" style="font-size:.55rem;margin-left:2px;"></i>
+            </button>
+            <div class="sbx-conn-dropdown-menu" id="connTypeMenu">
+              <button class="sbx-conn-dropdown-item is-active" data-conn-type="ethernet" type="button">
+                <i class="bi bi-ethernet"></i> Ethernet
+              </button>
+              <button class="sbx-conn-dropdown-item" data-conn-type="fiber" type="button">
+                <i class="bi bi-activity"></i> Fiber
+              </button>
+              <button class="sbx-conn-dropdown-item" data-conn-type="serial" type="button">
+                <i class="bi bi-three-dots"></i> Serial
+              </button>
+              <button class="sbx-conn-dropdown-item" data-conn-type="wireless" type="button">
+                <i class="bi bi-wifi"></i> Wireless
+              </button>
+            </div>
+          </div>
         </div>
         <div class="sbx-float-sep"></div>
         <div class="sbx-float-group">
@@ -268,14 +274,41 @@ Notes:
           <button class="sbx-float-btn" id="saveBtn" type="button" data-tooltip="Save (Ctrl+S)">
             <i class="bi bi-floppy"></i>
           </button>
+          <button class="sbx-float-btn" id="loadBtn" type="button" data-tooltip="Load saved topologies">
+            <i class="bi bi-folder2-open"></i>
+          </button>
         </div>
         <div class="sbx-float-sep"></div>
         <div class="sbx-float-group">
-          <button class="sbx-float-btn" id="zoomOutBtn" type="button" data-tooltip="Zoom out">
-            <i class="bi bi-zoom-out"></i>
+          <div class="sbx-conn-dropdown">
+            <button class="sbx-float-btn" id="templateDropBtn" type="button" data-tooltip="Load a topology template">
+              <i class="bi bi-diagram-3-fill"></i>
+              <i class="bi bi-chevron-down" style="font-size:.55rem;margin-left:2px;"></i>
+            </button>
+            <div class="sbx-conn-dropdown-menu" id="templateMenu">
+              <button class="sbx-conn-dropdown-item" data-template="star" type="button">
+                <i class="bi bi-star"></i> Star
+              </button>
+              <button class="sbx-conn-dropdown-item" data-template="bus" type="button">
+                <i class="bi bi-distribute-horizontal"></i> Bus
+              </button>
+              <button class="sbx-conn-dropdown-item" data-template="ring" type="button">
+                <i class="bi bi-circle"></i> Ring
+              </button>
+              <button class="sbx-conn-dropdown-item" data-template="mesh" type="button">
+                <i class="bi bi-grid-3x3"></i> Full Mesh
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="sbx-float-sep"></div>
+        <div class="sbx-float-group sbx-zoom-group">
+          <button class="sbx-float-btn" id="zoomOutBtn" type="button" data-tooltip="Zoom out (-)">
+            <i class="bi bi-dash-lg"></i>
           </button>
-          <button class="sbx-float-btn" id="zoomInBtn" type="button" data-tooltip="Zoom in">
-            <i class="bi bi-zoom-in"></i>
+          <span class="sbx-zoom-label" id="sbxZoomLabel" data-tooltip="Current zoom level">100%</span>
+          <button class="sbx-float-btn" id="zoomInBtn" type="button" data-tooltip="Zoom in (+)">
+            <i class="bi bi-plus-lg"></i>
           </button>
         </div>
       </div>
@@ -298,7 +331,7 @@ Notes:
               <input type="text" id="sbxDeviceFilter" placeholder="Filter devices..." aria-label="Filter device library">
             </div>
             <div class="sbx-device-group" data-category="End Devices">
-              <div class="sbx-device-group-title">End Devices</div>
+              <div class="sbx-device-group-title">End Devices <i class="bi bi-chevron-down sbx-device-group-chevron"></i></div>
               <div class="sbx-device-grid">
                 <button class="sbx-device-card" data-device="pc" type="button" data-tooltip="Click or drag to add a PC">
                   <span class="sbx-device-count" data-count-for="pc"></span>
@@ -324,7 +357,7 @@ Notes:
             </div>
 
             <div class="sbx-device-group" data-category="Network Devices">
-              <div class="sbx-device-group-title">Network Devices</div>
+              <div class="sbx-device-group-title">Network Devices <i class="bi bi-chevron-down sbx-device-group-chevron"></i></div>
               <div class="sbx-device-grid">
                 <button class="sbx-device-card" data-device="router" type="button" data-tooltip="Click or drag to add a Router">
                   <span class="sbx-device-count" data-count-for="router"></span>
@@ -351,7 +384,7 @@ Notes:
             </div>
 
             <div class="sbx-device-group" data-category="Servers">
-              <div class="sbx-device-group-title">Servers</div>
+              <div class="sbx-device-group-title">Servers <i class="bi bi-chevron-down sbx-device-group-chevron"></i></div>
               <div class="sbx-device-grid">
                 <button class="sbx-device-card" data-device="server" type="button" data-tooltip="Click or drag to add a Server">
                   <span class="sbx-device-count" data-count-for="server"></span>
@@ -371,7 +404,7 @@ Notes:
         <!-- Canvas -->
         <section class="sbx-stage-wrap" data-tour="sandbox-canvas">
           <!-- Top Tutorial Carousel (free/sandbox mode only — hidden in guided mode) -->
-          <div class="sbx-top-carousel" id="sbxTopCarousel" style="display:none;" aria-label="Available sandbox tutorials">
+          <div class="sbx-top-carousel" id="sbxTopCarousel" aria-label="Available sandbox tutorials">
             <div class="sbx-top-carousel-head">
               <div class="sbx-top-carousel-label"><i class="bi bi-stars" aria-hidden="true"></i> Quick Tutorials</div>
               <div class="sbx-top-carousel-controls">
@@ -421,13 +454,29 @@ Notes:
               <div class="sbx-empty-inner">
                 <div class="sbx-empty-icon"><i class="bi bi-diagram-3"></i></div>
                 <div class="sbx-empty-title">Start building your network</div>
-                <div class="sbx-empty-sub">Drag a device from the left panel, or click any device card to add it to the canvas.</div>
-                <div class="sbx-empty-hint"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Begin with a Router or Switch</div>
+                <div class="sbx-empty-sub">Drag a device from the left panel, or use the quick-start buttons below to add your first devices.</div>
+                <div class="sbx-empty-actions">
+                  <button class="sbx-empty-quick" data-quick-add="router" type="button"><i class="bi bi-diagram-3"></i> Router</button>
+                  <button class="sbx-empty-quick" data-quick-add="switch" type="button"><i class="bi bi-hdd-network"></i> Switch</button>
+                  <button class="sbx-empty-quick" data-quick-add="pc" type="button"><i class="bi bi-pc-display"></i> PC</button>
+                  <button class="sbx-empty-quick" data-quick-add="server" type="button"><i class="bi bi-server"></i> Server</button>
+                </div>
+                <div class="sbx-empty-hint"><i class="bi bi-keyboard me-1" aria-hidden="true"></i> Press <kbd>C</kbd> to connect, <kbd>V</kbd> to select, <kbd>Del</kbd> to delete</div>
               </div>
             </div>
 
+            <!-- Keyboard Shortcut Hint Bar -->
+            <div class="sbx-shortcut-bar" id="sbxShortcutBar">
+              <span class="sbx-shortcut"><kbd>V</kbd> Select</span>
+              <span class="sbx-shortcut"><kbd>C</kbd> Connect</span>
+              <span class="sbx-shortcut"><kbd>Del</kbd> Delete</span>
+              <span class="sbx-shortcut"><kbd>⌘Z</kbd> Undo</span>
+              <span class="sbx-shortcut"><kbd>⌘S</kbd> Save</span>
+              <span class="sbx-shortcut"><kbd>Esc</kbd> Deselect</span>
+            </div>
+
             <!-- Connection Suggestions -->
-            <div class="sbx-conn-suggest" id="sbxConnSuggest" style="display:none;" aria-live="polite" role="status">
+            <div class="sbx-conn-suggest" id="sbxConnSuggest" aria-live="polite" role="status">
               <div class="sbx-conn-suggest-header">
                 <span class="sbx-conn-suggest-title">Try this next</span>
                 <button class="sbx-conn-suggest-close" id="sbxConnSuggestClose" type="button" aria-label="Dismiss suggestions">
@@ -447,11 +496,8 @@ Notes:
               <button class="sbx-tab is-active" data-tab="objectives" type="button" data-tooltip="Lesson objectives &amp; challenges">
                 <i class="bi bi-bullseye"></i> Objectives
               </button>
-              <button class="sbx-tab" data-tab="objects" type="button" data-tooltip="Canvas objects">
+              <button class="sbx-tab" data-tab="objects" type="button" data-tooltip="Canvas objects &amp; device actions">
                 <i class="bi bi-collection"></i> Objects
-              </button>
-              <button class="sbx-tab" data-tab="inspector" type="button" data-tooltip="Device actions &amp; diagnostics">
-                <i class="bi bi-activity"></i> Inspect
               </button>
               <button class="sbx-tab" data-tab="config" type="button" data-tooltip="Device configuration" id="sbxConfigTabBtn" style="display:none;">
                 <i class="bi bi-sliders2-vertical"></i> Config
@@ -467,24 +513,101 @@ Notes:
             <!-- (1) Objectives — always first -->
             <div class="sbx-tabpanel is-active" id="panelObjectives">
               <div class="sbx-panel-content">
-                <div class="sbx-challenge-banner" id="challengeBanner" style="display:none;">
-                  <div class="sbx-challenge-head">
-                    <div class="sbx-challenge-icon"><i class="bi bi-mortarboard-fill"></i></div>
-                    <div>
-                      <div class="sbx-challenge-title">Lesson Challenge</div>
-                      <div class="sbx-challenge-sub" id="challengeBannerText">Loading challenge…</div>
-                    </div>
+
+                <!-- Mode banner: shows "Free Mode" when no tutorial/challenge is loaded -->
+                <div class="sbx-mode-banner sbx-mode-free" id="sbxModeBanner">
+                  <div class="sbx-mode-icon"><i class="bi bi-stars"></i></div>
+                  <div class="sbx-mode-info">
+                    <div class="sbx-mode-label">Free Mode</div>
+                    <div class="sbx-mode-desc">Build anything you want. No objectives active.</div>
                   </div>
                 </div>
-                <div id="sbxObjectivesBody">No active challenge.</div>
+
+                <!-- Tutorial/Challenge header (hidden by default) -->
+                <div class="sbx-lesson-header" id="sbxLessonHeader" style="display:none;">
+                  <div class="sbx-lesson-icon" id="sbxLessonIcon"><i class="bi bi-mortarboard-fill"></i></div>
+                  <div class="sbx-lesson-info">
+                    <div class="sbx-lesson-type" id="sbxLessonType">Tutorial</div>
+                    <div class="sbx-lesson-title" id="sbxLessonTitle">Loading…</div>
+                  </div>
+                  <div class="sbx-lesson-xp" id="sbxLessonXp" style="display:none;">
+                    <i class="bi bi-lightning-charge-fill"></i> <span id="sbxLessonXpAmount">0</span> XP
+                  </div>
+                </div>
+
+                <!-- Progress bar -->
+                <div class="sbx-progress-wrap" id="sbxProgressWrap" style="display:none;">
+                  <div class="sbx-progress-bar">
+                    <div class="sbx-progress-fill" id="sbxProgressFill" style="width:0%"></div>
+                  </div>
+                  <div class="sbx-progress-text" id="sbxProgressText">0 of 0 complete</div>
+                </div>
+
+                <!-- Current step spotlight -->
+                <div class="sbx-current-step" id="sbxCurrentStep" style="display:none;">
+                  <div class="sbx-current-step-badge">Current Step</div>
+                  <div class="sbx-current-step-text" id="sbxCurrentStepText"></div>
+                  <button class="sbx-current-step-hint" id="sbxCurrentStepHint" style="display:none;" type="button">
+                    <i class="bi bi-lightbulb"></i> Show Hint
+                  </button>
+                </div>
+
+                <!-- Steps list -->
+                <div class="sbx-steps-wrap" id="sbxStepsWrap" style="display:none;">
+                  <div class="sbx-steps-toggle" id="sbxStepsToggle">
+                    <i class="bi bi-list-check"></i> All Steps
+                    <i class="bi bi-chevron-down sbx-steps-chevron"></i>
+                  </div>
+                  <ol class="sbx-steps-list" id="sbxStepsList"></ol>
+                </div>
+
+                <!-- Tips section -->
+                <div class="sbx-tips-box" id="sbxTipsBox" style="display:none;">
+                  <i class="bi bi-lightbulb me-1"></i>
+                  <span id="sbxTipsText"></span>
+                </div>
+
+                <!-- Completion CTA (shown when all done) -->
+                <div class="sbx-lesson-done" id="sbxLessonDone" style="display:none;">
+                  <div class="sbx-lesson-done-icon"><i class="bi bi-check-circle-fill"></i></div>
+                  <div class="sbx-lesson-done-title">All objectives complete!</div>
+                  <div class="sbx-lesson-done-sub">Great work. You can keep exploring or return to the module.</div>
+                  <div class="sbx-lesson-done-actions">
+                    <a class="sbx-lesson-done-btn sbx-lesson-done-btn--primary" id="sbxLessonDoneReturn" href="#">
+                      <i class="bi bi-arrow-left-circle"></i> Return to Module
+                    </a>
+                    <button class="sbx-lesson-done-btn sbx-lesson-done-btn--secondary" id="sbxLessonDoneContinue" type="button">
+                      Keep Exploring
+                    </button>
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            <!-- (2) Objects -->
+            <!-- (2) Objects (includes quick actions when device selected) -->
             <div class="sbx-tabpanel" id="panelObjects">
-              <div class="sbx-panel-hint">
+              <div class="sbx-panel-hint" id="sbxObjectsHint">
                 <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
                 Drag and drop objects onto the canvas to build your network.
+              </div>
+              <!-- Quick actions for selected device -->
+              <div class="sbx-inspect-actions" id="sbxInspectActions" style="display:none;">
+                <div class="sbx-inspect-actions-label">Quick Actions</div>
+                <div class="sbx-inspect-btn-grid">
+                  <button class="sbx-inspect-btn" id="inspActPing" data-tooltip="Send a ping from this device">
+                    <i class="bi bi-broadcast-pin"></i> Ping
+                  </button>
+                  <button class="sbx-inspect-btn" id="inspActShowIp" data-tooltip="Show IP addresses on this device">
+                    <i class="bi bi-info-circle"></i> Show IP
+                  </button>
+                  <button class="sbx-inspect-btn" id="inspActRestart" data-tooltip="Restart this device">
+                    <i class="bi bi-arrow-clockwise"></i> Restart
+                  </button>
+                  <button class="sbx-inspect-btn" id="inspActConfigure" data-tooltip="Open device configuration">
+                    <i class="bi bi-sliders2-vertical"></i> Configure
+                  </button>
+                </div>
               </div>
               <div class="sbx-panel-content" id="sbxObjectsBody">
                 No devices on canvas yet.
@@ -513,38 +636,6 @@ Notes:
               <div id="props" class="sbx-panel-content">Select a device to view properties.</div>
             </div>
 
-            <!-- (3) Inspect -->
-            <div class="sbx-tabpanel" id="panelInspector">
-              <div class="sbx-panel-hint">
-                <i class="bi bi-cursor" aria-hidden="true"></i>
-                Select a device to view details or run actions.
-              </div>
-              <!-- Quick action buttons for selected device -->
-              <div class="sbx-inspect-actions" id="sbxInspectActions" style="display:none;">
-                <div class="sbx-inspect-actions-label">Quick Actions</div>
-                <div class="sbx-inspect-btn-grid">
-                  <button class="sbx-inspect-btn" id="inspActPing" data-tooltip="Send a ping from this device">
-                    <i class="bi bi-broadcast-pin"></i> Ping
-                  </button>
-                  <button class="sbx-inspect-btn" id="inspActShowIp" data-tooltip="Show IP addresses on this device">
-                    <i class="bi bi-info-circle"></i> Show IP
-                  </button>
-                  <button class="sbx-inspect-btn" id="inspActRestart" data-tooltip="Restart this device">
-                    <i class="bi bi-arrow-clockwise"></i> Restart
-                  </button>
-                  <button class="sbx-inspect-btn" id="inspActConfigure" data-tooltip="Open device configuration">
-                    <i class="bi bi-sliders2-vertical"></i> Configure
-                  </button>
-                </div>
-                <div class="sbx-inspect-terminal-hint">
-                  <i class="bi bi-terminal" aria-hidden="true"></i>
-                  Terminal supports device names or IPs (example: <code>ping PC 192.168.1.1</code>).
-                </div>
-              </div>
-              <div class="sbx-panel-content" id="sbxInspectorBody">
-                Run a ping test to see detailed results.
-              </div>
-            </div>
           </div>
         </aside>
       </div>
@@ -558,8 +649,8 @@ Notes:
         <i class="bi bi-chevron-left"></i>
       </button>
 
-      <!-- Bottom Console (open by default; can be collapsed) -->
-      <section class="sbx-bottom" id="sbxBottomPanel" data-tour="sandbox-console">
+      <!-- Bottom Console (docked to workspace, starts collapsed) -->
+      <section class="sbx-bottom is-collapsed" id="sbxBottomPanel" data-tour="sandbox-console">
         <div class="sbx-bottom-head" id="sbxBottomHead">
           <div class="sbx-tablist" id="sbxBottomTabs">
             <button class="sbx-tab is-active" data-bottom-tab="console" type="button" data-tooltip="Console commands">
@@ -573,9 +664,9 @@ Notes:
             </button>
           </div>
           <div class="sbx-bottom-controls">
-            <button class="sbx-iconbtn sbx-panel-toggle" id="bottomPanelSizeToggle" type="button"
-              data-tooltip="Toggle terminal size" aria-label="Toggle terminal size">
-              <i class="bi bi-arrows-angle-expand"></i>
+            <button class="sbx-iconbtn sbx-terminal-clear" id="terminalClearBtn" type="button"
+              data-tooltip="Clear console output" aria-label="Clear console">
+              <i class="bi bi-x-circle"></i>
             </button>
             <button class="sbx-iconbtn sbx-panel-toggle" id="bottomPanelToggle" type="button"
               data-tooltip="Show/hide terminal" aria-label="Expand terminal">
@@ -601,10 +692,6 @@ Notes:
             <div class="sbx-logs" id="sbxPacketLogs">No packet activity yet.</div>
           </div>
         </div>
-        <button class="sbx-bottom-resize" id="sbxBottomResizeHandle" type="button" aria-label="Resize terminal"
-          data-tooltip="Drag to resize terminal">
-          <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
-        </button>
       </section>
     </div>
   </main>
@@ -620,7 +707,7 @@ Notes:
       <div class="modal-content sbx-modal">
 
         <div class="modal-header sbx-modal-head-gradient">
-          <h5 class="modal-title">Saved Topologies</h5>
+          <h5 class="modal-title"><i class="bi bi-folder2-open"></i> Saved Topologies</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
             data-tooltip="Close modal"></button>
         </div>
@@ -654,7 +741,7 @@ Notes:
       <div class="modal-content sbx-modal">
         <div class="modal-header">
           <h5 class="modal-title">
-            Save Topology
+            <i class="bi bi-floppy2"></i> Save Topology
             <span class="sbx-live-indicator" aria-hidden="true">
               <span class="sbx-live-dot"></span>
               Live
@@ -685,35 +772,7 @@ Notes:
     </div>
   </div>
 
-  <!-- Clear Topology Modal -->
-  <div class="modal fade" id="clearTopologyModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content sbx-modal sbx-modal-danger">
-        <div class="modal-header">
-          <h5 class="modal-title">Clear Workspace</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
-            data-tooltip="Close modal"></button>
-        </div>
-        <div class="modal-body">
-          <p class="text-muted mb-3">This will remove all devices and connections from the workspace.</p>
-          <div class="sbx-save-grid">
-            <div>
-              <div class="sbx-save-summary" id="clearTopologySummary"></div>
-            </div>
-            <div>
-              <div class="sbx-preview" id="clearTopologyPreview"></div>
-              <div class="sbx-preview-caption">Preview before clearing</div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" data-tooltip="Cancel clear">Cancel</button>
-          <button class="btn btn-danger" id="clearTopologyConfirm" type="button"
-            data-tooltip="Clear the workspace">Clear everything</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Clear uses confirm() dialog — no modal needed -->
 
   <!-- Ping Modal -->
   <div class="modal fade" id="pingModal" tabindex="-1">
@@ -721,7 +780,7 @@ Notes:
       <div class="modal-content sbx-modal">
 
         <div class="modal-header sbx-modal-head-gradient">
-          <h5 class="modal-title">Ping Device</h5>
+          <h5 class="modal-title"><i class="bi bi-broadcast-pin"></i> Ping Device</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
             data-tooltip="Close modal"></button>
         </div>
@@ -805,13 +864,8 @@ Notes:
   <script src="js/onboarding-tour.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/sandbox-core.js"></script>
-  <script src="js/sandbox-learning.js"></script>
-  <script src="js/sandbox-render.js"></script>
-  <script src="js/sandbox-network.js"></script>
-  <script src="js/sandbox-console.js"></script>
-  <script src="js/sandbox-actions.js"></script>
-  <script src="js/sandbox-extras.js"></script>
-  <script src="js/sandbox.js"></script>
+  <script src="js/sandbox-ui.js"></script>
+  <script src="js/sandbox-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
