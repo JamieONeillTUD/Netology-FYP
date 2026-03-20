@@ -36,6 +36,9 @@ document.addEventListener("DOMContentLoaded", function () {
   bindTutorialCarousel();
   bindTutorialsToggle();
 
+  // Remove loading skeleton and reveal the sandbox
+  document.body.classList.remove("net-loading");
+
   // Show the console welcome message
   if (window.sandboxConsole && window.sandboxConsole.showWelcome) {
     window.sandboxConsole.showWelcome();
