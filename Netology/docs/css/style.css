@@ -5010,6 +5010,73 @@ body[data-theme="sunrise"] {
 .sbx-device-action--delete { color: #ef4444; }
 .sbx-device-action--delete:hover { background: rgba(239,68,68,.1); color: #dc2626; border-color: rgba(239,68,68,.25); }
 
+/* --- Inline Config Popover (appears beside a device on the canvas) --- */
+.sbx-inline-config {
+  position: absolute; z-index: 200;
+  width: 260px;
+  background: rgba(255,255,255,.98);
+  border: 1px solid rgba(13,148,136,.18);
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(2,6,23,.22), 0 2px 8px rgba(2,6,23,.1);
+  backdrop-filter: blur(10px);
+  animation: sbxMenuPop .15s cubic-bezier(.34,1.56,.64,1);
+  pointer-events: all;
+}
+.sbx-inline-config-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(13,148,136,.08);
+}
+.sbx-inline-config-title {
+  display: flex; align-items: center; gap: 7px;
+  font-size: .8rem; font-weight: 700; color: var(--net-ink-1);
+}
+.sbx-inline-config-title i { font-size: 1rem; }
+.sbx-inline-config-close {
+  width: 22px; height: 22px; border-radius: 6px;
+  border: none; background: transparent; color: var(--net-muted);
+  display: grid; place-items: center; cursor: pointer; font-size: .8rem;
+  transition: background .12s, color .12s;
+}
+.sbx-inline-config-close:hover { background: rgba(239,68,68,.1); color: #dc2626; }
+.sbx-inline-config-tabs {
+  display: flex; gap: 2px; padding: 6px 8px 0;
+  overflow-x: auto; scrollbar-width: none;
+}
+.sbx-inline-config-tabs::-webkit-scrollbar { display: none; }
+.sbx-inline-config-tab {
+  flex: none; padding: 4px 9px; border-radius: 6px; border: none;
+  font-size: .68rem; font-weight: 600; color: var(--net-muted);
+  background: transparent; cursor: pointer; white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+.sbx-inline-config-tab:hover { background: rgba(13,148,136,.07); color: var(--net-teal); }
+.sbx-inline-config-tab.is-active { background: rgba(13,148,136,.12); color: var(--net-teal); }
+.sbx-inline-config-body {
+  padding: 10px 12px 12px;
+  max-height: 340px; overflow-y: auto;
+  font-size: .78rem;
+}
+.sbx-inline-config-body .form-label { font-size: .72rem; font-weight: 600; margin-bottom: 3px; }
+.sbx-inline-config-body .form-control { font-size: .75rem; padding: 5px 8px; }
+.sbx-inline-config-body .form-check-label { font-size: .72rem; }
+.sbx-inline-config-body .btn { font-size: .72rem; padding: 5px 12px; }
+.sbx-inline-config-body .sbx-config-form { display: flex; flex-direction: column; }
+/* Dark mode */
+body[data-theme="dark"] .sbx-inline-config {
+  background: rgba(15,23,42,.96);
+  border-color: rgba(13,148,136,.22);
+}
+body[data-theme="dark"] .sbx-inline-config-head {
+  border-bottom-color: rgba(13,148,136,.12);
+}
+body[data-theme="dark"] .sbx-inline-config-title { color: #e2e8f0; }
+body[data-theme="dark"] .sbx-inline-config-body .form-control {
+  background: rgba(30,41,59,.9); border-color: rgba(100,116,139,.25); color: #e2e8f0;
+}
+body[data-theme="dark"] .sbx-inline-config-tab { color: #94a3b8; }
+body[data-theme="dark"] .sbx-inline-config-tab.is-active { color: #5eead4; background: rgba(13,148,136,.18); }
+
 /* --- Drag Ghost --- */
 .sbx-drag-ghost {
   position: fixed; z-index: 3000; pointer-events: none;

@@ -224,6 +224,15 @@ function clamp(value, minimum, maximum) {
   return value;
 }
 
+// Darken or lighten a hex color by a percentage amount (negative = darker)
+function shadeColor(hex, percent) {
+  var num = parseInt(hex.replace("#", ""), 16);
+  var r = clamp(((num >> 16) & 0xff) + Math.round(255 * percent / 100), 0, 255);
+  var g = clamp(((num >> 8) & 0xff) + Math.round(255 * percent / 100), 0, 255);
+  var b = clamp((num & 0xff) + Math.round(255 * percent / 100), 0, 255);
+  return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+}
+
 // Create a debounced version of a function that waits before calling it
 function debounce(callback, delay) {
   var timer = null;
@@ -934,15 +943,39 @@ function requestDhcp(device) {
 }
 
 
-// Find a good position for a new device on the canvas (spiral outward from center)
+// Get the center of the currently visible viewport
+function getVisibleCenter() {
+  if (!stage) {
+    return { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
+  }
+  var cx = stage.scrollLeft + stage.clientWidth / 2;
+  var cy = stage.scrollTop + stage.clientHeight / 2;
+  // Clamp to canvas bounds
+  cx = Math.max(DEVICE_SIZE, Math.min(CANVAS_WIDTH - DEVICE_SIZE, cx));
+  cy = Math.max(DEVICE_SIZE, Math.min(CANVAS_HEIGHT - DEVICE_SIZE, cy));
+  return { x: cx, y: cy };
+}
+
+// Scroll the stage so a given world position is visible
+function scrollToDevice(device) {
+  if (!stage) { return; }
+  var dx = device.x + DEVICE_RADIUS;
+  var dy = device.y + DEVICE_RADIUS;
+  var left = dx - stage.clientWidth / 2;
+  var top = dy - stage.clientHeight / 2;
+  stage.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: "smooth" });
+}
+
+// Find a good position for a new device on the canvas (spiral outward from visible center)
 function getNextDevicePosition() {
+  var vc = getVisibleCenter();
   if (state.devices.length === 0) {
-    return { x: CANVAS_WIDTH / 2 - DEVICE_RADIUS, y: CANVAS_HEIGHT / 2 - DEVICE_RADIUS };
+    return { x: vc.x - DEVICE_RADIUS, y: vc.y - DEVICE_RADIUS };
   }
 
   var spacing = DEVICE_SIZE + 40;
-  var centerX = CANVAS_WIDTH / 2;
-  var centerY = CANVAS_HEIGHT / 2;
+  var centerX = vc.x;
+  var centerY = vc.y;
   var angle = 0;
   var radius = spacing;
 

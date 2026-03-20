@@ -227,26 +227,26 @@ Notes:
         </div>
         <div class="sbx-float-sep"></div>
         <div class="sbx-float-group" id="connTypeGroup" style="display:none;">
-          <div class="sbx-conn-dropdown">
-            <button class="sbx-float-btn" id="connTypeDropBtn" type="button" data-tooltip="Connection type">
-              <i class="bi bi-ethernet"></i>
-              <i class="bi bi-chevron-down" style="font-size:.55rem;margin-left:2px;"></i>
-            </button>
-            <div class="sbx-conn-dropdown-menu" id="connTypeMenu">
-              <button class="sbx-conn-dropdown-item is-active" data-conn-type="ethernet" type="button">
-                <i class="bi bi-ethernet"></i> Ethernet
-              </button>
-              <button class="sbx-conn-dropdown-item" data-conn-type="fiber" type="button">
-                <i class="bi bi-activity"></i> Fiber
-              </button>
-              <button class="sbx-conn-dropdown-item" data-conn-type="serial" type="button">
-                <i class="bi bi-three-dots"></i> Serial
-              </button>
-              <button class="sbx-conn-dropdown-item" data-conn-type="wireless" type="button">
-                <i class="bi bi-wifi"></i> Wireless
-              </button>
-            </div>
-          </div>
+          <button class="sbx-float-btn is-active" data-conn-type="ethernet" type="button" data-tooltip="Ethernet cable">
+            <i class="bi bi-ethernet"></i>
+            <span class="sbx-float-btn-label">Ethernet</span>
+          </button>
+          <button class="sbx-float-btn" data-conn-type="fiber" type="button" data-tooltip="Fiber optic cable">
+            <i class="bi bi-activity"></i>
+            <span class="sbx-float-btn-label">Fiber</span>
+          </button>
+          <button class="sbx-float-btn" data-conn-type="serial" type="button" data-tooltip="Serial cable">
+            <i class="bi bi-three-dots"></i>
+            <span class="sbx-float-btn-label">Serial</span>
+          </button>
+          <button class="sbx-float-btn" data-conn-type="wireless" type="button" data-tooltip="Wireless link">
+            <i class="bi bi-wifi"></i>
+            <span class="sbx-float-btn-label">Wireless</span>
+          </button>
+          <button class="sbx-float-btn" data-conn-type="console" type="button" data-tooltip="Console cable">
+            <i class="bi bi-terminal"></i>
+            <span class="sbx-float-btn-label">Console</span>
+          </button>
         </div>
         <div class="sbx-float-sep"></div>
         <div class="sbx-float-group">

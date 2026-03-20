@@ -685,7 +685,9 @@ function bindTemplateButtons() {
         return;
       }
 
-      // Close the dropdown
+      // Close the dropdown (remove is-open from the parent .sbx-conn-dropdown)
+      var parentDropdown = templateDropdown.closest(".sbx-conn-dropdown");
+      if (parentDropdown) { parentDropdown.classList.remove("is-open"); }
       templateDropdown.classList.remove("is-open");
 
       var template = TOPOLOGY_TEMPLATES[templateId];

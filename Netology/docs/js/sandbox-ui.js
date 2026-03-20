@@ -182,8 +182,11 @@ function renderDevices() {
     var deviceElement = document.createElement("div");
     deviceElement.className = "sbx-device" + (isSelected ? " is-selected" : "");
     deviceElement.setAttribute("data-id", device.id);
+    deviceElement.setAttribute("data-device-type", device.type);
     deviceElement.style.left = device.x + "px";
     deviceElement.style.top = device.y + "px";
+    // Use a vivid gradient based on the device type color
+    deviceElement.style.background = "linear-gradient(145deg, " + typeInfo.color + " 0%, " + shadeColor(typeInfo.color, -20) + " 100%)";
 
     // VLAN color ring
     if (device.vlan > 0 && VLAN_COLORS[device.vlan]) {
@@ -193,7 +196,7 @@ function renderDevices() {
     // Device icon
     var iconWrap = document.createElement("div");
     iconWrap.className = "sbx-device-icon";
-    iconWrap.style.color = typeInfo.color;
+    iconWrap.style.color = "#fff";
     var iconElement = document.createElement("i");
     iconElement.className = "bi " + typeInfo.icon;
     iconWrap.appendChild(iconElement);
@@ -1336,6 +1339,11 @@ function addDevice(deviceType) {
   finishTopologyChange({ refreshTutorial: true });
   addActionLog("Added " + newDevice.name);
 
+  // Scroll so the new device is visible
+  if (typeof scrollToDevice === "function") {
+    scrollToDevice(newDevice);
+  }
+
   // Show connection suggestions in free mode
   if (typeof showConnectionSuggestions === "function") {
     showConnectionSuggestions(newDevice);
@@ -2309,33 +2317,32 @@ function bindToolbar() {
     });
   }
 
-  // Connection type dropdown
-  var connTypeDropButton = getById("connTypeDropBtn");
-  var connTypeMenu = getById("connTypeMenu");
-  if (connTypeDropButton && connTypeMenu) {
-    connTypeDropButton.addEventListener("click", function () {
-      connTypeMenu.classList.toggle("is-open");
+  // Connection type buttons — flat buttons in the toolbar, no dropdown
+  var connTypeButtons = querySelectorAll("#connTypeGroup [data-conn-type]");
+  for (var c = 0; c < connTypeButtons.length; c++) {
+    connTypeButtons[c].addEventListener("click", function () {
+      state.connectType = this.getAttribute("data-conn-type");
+      for (var j = 0; j < connTypeButtons.length; j++) {
+        connTypeButtons[j].classList.remove("is-active");
+      }
+      this.classList.add("is-active");
     });
-
-    var connTypeItems = connTypeMenu.querySelectorAll("[data-conn-type]");
-    for (var c = 0; c < connTypeItems.length; c++) {
-      connTypeItems[c].addEventListener("click", function () {
-        state.connectType = this.getAttribute("data-conn-type");
-        for (var j = 0; j < connTypeItems.length; j++) {
-          connTypeItems[j].classList.remove("is-active");
-        }
-        this.classList.add("is-active");
-        connTypeMenu.classList.remove("is-open");
-      });
-    }
   }
 
-  // Template dropdown toggle
+  // Template dropdown toggle — toggle on the parent .sbx-conn-dropdown
   var templateDropButton = getById("templateDropBtn");
   var templateMenu = getById("templateMenu");
   if (templateDropButton && templateMenu) {
-    templateDropButton.addEventListener("click", function () {
-      templateMenu.classList.toggle("is-open");
+    var templateDropdownParent = templateDropButton.closest(".sbx-conn-dropdown");
+    templateDropButton.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (templateDropdownParent) {
+        var allDropdowns = querySelectorAll(".sbx-conn-dropdown.is-open");
+        for (var d = 0; d < allDropdowns.length; d++) {
+          if (allDropdowns[d] !== templateDropdownParent) { allDropdowns[d].classList.remove("is-open"); }
+        }
+        templateDropdownParent.classList.toggle("is-open");
+      }
     });
   }
 
@@ -2741,12 +2748,14 @@ function bindStage() {
 
       if (action === "config") {
         state.selectedIds = [deviceId];
-        showConfigTab();
         renderAll();
+        showInlineConfig(deviceId);
       } else if (action === "copy") {
+        closeInlineConfig();
         state.selectedIds = [deviceId];
         duplicateSelected();
       } else if (action === "delete") {
+        closeInlineConfig();
         deleteDevices([deviceId]);
       }
     });
@@ -2766,6 +2775,7 @@ function bindStage() {
       if (event.target === stage || event.target === deviceLayer || event.target === connectionLayer) {
         if (state.tool === TOOL.SELECT) {
           state.selectedIds = [];
+          closeInlineConfig();
           renderAll();
         }
       }
@@ -2871,12 +2881,132 @@ function bindStage() {
   window.addEventListener("pointerup", endDrag);
   window.addEventListener("pointercancel", endDrag);
 
+  // Close all dropdowns when clicking outside
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest(".sbx-conn-dropdown")) {
+      var openDropdowns = querySelectorAll(".sbx-conn-dropdown.is-open");
+      for (var od = 0; od < openDropdowns.length; od++) {
+        openDropdowns[od].classList.remove("is-open");
+      }
+    }
+  });
+
   // Handle window resize
   window.addEventListener("resize", function () {
     updateZoomLabel();
     renderConnections();
     renderConnectionLabels();
   });
+}
+
+
+// Show a floating inline config popover beside a device on the canvas
+function showInlineConfig(deviceId) {
+  closeInlineConfig();
+
+  var device = findDevice(deviceId);
+  if (!device) { return; }
+
+  var popover = document.createElement("div");
+  popover.className = "sbx-inline-config";
+  popover.id = "sbxInlineConfig";
+  popover.setAttribute("data-device-id", deviceId);
+
+  // Position it to the right of the device
+  popover.style.left = (device.x + DEVICE_SIZE + 12) + "px";
+  popover.style.top = (device.y - 8) + "px";
+
+  // Header
+  var header = document.createElement("div");
+  header.className = "sbx-inline-config-head";
+
+  var typeInfo = DEVICE_TYPES[device.type] || DEVICE_TYPES.pc;
+  var titleWrap = document.createElement("div");
+  titleWrap.className = "sbx-inline-config-title";
+  var iconEl = document.createElement("i");
+  iconEl.className = "bi " + typeInfo.icon;
+  iconEl.style.color = typeInfo.color;
+  titleWrap.appendChild(iconEl);
+  var nameSpan = document.createElement("span");
+  nameSpan.textContent = device.name;
+  titleWrap.appendChild(nameSpan);
+  header.appendChild(titleWrap);
+
+  var closeBtn = document.createElement("button");
+  closeBtn.className = "sbx-inline-config-close";
+  closeBtn.innerHTML = '<i class="bi bi-x"></i>';
+  closeBtn.addEventListener("click", closeInlineConfig);
+  header.appendChild(closeBtn);
+  popover.appendChild(header);
+
+  // Sub-tabs
+  var tabsEl = document.createElement("div");
+  tabsEl.className = "sbx-inline-config-tabs";
+
+  var tabDefs = [
+    { id: "general", label: "General" },
+    { id: "interfaces", label: "Interfaces" },
+    { id: "routing", label: "Routing" },
+    { id: "dhcp", label: "DHCP" },
+    { id: "dns", label: "DNS" },
+    { id: "mac", label: "MAC" }
+  ];
+
+  var body = document.createElement("div");
+  body.className = "sbx-inline-config-body";
+
+  var activeTab = "general";
+
+  function renderTab(tabId) {
+    activeTab = tabId;
+    // Update active class
+    var allTabBtns = tabsEl.querySelectorAll(".sbx-inline-config-tab");
+    for (var t = 0; t < allTabBtns.length; t++) {
+      allTabBtns[t].classList.toggle("is-active", allTabBtns[t].getAttribute("data-tab") === tabId);
+    }
+    // Render content into body using the existing render functions,
+    // but temporarily redirect propsElement
+    var origProps = propsElement;
+    propsElement = body;
+    state.configTab = tabId;
+    renderProps();
+    propsElement = origProps;
+  }
+
+  for (var ti = 0; ti < tabDefs.length; ti++) {
+    (function(tab) {
+      var tabBtn = document.createElement("button");
+      tabBtn.className = "sbx-inline-config-tab" + (tab.id === "general" ? " is-active" : "");
+      tabBtn.setAttribute("data-tab", tab.id);
+      tabBtn.textContent = tab.label;
+      tabBtn.addEventListener("click", function() { renderTab(tab.id); });
+      tabsEl.appendChild(tabBtn);
+    })(tabDefs[ti]);
+  }
+
+  popover.appendChild(tabsEl);
+  popover.appendChild(body);
+
+  // Add to device layer so it scrolls with the canvas
+  if (deviceLayer) {
+    deviceLayer.appendChild(popover);
+  }
+
+  // Initial render
+  renderTab("general");
+
+  // Stop clicks inside popover from bubbling to stage (would close selection)
+  popover.addEventListener("pointerdown", function(e) { e.stopPropagation(); });
+  popover.addEventListener("click", function(e) { e.stopPropagation(); });
+}
+
+
+// Remove any open inline config popover
+function closeInlineConfig() {
+  var existing = getById("sbxInlineConfig");
+  if (existing && existing.parentNode) {
+    existing.parentNode.removeChild(existing);
+  }
 }
 
 
