@@ -379,6 +379,7 @@
   function setupStatsCarousel() {
     var carouselTrack = document.getElementById("statsTrack");
     var carouselIndicators = document.getElementById("statsIndicators");
+    var statsCarouselCard = document.getElementById("statsCarouselCard");
 
     if (!carouselTrack || !carouselIndicators) return;
 
@@ -424,6 +425,26 @@
           restartAutoAdvance();
         });
       })(dotIndex);
+    }
+
+    function openProgressPage() {
+      window.location.href = "progress.html";
+    }
+
+    if (statsCarouselCard) {
+      statsCarouselCard.addEventListener("click", function (event) {
+        if (event.target && event.target.closest && event.target.closest(".net-indicator")) {
+          return;
+        }
+        openProgressPage();
+      });
+
+      statsCarouselCard.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openProgressPage();
+        }
+      });
     }
 
     goToSlide(0);
