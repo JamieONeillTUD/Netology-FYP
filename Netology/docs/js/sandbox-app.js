@@ -60,57 +60,153 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Load sandbox lesson/tutorial/challenge data from the URL params
 function loadSandboxFromUrl() {
-  var params = new URLSearchParams(window.location.search);
-  var courseId = params.get("course");
-  var lessonId = params.get("lesson");
+  var params    = new URLSearchParams(window.location.search);
+  var courseId  = params.get("course");
+  var unitIndex = Number(params.get("unit") || -1);
+  var mode      = params.get("mode") || "free";
   var topologyId = params.get("topology");
 
-  // If a saved topology ID was passed, load it
   if (topologyId) {
     loadTopologyById(topologyId);
     return;
   }
 
-  // If a course and lesson were passed, try to load the sandbox content
-  if (courseId && lessonId && typeof window.courseContent !== "undefined") {
-    var lessonContent = findLessonContent(courseId, lessonId);
-    if (lessonContent && lessonContent.sandbox) {
-      loadSandboxContent(lessonContent.sandbox);
+  if (!courseId || unitIndex < 0 || mode === "free") return;
+
+  // Try to load from localStorage first (set by course.js)
+  var savedTutorial = null;
+  var savedChallenge = null;
+
+  try {
+    var tutorialData = localStorage.getItem("netology_active_tutorial");
+    if (tutorialData) {
+      savedTutorial = JSON.parse(tutorialData);
+    }
+
+    var challengeData = localStorage.getItem("netology_active_challenge");
+    if (challengeData) {
+      savedChallenge = JSON.parse(challengeData);
+    }
+  } catch (e) {
+    // ignore parse errors
+  }
+
+  // Load from localStorage if available, otherwise from COURSE_CONTENT
+  var content = window.COURSE_CONTENT && window.COURSE_CONTENT[String(courseId)];
+  if (!content) return;
+  var units = content.units || content.modules || [];
+  var unit  = units[unitIndex];
+  if (!unit) return;
+
+  if (mode === "practice") {
+    var tutorialContent = savedTutorial || unit.sandbox;
+    if (tutorialContent) {
+      loadSandboxContent({ tutorial: tutorialContent });
+    }
+  } else if (mode === "challenge") {
+    var challengeContent = savedChallenge || unit.challenge;
+    if (challengeContent) {
+      loadSandboxContent({ challenge: challengeContent });
     }
   }
 }
 
-// Find the lesson content from the global courseContent data
-function findLessonContent(courseId, lessonId) {
-  if (!window.courseContent) {
-    return null;
+function clonePlainObject(source) {
+  var output = {};
+  var keys = Object.keys(source || {});
+  for (var i = 0; i < keys.length; i++) {
+    output[keys[i]] = source[keys[i]];
+  }
+  return output;
+}
+
+function buildRuleChecksForChallenge(rules) {
+  var safeRules = rules && typeof rules === "object" ? rules : {};
+  var checks = { deviceChecks: [], connectionChecks: [] };
+
+  var requiredTypes = safeRules.requiredTypes || {};
+  var requiredKeys = Object.keys(requiredTypes);
+  for (var index = 0; index < requiredKeys.length; index++) {
+    var deviceType = requiredKeys[index];
+    var deviceCount = Number(requiredTypes[deviceType]);
+    if (!deviceType || !Number.isFinite(deviceCount) || deviceCount <= 0) continue;
+    checks.deviceChecks.push({
+      type: "device",
+      deviceType: deviceType,
+      count: deviceCount
+    });
   }
 
-  // Go through all courses
-  var courseIds = Object.keys(window.courseContent);
-  for (var i = 0; i < courseIds.length; i++) {
-    var course = window.courseContent[courseIds[i]];
-    if (!course || !course.modules) {
-      continue;
-    }
+  var minDevices = Number(safeRules.minDevices || 0);
+  if (Number.isFinite(minDevices) && minDevices > 0) {
+    checks.deviceChecks.push({
+      type: "min_devices",
+      count: minDevices
+    });
+  }
 
-    // Go through all modules
-    for (var m = 0; m < course.modules.length; m++) {
-      var module = course.modules[m];
-      if (!module.lessons) {
-        continue;
+  var minConnections = Number(safeRules.minConnections || 0);
+  if (Number.isFinite(minConnections) && minConnections > 0) {
+    checks.connectionChecks.push({
+      type: "min_connections",
+      count: minConnections
+    });
+  }
+
+  return checks;
+}
+
+function normaliseLessonSteps(rawData, mode) {
+  var data = clonePlainObject(rawData || {});
+  var rawSteps = Array.isArray(data.steps) ? data.steps : [];
+  var normalisedSteps = [];
+  var hasStepChecks = false;
+
+  for (var stepIndex = 0; stepIndex < rawSteps.length; stepIndex++) {
+    var rawStep = rawSteps[stepIndex];
+    if (rawStep && typeof rawStep === "object" && !Array.isArray(rawStep)) {
+      var copiedStep = clonePlainObject(rawStep);
+      if (!copiedStep.text) {
+        copiedStep.text = copiedStep.title || ("Step " + (stepIndex + 1));
+      }
+      if (Array.isArray(copiedStep.checks) && copiedStep.checks.length > 0) {
+        hasStepChecks = true;
+      }
+      normalisedSteps.push(copiedStep);
+    } else {
+      normalisedSteps.push({
+        text: String(rawStep || ("Step " + (stepIndex + 1))),
+        checks: []
+      });
+    }
+  }
+
+  if (mode === "challenge" && !hasStepChecks) {
+    var checks = buildRuleChecksForChallenge(data.rules || {});
+    var hasRuleChecks = checks.deviceChecks.length > 0 || checks.connectionChecks.length > 0;
+
+    if (hasRuleChecks) {
+      if (!normalisedSteps.length) {
+        normalisedSteps.push({ text: "Meet the challenge requirements.", checks: [] });
       }
 
-      // Go through all lessons
-      for (var l = 0; l < module.lessons.length; l++) {
-        var lesson = module.lessons[l];
-        if (lesson.id === lessonId || lesson.id === Number(lessonId)) {
-          return lesson;
+      if (checks.deviceChecks.length > 0) {
+        normalisedSteps[0].checks = checks.deviceChecks.slice();
+      }
+
+      if (checks.connectionChecks.length > 0) {
+        if (normalisedSteps.length > 1) {
+          normalisedSteps[1].checks = checks.connectionChecks.slice();
+        } else {
+          var existingChecks = Array.isArray(normalisedSteps[0].checks) ? normalisedSteps[0].checks : [];
+          normalisedSteps[0].checks = existingChecks.concat(checks.connectionChecks);
         }
       }
     }
   }
-  return null;
+
+  data.steps = normalisedSteps;
+  return data;
 }
 
 // Load sandbox content (tutorial and/or challenge) into the sandbox
@@ -121,16 +217,18 @@ function loadSandboxContent(sandboxData) {
 
   // Load tutorial if present
   if (sandboxData.tutorial) {
-    state.tutorialMeta = sandboxData.tutorial;
+    var tutorialData = normaliseLessonSteps(sandboxData.tutorial, "tutorial");
+    state.tutorialMeta = tutorialData;
     state.mode = "tutorial";
-    renderLessonUI(sandboxData.tutorial, "tutorial");
+    renderLessonUI(tutorialData, "tutorial");
   }
 
   // Load challenge if present
   if (sandboxData.challenge) {
-    state.challengeMeta = sandboxData.challenge;
+    var challengeData = normaliseLessonSteps(sandboxData.challenge, "challenge");
+    state.challengeMeta = challengeData;
     state.mode = "challenge";
-    renderLessonUI(sandboxData.challenge, "challenge");
+    renderLessonUI(challengeData, "challenge");
   }
 
   // Load preset devices if the sandbox content provides them
@@ -341,7 +439,7 @@ function renderObjectives() {
 
   for (var i = 0; i < data.steps.length; i++) {
     var step = data.steps[i];
-    var passed = evaluateStepRequirements(step);
+    var passed = evaluateStepRequirements(step, i);
     var wasAlreadyDone = state.objectiveStatus[i] === true;
     state.objectiveStatus[i] = passed;
 
@@ -411,10 +509,23 @@ function notifyTutorialProgress() {
 }
 
 
+function arePreviousStepsCompleted(stepIndex) {
+  for (var i = 0; i < stepIndex; i++) {
+    if (state.objectiveStatus[i] !== true) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // Evaluate whether a step's requirements are met
-function evaluateStepRequirements(step) {
-  if (!step || !step.checks) {
+function evaluateStepRequirements(step, stepIndex) {
+  if (!step) {
     return false;
+  }
+
+  if (!Array.isArray(step.checks) || step.checks.length === 0) {
+    return arePreviousStepsCompleted(Number(stepIndex || 0));
   }
 
   // Every check in the step must pass
@@ -443,6 +554,22 @@ function evaluateSingleRequirement(check) {
       }
     }
     return deviceCount >= (check.count || 1);
+  }
+
+  if (check.type === "min_devices") {
+    var requiredDevices = Number(check.count || 1);
+    if (!Number.isFinite(requiredDevices) || requiredDevices <= 0) {
+      requiredDevices = 1;
+    }
+    return state.devices.length >= requiredDevices;
+  }
+
+  if (check.type === "min_connections") {
+    var requiredConnections = Number(check.count || 1);
+    if (!Number.isFinite(requiredConnections) || requiredConnections <= 0) {
+      requiredConnections = 1;
+    }
+    return state.connections.length >= requiredConnections;
   }
 
   if (check.type === "connection") {
@@ -535,6 +662,12 @@ function handleAllObjectivesComplete() {
   var isChallengeMode = !!state.challengeMeta;
   var message = isChallengeMode ? "Challenge complete!" : "Tutorial complete!";
 
+  if (isChallengeMode) {
+    recordChallengeCompletionToServer(xpAmount);
+  } else {
+    markTutorialCompletionInLocalStorage(data);
+  }
+
   // Show the inline done panel in objectives
   var donePanel = getById("sbxLessonDone");
   if (donePanel) {
@@ -587,6 +720,72 @@ function handleAllObjectivesComplete() {
       returnBtn.href = "courses.html";
     }
   }
+}
+
+function getSandboxRouteContext() {
+  var params = new URLSearchParams(window.location.search);
+  var courseId = params.get("course");
+  var unitIndex = Number(params.get("unit"));
+  if (!courseId || !Number.isFinite(unitIndex) || unitIndex < 0) {
+    return null;
+  }
+  return {
+    courseId: String(courseId),
+    unitIndex: unitIndex,
+    unitNumber: unitIndex + 1
+  };
+}
+
+function markTutorialCompletionInLocalStorage(data) {
+  var user = getStoredUser();
+  var ctx = getSandboxRouteContext();
+  if (!user || !user.email || !ctx) {
+    return;
+  }
+
+  var key = "netology_tutorial_progress:" + user.email + ":" + ctx.courseId + ":" + ctx.unitNumber;
+  var steps = Array.isArray(data && data.steps) ? data.steps : [];
+  var checked = [];
+  for (var stepIndex = 0; stepIndex < steps.length; stepIndex++) {
+    checked.push(state.objectiveStatus[stepIndex] === true);
+  }
+  if (!checked.length) {
+    checked = [true];
+  }
+
+  var payload = {
+    checked: checked,
+    completed: true,
+    updated_at: Date.now()
+  };
+  localStorage.setItem(key, JSON.stringify(payload));
+}
+
+function recordChallengeCompletionToServer(xpAmount) {
+  var user = getStoredUser();
+  var ctx = getSandboxRouteContext();
+  if (!user || !user.email || !ctx) {
+    return;
+  }
+
+  var apiBase = String(window.API_BASE || "").replace(/\/$/, "");
+  if (!apiBase) return;
+
+  var endpoint = (window.ENDPOINTS && window.ENDPOINTS.courses && window.ENDPOINTS.courses.completeChallenge) || "/complete-challenge";
+  var url = apiBase + endpoint;
+
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: user.email,
+      course_id: String(ctx.courseId),
+      lesson_number: ctx.unitNumber,
+      earned_xp: Number(xpAmount || 0)
+    })
+  }).catch(function (error) {
+    console.warn("Could not record challenge completion:", error);
+  });
 }
 
 // Show the full-screen challenge completion overlay
@@ -658,9 +857,18 @@ function awardSandboxXp(amount) {
 
   // Use the NetologyXP system exposed by app.js
   var xpSystem = window.NetologyXP || null;
+  var updatedUser = user;
   if (xpSystem && typeof xpSystem.applyXpToUser === "function") {
-    xpSystem.applyXpToUser(user, amount);
+    updatedUser = xpSystem.applyXpToUser(user, amount);
+    localStorage.setItem("netology_user", JSON.stringify(updatedUser));
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+  } else {
     localStorage.setItem("netology_user", JSON.stringify(user));
+    localStorage.setItem("user", JSON.stringify(user));
+  }
+
+  if (window.NetologyNav && typeof window.NetologyNav.displayNavUser === "function") {
+    window.NetologyNav.displayNavUser(updatedUser);
   }
 }
 

@@ -10,27 +10,189 @@ user_api = Blueprint("user_api", __name__)
 
 # ── Challenges ────────────────────────────────────────────────────────────────
 
+_DEFAULT_CHALLENGES = [
+    ("Learn IP Addressing",  "Complete the IP Addressing course lesson.",          "daily",  25),
+    ("Build a Topology",     "Create a network topology in the sandbox.",          "daily",  50),
+    ("Pass a Quiz",          "Score 80%+ on any quiz.",                            "daily",  30),
+    ("Study Session",        "Complete 2 lessons in one sitting.",                 "daily",  40),
+    ("Review Notes",         "Revisit a completed lesson to reinforce knowledge.", "daily",  20),
+    ("Quiz Master",          "Score 100% on any quiz.",                            "weekly", 100),
+    ("Consistency Wins",     "Log in for 7 consecutive days.",                     "weekly", 75),
+    ("Course Explorer",      "Start a new course you have not tried before.",      "weekly", 60),
+    ("Network Architect",    "Build 3 different network topologies.",              "weekly", 120),
+    ("Knowledge Sprint",     "Complete 5 lessons across any courses.",             "weekly", 80),
+]
+
+
+def _seed_challenges_if_empty(cur, conn):
+    cur.execute("SELECT COUNT(*) FROM challenges")
+    if cur.fetchone()[0] == 0:
+        cur.executemany(
+            """
+            INSERT INTO challenges (title, description, challenge_type, xp_reward, is_active)
+            VALUES (%s, %s, %s, %s, TRUE)
+            ON CONFLICT DO NOTHING
+            """,
+            _DEFAULT_CHALLENGES,
+        )
+        conn.commit()
+
+
+def _challenge_target(required_action, challenge_type, title, description, action_target):
+    default_target = 1
+
+    try:
+        explicit = int(action_target)
+        if explicit > 0:
+            return explicit
+    except (TypeError, ValueError):
+        pass
+
+    action = str(required_action or "").strip().lower()
+    if action == "complete_lessons":
+        return 2 if str(challenge_type).lower() == "daily" else 5
+    if action == "daily_login":
+        return 7
+    if action == "sandbox_topologies":
+        return 3
+    if action == "complete_courses":
+        return 3
+    if action == "quiz_score":
+        return 1
+    return default_target
+
+
+def _challenge_progress_value(required_action, metrics):
+    action = str(required_action or "").strip().lower()
+
+    if action in ("complete_lesson", "review_lesson"):
+        return metrics.get("lessons_done", 0)
+    if action == "complete_lessons":
+        return metrics.get("lessons_done", 0)
+    if action in ("pass_quiz", "quiz_score"):
+        return metrics.get("quizzes_done", 0)
+    if action == "daily_login":
+        return metrics.get("streak_days", 0)
+    if action == "start_course":
+        return metrics.get("courses_started", 0)
+    if action == "complete_courses":
+        return metrics.get("courses_done", 0)
+    if action in ("sandbox_practice", "sandbox_topologies"):
+        return metrics.get("topologies_saved", 0) + metrics.get("lesson_sessions", 0)
+    return 0
+
+
+def _load_challenge_metrics(cur, email):
+    metrics = {
+        "lessons_done": 0,
+        "quizzes_done": 0,
+        "challenges_done": 0,
+        "courses_started": 0,
+        "courses_done": 0,
+        "topologies_saved": 0,
+        "lesson_sessions": 0,
+        "streak_days": 0,
+    }
+    if not email:
+        return metrics
+
+    try:
+        cur.execute(
+            """
+            SELECT
+              (SELECT COUNT(*) FROM user_lessons WHERE user_email = %s),
+              (SELECT COUNT(*) FROM user_quizzes WHERE user_email = %s),
+              (SELECT COUNT(*) FROM user_challenges WHERE user_email = %s),
+              (SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND progress > 0),
+              (SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = TRUE),
+              (SELECT COUNT(*) FROM saved_topologies WHERE user_email = %s),
+              (SELECT COUNT(*) FROM lesson_sessions WHERE user_email = %s)
+            """,
+            (email, email, email, email, email, email, email),
+        )
+        row = cur.fetchone()
+        if row:
+            metrics["lessons_done"] = int(row[0] or 0)
+            metrics["quizzes_done"] = int(row[1] or 0)
+            metrics["challenges_done"] = int(row[2] or 0)
+            metrics["courses_started"] = int(row[3] or 0)
+            metrics["courses_done"] = int(row[4] or 0)
+            metrics["topologies_saved"] = int(row[5] or 0)
+            metrics["lesson_sessions"] = int(row[6] or 0)
+    except Exception as e:
+        print("challenge metrics count error:", e)
+
+    try:
+        cur.execute(
+            "SELECT login_date FROM user_logins WHERE user_email = %s ORDER BY login_date DESC LIMIT 365",
+            (email,),
+        )
+        dates = sorted({r[0] for r in cur.fetchall()}, reverse=True)
+        metrics["streak_days"] = int(login_streak(dates))
+    except Exception as e:
+        print("challenge metrics streak error:", e)
+
+    return metrics
+
+
 @user_api.get("/api/user/challenges")
 def get_user_challenges():
     # Daily or weekly challenges for the dashboard.
     challenge_type = request.args.get("type", "daily")
+    user_email = (request.args.get("user_email") or "").strip().lower()
 
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute(
-            """
-            SELECT c.title, c.description, c.xp_reward
-            FROM challenges c
-            WHERE c.challenge_type = %s AND c.is_active = TRUE
-            LIMIT 5
-            """,
-            (challenge_type,),
-        )
-        challenges = [
-            {"title": r[0], "description": r[1], "xp_reward": r[2]}
-            for r in cur.fetchall()
-        ]
+        _seed_challenges_if_empty(cur, conn)
+        try:
+            cur.execute(
+                """
+                SELECT c.id, c.title, c.description, c.xp_reward, c.required_action, c.action_target
+                FROM challenges c
+                WHERE c.challenge_type = %s AND c.is_active = TRUE
+                ORDER BY c.id
+                LIMIT 5
+                """,
+                (challenge_type,),
+            )
+            rows = cur.fetchall()
+        except Exception:
+            cur.execute(
+                """
+                SELECT c.id, c.title, c.description, c.xp_reward, c.required_action, NULL::text AS action_target
+                FROM challenges c
+                WHERE c.challenge_type = %s AND c.is_active = TRUE
+                ORDER BY c.id
+                LIMIT 5
+                """,
+                (challenge_type,),
+            )
+            rows = cur.fetchall()
+
+        metrics = _load_challenge_metrics(cur, user_email) if user_email else {}
+        challenges = []
+        for row in rows:
+            required_action = row[4] if len(row) > 4 else None
+            action_target = row[5] if len(row) > 5 else None
+            target = _challenge_target(required_action, challenge_type, row[1], row[2], action_target)
+            progress_value = _challenge_progress_value(required_action, metrics) if metrics else 0
+            if target <= 0:
+                progress_percent = 0
+            else:
+                progress_percent = max(0, min(100, int((progress_value / target) * 100)))
+            challenges.append({
+                "id": row[0],
+                "title": row[1],
+                "description": row[2],
+                "xp_reward": row[3],
+                "required_action": required_action,
+                "progress_value": progress_value,
+                "progress_target": target,
+                "progress_percent": progress_percent,
+                "completed": bool(progress_value >= target if target > 0 else False),
+            })
+
         return jsonify({"success": True, "challenges": challenges})
     except Exception as e:
         print("get_user_challenges error:", e)

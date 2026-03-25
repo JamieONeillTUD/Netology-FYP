@@ -14,7 +14,8 @@
       login: "/login",
       userInfo: "/user-info",
       recordLogin: "/record-login",
-      forgotPassword: "/forgot-password"
+      forgotPassword: "/forgot-password",
+      deleteAccount: "/delete-account"
     },
     onboarding: {
       start: "/api/onboarding/start",
@@ -411,13 +412,119 @@
   // expose achievement functions globally
   window.NetologyAchievements = { queueUnlocks: queueAchievementUnlocks };
 
-  // show pending achievements once dom is ready
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () {
-      showPendingAchievements();
-    }, { once: true });
-  } else {
+  // ── shared nav: sidebar, dropdown, logout, user display ──────────────────
+
+  function setupSlideSidebar() {
+    var openBtn  = document.getElementById("openSidebarBtn");
+    var closeBtn = document.getElementById("closeSidebarBtn");
+    var sidebar  = document.getElementById("slideSidebar");
+    var backdrop = document.getElementById("sideBackdrop");
+    if (!sidebar) return;
+    function open()  { sidebar.classList.add("is-open"); sidebar.setAttribute("aria-hidden","false"); if (backdrop) { backdrop.classList.add("is-open"); backdrop.setAttribute("aria-hidden","false"); } document.body.classList.add("net-noscroll"); }
+    function close() { sidebar.classList.remove("is-open"); sidebar.setAttribute("aria-hidden","true"); if (backdrop) { backdrop.classList.remove("is-open"); backdrop.setAttribute("aria-hidden","true"); } document.body.classList.remove("net-noscroll"); }
+    if (openBtn)  openBtn.addEventListener("click",  open);
+    if (closeBtn) closeBtn.addEventListener("click", close);
+    if (backdrop) backdrop.addEventListener("click", close);
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && sidebar.classList.contains("is-open")) close(); });
+  }
+
+  function setupUserDropdownMenu() {
+    var btn  = document.getElementById("userBtn");
+    var menu = document.getElementById("userDropdown");
+    if (!btn || !menu) return;
+
+    function setOpenState(isOpen) {
+      if (isOpen) {
+        menu.classList.add("is-open");
+      } else {
+        menu.classList.remove("is-open");
+      }
+      btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      menu.setAttribute("aria-hidden", isOpen ? "false" : "true");
+    }
+
+    function close() {
+      setOpenState(false);
+    }
+
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var isOpen = menu.classList.contains("is-open");
+      setOpenState(!isOpen);
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!menu.contains(e.target) && !btn.contains(e.target)) {
+        close();
+      }
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        close();
+      }
+    });
+
+    setOpenState(false);
+  }
+
+  function setupLogoutButtons() {
+    function doLogout() { localStorage.removeItem("netology_user"); localStorage.removeItem("user"); localStorage.removeItem("netology_token"); window.location.href = "index.html"; }
+    var top  = document.getElementById("topLogoutBtn");
+    var side = document.getElementById("sideLogoutBtn");
+    if (top)  top.addEventListener("click",  doLogout);
+    if (side) side.addEventListener("click", doLogout);
+  }
+
+  function displayNavUser(userData) {
+    if (!userData) {
+      try { var raw = localStorage.getItem("netology_user") || localStorage.getItem("user"); userData = raw ? JSON.parse(raw) : null; } catch (e) { return; }
+    }
+    if (!userData) return;
+    var name = userData.first_name ? (userData.first_name + " " + (userData.last_name || "")).trim() : (userData.username || userData.name || "Student");
+    var initial = (name.charAt(0) || "S").toUpperCase();
+    var XP = window.NetologyXP || null;
+    var resolved = null;
+    if (XP && typeof XP.resolveUserProgress === "function") {
+      resolved = XP.resolveUserProgress(userData);
+    }
+
+    var level = resolved ? Number(resolved.level || 1) : Number(userData.numeric_level || 1);
+    var rank = resolved
+      ? String(resolved.rank || userData.rank || userData.level || "Novice")
+      : String(userData.rank || userData.level || "Novice");
+    var xpIn = resolved ? Number(resolved.xpIntoLevel || 0) : Number(userData.xp_into_level || 0);
+    var xpMax = resolved ? Number(resolved.nextLevelXp || 100) : Number(userData.next_level_xp || 100);
+    var pct   = xpMax > 0 ? Math.min(100, Math.round(xpIn / xpMax * 100)) : 0;
+    function set(id, val)  { var el = document.getElementById(id); if (el) el.textContent = val; }
+    function setW(id, val) { var el = document.getElementById(id); if (el) el.style.width  = val; }
+    set("topAvatar", initial); set("ddAvatar", initial); set("ddName", name); set("ddEmail", userData.email || "");
+    set("ddLevel", "Level " + level); set("ddRank", rank);
+    set("sideAvatar", initial); set("sideUserName", name); set("sideUserEmail", userData.email || "");
+    set("sideLevelBadge", "Lv " + level); setW("sideXpBar", pct + "%");
+    set("sideXpText", xpIn + "/" + xpMax + " XP"); set("sideXpHint", Math.max(0, xpMax - xpIn) + " XP to next level");
+    set("profileAvatar", initial);
+  }
+
+  // expose nav helpers globally so page scripts can refresh after server fetch
+  window.NetologyNav = { displayNavUser: displayNavUser };
+  window.setupSlideSidebar     = setupSlideSidebar;
+  window.setupUserDropdownMenu = setupUserDropdownMenu;
+  window.setupLogoutButtons    = setupLogoutButtons;
+
+  // show pending achievements and wire up nav once dom is ready
+  function onDomReady() {
     showPendingAchievements();
+    setupSlideSidebar();
+    setupUserDropdownMenu();
+    setupLogoutButtons();
+    displayNavUser(null);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", onDomReady, { once: true });
+  } else {
+    onDomReady();
   }
 
   // local references for login tracking section

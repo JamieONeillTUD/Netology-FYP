@@ -357,7 +357,7 @@
     setTimeout(() => {
       toast.classList.remove("is-visible");
       setTimeout(() => toast.remove(), 250);
-    }, 2800);
+    }, 3000);
     return toast;
   }
 

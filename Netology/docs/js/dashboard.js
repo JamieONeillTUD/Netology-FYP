@@ -305,107 +305,20 @@
     if (sideBrandLink) sideBrandLink.setAttribute("href", targetPage);
   }
 
-  // Wire up the slide-out sidebar open, close, and backdrop
-  function setupSlideSidebar() {
-    var openButton = document.getElementById("openSidebarBtn");
-    var closeButton = document.getElementById("closeSidebarBtn");
-    var sidebar = document.getElementById("slideSidebar");
-    var backdrop = document.getElementById("sideBackdrop");
+  // Update dashboard greeting names from user profile.
+  function displayDashboardGreetingName(userData) {
+    var firstName = String((userData && userData.first_name) || "").trim();
+    var username = String((userData && userData.username) || "").trim();
+    var fallback = firstName || username || "Student";
 
-    if (!sidebar) return;
-
-    function openSidebar() {
-      if (!backdrop) return;
-      sidebar.classList.add("is-open");
-      backdrop.classList.add("is-open");
-      document.body.classList.add("net-noscroll");
+    var welcomeName = document.getElementById("welcomeName");
+    if (welcomeName) {
+      welcomeName.textContent = fallback;
     }
 
-    function closeSidebar() {
-      if (!backdrop) return;
-      sidebar.classList.remove("is-open");
-      backdrop.classList.remove("is-open");
-      document.body.classList.remove("net-noscroll");
-    }
-
-    if (openButton) {
-      openButton.addEventListener("click", function () {
-        openSidebar();
-      });
-    }
-
-    if (closeButton) {
-      closeButton.addEventListener("click", function () {
-        closeSidebar();
-      });
-    }
-
-    if (backdrop) {
-      backdrop.addEventListener("click", function () {
-        closeSidebar();
-      });
-    }
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && sidebar.classList.contains("is-open")) {
-        closeSidebar();
-      }
-    });
-  }
-
-  // Wire up the user dropdown toggle
-  function setupUserDropdownMenu() {
-    var dropdownButton = document.getElementById("userBtn");
-    var dropdownMenu = document.getElementById("userDropdown");
-
-    if (!dropdownButton || !dropdownMenu) return;
-
-    function closeDropdownMenu() {
-      dropdownMenu.classList.remove("is-open");
-      dropdownButton.setAttribute("aria-expanded", "false");
-    }
-
-    dropdownButton.addEventListener("click", function (event) {
-      event.stopPropagation();
-      var isNowOpen = dropdownMenu.classList.toggle("is-open");
-      dropdownButton.setAttribute("aria-expanded", String(isNowOpen));
-    });
-
-    document.addEventListener("click", function (event) {
-      if (!dropdownMenu.contains(event.target) && !dropdownButton.contains(event.target)) {
-        closeDropdownMenu();
-      }
-    });
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") {
-        closeDropdownMenu();
-      }
-    });
-  }
-
-  // Wire up both logout buttons
-  function setupLogoutButtons() {
-    function performLogout() {
-      localStorage.removeItem("netology_user");
-      localStorage.removeItem("user");
-      localStorage.removeItem("netology_token");
-      window.location.href = "index.html";
-    }
-
-    var topLogoutButton = document.getElementById("topLogoutBtn");
-    var sideLogoutButton = document.getElementById("sideLogoutBtn");
-
-    if (topLogoutButton) {
-      topLogoutButton.addEventListener("click", function () {
-        performLogout();
-      });
-    }
-
-    if (sideLogoutButton) {
-      sideLogoutButton.addEventListener("click", function () {
-        performLogout();
-      });
+    var welcomeOverlayName = document.getElementById("dashboardWelcomeName");
+    if (welcomeOverlayName) {
+      welcomeOverlayName.textContent = fallback;
     }
   }
 
@@ -414,37 +327,49 @@
     var toggleButtons = Array.from(document.querySelectorAll(".dash-toggle-btn[data-panel]"));
     if (!toggleButtons.length) return;
 
+    function setActivePanel(targetPanelId) {
+      for (var buttonIndex = 0; buttonIndex < toggleButtons.length; buttonIndex++) {
+        var button = toggleButtons[buttonIndex];
+        var panelId = button.getAttribute("data-panel");
+        var isActive = panelId === targetPanelId;
+
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-selected", isActive ? "true" : "false");
+
+        if (!panelId) continue;
+        var panel = document.getElementById(panelId);
+        if (!panel) continue;
+
+        if (isActive) {
+          panel.hidden = false;
+          panel.classList.add("is-active");
+          panel.setAttribute("aria-hidden", "false");
+        } else {
+          panel.classList.remove("is-active");
+          panel.hidden = true;
+          panel.setAttribute("aria-hidden", "true");
+        }
+      }
+    }
+
+    var defaultPanelId = null;
+    for (var index = 0; index < toggleButtons.length; index++) {
+      if (toggleButtons[index].classList.contains("is-active")) {
+        defaultPanelId = toggleButtons[index].getAttribute("data-panel");
+        break;
+      }
+    }
+    if (!defaultPanelId) {
+      defaultPanelId = toggleButtons[0].getAttribute("data-panel");
+    }
+    setActivePanel(defaultPanelId);
+
     for (var buttonIndex = 0; buttonIndex < toggleButtons.length; buttonIndex++) {
       (function (clickedButton) {
         clickedButton.addEventListener("click", function () {
-          for (var removeIndex = 0; removeIndex < toggleButtons.length; removeIndex++) {
-            toggleButtons[removeIndex].classList.remove("is-active");
-          }
-          clickedButton.classList.add("is-active");
-
           var targetPanelId = clickedButton.getAttribute("data-panel");
-
-          for (var panelIndex = 0; panelIndex < toggleButtons.length; panelIndex++) {
-            var panelId = toggleButtons[panelIndex].getAttribute("data-panel");
-            if (!panelId) continue;
-
-            var panelElement = document.getElementById(panelId);
-            if (!panelElement) continue;
-
-            if (panelId === targetPanelId) {
-              panelElement.hidden = false;
-              requestAnimationFrame(function () {
-                panelElement.classList.add("is-active");
-              });
-            } else {
-              panelElement.classList.remove("is-active");
-              (function (elementToHide) {
-                setTimeout(function () {
-                  elementToHide.hidden = true;
-                }, 200);
-              })(panelElement);
-            }
-          }
+          if (!targetPanelId) return;
+          setActivePanel(targetPanelId);
         });
       })(toggleButtons[buttonIndex]);
     }
@@ -597,42 +522,6 @@
         scheduleRefresh();
       }
     });
-  }
-
-  // Show the user's name, email, rank, and level in the sidebar and dropdown
-  function displayUserInformation(userData) {
-    if (!userData) return;
-
-    var displayName = "";
-    if (userData.first_name) {
-      displayName = userData.first_name + " " + (userData.last_name || "");
-      displayName = displayName.trim();
-    } else {
-      displayName = userData.username || "";
-    }
-
-    var userLevel = Number(userData.numeric_level || userData.level || 1);
-
-    var sideUserNameElement = document.getElementById("sideUserName");
-    if (sideUserNameElement) sideUserNameElement.textContent = displayName;
-
-    var dropdownNameElement = document.getElementById("ddName");
-    if (dropdownNameElement) dropdownNameElement.textContent = displayName;
-
-    var sideUserEmailElement = document.getElementById("sideUserEmail");
-    if (sideUserEmailElement) sideUserEmailElement.textContent = userData.email || "";
-
-    var dropdownEmailElement = document.getElementById("ddEmail");
-    if (dropdownEmailElement) dropdownEmailElement.textContent = userData.email || "";
-
-    var dropdownRankElement = document.getElementById("ddRank");
-    if (dropdownRankElement) dropdownRankElement.textContent = userData.rank || "";
-
-    var sideLevelBadgeElement = document.getElementById("sideLevelBadge");
-    if (sideLevelBadgeElement) sideLevelBadgeElement.textContent = "Lv " + userLevel;
-
-    var dropdownLevelElement = document.getElementById("ddLevel");
-    if (dropdownLevelElement) dropdownLevelElement.textContent = userLevel;
   }
 
   // Update the stat numbers in the carousel slides
@@ -1007,6 +896,8 @@
       var challenge = challengeList[challengeIndex];
       var isCompleted = challenge.completed === true || challenge.status === "completed";
       var experienceReward = challenge.xp_reward || 0;
+      var progressValue = Number(challenge.progress_value || 0);
+      var progressTarget = Number(challenge.progress_target || 0);
 
       var challengeRow = document.createElement("div");
       challengeRow.className = "dash-challenge" + (isCompleted ? " is-done" : "");
@@ -1017,6 +908,11 @@
       var statusText = "";
       if (isCompleted) {
         statusText = "✓ Done";
+      } else if (progressTarget > 0) {
+        statusText = progressValue + "/" + progressTarget;
+        if (experienceReward) {
+          statusText += " • +" + experienceReward + " XP";
+        }
       } else if (experienceReward) {
         statusText = "+" + experienceReward + " XP";
       }
@@ -1054,7 +950,8 @@
       }
     }
 
-    displayUserInformation(userData);
+    window.NetologyNav.displayNavUser(userData);
+    displayDashboardGreetingName(userData);
     displayProgressStatistics();
     displayRankAndExperienceGauge();
     displayLoginStreakCalendar();
@@ -1065,9 +962,6 @@
   // Main entry point, sets up the page then fetches data
   async function initialiseDashboard() {
     setupLogoLinks();
-    setupSlideSidebar();
-    setupUserDropdownMenu();
-    setupLogoutButtons();
     setupChallengeToggleButtons();
     setupStatsCarousel();
     activateBootstrapTooltips();
@@ -1075,7 +969,8 @@
 
     var cachedUser = readSavedUserFromLocalStorage();
     if (cachedUser) {
-      displayUserInformation(cachedUser);
+      window.NetologyNav.displayNavUser(cachedUser);
+      displayDashboardGreetingName(cachedUser);
       displayProgressStatistics();
       displayRankAndExperienceGauge();
       displayLoginStreakCalendar();
@@ -1103,7 +998,8 @@
       dashboardState.courses = [];
     }
 
-    displayUserInformation(userData);
+    window.NetologyNav.displayNavUser(userData);
+    displayDashboardGreetingName(userData);
     displayProgressStatistics();
     displayRankAndExperienceGauge();
     displayLoginStreakCalendar();

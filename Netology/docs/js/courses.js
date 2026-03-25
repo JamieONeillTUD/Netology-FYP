@@ -417,147 +417,6 @@
     });
   }
 
-  // wire up the slide-out sidebar open, close, and backdrop
-  function setupSlideSidebar() {
-    var openButton = document.getElementById("openSidebarBtn");
-    var closeButton = document.getElementById("closeSidebarBtn");
-    var sidebar = document.getElementById("slideSidebar");
-    var backdrop = document.getElementById("sideBackdrop");
-
-    if (!sidebar) return;
-
-    function openSidebar() {
-      if (!backdrop) return;
-      sidebar.classList.add("is-open");
-      backdrop.classList.add("is-open");
-      document.body.classList.add("net-noscroll");
-    }
-
-    function closeSidebar() {
-      if (!backdrop) return;
-      sidebar.classList.remove("is-open");
-      backdrop.classList.remove("is-open");
-      document.body.classList.remove("net-noscroll");
-    }
-
-    if (openButton) {
-      openButton.addEventListener("click", function () {
-        openSidebar();
-      });
-    }
-
-    if (closeButton) {
-      closeButton.addEventListener("click", function () {
-        closeSidebar();
-      });
-    }
-
-    if (backdrop) {
-      backdrop.addEventListener("click", function () {
-        closeSidebar();
-      });
-    }
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && sidebar.classList.contains("is-open")) {
-        closeSidebar();
-      }
-    });
-  }
-
-  // wire up the user dropdown toggle
-  function setupUserDropdownMenu() {
-    var dropdownButton = document.getElementById("userBtn");
-    var dropdownMenu = document.getElementById("userDropdown");
-
-    if (!dropdownButton || !dropdownMenu) return;
-
-    function closeDropdownMenu() {
-      dropdownMenu.classList.remove("is-open");
-      dropdownButton.setAttribute("aria-expanded", "false");
-    }
-
-    dropdownButton.addEventListener("click", function (event) {
-      event.stopPropagation();
-      var isNowOpen = dropdownMenu.classList.toggle("is-open");
-      dropdownButton.setAttribute("aria-expanded", String(isNowOpen));
-    });
-
-    document.addEventListener("click", function (event) {
-      if (!dropdownMenu.contains(event.target) && !dropdownButton.contains(event.target)) {
-        closeDropdownMenu();
-      }
-    });
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") {
-        closeDropdownMenu();
-      }
-    });
-  }
-
-  // wire up both logout buttons
-  function setupLogoutButtons() {
-    function performLogout() {
-      localStorage.removeItem("netology_user");
-      localStorage.removeItem("user");
-      localStorage.removeItem("netology_token");
-      window.location.href = "index.html";
-    }
-
-    var topLogoutButton = document.getElementById("topLogoutBtn");
-    var sideLogoutButton = document.getElementById("sideLogoutBtn");
-
-    if (topLogoutButton) {
-      topLogoutButton.addEventListener("click", function () {
-        performLogout();
-      });
-    }
-
-    if (sideLogoutButton) {
-      sideLogoutButton.addEventListener("click", function () {
-        performLogout();
-      });
-    }
-  }
-
-  // show user info in the sidebar and dropdown
-  function displayUserInformation(userData) {
-    if (!userData) return;
-
-    var displayName = "";
-    if (userData.first_name) {
-      displayName = userData.first_name + " " + (userData.last_name || "");
-      displayName = displayName.trim();
-    } else {
-      displayName = userData.username || "Student";
-    }
-
-    var firstInitial = (displayName.charAt(0) || "S").toUpperCase();
-    var userLevel = getLevelFromExperiencePoints(Number(userData.xp || 0));
-
-    var topAvatarElement = document.getElementById("topAvatar");
-    if (topAvatarElement) topAvatarElement.textContent = firstInitial;
-
-    var sideAvatarElement = document.getElementById("sideAvatar");
-    if (sideAvatarElement) sideAvatarElement.textContent = firstInitial;
-
-    var dropdownNameElement = document.getElementById("ddName");
-    if (dropdownNameElement) dropdownNameElement.textContent = displayName;
-
-    var dropdownEmailElement = document.getElementById("ddEmail");
-    if (dropdownEmailElement) dropdownEmailElement.textContent = userData.email || "";
-
-    var sideUserNameElement = document.getElementById("sideUserName");
-    if (sideUserNameElement) sideUserNameElement.textContent = displayName;
-
-    var sideUserEmailElement = document.getElementById("sideUserEmail");
-    if (sideUserEmailElement) sideUserEmailElement.textContent = userData.email || "";
-
-    var sideLevelBadgeElement = document.getElementById("sideLevelBadge");
-    if (sideLevelBadgeElement) sideLevelBadgeElement.textContent = "Lv " + userLevel;
-  }
-
   // load all courses and render everything on the page
   async function loadAndRenderAllCourses(userData) {
     try {
@@ -565,7 +424,12 @@
       if (!courseList.length) return;
 
       var progressLookup = await fetchUserCourseProgress(userData.email);
-      var userLevel = Number(userData.numeric_level) || getLevelFromExperiencePoints(Number(userData.xp || 0)) || 1;
+      var resolved = (XP_SYSTEM && typeof XP_SYSTEM.resolveUserProgress === "function")
+        ? XP_SYSTEM.resolveUserProgress(userData)
+        : null;
+      var userLevel = resolved
+        ? Number(resolved.level || 1)
+        : (Number(userData.numeric_level) || getLevelFromExperiencePoints(Number(userData.xp || 0)) || 1);
       var groupedCourses = groupCoursesByDifficulty(courseList);
 
       renderCourseCards(groupedCourses, progressLookup, userLevel);
@@ -592,10 +456,7 @@
     }
 
     setupLogoLinks();
-    setupSlideSidebar();
-    setupUserDropdownMenu();
-    setupLogoutButtons();
-    displayUserInformation(userData);
+    window.NetologyNav.displayNavUser(userData);
     setupDifficultyFilterButtons();
 
     await loadAndRenderAllCourses(userData);

@@ -454,6 +454,7 @@
 
     // bump the user's xp in localStorage
     var userStorageKeys = ["netology_user", "user"];
+    var latestUser = null;
     for (var k = 0; k < userStorageKeys.length; k++) {
       var storedUser = readJsonFromStorage(userStorageKeys[k]);
       if (!storedUser || storedUser.email !== quizState.userEmail) {
@@ -471,6 +472,11 @@
         updatedUser = storedUser;
       }
       localStorage.setItem(userStorageKeys[k], JSON.stringify(updatedUser));
+      latestUser = updatedUser;
+    }
+
+    if (latestUser && window.NetologyNav && typeof window.NetologyNav.displayNavUser === "function") {
+      window.NetologyNav.displayNavUser(latestUser);
     }
 
     // update the started courses record

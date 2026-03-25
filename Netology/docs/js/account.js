@@ -3,6 +3,7 @@
 (function () {
   "use strict";
 
+  var API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   var ENDPOINTS = window.ENDPOINTS || {};
   var XP = window.NetologyXP || {};
   var TAB_NAMES = ["profile", "preferences", "security", "activity"];
@@ -86,139 +87,6 @@
       return userData.username;
     }
     return "Student";
-  }
-
-  // set up the slide sidebar open/close
-  function setupSlideSidebar() {
-    var openButton = document.getElementById("openSidebarBtn");
-    var closeButton = document.getElementById("closeSidebarBtn");
-    var sidebar = document.getElementById("slideSidebar");
-    var backdrop = document.getElementById("sideBackdrop");
-
-    function openSidebar() {
-      if (!sidebar || !backdrop) {
-        return;
-      }
-      sidebar.classList.add("is-open");
-      backdrop.classList.add("is-open");
-      document.body.classList.add("net-noscroll");
-      sidebar.setAttribute("aria-hidden", "false");
-      backdrop.setAttribute("aria-hidden", "false");
-    }
-
-    function closeSidebar() {
-      if (!sidebar || !backdrop) {
-        return;
-      }
-      sidebar.classList.remove("is-open");
-      backdrop.classList.remove("is-open");
-      document.body.classList.remove("net-noscroll");
-      sidebar.setAttribute("aria-hidden", "true");
-      backdrop.setAttribute("aria-hidden", "true");
-    }
-
-    if (openButton) {
-      openButton.addEventListener("click", openSidebar);
-    }
-    if (closeButton) {
-      closeButton.addEventListener("click", closeSidebar);
-    }
-    if (backdrop) {
-      backdrop.addEventListener("click", closeSidebar);
-    }
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && sidebar && sidebar.classList.contains("is-open")) {
-        closeSidebar();
-      }
-    });
-  }
-
-  // set up the user dropdown menu
-  function setupUserDropdownMenu() {
-    var dropdownButton = document.getElementById("userBtn");
-    var dropdownMenu = document.getElementById("userDropdown");
-    if (!dropdownButton || !dropdownMenu) {
-      return;
-    }
-
-    function closeDropdown() {
-      dropdownMenu.classList.remove("is-open");
-      dropdownButton.setAttribute("aria-expanded", "false");
-    }
-
-    dropdownButton.addEventListener("click", function (event) {
-      event.stopPropagation();
-      var isCurrentlyOpen = dropdownMenu.classList.contains("is-open");
-      if (isCurrentlyOpen) {
-        dropdownMenu.classList.remove("is-open");
-        dropdownButton.setAttribute("aria-expanded", "false");
-      } else {
-        dropdownMenu.classList.add("is-open");
-        dropdownButton.setAttribute("aria-expanded", "true");
-      }
-    });
-
-    document.addEventListener("click", function (event) {
-      if (dropdownMenu.contains(event.target) || dropdownButton.contains(event.target)) {
-        return;
-      }
-      closeDropdown();
-    });
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") {
-        closeDropdown();
-      }
-    });
-  }
-
-  // set up logout buttons
-  function setupLogoutButtons() {
-    function handleLogout() {
-      localStorage.removeItem("netology_user");
-      localStorage.removeItem("user");
-      localStorage.removeItem("netology_token");
-      window.location.href = "index.html";
-    }
-
-    var topLogoutButton = document.getElementById("topLogoutBtn");
-    var sideLogoutButton = document.getElementById("sideLogoutBtn");
-    if (topLogoutButton) {
-      topLogoutButton.addEventListener("click", handleLogout);
-    }
-    if (sideLogoutButton) {
-      sideLogoutButton.addEventListener("click", handleLogout);
-    }
-  }
-
-  // fill user identity into the navbar, sidebar, and dropdown
-  function displayUserIdentity(user) {
-    var fullName = buildFullName(user);
-    var email = String((user && user.email) || "");
-    var initial = (fullName.charAt(0) || "S").toUpperCase();
-
-    var level = 1;
-    if (typeof XP.levelFromTotalXp === "function") {
-      level = XP.levelFromTotalXp(Number((user && user.xp) || 0));
-    }
-
-    var rank = "Novice";
-    if (typeof XP.rankForLevel === "function") {
-      rank = XP.rankForLevel(level);
-    }
-
-    setTextById("topAvatar", initial);
-    setTextById("ddAvatar", initial);
-    setTextById("ddName", fullName);
-    setTextById("ddEmail", email);
-    setTextById("ddLevel", "Level " + level);
-    setTextById("ddRank", rank);
-    setTextById("sideAvatar", initial);
-    setTextById("sideUserName", fullName);
-    setTextById("sideUserEmail", email);
-    setTextById("sideLevelBadge", "Lv " + level);
-    setTextById("profileAvatar", initial);
   }
 
   // switch to a specific tab and update the URL hash
@@ -325,6 +193,7 @@
     }
 
     var dyslexicToggle = document.getElementById("dyslexicToggle");
+    var largeTextToggle = document.getElementById("largeTextToggle");
 
     applyThemeSetting(localStorage.getItem("netology_theme") || "light", themeInputs);
 
@@ -355,6 +224,21 @@
         }
       });
     }
+
+    if (largeTextToggle) {
+      largeTextToggle.checked = localStorage.getItem("netology_large_text") === "true";
+
+      largeTextToggle.addEventListener("change", function (event) {
+        var enabled = Boolean(event.target.checked);
+
+        localStorage.setItem("netology_large_text", enabled ? "true" : "false");
+        if (enabled) {
+          document.body.classList.add("net-large-text");
+        } else {
+          document.body.classList.remove("net-large-text");
+        }
+      });
+    }
   }
 
   // set up the restart onboarding button
@@ -379,6 +263,59 @@
       }
 
       window.location.href = "dashboard.html";
+    });
+  }
+
+  // set up the delete account button
+  function setupDeleteAccountButton(user) {
+    var button = document.getElementById("deleteAccountBtn");
+    var email = String((user && user.email) || "").trim().toLowerCase();
+    if (!button || !email) {
+      return;
+    }
+
+    button.addEventListener("click", function () {
+      var confirmed = window.confirm(
+        "Are you absolutely sure you want to delete your account? This action cannot be undone.\n\nAll your progress, courses, challenges, and data will be permanently deleted."
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      var doubleConfirmed = window.prompt(
+        "Type your email address to confirm deletion:\n" + email
+      );
+      if (!doubleConfirmed || doubleConfirmed.trim().toLowerCase() !== email) {
+        alert("Account deletion cancelled. Email address did not match.");
+        return;
+      }
+
+      // Call the API to delete the account
+      var deleteEndpoint = (ENDPOINTS.auth && ENDPOINTS.auth.deleteAccount) || "/delete-account";
+      var apiUrl = API_BASE ? (API_BASE + deleteEndpoint) : deleteEndpoint;
+
+      var formData = new FormData();
+      formData.append("email", email);
+
+      fetch(apiUrl, { method: "POST", body: formData })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (data && data.success) {
+            // Clear all local storage
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // Redirect to home page
+            alert("Your account has been permanently deleted.");
+            window.location.href = "index.html";
+          } else {
+            alert("Error: " + (data.message || "Could not delete account. Please try again."));
+          }
+        })
+        .catch(function (error) {
+          console.error("Delete account error:", error);
+          alert("Error: Could not connect to server. Please try again.");
+        });
     });
   }
 
@@ -732,13 +669,11 @@
       return;
     }
 
-    setupSlideSidebar();
-    setupUserDropdownMenu();
-    setupLogoutButtons();
-    displayUserIdentity(user);
+    window.NetologyNav.displayNavUser(user);
     setupAccountTabs();
     setupAppearanceSettings();
     setupRestartOnboardingButton(user);
+    setupDeleteAccountButton(user);
 
     await Promise.all([
       loadUserProfileData(user),

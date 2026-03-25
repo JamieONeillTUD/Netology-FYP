@@ -38,6 +38,11 @@
     return Number(lesson.xp || 0);
   }
 
+  // stable lesson completion key (separate from legacy unit-level keys)
+  function buildLessonCompletionKey(unitIndex, lessonIndex) {
+    return ((Number(unitIndex) + 1) * 1000) + (Number(lessonIndex) + 1);
+  }
+
   // convert lesson blocks into a flat list of steps the user walks through
   function buildStepsFromLessonBlocks(lesson) {
     var blocks = lesson.blocks || [];
@@ -429,6 +434,7 @@
   // update user xp in both local storage keys
   function updateLocalStorageExperiencePoints(userEmail, experiencePointsToAdd) {
     var storageKeys = ["netology_user", "user"];
+    var latestUser = null;
 
     for (var keyIndex = 0; keyIndex < storageKeys.length; keyIndex++) {
       var storedUser = readJsonFromStorage(storageKeys[keyIndex]);
@@ -451,12 +457,17 @@
       }
 
       localStorage.setItem(storageKeys[keyIndex], JSON.stringify(updatedUser));
+      latestUser = updatedUser;
+    }
+
+    if (latestUser && window.NetologyNav && typeof window.NetologyNav.displayNavUser === "function") {
+      window.NetologyNav.displayNavUser(latestUser);
     }
   }
 
   // save lesson completion, started courses, and progress log to local storage
   function saveLessonCompletionToLocalStorage(lessonState, experiencePointsEarned) {
-    var completionDatabaseKey = lessonState.unitIndex + 1;
+    var completionDatabaseKey = buildLessonCompletionKey(lessonState.unitIndex, lessonState.lessonIndex);
 
     // add this lesson to the completed lessons list
     var completionsStorageKey = "netology_completions:" + lessonState.userEmail + ":" + lessonState.courseId;
@@ -666,7 +677,7 @@
         body: JSON.stringify({
           email: lessonState.userEmail,
           course_id: String(lessonState.courseId),
-          lesson_number: lessonState.unitIndex + 1,
+          lesson_number: buildLessonCompletionKey(lessonState.unitIndex, lessonState.lessonIndex),
           earned_xp: experiencePointsEarned
         })
       });

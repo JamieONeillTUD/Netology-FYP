@@ -23,6 +23,20 @@ def start_level(raw):
     return level if level in ("novice", "intermediate", "advanced") else "novice"
 
 
+def level_bootstrap_for_start(level):
+    # Returns starter XP/level/rank based on selected onboarding level.
+    selected = start_level(level)
+    starter_xp = 0
+    if selected == "intermediate":
+        starter_xp = 300
+    elif selected == "advanced":
+        starter_xp = 1000
+
+    numeric_level, _, _ = get_level_progress(starter_xp)
+    rank = rank_for_level(numeric_level)
+    return starter_xp, numeric_level, rank
+
+
 def xp_payload(total_xp):
     # Builds the XP / level / rank block included in login and user-info responses.
     xp = to_int(total_xp)
@@ -53,6 +67,7 @@ def register():
     confirm = form.get("confirm_password") or ""
     level = start_level(form.get("level"))
     reasons = [r.strip() for r in form.getlist("reasons") if (r or "").strip()]
+    starter_xp, starter_numeric_level, starter_rank = level_bootstrap_for_start(level)
 
     if not all([first_name, last_name, username, email, dob]):
         return jsonify({"success": False, "message": "Please fill in all required fields."}), 400
@@ -87,7 +102,7 @@ def register():
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, FALSE)
             """,
             (first_name, last_name, username, email, pw_hash,
-             "Novice", 1, ", ".join(reasons), 0, dob, level),
+             starter_rank, starter_numeric_level, ", ".join(reasons), starter_xp, dob, level),
         )
         conn.commit()
         return jsonify({"success": True})

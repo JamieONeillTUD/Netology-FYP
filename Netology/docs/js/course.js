@@ -46,6 +46,7 @@
     completedLessons: {},
     completedQuizzes: {},
     completedChallenges: {},
+    completedTutorials: {},
     stats: {
       level: 1,
       rank: "Novice",
@@ -109,6 +110,21 @@
     var iconElement = document.createElement("i");
     iconElement.className = iconClass;
     return iconElement;
+  }
+
+  // read json safely from localStorage
+  function readJsonFromStorage(storageKey) {
+    try {
+      var raw = localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // stable lesson completion key (separate from old unit-level keys)
+  function buildLessonCompletionKey(unitIndex, lessonIndex) {
+    return ((Number(unitIndex) + 1) * 1000) + (Number(lessonIndex) + 1);
   }
 
   // fetch fresh user data from the server and save it
@@ -208,7 +224,8 @@
         xpReward: Number(lesson.xp || 0),
         unitIndex: unitIndex,
         lessonIndex: lessonIndex,
-        unitTitle: unit.title || ""
+        unitTitle: unit.title || "",
+        completionKey: buildLessonCompletionKey(unitIndex, lessonIndex)
       });
     }
 
@@ -219,7 +236,8 @@
         xpReward: Number(unit.quiz.xp || 0),
         unitIndex: unitIndex,
         lessonIndex: null,
-        unitTitle: unit.title || ""
+        unitTitle: unit.title || "",
+        completionKey: unitIndex + 1
       });
     }
 
@@ -231,6 +249,7 @@
         unitIndex: unitIndex,
         lessonIndex: null,
         unitTitle: unit.title || "",
+        completionKey: unitIndex + 1,
         steps: unit.sandbox.steps || [],
         tips: unit.sandbox.tips || ""
       });
@@ -244,6 +263,7 @@
         unitIndex: unitIndex,
         lessonIndex: null,
         unitTitle: unit.title || "",
+        completionKey: unitIndex + 1,
         challengeRules: unit.challenge
       });
     }
@@ -266,14 +286,62 @@
     return allItems;
   }
 
-  // check if a single item is completed (db keys are unitIndex + 1)
+  // check if a single item is completed
   function isItemCompleted(item) {
-    var completionKey = String(item.unitIndex + 1);
-    return (
-      pageState.completedLessons[completionKey] === true ||
-      pageState.completedQuizzes[completionKey] === true ||
-      pageState.completedChallenges[completionKey] === true
-    );
+    var completionKey = String(item.completionKey || (item.unitIndex + 1));
+    var type = item.type;
+    if (type === "quiz")      return pageState.completedQuizzes[completionKey] === true;
+    if (type === "challenge") return pageState.completedChallenges[completionKey] === true;
+    if (type === "sandbox")   return pageState.completedTutorials[completionKey] === true;
+    return pageState.completedLessons[completionKey] === true;
+  }
+
+  function mergeCompletionArrayIntoLookup(lookup, values) {
+    var list = Array.isArray(values) ? values : [];
+    for (var i = 0; i < list.length; i++) {
+      var numberValue = Number(list[i]);
+      if (Number.isFinite(numberValue) && numberValue > 0) {
+        lookup[String(numberValue)] = true;
+      }
+    }
+  }
+
+  function tutorialStepCountForUnit(unitIndex) {
+    var module = (pageState.course.modules || [])[unitIndex];
+    if (!module) return 0;
+    var items = module.items || [];
+    for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+      if (items[itemIndex].type === "sandbox") {
+        var steps = items[itemIndex].steps || [];
+        return steps.length;
+      }
+    }
+    return 0;
+  }
+
+  function loadTutorialCompletionFromLocalStorage() {
+    var userData = pageState.user;
+    pageState.completedTutorials = {};
+    if (!userData || !userData.email || !pageState.courseId) return;
+
+    var prefix = "netology_tutorial_progress:" + userData.email + ":" + pageState.courseId + ":";
+    var keys = Object.keys(localStorage);
+
+    for (var keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+      var storageKey = keys[keyIndex];
+      if (storageKey.indexOf(prefix) !== 0) continue;
+
+      var unitNumber = Number(storageKey.substring(prefix.length));
+      if (!Number.isFinite(unitNumber) || unitNumber <= 0) continue;
+
+      var saved = readJsonFromStorage(storageKey) || {};
+      var checkedCount = Array.isArray(saved.checked) ? saved.checked.filter(Boolean).length : 0;
+      var totalSteps = tutorialStepCountForUnit(unitNumber - 1);
+      var isCompleted = Boolean(saved.completed) || (totalSteps > 0 && checkedCount >= totalSteps);
+      if (isCompleted) {
+        pageState.completedTutorials[String(unitNumber)] = true;
+      }
+    }
   }
 
   // count how many items in a module are done
@@ -315,6 +383,11 @@
     var userData = pageState.user;
     if (!userData || !userData.email || !pageState.courseId) return;
 
+    pageState.completedLessons = {};
+    pageState.completedQuizzes = {};
+    pageState.completedChallenges = {};
+    pageState.completedTutorials = {};
+
     try {
       var endpoint = (ENDPOINTS.courses && ENDPOINTS.courses.userCourseStatus) || "/user-course-status";
       var requestUrl = API_BASE + endpoint
@@ -328,32 +401,26 @@
         var quizNumbers = serverData.quizzes || [];
         var challengeNumbers = serverData.challenges || [];
 
-        pageState.completedLessons = {};
-        for (var lessonIndex = 0; lessonIndex < lessonNumbers.length; lessonIndex++) {
-          pageState.completedLessons[String(Number(lessonNumbers[lessonIndex]))] = true;
-        }
-
-        pageState.completedQuizzes = {};
-        for (var quizIndex = 0; quizIndex < quizNumbers.length; quizIndex++) {
-          pageState.completedQuizzes[String(Number(quizNumbers[quizIndex]))] = true;
-        }
-
-        pageState.completedChallenges = {};
-        for (var challengeIndex = 0; challengeIndex < challengeNumbers.length; challengeIndex++) {
-          pageState.completedChallenges[String(Number(challengeNumbers[challengeIndex]))] = true;
-        }
+        mergeCompletionArrayIntoLookup(pageState.completedLessons, lessonNumbers);
+        mergeCompletionArrayIntoLookup(pageState.completedQuizzes, quizNumbers);
+        mergeCompletionArrayIntoLookup(pageState.completedChallenges, challengeNumbers);
       }
     } catch (error) {
       console.warn("Could not load completion status:", error);
     }
+
+    loadTutorialCompletionFromLocalStorage();
   }
 
   // calculate and store the user's level and xp stats
   function calculateUserStats(userData) {
     if (!userData) return;
 
-    var userLevel = userData.numeric_level || userData.level || 1;
-    var totalExperiencePoints = Number(userData.xp || 0);
+    var resolved = (XP_SYSTEM && typeof XP_SYSTEM.resolveUserProgress === "function")
+      ? XP_SYSTEM.resolveUserProgress(userData)
+      : null;
+    var userLevel = resolved ? Number(resolved.level || 1) : Number(userData.numeric_level || userData.level || 1);
+    var totalExperiencePoints = Number(userData.xp || (resolved ? resolved.totalXp : 0) || 0);
 
     if (XP_SYSTEM && XP_SYSTEM.getLevelInfo) {
       var levelInfo = XP_SYSTEM.getLevelInfo(userLevel) || {};
@@ -404,9 +471,24 @@
     }
 
     if (item.type === "challenge") {
+      var challengePayload = {};
+      var sourceChallenge = item.challengeRules || {};
+      var challengeKeys = Object.keys(sourceChallenge);
+      for (var challengeKeyIndex = 0; challengeKeyIndex < challengeKeys.length; challengeKeyIndex++) {
+        var challengeKey = challengeKeys[challengeKeyIndex];
+        challengePayload[challengeKey] = sourceChallenge[challengeKey];
+      }
+      if (!Number(challengePayload.xp)) {
+        challengePayload.xp = Number(item.xpReward || 0);
+      }
       return buildSandboxUrl(courseId, unitIndex, "challenge", "netology_active_challenge", {
-        challenge: item.challengeRules || {},
-        challengeXp: item.xpReward || 0
+        title: challengePayload.title || item.title || "Challenge",
+        description: challengePayload.description || "",
+        rules: challengePayload.rules || {},
+        steps: challengePayload.steps || [],
+        checks: challengePayload.checks || [],
+        tips: challengePayload.tips || "",
+        xp: challengePayload.xp
       });
     }
 
@@ -456,148 +538,6 @@
     if (topBrandLink) topBrandLink.setAttribute("href", targetPage);
     if (sideBrandLink) sideBrandLink.setAttribute("href", targetPage);
     if (backLink) backLink.setAttribute("href", targetPage);
-  }
-
-  // wire up the slide-out sidebar open, close, and backdrop
-  function setupSlideSidebar() {
-    var openButton = document.getElementById("openSidebarBtn");
-    var closeButton = document.getElementById("closeSidebarBtn");
-    var sidebar = document.getElementById("slideSidebar");
-    var backdrop = document.getElementById("sideBackdrop");
-
-    if (!sidebar) return;
-
-    function openSidebar() {
-      if (!backdrop) return;
-      sidebar.classList.add("is-open");
-      backdrop.classList.add("is-open");
-      document.body.classList.add("net-noscroll");
-    }
-
-    function closeSidebar() {
-      if (!backdrop) return;
-      sidebar.classList.remove("is-open");
-      backdrop.classList.remove("is-open");
-      document.body.classList.remove("net-noscroll");
-    }
-
-    if (openButton) {
-      openButton.addEventListener("click", function () {
-        openSidebar();
-      });
-    }
-
-    if (closeButton) {
-      closeButton.addEventListener("click", function () {
-        closeSidebar();
-      });
-    }
-
-    if (backdrop) {
-      backdrop.addEventListener("click", function () {
-        closeSidebar();
-      });
-    }
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && sidebar.classList.contains("is-open")) {
-        closeSidebar();
-      }
-    });
-  }
-
-  // wire up the user dropdown toggle
-  function setupUserDropdownMenu() {
-    var dropdownButton = document.getElementById("userBtn");
-    var dropdownMenu = document.getElementById("userDropdown");
-
-    if (!dropdownButton || !dropdownMenu) return;
-
-    function closeDropdownMenu() {
-      dropdownMenu.classList.remove("is-open");
-      dropdownButton.setAttribute("aria-expanded", "false");
-    }
-
-    dropdownButton.addEventListener("click", function (event) {
-      event.stopPropagation();
-      var isNowOpen = dropdownMenu.classList.toggle("is-open");
-      dropdownButton.setAttribute("aria-expanded", String(isNowOpen));
-    });
-
-    document.addEventListener("click", function (event) {
-      if (!dropdownMenu.contains(event.target) && !dropdownButton.contains(event.target)) {
-        closeDropdownMenu();
-      }
-    });
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") {
-        closeDropdownMenu();
-      }
-    });
-  }
-
-  // wire up both logout buttons
-  function setupLogoutButtons() {
-    function performLogout() {
-      localStorage.removeItem("netology_user");
-      localStorage.removeItem("user");
-      localStorage.removeItem("netology_token");
-      window.location.href = "index.html";
-    }
-
-    var topLogoutButton = document.getElementById("topLogoutBtn");
-    var sideLogoutButton = document.getElementById("sideLogoutBtn");
-
-    if (topLogoutButton) {
-      topLogoutButton.addEventListener("click", function () {
-        performLogout();
-      });
-    }
-
-    if (sideLogoutButton) {
-      sideLogoutButton.addEventListener("click", function () {
-        performLogout();
-      });
-    }
-  }
-
-  // show the user's name and avatar in the navbar and sidebar
-  function displayUserInformation(userData) {
-    if (!userData) return;
-
-    var displayName = "";
-    if (userData.name) {
-      displayName = userData.name;
-    } else if (userData.first_name) {
-      displayName = userData.first_name + " " + (userData.last_name || "");
-      displayName = displayName.trim();
-    } else {
-      displayName = userData.username || "Student";
-    }
-
-    var firstInitial = (displayName || "S").trim().charAt(0).toUpperCase();
-
-    var topAvatarElement = document.getElementById("topAvatar");
-    if (topAvatarElement) topAvatarElement.textContent = firstInitial;
-
-    var topUserNameElement = document.getElementById("topUserName");
-    if (topUserNameElement) topUserNameElement.textContent = displayName;
-
-    var dropdownNameElement = document.getElementById("ddName");
-    if (dropdownNameElement) dropdownNameElement.textContent = displayName;
-
-    var dropdownEmailElement = document.getElementById("ddEmail");
-    if (dropdownEmailElement) dropdownEmailElement.textContent = userData.email || "";
-
-    var sideAvatarElement = document.getElementById("sideAvatar");
-    if (sideAvatarElement) sideAvatarElement.textContent = firstInitial;
-
-    var sideUserNameElement = document.getElementById("sideUserName");
-    if (sideUserNameElement) sideUserNameElement.textContent = displayName;
-
-    var sideUserEmailElement = document.getElementById("sideUserEmail");
-    if (sideUserEmailElement) sideUserEmailElement.textContent = userData.email || "";
   }
 
   // render the course title, difficulty pill, stats, and progress ring
@@ -885,12 +825,9 @@
     pageState.user = savedUser;
 
     setupBrandLinks();
-    setupSlideSidebar();
-    setupUserDropdownMenu();
-    setupLogoutButtons();
 
     if (savedUser && (savedUser.email || savedUser.username)) {
-      displayUserInformation(savedUser);
+      window.NetologyNav.displayNavUser(savedUser);
       calculateUserStats(savedUser);
     }
 
@@ -905,7 +842,7 @@
     pageState.user = freshUserData;
 
     if (freshUserData) {
-      displayUserInformation(freshUserData);
+      window.NetologyNav.displayNavUser(freshUserData);
       calculateUserStats(freshUserData);
     }
 
