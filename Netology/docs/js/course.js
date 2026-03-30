@@ -852,6 +852,11 @@
     renderModuleTabs();
 
     document.body.classList.remove("net-loading");
+
+    var tourUser = freshUserData || pageState.user;
+    if (tourUser && tourUser.email && typeof window.maybeStartOnboardingTour === "function") {
+      window.maybeStartOnboardingTour("course", tourUser.email);
+    }
   }
 
   if (document.readyState === "loading") {
