@@ -515,7 +515,10 @@
   function startOnboardingTourIfAvailable(userData) {
     if (!userData || !userData.email) return;
     if (typeof window.maybeStartOnboardingTour === "function") {
-      window.maybeStartOnboardingTour("dashboard", userData.email);
+      var started = window.maybeStartOnboardingTour("dashboard", userData.email);
+      if (!started) {
+        window.maybeStartOnboardingTour("wrapup", userData.email);
+      }
     }
   }
 

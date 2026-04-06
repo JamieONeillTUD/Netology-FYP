@@ -1,18 +1,10 @@
 # test_db_utils.py
-# Tests for db.py — shared data utility functions used across all routes.
+# Unit tests for the shared helper functions in db.py
 #
-# Functional Requirements: F01, F04, F09 — used by registration, topology, and progress
+# Functional Requirement: FR00 — Shared Utility Helpers
 # Functions under test: to_int(), email_from()
-#
-# to_int(value, default=0):
-#   Safely converts any value to an integer.
-#   Returns default if the conversion fails.
-#
-# email_from(value):
-#   Lowercases and strips whitespace from an email string.
-#   Returns an empty string if the value is None or blank.
+# Test Type: Unit Tests (pure functions — no database, no HTTP needed)
 
-import pytest
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -21,110 +13,90 @@ from db import to_int, email_from
 
 
 # ─────────────────────────────────────────────────────────────
-# TO_INT — HAPPY PATH
+# to_int() — safely converts a value to an integer
 # ─────────────────────────────────────────────────────────────
 
-def test_happy_integer_returned_unchanged():
-    result = to_int(5)
-    assert result == 5
+# Happy path
 
-def test_happy_string_number_converted_to_int():
-    result = to_int("42")
+def test_to_int_converts_a_normal_integer():
+    result = to_int(42)
     assert result == 42
 
-def test_happy_float_truncated_to_int():
+def test_to_int_converts_a_number_string():
+    result = to_int('7')
+    assert result == 7
+
+def test_to_int_truncates_a_float():
     result = to_int(3.9)
     assert result == 3
 
+# Boundary cases
 
-# ─────────────────────────────────────────────────────────────
-# TO_INT — BOUNDARY CASES
-# ─────────────────────────────────────────────────────────────
-
-def test_boundary_zero_returns_zero():
+def test_to_int_zero_is_preserved():
     result = to_int(0)
     assert result == 0
 
-def test_boundary_negative_number_returned():
-    result = to_int(-10)
-    assert result == -10
+def test_to_int_negative_number_is_preserved():
+    result = to_int(-5)
+    assert result == -5
 
-def test_boundary_string_zero_converted():
-    result = to_int("0")
-    assert result == 0
-
-def test_boundary_custom_default_returned_on_failure():
-    result = to_int(None, 99)
+def test_to_int_uses_custom_default_when_conversion_fails():
+    result = to_int('not_a_number', 99)
     assert result == 99
 
+# Invalid input
 
-# ─────────────────────────────────────────────────────────────
-# TO_INT — INVALID INPUT
-# ─────────────────────────────────────────────────────────────
-
-def test_invalid_none_returns_default_zero():
+def test_to_int_none_returns_zero():
     result = to_int(None)
     assert result == 0
 
-def test_invalid_empty_string_returns_default():
-    result = to_int("")
+def test_to_int_empty_string_returns_zero():
+    result = to_int('')
     assert result == 0
 
-def test_invalid_non_numeric_string_returns_default():
-    result = to_int("abc")
+def test_to_int_letters_return_zero():
+    result = to_int('abc')
     assert result == 0
 
-def test_invalid_list_returns_default():
+def test_to_int_list_returns_zero():
     result = to_int([1, 2, 3])
     assert result == 0
 
-def test_invalid_dict_returns_default():
-    result = to_int({"xp": 100})
-    assert result == 0
-
 
 # ─────────────────────────────────────────────────────────────
-# EMAIL_FROM — HAPPY PATH
+# email_from() — normalises an email to lowercase with no whitespace
 # ─────────────────────────────────────────────────────────────
 
-def test_happy_uppercase_email_lowercased():
-    result = email_from("USER@EXAMPLE.COM")
-    assert result == "user@example.com"
+# Happy path
 
-def test_happy_whitespace_stripped():
-    result = email_from("  user@example.com  ")
-    assert result == "user@example.com"
+def test_email_from_converts_uppercase_to_lowercase():
+    result = email_from('TEST@EXAMPLE.COM')
+    assert result == 'test@example.com'
 
-def test_happy_already_lowercase_unchanged():
-    result = email_from("student@tud.ie")
-    assert result == "student@tud.ie"
+def test_email_from_strips_surrounding_whitespace():
+    result = email_from('  user@test.com ')
+    assert result == 'user@test.com'
 
+def test_email_from_leaves_clean_email_unchanged():
+    result = email_from('alice@example.com')
+    assert result == 'alice@example.com'
 
-# ─────────────────────────────────────────────────────────────
-# EMAIL_FROM — BOUNDARY CASES
-# ─────────────────────────────────────────────────────────────
+# Boundary cases
 
-def test_boundary_mixed_case_and_spaces_cleaned():
-    result = email_from("  JAMIE@TUD.IE  ")
-    assert result == "jamie@tud.ie"
+def test_email_from_handles_mixed_case_and_spaces_together():
+    result = email_from('  ALICE@TEST.COM  ')
+    assert result == 'alice@test.com'
 
-def test_boundary_single_character_lowercased():
-    result = email_from("A")
-    assert result == "a"
+# Invalid input
 
-
-# ─────────────────────────────────────────────────────────────
-# EMAIL_FROM — INVALID INPUT
-# ─────────────────────────────────────────────────────────────
-
-def test_invalid_none_returns_empty_string():
+def test_email_from_none_returns_empty_string():
     result = email_from(None)
-    assert result == ""
+    assert result == ''
 
-def test_invalid_empty_string_returns_empty_string():
-    result = email_from("")
-    assert result == ""
+def test_email_from_empty_string_returns_empty_string():
+    result = email_from('')
+    assert result == ''
 
-def test_invalid_whitespace_only_returns_empty_string():
-    result = email_from("   ")
-    assert result == ""
+def test_email_from_whitespace_only_returns_empty_string():
+    result = email_from('   ')
+    assert result == ''

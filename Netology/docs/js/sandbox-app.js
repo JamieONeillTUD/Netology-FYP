@@ -55,6 +55,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Start the connection suggestions system
   setupConnectionSuggestions();
+
+  // Start onboarding tour if active for this stage
+  if (typeof window.maybeStartOnboardingTour === "function") {
+    var sbxUser = null;
+    try { sbxUser = JSON.parse(localStorage.getItem("user") || localStorage.getItem("netology_user")); } catch (e) {}
+    if (sbxUser && sbxUser.email) {
+      window.maybeStartOnboardingTour("sandbox", sbxUser.email);
+    }
+  }
 });
 
 

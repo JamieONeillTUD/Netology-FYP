@@ -1,0 +1,1035 @@
+/*
+---------------------------------------------------------
+Student: C22320301 - Jamie O'Neill
+File: sandbox-ui.js (consolidated)
+Purpose: All rendering, event binding, toolbar, panels,
+console/terminal commands, context menus, keyboard
+shortcuts, minimap, auto-layout, and extras.
+---------------------------------------------------------
+*/
+
+/* ================================================================
+   SECTION 1 — RENDERING
+   ================================================================ */
+
+function getTypeColor(type) {
+  const colorMatch = DEVICE_TYPES[type]?.color?.match(/#([0-9a-fA-F]{3,6})/);
+  return colorMatch ? `#${colorMatch[1]}` : "#94a3b8";
+}
+
+function getTopologySummary() {
+  const typeCounts = {};
+  state.devices.forEach(device => { typeCounts[device.type] = (typeCounts[device.type] || 0) + 1; });
+  return { deviceCount: state.devices.length, connectionCount: state.connections.length, types: Object.entries(typeCounts).sort((a, b) => b[1] - a[1]) };
+}
+
+function renderSummary(container) {
+  if (!container) return;
+  if (!state.devices.length) { clearChildren(container); container.appendChild(makeEl("div", "sbx-preview-empty", "No devices added yet.")); return; }
+  const summary = getTopologySummary();
+  clearChildren(container);
+  const row = makeEl("div", "sbx-summary-row");
+  const deviceStat = makeEl("span");
+  deviceStat.append(makeEl("strong", "", String(summary.deviceCount)), document.createTextNode(" devices"));
+  const linkStat = makeEl("span");
+  linkStat.append(makeEl("strong", "", String(summary.connectionCount)), document.createTextNode(" links"));
+  row.append(deviceStat, linkStat);
+  const chips = makeEl("div", "sbx-chip-row");
+  summary.types.slice(0, 6).forEach(([type, count]) => chips.appendChild(makeEl("span", "sbx-chip", `${DEVICE_TYPES[type]?.label || type} • ${count}`)));
+  container.append(row, chips);
+}
+
+function renderTopologyPreview(container, width = 260, height = 160) {
+  if (!container) return; clearChildren(container);
+  if (!state.devices.length) { container.appendChild(makeEl("div", "sbx-preview-empty", "Preview updates after you add devices.")); return; }
+
+  const centers = state.devices.map(device => ({ id: device.id, x: device.x + DEVICE_RADIUS, y: device.y + DEVICE_RADIUS, type: device.type }));
+  const minX = Math.min(...centers.map(center => center.x)), maxX = Math.max(...centers.map(center => center.x));
+  const minY = Math.min(...centers.map(center => center.y)), maxY = Math.max(...centers.map(center => center.y));
+  const padding = 16, scale = Math.min((width - padding * 2) / Math.max(1, maxX - minX), (height - padding * 2) / Math.max(1, maxY - minY));
+  const toPreviewPoint = center => ({ x: padding + (center.x - minX) * scale, y: padding + (center.y - minY) * scale });
+
+  const svg = makeSvgEl("svg"); svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "Topology preview");
+  const background = makeSvgEl("rect"); background.setAttribute("x","0"); background.setAttribute("y","0"); background.setAttribute("width",width); background.setAttribute("height",height); background.setAttribute("rx","16"); background.setAttribute("fill","#f8fafc");
+  svg.appendChild(background);
+
+  state.connections.forEach(conn => {
+    const fromCenter = centers.find(center => center.id === conn.from), toCenter = centers.find(center => center.id === conn.to);
+    if (!fromCenter || !toCenter) return;
+    const pointA = toPreviewPoint(fromCenter), pointB = toPreviewPoint(toCenter), line = makeSvgEl("line");
+    line.setAttribute("x1",pointA.x); line.setAttribute("y1",pointA.y); line.setAttribute("x2",pointB.x); line.setAttribute("y2",pointB.y);
+    line.setAttribute("stroke","rgba(15,23,42,.3)"); line.setAttribute("stroke-width","2"); svg.appendChild(line);
+  });
+  centers.forEach(center => {
+    const point = toPreviewPoint(center), circle = makeSvgEl("circle");
+    circle.setAttribute("cx",point.x); circle.setAttribute("cy",point.y); circle.setAttribute("r","8");
+    circle.setAttribute("fill",getTypeColor(center.type)); circle.setAttribute("stroke","rgba(255,255,255,.9)"); circle.setAttribute("stroke-width","2");
+    svg.appendChild(circle);
+  });
+  container.appendChild(svg);
+}
+
+
+
+function updatePingOverview(meta = {}, result = null) {
+  const from = meta.fromDevice, to = meta.toDevice, path = Array.isArray(meta.path) ? meta.path : [];
+  setText("pingOverviewSource", from?.name || "—"); setText("pingOverviewSourceIp", from?.config?.ipAddress || "No IP");
+  setText("pingOverviewDest", to?.name || "Select a device"); setText("pingOverviewDestIp", to?.config?.ipAddress || "—");
+  const statusEl = getById("pingOverviewStatus");
+  if (statusEl) { statusEl.textContent = result ? (result.success ? "Success" : "Failed") : "Ready"; statusEl.className = `sbx-ping-chip ${result ? (result.success ? "is-success" : "is-fail") : "is-neutral"}`; }
+  const latEl = getById("pingOverviewLatency"); if (latEl) latEl.textContent = result?.latency ? `Latency: ${result.latency}ms` : "Latency: —";
+  const hopsEl = getById("pingOverviewHops"); if (hopsEl) hopsEl.textContent = path.length ? `Hops: ${Math.max(path.length - 1, 0)}` : "Hops: —";
+  const routeEl = getById("pingOverviewRoute");
+  if (routeEl) {
+    routeEl.classList.toggle("is-pulse", !!result?.success); clearChildren(routeEl);
+    if (!path.length) { routeEl.textContent = "Select a destination to preview the route."; }
+    else { path.forEach((id, i) => { const d = findDevice(id); const n = makeEl("span","sbx-ping-route-node",d?.name||"Unknown"); if (result?.success) n.style.animationDelay = `${i*0.12}s`; routeEl.appendChild(n); if (i < path.length-1) routeEl.appendChild(makeEl("span","sbx-ping-route-sep","→")); }); }
+  }
+}
+
+/* ── Core rendering functions ────────────── */
+function updateEmptyState() { if (emptyState) emptyState.style.display = state.devices.length ? "none" : "grid"; }
+function updatePingVisibility() { const c = getById("pingContainer"); if (c) c.style.display = state.selectedIds.length ? "block" : "none"; }
+
+function updateZoomLabel() {
+  const t = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+  deviceLayer.style.transform = t; deviceLayer.style.transformOrigin = "0 0";
+  connectionLayer.style.transform = t; connectionLayer.style.transformOrigin = "0 0";
+  if (state.showGrid) { stage.style.backgroundSize = `${GRID_SIZE*state.zoom}px ${GRID_SIZE*state.zoom}px`; stage.style.backgroundPosition = `${state.panX}px ${state.panY}px`; }
+  const zoomLabel = getById("sbxZoomLabel");
+  if (zoomLabel) zoomLabel.textContent = `${Math.round(state.zoom * 100)}%`;
+}
+
+function updateGrid() {
+  stage.classList.toggle("is-grid", state.showGrid);
+  if (state.showGrid) { stage.style.backgroundSize = `${GRID_SIZE*state.zoom}px ${GRID_SIZE*state.zoom}px`; stage.style.backgroundPosition = `${state.panX}px ${state.panY}px`; }
+  else stage.style.backgroundPosition = "";
+}
+
+function updateConnGroupVisibility() { if (connTypeGroup) connTypeGroup.style.display = state.tool === TOOL.CONNECT ? "inline-flex" : "none"; }
+
+function renderDevices() {
+  clearChildren(deviceLayer);
+  state.devices.forEach(device => {
+    const meta = DEVICE_TYPES[device.type] || DEVICE_TYPES.pc;
+    const isSel = state.selectedIds.includes(device.id);
+
+    const el = document.createElement("div"); el.className = "sbx-device";
+    if (isSel || state.connectFrom === device.id) el.classList.add("is-selected");
+    if (device.status === "error") el.classList.add("is-error");
+    if (state.deviceAnimations.has(device.id)) {
+      el.classList.add("is-animating");
+      setTimeout(() => { state.deviceAnimations.delete(device.id); el.classList.remove("is-animating"); }, 420);
+    }
+    el.dataset.id = device.id; el.dataset.type = device.type;
+    el.style.left = `${device.x}px`; el.style.top = `${device.y}px`; el.style.background = meta.color;
+
+    const icon = document.createElement("i"); icon.className = `bi ${meta.icon}`; icon.style.fontSize = "24px";
+    const name = makeEl("div", "sbx-device-label-badge", device.name);
+    el.append(icon, name);
+
+    if (device.config?.ipAddress) el.appendChild(makeEl("div", "sbx-device-ip", device.config.ipAddress));
+    el.appendChild(makeEl("div", `sbx-device-status ${device.config?.ipAddress ? "is-configured" : "is-unconfigured"}`));
+
+    // Action buttons
+    const acts = makeEl("div", "sbx-device-actions");
+    [["config","bi-gear-fill","Configure device"], ["copy","bi-copy","Duplicate device (Ctrl+C)"], ["delete","bi-trash3-fill","Delete device (Del)"]].forEach(([action, ic, title]) => {
+      const btn = document.createElement("button");
+      btn.className = `sbx-device-action sbx-device-action--${action}`;
+      btn.innerHTML = `<i class="bi ${ic}"></i>`; btn.title = title;
+      btn.dataset.action = action; btn.dataset.deviceId = device.id;
+      acts.appendChild(btn);
+    });
+    el.appendChild(acts);
+    deviceLayer.appendChild(el);
+  });
+}
+
+function resizeConnections() {
+  connectionLayer.setAttribute("width", String(CANVAS_WIDTH)); connectionLayer.setAttribute("height", String(CANVAS_HEIGHT));
+  connectionLayer.setAttribute("viewBox", `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`);
+}
+
+function updateConnectionPaths() {
+  const paths = connectionLayer.querySelectorAll("path");
+  state.connections.forEach((conn, i) => {
+    const f = findDevice(conn.from), t = findDevice(conn.to);
+    if (!f || !t || !paths[i]) return;
+    paths[i].setAttribute("d", `M ${f.x+DEVICE_RADIUS} ${f.y+DEVICE_RADIUS} L ${t.x+DEVICE_RADIUS} ${t.y+DEVICE_RADIUS}`);
+  });
+}
+
+function renderConnections() {
+  resizeConnections(); clearChildren(connectionLayer);
+  const isDragging = !!state.dragging;
+  state.connections.forEach(conn => {
+    const f = findDevice(conn.from), t = findDevice(conn.to);
+    if (!f || !t) return;
+    const meta = CONNECTION_TYPES[conn.type] || CONNECTION_TYPES.ethernet;
+    const x1 = f.x+DEVICE_RADIUS, y1 = f.y+DEVICE_RADIUS, x2 = t.x+DEVICE_RADIUS, y2 = t.y+DEVICE_RADIUS;
+    const path = makeSvgEl("path"); path.setAttribute("d",`M ${x1} ${y1} L ${x2} ${y2}`);
+    path.setAttribute("stroke",meta.color); path.setAttribute("stroke-width",meta.width||2);
+    if (meta.dash) path.setAttribute("stroke-dasharray",meta.dash);
+    connectionLayer.appendChild(path);
+    if (isDragging) return;
+
+    // Delete button at midpoint
+    const mx = (x1+x2)/2, my = (y1+y2)/2;
+    const g = makeSvgEl("g"); g.classList.add("sbx-conn-delete-group"); g.dataset.connId = conn.id;
+    const tip = makeSvgEl("title"); tip.textContent = `Delete connection between ${f.name} and ${t.name}`; g.appendChild(tip);
+    const hit = makeSvgEl("circle"); hit.setAttribute("cx",mx); hit.setAttribute("cy",my); hit.setAttribute("r",18); hit.setAttribute("fill","transparent"); hit.setAttribute("stroke","none"); g.appendChild(hit);
+    const del = makeSvgEl("circle"); del.classList.add("sbx-conn-delete"); del.setAttribute("cx",mx); del.setAttribute("cy",my); del.setAttribute("r",10); g.appendChild(del);
+    const lbl = makeSvgEl("text"); lbl.setAttribute("x",mx); lbl.setAttribute("y",my+4); lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("font-size","12"); lbl.setAttribute("font-weight","700"); lbl.setAttribute("fill","rgba(239,68,68,.8)"); lbl.setAttribute("pointer-events","none"); lbl.textContent = "\u00d7"; g.appendChild(lbl);
+    connectionLayer.appendChild(g);
+  });
+}
+
+function renderConnectionLabels() {
+  qsa(".sbx-conn-label", stageEl).forEach(el => el.remove());
+  const rect = stage.getBoundingClientRect();
+  state.connections.forEach(c => {
+    const f = findDevice(c.from), t = findDevice(c.to);
+    if (!f || !t) return;
+    const mx = ((f.x+DEVICE_RADIUS)+(t.x+DEVICE_RADIUS))/2, my = ((f.y+DEVICE_RADIUS)+(t.y+DEVICE_RADIUS))/2;
+    const pt = toScreenPoint(mx, my-12);
+    if (pt.x < -60 || pt.y < -40 || pt.x > rect.width+60 || pt.y > rect.height+60) return;
+    const lbl = document.createElement("div"); lbl.className = "sbx-conn-label";
+    lbl.textContent = (c.type||"ethernet").toUpperCase().slice(0,3);
+    lbl.title = `${CONNECTION_TYPES[c.type]?.label||c.type} – ${BANDWIDTH_MAP[c.type]||""}`;
+    lbl.style.left = `${pt.x}px`; lbl.style.top = `${pt.y}px`;
+    stageEl.appendChild(lbl);
+  });
+}
+
+function renderInspectActions() {
+  const el = getById("sbxInspectActions");
+  const hint = getById("sbxObjectsHint");
+  const hasSel = !!getSelectedDevice();
+  if (el) el.style.display = hasSel ? "" : "none";
+  if (hint) hint.style.display = hasSel ? "none" : "";
+}
+
+function setPingResult(result, meta = {}) {
+  state.pingInspector = result;
+  showRightPanel(); setRightTab("objects");
+  const box = getById("pingResult");
+  if (box) setStatusBox(box, `sbx-ping-result ${result.success?"is-success":"is-fail"}`, result.success?"bi-check-circle":"bi-x-circle", String(result.message||""));
+  updatePingOverview(meta, result);
+}
+
+function addPacketLog(line) { state.packets.unshift(`[${new Date().toLocaleTimeString()}] ${line}`); state.packets = state.packets.slice(0,40); renderPackets(); }
+
+function animatePacket(path) {
+  if (!path || path.length < 2) return; resizeConnections();
+  const points = path.map(id => findDevice(id)).filter(Boolean).map(device => ({ x: device.x+DEVICE_RADIUS, y: device.y+DEVICE_RADIUS }));
+  if (points.length < 2) return;
+  const segments = [];
+  let totalLength = 0;
+  for (let i = 0; i < points.length-1; i++) {
+    const from = points[i], to = points[i+1];
+    const length = Math.hypot(to.x-from.x, to.y-from.y);
+    segments.push({ from, to, length });
+    totalLength += length;
+  }
+  if (!totalLength) return;
+  const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  circle.setAttribute("r","6"); circle.setAttribute("fill","#10b981"); circle.setAttribute("opacity","0.95");
+  connectionLayer.appendChild(circle);
+  const duration = 1000 + segments.length*200;
+  const startTime = performance.now();
+  function step(now) {
+    const progress = Math.min(1, (now-startTime)/duration);
+    let distanceTravelled = progress * totalLength;
+    for (const segment of segments) {
+      if (distanceTravelled <= segment.length) {
+        const ratio = segment.length === 0 ? 0 : distanceTravelled / segment.length;
+        circle.setAttribute("cx", segment.from.x + (segment.to.x - segment.from.x) * ratio);
+        circle.setAttribute("cy", segment.from.y + (segment.to.y - segment.from.y) * ratio);
+        break;
+      }
+      distanceTravelled -= segment.length;
+    }
+    progress < 1 ? requestAnimationFrame(step) : circle.remove();
+  }
+  requestAnimationFrame(step);
+}
+
+function renderObjects() {
+  const body = getById("sbxObjectsBody"); if (!body) return; clearChildren(body);
+  if (!state.devices.length) { body.textContent = "No devices on canvas yet."; return; }
+  const list = makeEl("div","sbx-objects-list");
+  state.devices.forEach(device => {
+    const meta = DEVICE_TYPES[device.type] || DEVICE_TYPES.pc;
+    const isSelected = state.selectedIds.includes(device.id);
+    const row = makeEl("div","sbx-object-row"+(isSelected?" is-selected":"")); row.dataset.deviceId = device.id;
+    const info = makeEl("div","sbx-object-info");
+    info.append(makeEl("div","sbx-object-name",device.name||meta.label), makeEl("div","sbx-object-sub",device.config?.ipAddress||"No IP assigned"));
+    const gear = makeEl("button","sbx-object-gear"); gear.innerHTML = '<i class="bi bi-gear-fill"></i>'; gear.title = "Configure device"; gear.dataset.deviceId = device.id;
+    row.append(makeEl("i",`bi ${meta.icon} sbx-object-icon`), info, gear); list.appendChild(row);
+  });
+  body.appendChild(list);
+  list.addEventListener("click", e => {
+    const row = e.target.closest(".sbx-object-row"); if (!row) return;
+    const id = row.dataset.deviceId;
+    if (e.target.closest(".sbx-object-gear")) { state.selectedIds = [id]; showConfigTab(); renderAll(); return; }
+    state.selectedIds = [id]; renderDevices(); renderObjects(); renderProps(); updatePingVisibility();
+  });
+}
+
+/* ── Config tab helpers ──────────────────── */
+function showConfigTab() { const btn = getById("sbxConfigTabBtn"); if (btn) btn.style.display = ""; setRightTab("config"); showRightPanel(); }
+function hideConfigTab() { const btn = getById("sbxConfigTabBtn"); if (btn) btn.style.display = "none"; setRightTab("objectives"); renderObjects(); }
+
+function updateWarnings(dev) {
+  const ipW = getById("ip_warning"), mW = getById("mask_warning"), gW = getById("gw_warning");
+  const ip = String(dev.config.ipAddress||"").trim(), m = String(dev.config.subnetMask||"").trim(), g = String(dev.config.defaultGateway||"").trim();
+  if (ipW) ipW.textContent = ip && !isValidIP(ip) ? "Invalid IP" : "";
+  if (mW)  mW.textContent  = m && !isValidSubnet(m) ? "Invalid subnet" : "";
+  if (gW)  gW.textContent  = g && !isValidIP(g) ? "Invalid gateway" : "";
+}
+
+/* ── Props panel (device config) ─────────── */
+function renderProps() {
+  if (!propsEl) return;
+  const device = getSelectedDevice();
+  if (!device) { propsEl.textContent = "Select a device to view properties."; const btn = getById("sbxConfigTabBtn"); if (btn) btn.style.display = "none"; if (state.rightTab === "config") setRightTab("objectives"); return; }
+  const headerName = getById("sbxConfigDeviceName");
+  if (headerName) headerName.textContent = device.name || (DEVICE_TYPES[device.type]?.label || "");
+  const cfg = device.config || {};
+
+  // Show relevant subtabs
+  const vis = { general: true, interfaces: !!cfg.interfaces?.length, routing: !!cfg.routingTable, dhcp: !!cfg.dhcpServer, dns: !!cfg.dnsServer, mac: !!cfg.macTable };
+  qsa(".sbx-subtab", getById("sbxConfigTabs")).forEach(b => { b.style.display = vis[b.getAttribute("data-subtab")] ? "" : "none"; });
+  let tab = state.configTab;
+  if (!vis[tab]) { tab = state.configTab = "general"; qsa(".sbx-subtab", getById("sbxConfigTabs")).forEach(b => b.classList.remove("is-active")); qs('.sbx-subtab[data-subtab="general"]', getById("sbxConfigTabs"))?.classList.add("is-active"); }
+  clearChildren(propsEl);
+
+  if (tab === "general") { renderGeneralConfig(device, cfg); return; }
+  if (tab === "interfaces") { renderInterfacesConfig(device, cfg); return; }
+  if (tab === "routing") { renderRoutingConfig(device, cfg); return; }
+  if (tab === "dhcp") { renderDhcpConfig(device, cfg); return; }
+  if (tab === "dns") { renderDnsConfig(device, cfg); return; }
+  if (tab === "mac") { renderMacConfig(cfg); }
+}
+
+function renderGeneralConfig(device, cfg) {
+  function field(label, id, value, placeholder) {
+    const group = makeEl("div","sbx-prop-group");
+    const lbl = makeEl("label","form-label small",label);
+    lbl.setAttribute("for",id);
+    const inp = document.createElement("input"); inp.className = "form-control form-control-sm"; inp.id = id; inp.value = value; inp.placeholder = placeholder || "";
+    const warn = makeEl("div","small text-muted"); warn.id = `${id.replace("prop_","")}_warning`;
+    group.append(lbl, inp, warn); return group;
+  }
+  propsEl.append(field("Device Name","prop_name",device.name,""), field("IP Address","prop_ip",cfg.ipAddress||"","192.168.1.10"), field("Subnet Mask","prop_mask",cfg.subnetMask||"","255.255.255.0"), field("Default Gateway","prop_gw",cfg.defaultGateway||"","192.168.1.1"));
+
+  const dhcpWrapper = makeEl("div","form-check form-switch mt-2");
+  const dhcpInput = document.createElement("input"); dhcpInput.className = "form-check-input"; dhcpInput.type = "checkbox"; dhcpInput.id = "prop_dhcp"; dhcpInput.checked = !!cfg.dhcpEnabled;
+  const dhcpLabel = makeEl("label","form-check-label small","DHCP enabled"); dhcpLabel.setAttribute("for","prop_dhcp");
+  dhcpWrapper.append(dhcpInput, dhcpLabel);
+  propsEl.append(dhcpWrapper, makeEl("div","small text-muted mt-2",`MAC: ${cfg.macAddress||""}`));
+
+  const actions = makeEl("div","sbx-config-actions");
+  const updateButton = makeEl("button","btn btn-teal btn-sm","Update"); updateButton.id = "updateDeviceBtn";
+  const deleteButton = makeEl("button","btn btn-outline-danger btn-sm","Delete"); deleteButton.id = "deleteDeviceBtn";
+  actions.append(updateButton, deleteButton); propsEl.appendChild(actions);
+
+  updateButton.addEventListener("click", () => {
+    const reqIp = (getById("prop_ip")?.value||"").trim(), reqMask = (getById("prop_mask")?.value||"").trim(), reqGw = (getById("prop_gw")?.value||"").trim();
+    device.name = getById("prop_name")?.value || device.name; device.config.ipAddress = reqIp; device.config.subnetMask = reqMask; device.config.defaultGateway = reqGw;
+    const dhcp = getById("prop_dhcp"); if (dhcp) { device.config.dhcpEnabled = dhcp.checked; if (dhcp.checked) requestDHCP(device.id); }
+    applyAutoNetworkDefaults(); updateWarnings(device); pushHistory(); notifyTutorialProgress(); markDirtyAndSaveSoon(); renderAll();
+    const headerName = getById("sbxConfigDeviceName"); if (headerName) headerName.textContent = device.name;
+    const corrIp = String(device.config.ipAddress||"").trim(), corrMask = String(device.config.subnetMask||"").trim(), corrGw = String(device.config.defaultGateway||"").trim();
+    const autoCorrected = reqIp !== corrIp || reqMask !== corrMask || reqGw !== corrGw;
+    showToast({ title: "Device updated", message: autoCorrected ? `${device.name} updated. Invalid values auto-corrected.` : `${device.name} configuration applied.`, variant: "success", timeout: 2200 });
+  });
+  deleteButton.addEventListener("click", () => deleteDevices([device.id]));
+  updateWarnings(device);
+}
+
+function renderInterfacesConfig(device, cfg) {
+  if (!cfg.interfaces?.length) { propsEl.textContent = "No configurable interfaces."; return; }
+  cfg.interfaces.forEach((iface, idx) => {
+    const card = makeEl("div","sbx-prop-card");
+    const hdr = makeEl("div","d-flex justify-content-between align-items-center");
+    hdr.append(makeEl("strong",null,iface.name||`Interface ${idx}`), makeEl("span","badge text-bg-light border",iface.status||"down")); card.appendChild(hdr);
+    const det = makeEl("div","mt-1"); det.appendChild(makeEl("div","small text-muted",`Speed: ${iface.speed||"Auto"}`));
+    det.appendChild(makeEl("div","small text-muted", iface.connectedTo ? `Connected to: ${findDevice(iface.connectedTo)?.name || iface.connectedTo}` : "Not connected"));
+    card.appendChild(det);
+    if (device.type === "router") {
+      const fld = makeEl("div","sbx-prop-field mt-2"); fld.appendChild(makeEl("label",null,"Interface IP"));
+      const inp = document.createElement("input"); inp.className = "form-control form-control-sm"; inp.setAttribute("data-iface-ip",String(idx)); inp.value = iface.ipAddress||""; inp.placeholder = "e.g. 192.168.1.1";
+      fld.appendChild(inp); card.appendChild(fld);
+    }
+    propsEl.appendChild(card);
+  });
+  if (device.type === "router") {
+    const actions = makeEl("div","sbx-config-actions"); const updateButton = makeEl("button","btn btn-teal btn-sm","Update Interfaces");
+    updateButton.addEventListener("click", () => { qsa("[data-iface-ip]",propsEl).forEach(inp => { const index = Number(inp.getAttribute("data-iface-ip")); if (cfg.interfaces[index]) cfg.interfaces[index].ipAddress = inp.value; }); pushHistory(); markDirtyAndSaveSoon(); showToast({ title:"Interfaces updated", message:`${device.name} interfaces saved.`, variant:"success", timeout:2200 }); });
+    actions.appendChild(updateButton); propsEl.appendChild(actions);
+  }
+}
+
+function renderRoutingConfig(device, cfg) {
+  if (!cfg.routingTable) { propsEl.textContent = "Routing not available for this device."; return; }
+  if (cfg.routingTable.length) {
+    cfg.routingTable.forEach((route, idx) => {
+      const card = makeEl("div","sbx-prop-card");
+      const hdr = makeEl("div","d-flex justify-content-between align-items-center");
+      hdr.append(makeEl("strong",null,`${route.network}/${route.mask}`), makeEl("span","badge text-bg-light border",`Metric ${route.metric||1}`));
+      card.append(hdr, makeEl("div","small text-muted",`Gateway: ${route.gateway}`), makeEl("div","small text-muted",`Interface: ${route.interface}`));
+      const removeButton = makeEl("button","btn btn-outline-danger btn-sm mt-1","Remove"); removeButton.style.fontSize = ".68rem";
+      removeButton.addEventListener("click", () => { cfg.routingTable.splice(idx,1); pushHistory(); markDirtyAndSaveSoon(); renderProps(); }); card.appendChild(removeButton);
+      propsEl.appendChild(card);
+    });
+  } else propsEl.appendChild(makeEl("div","small text-muted","No static routes configured."));
+  const addRouteButton = makeEl("button","btn btn-outline-secondary btn-sm mt-2","+ Add Route");
+  addRouteButton.addEventListener("click", () => {
+    const network = prompt("Network (e.g. 10.0.0.0)"), mask = prompt("Mask (e.g. 255.255.255.0)"), gateway = prompt("Gateway (e.g. 10.0.0.1)"), iface = prompt("Interface (e.g. GigabitEthernet0/0)");
+    if (!network||!mask||!gateway||!iface) return; cfg.routingTable.push({ network, mask, gateway, interface: iface, metric:1 }); pushHistory(); markDirtyAndSaveSoon(); renderProps();
+    showToast({ title:"Route added", message:`Route to ${network} added.`, variant:"success", timeout:2200 });
+  });
+  propsEl.appendChild(addRouteButton);
+}
+
+function renderDhcpConfig(device, cfg) {
+  if (!cfg.dhcpServer) { propsEl.textContent = "DHCP not available for this device."; return; }
+  function dhcpField(label, id, val, ph) { const field = makeEl("div","sbx-prop-field"); field.append(makeEl("label",null,label)); const inp = document.createElement("input"); inp.className = "form-control form-control-sm"; inp.id = id; inp.value = val; inp.placeholder = ph||""; field.appendChild(inp); return field; }
+  const toggleWrapper = makeEl("div","form-check form-switch mb-3");
+  const toggleInput = document.createElement("input"); toggleInput.className = "form-check-input"; toggleInput.type = "checkbox"; toggleInput.id = "dhcpServerEnabled"; toggleInput.checked = !!cfg.dhcpServer.enabled;
+  const toggleLabel = makeEl("label","form-check-label small","Enable DHCP Server"); toggleLabel.setAttribute("for","dhcpServerEnabled");
+  toggleWrapper.append(toggleInput, toggleLabel); propsEl.appendChild(toggleWrapper);
+  propsEl.append(dhcpField("Pool Network","dhcpNetwork",cfg.dhcpServer.network||"","e.g. 192.168.1.0"), dhcpField("Subnet Mask","dhcpMask",cfg.dhcpServer.mask||"","e.g. 255.255.255.0"), dhcpField("Default Gateway","dhcpGateway",cfg.dhcpServer.gateway||"","e.g. 192.168.1.1"));
+  const rangeGrid = makeEl("div","sbx-prop-grid"); rangeGrid.append(dhcpField("Range Start","dhcpStart",cfg.dhcpServer.rangeStart||"","e.g. 192.168.1.100"), dhcpField("Range End","dhcpEnd",cfg.dhcpServer.rangeEnd||"","e.g. 192.168.1.200"));
+  propsEl.append(rangeGrid, makeEl("div","small text-muted mt-2",`Active leases: ${cfg.dhcpServer.leases?.length||0}`));
+  const actions = makeEl("div","sbx-config-actions");
+  const saveButton = makeEl("button","btn btn-teal btn-sm","Update DHCP");
+  saveButton.addEventListener("click", () => { cfg.dhcpServer.enabled = getById("dhcpServerEnabled")?.checked ?? cfg.dhcpServer.enabled; cfg.dhcpServer.network = getById("dhcpNetwork")?.value||""; cfg.dhcpServer.mask = getById("dhcpMask")?.value||""; cfg.dhcpServer.gateway = getById("dhcpGateway")?.value||""; cfg.dhcpServer.rangeStart = getById("dhcpStart")?.value||""; cfg.dhcpServer.rangeEnd = getById("dhcpEnd")?.value||""; pushHistory(); markDirtyAndSaveSoon(); showToast({ title:"DHCP updated", message:`${device.name} DHCP pool saved.`, variant:"success", timeout:2200 }); });
+  actions.appendChild(saveButton); propsEl.appendChild(actions);
+}
+
+function renderDnsConfig(device, cfg) {
+  if (!cfg.dnsServer) { propsEl.textContent = "DNS not available for this device."; return; }
+  const toggleWrapper = makeEl("div","form-check form-switch mb-3");
+  const toggleInput = document.createElement("input"); toggleInput.className = "form-check-input"; toggleInput.type = "checkbox"; toggleInput.id = "dnsServerEnabled"; toggleInput.checked = !!cfg.dnsServer.enabled;
+  const toggleLabel = makeEl("label","form-check-label small","Enable DNS Server"); toggleLabel.setAttribute("for","dnsServerEnabled");
+  toggleWrapper.append(toggleInput, toggleLabel); propsEl.appendChild(toggleWrapper);
+  if (cfg.dnsServer.records.length) {
+    propsEl.appendChild(makeEl("div","small fw-semibold mb-1","DNS Records"));
+    cfg.dnsServer.records.forEach((record, idx) => {
+      const card = makeEl("div","sbx-prop-card d-flex justify-content-between align-items-center");
+      const info = makeEl("div"); info.append(makeEl("strong",null,record.hostname||""), makeEl("div","small text-muted",`→ ${record.ip||""}`));
+      const removeButton = makeEl("button","btn btn-outline-danger btn-sm","Remove"); removeButton.style.fontSize = ".68rem";
+      removeButton.addEventListener("click", () => { cfg.dnsServer.records.splice(idx,1); pushHistory(); markDirtyAndSaveSoon(); renderProps(); }); card.append(info, removeButton); propsEl.appendChild(card);
+    });
+  } else propsEl.appendChild(makeEl("div","small text-muted mb-2","No DNS records yet."));
+  const actions = makeEl("div","sbx-config-actions");
+  const addButton = makeEl("button","btn btn-outline-secondary btn-sm","+ Add Record");
+  addButton.addEventListener("click", () => { const hostname = prompt("Hostname (e.g. server.local)"), ip = prompt("IP address (e.g. 192.168.1.10)"); if (!hostname||!ip) return; cfg.dnsServer.records.push({ hostname, ip }); cfg.dnsServer.enabled = getById("dnsServerEnabled")?.checked ?? cfg.dnsServer.enabled; pushHistory(); markDirtyAndSaveSoon(); renderProps(); showToast({ title:"DNS record added", message:`${hostname} → ${ip}`, variant:"success", timeout:2200 }); });
+  const saveButton = makeEl("button","btn btn-teal btn-sm","Update DNS");
+  saveButton.addEventListener("click", () => { cfg.dnsServer.enabled = getById("dnsServerEnabled")?.checked ?? cfg.dnsServer.enabled; pushHistory(); markDirtyAndSaveSoon(); showToast({ title:"DNS updated", message:`${device.name} DNS saved.`, variant:"success", timeout:2200 }); });
+  actions.append(addButton, saveButton); propsEl.appendChild(actions);
+}
+
+function renderMacConfig(cfg) {
+  if (!cfg.macTable) { propsEl.textContent = "MAC table not available."; return; }
+  if (cfg.macTable.length) {
+    propsEl.appendChild(makeEl("div","small fw-semibold mb-1","Learned MAC Addresses"));
+    cfg.macTable.forEach(entry => { const card = makeEl("div","sbx-prop-card"); const hdr = makeEl("div","d-flex justify-content-between align-items-center"); hdr.append(makeEl("strong",null,entry.macAddress||""), makeEl("span","badge text-bg-light border",entry.port||"")); card.appendChild(hdr); if (entry.vlan) card.appendChild(makeEl("div","small text-muted",`VLAN: ${entry.vlan}`)); propsEl.appendChild(card); });
+  } else propsEl.appendChild(makeEl("div","small text-muted","MAC table empty. Connect devices and send traffic to populate."));
+}
+
+function renderLogs() { if (!logsEl) return; clearChildren(logsEl); if (!state.actionLogs.length) { logsEl.textContent = "No actions logged yet."; return; } state.actionLogs.forEach(line => logsEl.appendChild(makeEl("div",null,line))); }
+function renderPackets() { if (!packetsEl) return; clearChildren(packetsEl); if (!state.packets.length) { packetsEl.textContent = "No packet activity yet."; return; } state.packets.forEach(packet => packetsEl.appendChild(makeEl("div",null,packet))); }
+function renderConsole() { if (!consoleOutputEl) return; clearChildren(consoleOutputEl); state.consoleOutput.forEach(line => consoleOutputEl.appendChild(makeEl("div",null,line))); consoleOutputEl.scrollTop = consoleOutputEl.scrollHeight; }
+
+function renderAll() {
+  updateGrid(); updateZoomLabel(); updateEmptyState();
+  renderDevices(); renderConnections(); renderObjects(); renderProps();
+  renderInspectActions(); renderObjectives(); renderLogs(); renderPackets(); renderConsole();
+  updatePingVisibility();
+  if (typeof updateDeviceCountBadges === "function") updateDeviceCountBadges();
+  if (typeof updateStatsBar === "function") updateStatsBar();
+  if (typeof updateMinimap === "function") updateMinimap();
+  if (typeof renderConnectionLabels === "function") renderConnectionLabels();
+  requestAnimationFrame(() => { if (typeof updateDeviceStatusIndicators === "function") updateDeviceStatusIndicators(); });
+}
+
+/* ================================================================
+   SECTION 2 — HISTORY (Undo / Redo)
+   ================================================================ */
+function snapshotState() { return { devices: JSON.parse(JSON.stringify(state.devices)), connections: JSON.parse(JSON.stringify(state.connections)) }; }
+function pushHistory() { state.history = state.history.slice(0, state.historyIndex+1); state.history.push(snapshotState()); state.historyIndex = state.history.length-1; updateHistoryButtons(); }
+
+function replaceTopology(devices, connections) {
+  state.devices = (devices||[]).map(normalizeDevice);
+  state.connections = (connections||[]).map(normalizeConnection).filter(Boolean);
+  applyAutoNetworkDefaults(); state.selectedIds = []; state.connectFrom = null; rebuildMacTables();
+}
+
+function finishTopologyChange({ refreshTutorial = true } = {}) { rebuildMacTables(); pushHistory(); renderAll(); if (refreshTutorial) notifyTutorialProgress(); markDirtyAndSaveSoon(); }
+
+function restoreHistory(index) { const snap = state.history[index]; if (!snap) return; replaceTopology(snap.devices, snap.connections); renderAll(); updateHistoryButtons(); markDirtyAndSaveSoon(); }
+
+function updateHistoryButtons() { const undoButton = getById("undoBtn"), redoButton = getById("redoBtn"); if (undoButton) undoButton.disabled = state.historyIndex <= 0; if (redoButton) redoButton.disabled = state.historyIndex >= state.history.length - 1; }
+
+/* ================================================================
+   SECTION 3 — DEVICE / CONNECTION ACTIONS
+   ================================================================ */
+function addDevice(type, position = null) {
+  const pos = position && Number.isFinite(position.x) && Number.isFinite(position.y) ? { x: position.x, y: position.y } : getNextDevicePosition();
+  if (state.snap) { pos.x = Math.round(pos.x/GRID_SIZE)*GRID_SIZE; pos.y = Math.round(pos.y/GRID_SIZE)*GRID_SIZE; }
+  const count = state.devices.filter(d => d.type === type).length + 1;
+  const device = normalizeDevice({ id: `device-${Date.now()}`, type, x: clamp(pos.x,10,CANVAS_WIDTH-DEVICE_SIZE-10), y: clamp(pos.y,10,CANVAS_HEIGHT-DEVICE_SIZE-10), name: `${DEVICE_TYPES[type]?.label||"Device"} ${count}`, status: "on" });
+  state.devices.push(device); applyAutoNetworkDefaults(); state.selectedIds = [device.id]; state.deviceAnimations.add(device.id);
+  addActionLog(`Added ${device.name}`); hideIdleBanner(); showConnectionSuggestions(device); finishTopologyChange();
+}
+
+function deleteDevices(ids) {
+  if (!ids?.length) return;
+  const removed = state.devices.filter(d => ids.includes(d.id));
+  state.devices = state.devices.filter(d => !ids.includes(d.id));
+  state.connections = state.connections.filter(c => !ids.includes(c.from) && !ids.includes(c.to));
+  applyAutoNetworkDefaults(); state.selectedIds = [];
+  removed.forEach(d => addActionLog(`Removed ${d.name}`)); finishTopologyChange();
+}
+
+function createConnection(fromId, toId) {
+  if (fromId === toId) return;
+  if (state.connections.some(c => (c.from===fromId&&c.to===toId)||(c.from===toId&&c.to===fromId))) return;
+  dismissSuggestions(); hideIdleBanner();
+  const fromDevice = findDevice(fromId), toDevice = findDevice(toId);
+  const fromInterface = pickInterface(fromDevice), toInterface = pickInterface(toDevice);
+  const conn = { id:`conn-${Date.now()}`, from:fromId, to:toId, type:state.connectType, status:"active", fromInterface:fromInterface?.id||"", toInterface:toInterface?.id||"" };
+  if (fromInterface) fromInterface.connectedTo = toId; if (toInterface) toInterface.connectedTo = fromId;
+  state.connections.push(conn); addActionLog(`Connected ${fromDevice?.name||"device"} to ${toDevice?.name||"device"}`); finishTopologyChange();
+}
+
+function deleteConnection(connId) {
+  const conn = state.connections.find(c => c.id === connId); if (!conn) return;
+  clearInterfaceLink(conn.from, conn.fromInterface); clearInterfaceLink(conn.to, conn.toInterface);
+  state.connections = state.connections.filter(c => c.id !== connId); addActionLog("Removed connection"); finishTopologyChange();
+}
+
+function pickInterface(device) { if (!device?.config?.interfaces) return null; const available = device.config.interfaces.find(iface => !iface.connectedTo); if (available) available.status = "up"; return available || null; }
+
+function clearInterfaceLink(devId, ifaceId) {
+  if (!devId || !ifaceId) return; const dev = findDevice(devId); if (!dev?.config?.interfaces) return;
+  dev.config.interfaces.forEach(i => { if (i.id === ifaceId) { i.connectedTo = ""; i.status = dev.type === "router" ? "admin-down" : "down"; } });
+}
+
+function duplicateSelected() {
+  if (!state.selectedIds.length) return; const dev = findDevice(state.selectedIds[0]); if (!dev) return;
+  addDevice(dev.type, { x: dev.x+40, y: dev.y+40 }); addActionLog(`Duplicated ${dev.name}`);
+}
+
+/* ================================================================
+   SECTION 4 — SAVE / LOAD / CLEAR
+   ================================================================ */
+async function handleSaveTopology() {
+  const user = getLoggedInUser(); if (!user?.email) { showToast({ variant:"error", title:"Sign in required", message:"Log in to save your topology." }); return; }
+  openSaveModal();
+}
+
+function openSaveModal() {
+  if (!saveModalEl) return; const user = getLoggedInUser(); if (!user?.email) return;
+  if (saveNameInput && !saveNameInput.value.trim()) { const now = new Date(); saveNameInput.value = `Topology ${now.toLocaleDateString()} ${now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}`; }
+  renderSummary(saveSummaryEl); renderTopologyPreview(savePreviewEl); new bootstrap.Modal(saveModalEl).show();
+}
+
+async function confirmSaveTopology() {
+  const user = getLoggedInUser(); if (!user?.email) return; const name = saveNameInput?.value?.trim();
+  if (!name) { showToast({ variant:"error", title:"Name required", message:"Please name your topology." }); return; }
+  if (saveConfirmBtn) { saveConfirmBtn.disabled = true; saveConfirmBtn.textContent = "Saving..."; }
+  try {
+    const res = await fetch(`${API_BASE}${ENDPOINTS.sandbox?.saveTopology||"/save-topology"}`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ email:user.email, name, devices:state.devices, connections:state.connections }) });
+    const data = await res.json(); if (!res.ok) throw new Error(data?.message||"Save failed.");
+    showToast({ variant:"success", title:"Topology saved", message: data.message||`Saved "${name}".` });
+    bootstrap.Modal.getInstance(saveModalEl)?.hide();
+  } catch(e) { console.error("Save topology error:",e); showToast({ variant:"error", title:"Save failed", message:"Could not save. Try again." }); }
+  finally { if (saveConfirmBtn) { saveConfirmBtn.disabled = false; saveConfirmBtn.textContent = "Save topology"; } }
+}
+
+function confirmClearTopology() {
+  const dc = state.devices.length, cc = state.connections.length;
+  if (!dc && !cc) { showToast({ variant:"info", title:"Already empty", message:"Nothing to clear." }); return; }
+  if (!confirm(`Clear workspace?\n\nThis will remove ${dc} device${dc!==1?"s":""} and ${cc} connection${cc!==1?"s":""}.`)) return;
+  state.devices = []; state.connections = []; state.selectedIds = []; state.connectFrom = null;
+  addActionLog("Cleared topology"); finishTopologyChange();
+  showToast({ variant:"info", title:"Workspace cleared", message:`Removed ${dc} devices and ${cc} links.` });
+}
+
+async function refreshTopologyList() {
+  const user = getLoggedInUser(); if (!user?.email) return;
+  const data = await apiGet(ENDPOINTS.sandbox?.loadTopologies||"/load-topologies",{email:user.email});
+  const list = getById("topologyList"); if (!list) return; clearChildren(list);
+  (data.topologies||[]).forEach(topology => {
+    const row = document.createElement("tr");
+    const actionTd = makeEl("td","text-end");
+    const loadButton = makeEl("button","btn btn-sm btn-primary me-2","Load"); loadButton.setAttribute("data-load-id", topology.id); loadButton.dataset.loadName = topology.name || "Topology";
+    const deleteButton = makeEl("button","btn btn-sm btn-danger","Delete"); deleteButton.setAttribute("data-delete-id", topology.id);
+    actionTd.append(loadButton, deleteButton); row.append(makeEl("td", null, topology.name || ""), makeEl("td", null, new Date(topology.created_at).toLocaleString()), actionTd); list.appendChild(row);
+    loadButton.addEventListener("click", () => loadTopologyById(topology.id, topology.name || ""));
+    deleteButton.addEventListener("click", () => deleteTopology(topology.id));
+  });
+}
+
+async function loadTopologyById(id, name = "") {
+  const path = (ENDPOINTS.sandbox?.loadTopology||"/load-topology/:topologyId").replace(":topologyId",encodeURIComponent(id));
+  const data = await apiGet(path);
+  if (!data.success) { showToast({ variant:"error", title:"Load failed", message:"Could not load topology." }); return; }
+  replaceTopology(data.devices||[], data.connections||[]); pushHistory(); renderAll(); markDirtyAndSaveSoon();
+  bootstrap.Modal.getInstance(getById("topologyModal"))?.hide();
+  showToast({ variant:"success", title:"Topology loaded", message: name ? `Loaded "${name}".` : "Topology loaded." });
+}
+
+async function deleteTopology(id) {
+  if (!confirm("Delete this topology?")) return; const user = getLoggedInUser();
+  const path = (ENDPOINTS.sandbox?.deleteTopology||"/delete-topology/:topologyId").replace(":topologyId",encodeURIComponent(id));
+  await fetch(`${API_BASE}${path}`, { method:"DELETE", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ email: user?.email||"" }) });
+  await refreshTopologyList(); showToast({ variant:"info", title:"Topology removed", message:"Deleted the saved topology." });
+}
+
+/* ================================================================
+   SECTION 5 — CONSOLE / TERMINAL COMMANDS
+   ================================================================ */
+function loadConsoleHistory() {
+  const saved = parseJsonSafe(localStorage.getItem(CONSOLE_HISTORY_KEY), []);
+  if (!Array.isArray(saved)) return;
+  state.commandHistory = saved.map(entry => String(entry || "").trim()).filter(Boolean).slice(-CONSOLE_HISTORY_LIMIT);
+  state.commandHistoryIndex = state.commandHistory.length;
+}
+function saveConsoleHistory() { localStorage.setItem(CONSOLE_HISTORY_KEY, JSON.stringify(state.commandHistory.slice(-CONSOLE_HISTORY_LIMIT))); }
+function addCommandToHistory(cmd) { const trimmed = String(cmd || "").trim(); if (!trimmed) return; state.commandHistory.push(trimmed); state.commandHistory = state.commandHistory.slice(-CONSOLE_HISTORY_LIMIT); state.commandHistoryIndex = state.commandHistory.length; saveConsoleHistory(); }
+function stepCommandHistory(direction) { if (!state.commandHistory.length) return ""; const newIndex = state.commandHistoryIndex + direction; if (newIndex < 0) return state.commandHistory[0] || ""; if (newIndex >= state.commandHistory.length) { state.commandHistoryIndex = state.commandHistory.length; return ""; } state.commandHistoryIndex = newIndex; return state.commandHistory[newIndex] || ""; }
+
+function addConsoleOutput(msg) { state.consoleOutput.push(`[${new Date().toLocaleTimeString()}] ${msg}`); state.consoleOutput = state.consoleOutput.slice(-200); renderConsole(); }
+function addActionLog(msg) { state.actionLogs.unshift(`${new Date().toLocaleTimeString()} - ${msg}`); state.actionLogs = state.actionLogs.slice(0,200); renderLogs(); }
+function clearConsoleOutput() { state.consoleOutput = []; renderConsole(); }
+
+function resolveCommandEndpoints(args, usage) {
+  if (args.length >= 2) {
+    const s = findDeviceByIdentifier(args[0]), d = findDeviceByIdentifier(args[1]);
+    if (!s) { addConsoleOutput(`Source "${args[0]}" not found.`); return null; }
+    if (!d) { addConsoleOutput(`Destination "${args[1]}" not found.`); return null; }
+    return { sourceDevice: s, destinationDevice: d };
+  }
+  if (args.length === 1) {
+    const sel = getSelectedDevice(); if (!sel) { addConsoleOutput(usage); return null; }
+    const d = findDeviceByIdentifier(args[0]); if (!d) { addConsoleOutput(`Destination "${args[0]}" not found.`); return null; }
+    return { sourceDevice: sel, destinationDevice: d };
+  }
+  addConsoleOutput(usage); return null;
+}
+
+function executeCommand(raw) {
+  const cmd = String(raw||"").trim(); if (!cmd) return;
+  addConsoleOutput(`> ${cmd}`);
+  const parts = cmd.toLowerCase().split(/\s+/), name = parts[0], args = parts.slice(1);
+
+  const cmds = {
+    help() {
+      ["Commands:", "  help", "  show devices | show connections | show stats", "  devices | connections | status",
+       "  ping <source> <destination>", "  traceroute <source> <destination>", "  ipconfig [device|ip]",
+       "  configure <device> <ip|mask|gateway|name|dhcp> <value>", "  dhcp request  (selected device)",
+       "  reset", "  clear", "  save", "Tip: ping/traceroute can use one arg if a source device is selected.",
+       "Tip: New devices are auto-assigned valid IP/mask/gateway values."].forEach(l => addConsoleOutput(l));
+    },
+    devices() { if (!state.devices.length) { addConsoleOutput("No devices."); return; } addConsoleOutput(`Total: ${state.devices.length}`); state.devices.forEach(d => addConsoleOutput(`${d.name} (${d.type}) - ${d.config.ipAddress||"No IP"}`)); },
+    connections() { if (!state.connections.length) { addConsoleOutput("No connections."); return; } addConsoleOutput(`Total: ${state.connections.length}`); state.connections.forEach((c,i) => { const f = findDevice(c.from), t = findDevice(c.to); addConsoleOutput(`${i+1}. ${f?.name||"?"} ↔ ${t?.name||"?"} (${c.type}, ${c.status==="active"?"Active":"Down"})`); }); },
+    status() { addConsoleOutput(`Devices: ${state.devices.length}`); addConsoleOutput(`Connections: ${state.connections.length} (${state.connections.filter(c=>c.status==="active").length} active)`); addConsoleOutput(`Selected: ${state.selectedIds.length}`); },
+    ping() {
+      if (!args.length||["?","help","-h"].includes(args[0])) { addConsoleOutput("Usage: ping <source> <dest>"); return; }
+      const ep = resolveCommandEndpoints(args,"Usage: ping <source> <dest>"); if (!ep) return;
+      addConsoleOutput(`Pinging ${ep.destinationDevice.name} from ${ep.sourceDevice.name}...`);
+      executePing(ep.sourceDevice.id, ep.destinationDevice.id);
+      if (state.pingInspector?.success) addConsoleOutput(`Reply from ${ep.destinationDevice.config?.ipAddress||ep.destinationDevice.name}: time=${state.pingInspector.latency||1}ms`);
+      else if (state.pingInspector) addConsoleOutput(`Request failed: ${state.pingInspector.message||"No route"}`);
+    },
+    traceroute() {
+      if (!args.length||["?","help","-h"].includes(args[0])) { addConsoleOutput("Usage: traceroute <source> <dest>"); return; }
+      const ep = resolveCommandEndpoints(args,"Usage: traceroute <source> <dest>"); if (!ep) return;
+      addConsoleOutput(`Traceroute from ${ep.sourceDevice.name} to ${ep.destinationDevice.name}...`);
+      const path = findPath(ep.sourceDevice.id, ep.destinationDevice.id);
+      if (!path.length) { addConsoleOutput("No route found."); return; }
+      path.forEach((id,i) => { const d = findDevice(id); addConsoleOutput(`  ${i+1}  ${d?.name||"?"} (${d?.config?.ipAddress||"no ip"})  ${((i+1)*(Math.random()*2+0.5)).toFixed(1)}ms`); });
+      addConsoleOutput(`Trace complete. ${path.length} hop(s).`);
+    },
+    ipconfig() {
+      if (args.length) { const d = findDeviceByIdentifier(args[0]); if (!d) { addConsoleOutput(`Device "${args[0]}" not found.`); return; } addConsoleOutput(`${d.name} IP: ${d.config.ipAddress||"Not set"}`); addConsoleOutput(`${d.name} Mask: ${d.config.subnetMask||"Not set"}`); addConsoleOutput(`${d.name} Gateway: ${d.config.defaultGateway||"Not set"}`); return; }
+      const sel = getSelectedDevice();
+      if (sel) { addConsoleOutput(`IP: ${sel.config.ipAddress||"Not set"}`); addConsoleOutput(`Mask: ${sel.config.subnetMask||"Not set"}`); addConsoleOutput(`Gateway: ${sel.config.defaultGateway||"Not set"}`); return; }
+      if (!state.devices.length) { addConsoleOutput("No devices."); return; }
+      state.devices.forEach(d => addConsoleOutput(`${d.name}: ${d.config.ipAddress||"Not set"} / ${d.config.subnetMask||"Not set"}`));
+    },
+    configure() {
+      if (args.length < 3) { addConsoleOutput("Usage: configure <device> <property> <value>"); return; }
+      const [tgt, prop, ...vp] = args, dev = findDeviceByIdentifier(tgt); if (!dev) { addConsoleOutput(`Device "${tgt}" not found.`); return; }
+      const val = vp.join(" ").trim(), p = prop.toLowerCase();
+      if (p === "ip") dev.config.ipAddress = val;
+      else if (["mask","subnet","subnetmask"].includes(p)) dev.config.subnetMask = val;
+      else if (["gateway","gw"].includes(p)) dev.config.defaultGateway = val;
+      else if (["name","hostname"].includes(p)) dev.name = val || dev.name;
+      else if (p === "dhcp") { dev.config.dhcpEnabled = ["true","1","yes","on","enabled"].includes(val.toLowerCase()); if (dev.config.dhcpEnabled) requestDHCP(dev.id); }
+      else dev.config[p] = val;
+      applyAutoNetworkDefaults(); addActionLog(`Configured ${dev.name}: ${p} = ${val}`); pushHistory(); renderAll(); notifyTutorialProgress(); markDirtyAndSaveSoon(); addConsoleOutput(`Configured ${dev.name}: ${p} = ${val}`);
+    },
+    dhcp() {
+      if (!args.length||["?","help","-h"].includes(args[0])) { addConsoleOutput("Usage: dhcp request"); return; }
+      if (args[0] === "request") { const sel = getSelectedDevice(); if (sel) requestDHCP(sel.id); else addConsoleOutput("No device selected."); return; }
+      addConsoleOutput("Usage: dhcp request");
+    },
+    clear() { clearConsoleOutput(); },
+    save() { handleSaveTopology(); },
+    reset() { getById("clearBtn")?.click(); addConsoleOutput("Reset requested."); },
+  };
+
+  // Route show subcommands
+  if (name === "show") { const sub = args[0]; if (sub === "devices") cmds.devices(); else if (sub === "connections") cmds.connections(); else if (sub === "stats" || sub === "status") cmds.status(); else addConsoleOutput("Usage: show devices | connections | stats"); return; }
+
+  if (cmds[name]) { cmds[name](); return; }
+  addConsoleOutput("Unknown command. Type help.");
+}
+
+function registerConsoleApi() {
+  window.sandboxConsole = {
+    runCommand(cmd) { const value = String(cmd || "").trim(); if (value) { addCommandToHistory(value); executeCommand(value); } },
+    addLine(text, type = "default") { const line = String(text || ""); if (line) addConsoleOutput(type === "cmd" ? `> ${line}` : line); },
+    clear() { clearConsoleOutput(); },
+    focusInput() { consoleInputEl?.focus(); },
+    showWelcome() { if (!state.consoleOutput.length) { state.consoleOutput.push("Netology Network Sandbox v2.0", "─".repeat(36)); } addConsoleOutput('Type "help" for available commands, or try: ping, devices, ipconfig'); },
+    getHistory() { return [...state.commandHistory]; },
+  };
+}
+
+/* ================================================================
+   SECTION 6 — EVENT BINDING
+   ================================================================ */
+
+/* ── Tooltip system ──────────────────────── */
+let tooltipElement = null;
+function ensureTooltip() {
+  if (tooltipElement) return tooltipElement;
+  const element = document.createElement("div");
+  element.className = "net-tooltip";
+  document.body.appendChild(element);
+  tooltipElement = element;
+  return element;
+}
+function showTooltipEl(target) {
+  if (!target) return;
+  const text = target.getAttribute("data-tooltip") || target.getAttribute("aria-label") || target.getAttribute("title");
+  if (!text) return;
+  const tip = ensureTooltip();
+  tip.textContent = text;
+  tip.classList.add("is-open");
+  const targetRect = target.getBoundingClientRect();
+  const edgePadding = 8;
+  const tipWidth = tip.offsetWidth;
+  const tipHeight = tip.offsetHeight;
+  let left = targetRect.left + targetRect.width / 2 - tipWidth / 2;
+  let top = targetRect.top - tipHeight - 10;
+  left = clamp(left, edgePadding, window.innerWidth - tipWidth - edgePadding);
+  if (top < edgePadding) top = targetRect.bottom + 10;
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+}
+function hideTooltipEl() { if (tooltipElement) tooltipElement.classList.remove("is-open"); }
+
+function bindTooltips() {
+  const selector = "[data-tooltip],[aria-label],[title]";
+  document.addEventListener("mouseover", event => { const target = event.target?.closest?.(selector); if (target && !target.contains(event.relatedTarget)) showTooltipEl(target); });
+  document.addEventListener("mouseout",  event => { const target = event.target?.closest?.(selector); if (target && !target.contains(event.relatedTarget)) hideTooltipEl(); });
+  document.addEventListener("focusin",   event => { const target = event.target?.closest?.(selector); if (target) showTooltipEl(target); });
+  document.addEventListener("focusout",  event => { const target = event.target?.closest?.(selector); if (target) hideTooltipEl(); });
+  window.addEventListener("scroll", hideTooltipEl, true); window.addEventListener("resize", hideTooltipEl); document.addEventListener("mousedown", hideTooltipEl);
+}
+
+/* ── Library drag ────────────────────────── */
+function bindLibraryDrag() {
+  qsa("[data-device]").forEach(card => {
+    card.addEventListener("pointerdown", e => {
+      if (e.button !== 0) return;
+      const type = card.getAttribute("data-device"); if (!type) return;
+      const startX = e.clientX, startY = e.clientY; let dragging = false, ghost = null;
+      const move = ev => { if (!dragging && Math.hypot(ev.clientX-startX, ev.clientY-startY) > 6) { dragging = true; ghost = createDragGhost(type); stage.classList.add("is-drop"); } if (dragging) positionDragGhost(ghost, ev.clientX, ev.clientY); };
+      const up = ev => {
+        window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
+        stage.classList.remove("is-drop"); if (ghost) ghost.remove();
+        if (dragging) { const stageRect = stage.getBoundingClientRect(); if (ev.clientX>=stageRect.left&&ev.clientX<=stageRect.right&&ev.clientY>=stageRect.top&&ev.clientY<=stageRect.bottom) { const worldPos = toWorldPoint(ev.clientX,ev.clientY); addDevice(type,{x:worldPos.x-DEVICE_RADIUS,y:worldPos.y-DEVICE_RADIUS}); } }
+        else addDevice(type);
+      };
+      window.addEventListener("pointermove",move); window.addEventListener("pointerup",up,{once:true}); window.addEventListener("pointercancel",up,{once:true});
+    });
+  });
+}
+
+/* ── Toolbar ─────────────────────────────── */
+function bindToolbar() {
+  const toolBtns = qsa("[data-tool]"), connBtns = qsa("[data-conn-type]");
+  function setActiveBtns(buttons, attr, value) { buttons.forEach(btn => btn.classList.toggle("is-active", btn.getAttribute(attr) === value)); }
+  function setTool(tool) { state.tool = tool; state.connectFrom = null; setActiveBtns(toolBtns, "data-tool", tool); setTip(tool === TOOL.CONNECT ? "Select a device to start a connection." : "Select and drag devices."); updateConnGroupVisibility(); }
+  function zoomStage(delta) { const stageRect = stage.getBoundingClientRect(); setZoom(state.zoom + delta, stageRect.left + stageRect.width / 2, stageRect.top + stageRect.height / 2); }
+  function moveHistory(direction) { const newIndex = state.historyIndex + direction; if (newIndex < 0 || newIndex >= state.history.length) return; state.historyIndex = newIndex; restoreHistory(newIndex); }
+
+  const connDropdown = qs(".sbx-conn-dropdown"), connDropBtn = getById("connTypeDropBtn"), connMenu = getById("connTypeMenu");
+  toolBtns.forEach(btn => btn.addEventListener("click", () => setTool(btn.getAttribute("data-tool"))));
+  // Connection type dropdown
+  connDropBtn?.addEventListener("click", e => { e.stopPropagation(); connDropdown?.classList.toggle("is-open"); });
+  connBtns.forEach(btn => btn.addEventListener("click", () => {
+    state.connectType = btn.getAttribute("data-conn-type");
+    setActiveBtns(connBtns, "data-conn-type", state.connectType);
+    const icon = btn.querySelector("i")?.className;
+    if (icon && connDropBtn) connDropBtn.querySelector("i:first-child").className = icon;
+    connDropdown?.classList.remove("is-open");
+  }));
+  document.addEventListener("click", () => connDropdown?.classList.remove("is-open"));
+  getById("toggleGridBtn")?.addEventListener("click", function() { state.showGrid = !state.showGrid; this.classList.toggle("is-active",state.showGrid); updateGrid(); });
+  getById("toggleSnapBtn")?.addEventListener("click", function() { state.snap = !state.snap; this.classList.toggle("is-active",state.snap); });
+  getById("zoomInBtn")?.addEventListener("click", () => zoomStage(0.1));
+  getById("zoomOutBtn")?.addEventListener("click", () => zoomStage(-0.1));
+  getById("sbxZoomLabel")?.addEventListener("click", () => { resetViewport(); updateZoomLabel(); renderConnections(); renderConnectionLabels(); });
+  getById("undoBtn")?.addEventListener("click", () => moveHistory(-1));
+  getById("redoBtn")?.addEventListener("click", () => moveHistory(1));
+  getById("saveBtn")?.addEventListener("click", handleSaveTopology);
+  saveConfirmBtn?.addEventListener("click", confirmSaveTopology);
+  getById("loadBtn")?.addEventListener("click", async () => { await refreshTopologyList(); new bootstrap.Modal(getById("topologyModal")).show(); });
+  getById("clearBtn")?.addEventListener("click", confirmClearTopology);
+
+  // Ping modal
+  const pingBtn = getById("pingBtn"), pingTarget = getById("pingTargetSelect"), runPing = getById("runPingBtn");
+  pingBtn?.addEventListener("click", () => {
+    const selected = getSelectedDevice(); if (!selected||!pingTarget) return;
+    const targets = state.devices.filter(device => device.id !== selected.id); clearChildren(pingTarget);
+    targets.forEach(device => { const option = document.createElement("option"); option.value = device.id; option.textContent = device.config?.ipAddress ? `${device.name} (${device.config.ipAddress})` : `${device.name} (No IP)`; pingTarget.appendChild(option); });
+    if (runPing) runPing.disabled = !targets.length;
+    const defaultTarget = targets[0] || null; updatePingOverview({ fromDevice: selected, toDevice: defaultTarget, path: defaultTarget ? findPath(selected.id, defaultTarget.id) : [] }, null);
+    const resultBox = getById("pingResult"); if (resultBox) resultBox.textContent = targets.length ? "Ready to run a ping." : "No target device available.";
+    pingTarget.onchange = () => { const target = findDevice(pingTarget.value); updatePingOverview({ fromDevice: selected, toDevice: target, path: target ? findPath(selected.id, target.id) : [] }, null); };
+    new bootstrap.Modal(getById("pingModal")).show();
+  });
+  runPing?.addEventListener("click", () => { const sel = getSelectedDevice(), tid = pingTarget?.value; if (sel&&tid) executePing(sel.id,tid); });
+
+  getById("autoLayoutBtn")?.addEventListener("click", autoLayout);
+  getById("minimapToggleBtn")?.addEventListener("click", toggleMinimap);
+
+  // Inspect quick actions (in Objects tab)
+  getById("inspActPing")?.addEventListener("click", () => { const s = getSelectedDevice(); if (s) pingBtn?.click(); });
+  getById("inspActShowIp")?.addEventListener("click", () => {
+    const s = getSelectedDevice(); if (!s) return;
+    const ip = s.config?.ipAddress || "Not set";
+    showToast({ variant: "info", title: s.name, message: `IP: ${ip}` });
+  });
+  getById("inspActRestart")?.addEventListener("click", () => {
+    const s = getSelectedDevice(); if (!s) return;
+    showToast({ variant: "info", title: "Restarted", message: `${s.name} has been restarted.` });
+    addActionLog(`Restarted ${s.name}`);
+  });
+  getById("inspActConfigure")?.addEventListener("click", () => {
+    const s = getSelectedDevice(); if (!s) return;
+    showConfigTab(); renderAll();
+  });
+
+  updateConnGroupVisibility();
+}
+
+/* ── Panels ──────────────────────────────── */
+function bindPanels() {
+  function updatePanelBtns() { if (leftOpenBtn) leftOpenBtn.style.display = leftPanel.style.display==="none"?"flex":"none"; if (rightOpenBtn) rightOpenBtn.style.display = rightPanel.style.display==="none"?"flex":"none"; }
+
+  leftToggle?.addEventListener("click", () => { const isHidden = leftPanel.style.display==="none"; leftPanel.style.display = isHidden?"":"none"; workspace.classList.toggle("left-hidden",!isHidden); leftToggle.querySelector("i").className = isHidden?"bi bi-chevron-left":"bi bi-chevron-right"; updatePanelBtns(); });
+  rightToggle?.addEventListener("click", () => { const isHidden = rightPanel.style.display==="none"; rightPanel.style.display = isHidden?"":"none"; workspace.classList.toggle("right-hidden",!isHidden); rightToggle.querySelector("i").className = isHidden?"bi bi-chevron-right":"bi bi-chevron-left"; updatePanelBtns(); });
+  leftOpenBtn?.addEventListener("click", () => { leftPanel.style.display = ""; workspace.classList.remove("left-hidden"); leftToggle.querySelector("i").className = "bi bi-chevron-left"; updatePanelBtns(); });
+  rightOpenBtn?.addEventListener("click", () => { rightPanel.style.display = ""; workspace.classList.remove("right-hidden"); rightToggle.querySelector("i").className = "bi bi-chevron-right"; updatePanelBtns(); });
+  bottomToggle?.addEventListener("click", () => setBottomCollapsed(!bottomPanel.classList.contains("is-collapsed")));
+  getById("terminalClearBtn")?.addEventListener("click", () => { clearConsoleOutput(); consoleInputEl?.focus(); });
+
+  // Right panel tabs
+  qsa(".sbx-tab",getById("sbxRightTabs")).forEach(tab => tab.addEventListener("click", () => { state.rightTab = tab.getAttribute("data-tab"); qsa(".sbx-tab",getById("sbxRightTabs")).forEach(otherTab => otherTab.classList.remove("is-active")); tab.classList.add("is-active"); qsa(".sbx-tabpanel",rightPanel).forEach(panel => panel.classList.remove("is-active")); getById(`panel${state.rightTab.charAt(0).toUpperCase()+state.rightTab.slice(1)}`)?.classList.add("is-active"); }));
+
+  // Config subtabs
+  qsa(".sbx-subtab",getById("sbxConfigTabs")).forEach(tab => tab.addEventListener("click", () => { state.configTab = tab.getAttribute("data-subtab"); qsa(".sbx-subtab",getById("sbxConfigTabs")).forEach(otherTab => otherTab.classList.remove("is-active")); tab.classList.add("is-active"); renderProps(); }));
+  getById("sbxConfigBackBtn")?.addEventListener("click", hideConfigTab);
+
+  // Bottom tabs
+  qsa(".sbx-tab",getById("sbxBottomTabs")).forEach(tab => tab.addEventListener("click", () => { state.bottomTab = tab.getAttribute("data-bottom-tab"); qsa(".sbx-tab",getById("sbxBottomTabs")).forEach(otherTab => otherTab.classList.remove("is-active")); tab.classList.add("is-active"); qsa(".sbx-bottom-panel",bottomPanel).forEach(panel => panel.classList.remove("is-active")); getById(`sbx${state.bottomTab.charAt(0).toUpperCase()+state.bottomTab.slice(1)}Panel`)?.classList.add("is-active"); }));
+
+  // Console input
+  function submitCmd() { const value = consoleInputEl.value.trim(); if (!value) return; addCommandToHistory(value); executeCommand(value); consoleInputEl.value = ""; }
+  consoleSendBtn?.addEventListener("click", submitCmd);
+  consoleInputEl?.addEventListener("keydown", e => { if (e.key==="Enter") { submitCmd(); return; } if (e.key==="ArrowUp") { e.preventDefault(); consoleInputEl.value = stepCommandHistory(-1); } if (e.key==="ArrowDown") { e.preventDefault(); consoleInputEl.value = stepCommandHistory(1); } });
+  updatePanelBtns();
+}
+
+/* ── Terminal controls (docked — just collapse/expand) ── */
+function updateBottomPanelButtons() {
+  if (!bottomPanel) return;
+  const col = bottomPanel.classList.contains("is-collapsed");
+  if (bottomToggle) {
+    const i = qs("i", bottomToggle);
+    if (i) i.className = col ? "bi bi-chevron-up" : "bi bi-chevron-down";
+    bottomToggle.setAttribute("aria-label", col ? "Expand terminal" : "Collapse terminal");
+    bottomToggle.setAttribute("data-tooltip", col ? "Expand terminal" : "Collapse terminal");
+  }
+}
+
+function setBottomCollapsed(col, { persist = true } = {}) {
+  if (!bottomPanel) return;
+  bottomPanel.classList.toggle("is-collapsed", Boolean(col));
+  terminalLayout.collapsed = Boolean(col);
+  updateBottomPanelButtons();
+  if (persist) persistTerminalCollapsed();
+}
+
+function initTerminalWindowControls() {
+  if (!bottomPanel) return;
+  loadTerminalLayout();
+  setBottomCollapsed(terminalLayout.collapsed, { persist: false });
+  updateBottomPanelButtons();
+}
+/* ── Stage events (click, drag, connect) ── */
+function bindStage() {
+  // Quick-add buttons in empty state
+  qsa("[data-quick-add]").forEach(btn => {
+    btn.addEventListener("click", () => { const type = btn.getAttribute("data-quick-add"); if (type) addDevice(type); });
+  });
+
+  deviceLayer.addEventListener("click", e => { const btn = e.target.closest(".sbx-device-action"); if (!btn) return; e.stopPropagation(); const a = btn.dataset.action, id = btn.dataset.deviceId; if (!a||!id) return; if (a==="config") { state.selectedIds=[id]; showConfigTab(); renderAll(); } else if (a==="copy") { state.selectedIds=[id]; duplicateSelected(); } else if (a==="delete") deleteDevices([id]); });
+  stage.addEventListener("click", e => { const dg = e.target.closest(".sbx-conn-delete-group"); if (dg?.dataset?.connId) { deleteConnection(dg.dataset.connId); return; } if (e.target===stage||e.target===deviceLayer||e.target===connectionLayer) { if (state.tool===TOOL.SELECT) { state.selectedIds=[]; renderAll(); } } });
+
+  deviceLayer.addEventListener("pointerdown", e => {
+    if (e.target.closest(".sbx-device-action")||e.button!==0) return;
+    const el = e.target.closest(".sbx-device"); if (!el?.dataset.id) return;
+    const id = el.dataset.id, dev = findDevice(id); if (!dev) return;
+    if (state.tool===TOOL.CONNECT) { if (!state.connectFrom) { state.connectFrom=id; state.selectedIds=[id]; renderDevices(); setTip("Select another device to complete the connection."); } else if (state.connectFrom!==id) { createConnection(state.connectFrom,id); state.connectFrom=null; setTip("Devices connected."); } return; }
+    if (state.tool===TOOL.SELECT) {
+      state.selectedIds=[id]; renderDevices(); renderProps(); updatePingVisibility();
+      const fresh = deviceLayer.querySelector(`[data-id="${id}"]`); if (!fresh) return;
+      const pt = toWorldPoint(e.clientX,e.clientY);
+      state.dragging = { id, offsetX:pt.x-dev.x, offsetY:pt.y-dev.y, el:fresh };
+      fresh.setPointerCapture(e.pointerId); fresh.classList.add("is-dragging");
+      connectionLayer.querySelectorAll(".sbx-conn-delete-group").forEach(g => g.remove());
+    }
+  });
+
+  window.addEventListener("pointermove", e => { if (!state.dragging) return; const pt = toWorldPoint(e.clientX,e.clientY), dev = findDevice(state.dragging.id); if (!dev) return; dev.x = clamp(pt.x-state.dragging.offsetX,0,CANVAS_WIDTH-DEVICE_SIZE); dev.y = clamp(pt.y-state.dragging.offsetY,0,CANVAS_HEIGHT-DEVICE_SIZE); state.dragging.el.style.left = `${dev.x}px`; state.dragging.el.style.top = `${dev.y}px`; updateConnectionPaths(); });
+  const endDrag = () => { if (!state.dragging) return; state.dragging.el.classList.remove("is-dragging"); const dev = findDevice(state.dragging.id); if (dev&&state.snap) { dev.x = Math.round(dev.x/GRID_SIZE)*GRID_SIZE; dev.y = Math.round(dev.y/GRID_SIZE)*GRID_SIZE; } state.dragging = null; finishTopologyChange({refreshTutorial:false}); };
+  window.addEventListener("pointerup", endDrag); window.addEventListener("pointercancel", endDrag);
+  window.addEventListener("resize", () => { clampPanToBounds(); updateZoomLabel(); renderConnections(); renderConnectionLabels(); });
+}
+
+/* ── Keyboard shortcuts ──────────────────── */
+function bindKeyboardShortcuts() {
+  document.addEventListener("keydown", e => {
+    const tag = e.target.tagName.toLowerCase();
+    if (tag==="input"||tag==="textarea"||tag==="select") return;
+    if ((e.key==="Delete"||e.key==="Backspace")&&state.selectedIds.length) { e.preventDefault(); deleteDevices([...state.selectedIds]); return; }
+    if ((e.ctrlKey||e.metaKey)&&e.key==="z"&&!e.shiftKey) { e.preventDefault(); if (state.historyIndex>0) { state.historyIndex--; restoreHistory(state.historyIndex); } return; }
+    if ((e.ctrlKey||e.metaKey)&&(e.key==="y"||(e.key==="z"&&e.shiftKey))) { e.preventDefault(); if (state.historyIndex<state.history.length-1) { state.historyIndex++; restoreHistory(state.historyIndex); } return; }
+    if ((e.ctrlKey||e.metaKey)&&e.key==="s") { e.preventDefault(); handleSaveTopology(); return; }
+    if ((e.ctrlKey||e.metaKey)&&(e.key==="d"||e.key==="c")&&state.selectedIds.length) { e.preventDefault(); duplicateSelected(); return; }
+    if (e.key==="v"||e.key==="V") { state.tool=TOOL.SELECT; qsa("[data-tool]").forEach(b=>b.classList.remove("is-active")); getById("toolSelectBtn")?.classList.add("is-active"); state.connectFrom=null; setTip("Select and drag devices."); updateConnGroupVisibility(); return; }
+    if (e.key==="c"||e.key==="C") { state.tool=TOOL.CONNECT; qsa("[data-tool]").forEach(b=>b.classList.remove("is-active")); getById("toolConnectBtn")?.classList.add("is-active"); setTip("Select a device to start a connection."); updateConnGroupVisibility(); return; }
+    if (e.key==="Escape") { state.selectedIds=[]; state.connectFrom=null; renderAll(); }
+  });
+}
+
+/* ── Mouse wheel zoom ────────────────────── */
+function bindMouseWheelZoom() {
+  stageEl.addEventListener("wheel", e => {
+    e.preventDefault();
+    if (e.ctrlKey||e.metaKey) { setZoom(state.zoom+(e.deltaY>0?-0.1:0.1), e.clientX, e.clientY); return; }
+    state.panX -= e.deltaX; state.panY -= e.deltaY; clampPanToBounds(); updateZoomLabel(); renderConnectionLabels();
+  }, { passive: false });
+}
+
+/* ── Context menu ────────────────────────── */
+let contextMenuEl = null;
+function ensureContextMenu() {
+  if (contextMenuEl) return contextMenuEl;
+  contextMenuEl = document.createElement("div"); contextMenuEl.className = "sbx-context-menu";
+  contextMenuEl.innerHTML = `<button class="sbx-context-item" data-action="rename"><i class="bi bi-pencil"></i> Rename<span class="sbx-context-shortcut">F2</span></button><button class="sbx-context-item" data-action="duplicate"><i class="bi bi-copy"></i> Duplicate<span class="sbx-context-shortcut">Ctrl+D</span></button><button class="sbx-context-item" data-action="ping"><i class="bi bi-broadcast-pin"></i> Ping from here</button><button class="sbx-context-item" data-action="interfaces"><i class="bi bi-ethernet"></i> Show interfaces</button><div class="sbx-context-sep"></div><button class="sbx-context-item is-danger" data-action="delete"><i class="bi bi-trash3"></i> Delete<span class="sbx-context-shortcut">Del</span></button>`;
+  document.body.appendChild(contextMenuEl);
+  contextMenuEl.addEventListener("click", e => {
+    const item = e.target.closest("[data-action]"); if (!item) return;
+    const action = item.getAttribute("data-action"), id = contextMenuEl.dataset.deviceId; hideContextMenu(); if (!id) return;
+    if (action==="rename") { const device = findDevice(id); if (!device) return; const newName = prompt("Rename device:",device.name); if (newName?.trim()) { device.name = newName.trim(); pushHistory(); renderAll(); addActionLog(`Renamed to ${device.name}`); } }
+    else if (action==="duplicate") { state.selectedIds=[id]; duplicateSelected(); }
+    else if (action==="ping") { state.selectedIds=[id]; getById("pingBtn")?.click(); }
+    else if (action==="interfaces") { state.selectedIds=[id]; state.configTab="interfaces"; showConfigTab(); renderAll(); qsa(".sbx-subtab",getById("sbxConfigTabs")).forEach(subtab => subtab.classList.remove("is-active")); qs('.sbx-subtab[data-subtab="interfaces"]',getById("sbxConfigTabs"))?.classList.add("is-active"); }
+    else if (action==="delete") deleteDevices([id]);
+  });
+  return contextMenuEl;
+}
+function showContextMenu(x, y, id) { const menu = ensureContextMenu(); menu.dataset.deviceId = id; menu.classList.add("is-visible"); menu.style.left = `${Math.min(x, window.innerWidth - 200)}px`; menu.style.top = `${Math.min(y, window.innerHeight - 240)}px`; }
+function hideContextMenu() { if (contextMenuEl) contextMenuEl.classList.remove("is-visible"); }
+
+function bindContextMenu() {
+  document.addEventListener("click", e => { if (contextMenuEl&&!contextMenuEl.contains(e.target)) hideContextMenu(); });
+  document.addEventListener("contextmenu", () => { if (contextMenuEl) hideContextMenu(); });
+}
+function bindDeviceContextMenu() { deviceLayer.addEventListener("contextmenu", e => { const el = e.target.closest(".sbx-device"); if (!el) return; e.preventDefault(); const id = el.getAttribute("data-id"); if (!id) return; state.selectedIds=[id]; renderAll(); showContextMenu(e.clientX,e.clientY,id); }); }
+
+/* ── Multi-select (Shift+Click) ──────────── */
+function patchMultiSelect() {
+  deviceLayer.addEventListener("pointerdown", e => {
+    if (e.target.closest(".sbx-device-action")) return;
+    const el = e.target.closest(".sbx-device"); if (!el||!e.shiftKey) return; e.stopPropagation();
+    const id = el.getAttribute("data-id"); if (!id) return;
+    state.selectedIds = state.selectedIds.includes(id) ? state.selectedIds.filter(selectedId => selectedId !== id) : [...state.selectedIds, id];
+    renderAll();
+  }, true);
+}
+
+/* ── Device filter ───────────────────────── */
+function bindDeviceFilter() {
+  const inp = getById("sbxDeviceFilter"); if (!inp) return;
+  inp.addEventListener("input", () => { const query = inp.value.toLowerCase().trim(); qsa(".sbx-device-card").forEach(card => { const labelText = card.querySelector(".sbx-device-label")?.textContent.toLowerCase() || ""; card.style.display = !query || labelText.includes(query) || card.getAttribute("data-device")?.includes(query) ? "" : "none"; }); });
+}
+
+/* ── Device group collapse ───────────────── */
+function bindDeviceGroupCollapse() {
+  qsa(".sbx-device-group-title").forEach(title => {
+    title.addEventListener("click", () => {
+      const group = title.closest(".sbx-device-group");
+      if (group) group.classList.toggle("is-collapsed");
+    });
+  });
+}
+
+/* ── Auto-layout ─────────────────────────── */
+function autoLayout() {
+  if (!state.devices.length) return;
+  const pad = 60, cols = Math.ceil(Math.sqrt(state.devices.length));
+  const cw = Math.floor((CANVAS_WIDTH-pad*2)/cols), ch = Math.floor(cw*0.9);
+  state.devices.forEach((device, index) => { device.x = pad+(index%cols)*cw+(cw-DEVICE_SIZE)/2; device.y = pad+40+Math.floor(index/cols)*ch+(ch-DEVICE_SIZE)/2; if (state.snap) { device.x = Math.round(device.x/GRID_SIZE)*GRID_SIZE; device.y = Math.round(device.y/GRID_SIZE)*GRID_SIZE; } });
+  pushHistory(); renderAll(); addActionLog("Auto-layout applied"); showToast({ title:"Auto-layout", message:"Devices arranged in a grid", variant:"success", timeout:3500 });
+}
+
+/* ── Minimap ─────────────────────────────── */
+let minimapVisible = false;
+function toggleMinimap() { minimapVisible = !minimapVisible; getById("sbxMinimap")?.classList.toggle("is-visible",minimapVisible); getById("minimapToggleBtn")?.classList.toggle("is-active",minimapVisible); if (minimapVisible) updateMinimap(); }
+function updateMinimap() {
+  if (!minimapVisible) return; const svg = getById("sbxMinimapSvg"); if (!svg) return;
+  const sx = 160/CANVAS_WIDTH, sy = 100/CANVAS_HEIGHT, scale = Math.min(sx,sy);
+  let html = "";
+  state.connections.forEach(conn => { const fromDev = findDevice(conn.from), toDev = findDevice(conn.to); if (fromDev && toDev) html += `<line x1="${(fromDev.x+DEVICE_RADIUS)*scale}" y1="${(fromDev.y+DEVICE_RADIUS)*scale}" x2="${(toDev.x+DEVICE_RADIUS)*scale}" y2="${(toDev.y+DEVICE_RADIUS)*scale}" stroke="#94a3b8" stroke-width="1"/>`; });
+  state.devices.forEach(device => { const cx = (device.x+DEVICE_RADIUS)*scale, cy = (device.y+DEVICE_RADIUS)*scale; html += `<circle cx="${cx}" cy="${cy}" r="3" fill="${state.selectedIds.includes(device.id)?'#0d9488':'#64748b'}"/>`; });
+  svg.innerHTML = html;
+}
+
+/* ── Quick stats & badges ────────────────── */
+function updateDeviceCountBadges() { const counts = {}; state.devices.forEach(device => { counts[device.type] = (counts[device.type] || 0) + 1; }); qsa("[data-count-for]").forEach(badge => { const count = counts[badge.getAttribute("data-count-for")] || 0; badge.textContent = count; badge.classList.toggle("is-visible", count > 0); }); }
+function updateStatsBar() { setText("sbxStatDevices",state.devices.length); setText("sbxStatConns",state.connections.length); const sel = getSelectedDevice(), selEl = getById("sbxStatSelected"), selName = getById("sbxStatSelectedName"); if (selEl&&selName) { if (sel) { selEl.style.display=""; selName.textContent=sel.name; } else selEl.style.display="none"; } }
+function updateDeviceStatusIndicators() { qsa(".sbx-device-status").forEach(dot => { const el = dot.closest(".sbx-device"); if (!el) return; const d = findDevice(el.getAttribute("data-id")); if (d) dot.className = "sbx-device-status "+(d.config?.ipAddress?"is-configured":"is-unconfigured"); }); }
+
+/* ── Panel helpers ────────────────────────── */
+function showRightPanel() { if (!rightPanel) return; rightPanel.style.display=""; workspace?.classList.remove("right-hidden"); if (rightToggle) rightToggle.querySelector("i").className="bi bi-chevron-right"; if (rightOpenBtn) rightOpenBtn.style.display="none"; }
+function setRightTab(tabId) {
+  const wrap = getById("sbxRightTabs"); if (!wrap||!rightPanel) return;
+  const tgt = qs(`.sbx-tab[data-tab="${tabId}"]`,wrap); if (!tgt) return;
+  state.rightTab = tabId; qsa(".sbx-tab",wrap).forEach(t => t.classList.remove("is-active")); tgt.classList.add("is-active");
+  qsa(".sbx-tabpanel",rightPanel).forEach(p => p.classList.remove("is-active"));
+  getById(`panel${tabId.charAt(0).toUpperCase()+tabId.slice(1)}`)?.classList.add("is-active");
+}

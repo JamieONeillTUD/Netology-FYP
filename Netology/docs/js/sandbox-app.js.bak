@@ -1,0 +1,553 @@
+/*
+---------------------------------------------------------
+Student: C22320301 - Jamie O'Neill
+File: sandbox-app.js (consolidated)
+Purpose: Tutorials, challenges, XP system, guide UI,
+chrome/nav, lesson sessions, and the main init bootstrap.
+---------------------------------------------------------
+*/
+
+/* ================================================================
+   SECTION 1 — GUIDE UI (tooltips for tutorial steps)
+   ================================================================ */
+function ensureGuide() {
+  if (guideUI) return guideUI;
+  const el = document.createElement("div"); el.className = "sbx-guide"; el.id = "sbxGuide"; el.setAttribute("role","tooltip");
+  el.innerHTML = `<div class="sbx-guide-close" role="button" aria-label="Close">&times;</div><div class="sbx-guide-title"></div><div class="sbx-guide-body"></div><div class="sbx-guide-footer"><button class="btn btn-sm btn-outline-light sbx-guide-prev">Back</button><span class="sbx-guide-counter"></span><button class="btn btn-sm btn-teal sbx-guide-next">Next</button></div>`;
+  el.querySelector(".sbx-guide-close").addEventListener("click", hideGuide);
+  document.body.appendChild(el); guideUI = el; return el;
+}
+
+function hideGuide() { if (guideUI) guideUI.classList.remove("is-visible"); }
+
+function showGuide({ title, body, x, y, arrow = "top", stepIndex = 0, stepTotal = 1, onPrev, onNext }) {
+  const g = ensureGuide();
+  g.querySelector(".sbx-guide-title").textContent = title||"";
+  g.querySelector(".sbx-guide-body").innerHTML = body||"";
+  g.querySelector(".sbx-guide-counter").textContent = stepTotal>1 ? `${stepIndex+1} / ${stepTotal}` : "";
+  const prev = g.querySelector(".sbx-guide-prev"), next = g.querySelector(".sbx-guide-next");
+  prev.style.display = onPrev?"":"none"; next.style.display = onNext?"":"none";
+  prev.onclick = onPrev||null; next.onclick = onNext||null;
+  g.className = `sbx-guide is-visible sbx-guide--${arrow}`;
+  g.style.left = `${clamp(x||0, 12, window.innerWidth-240)}px`;
+  g.style.top = `${clamp(y||0, 12, window.innerHeight-180)}px`;
+}
+
+/* ================================================================
+   SECTION 2 — TUTORIAL PROGRESS
+   ================================================================ */
+function tutorialProgressKey() {
+  const meta = state.tutorialMeta; if (!meta) return null;
+  return `sbx_tut_${meta.courseId||"x"}_${meta.moduleId||"x"}_${meta.lessonId||"x"}`;
+}
+
+function loadTutorialProgress() {
+  const k = tutorialProgressKey(); if (!k) return {};
+  return parseJsonSafe(localStorage.getItem(k)) || {};
+}
+
+function saveTutorialProgress(data) {
+  const k = tutorialProgressKey(); if (!k) return;
+  localStorage.setItem(k, JSON.stringify(data));
+}
+
+function normalizeTutorialSteps(raw) {
+  return (Array.isArray(raw) ? raw : []).map((step, index) => ({
+    id: step.id || `step-${index}`, title: step.title || step.label || `Step ${index+1}`,
+    description: step.description || step.body || "", checks: step.checks || [],
+    hint: step.hint || "", done: false,
+  }));
+}
+
+/* ================================================================
+   SECTION 3 — OBJECTIVES PANEL
+   ================================================================ */
+function renderObjectives() {
+  if (!objectivesBody) return;
+  clearChildren(objectivesBody);
+
+  if (state.mode === "tutorial" && state.tutorialMeta) {
+    const steps = state.tutorialMeta.steps || [];
+    const prog = loadTutorialProgress();
+    if (!steps.length) { objectivesBody.textContent = "No objectives for this tutorial."; return; }
+    steps.forEach((step, i) => {
+      const done = prog[step.id]?.done || step.done;
+      const row = makeEl("div", `sbx-objective ${done?"is-done":""}`);
+      row.append(makeEl("i", `bi ${done?"bi-check-circle-fill text-success":"bi-circle"} me-2`), makeEl("span", null, step.title || `Step ${i+1}`));
+      if (step.description) { const desc = makeEl("div","sbx-objective-desc small text-muted ms-4"); desc.innerHTML = step.description; row.appendChild(desc); }
+      objectivesBody.appendChild(row);
+    });
+    return;
+  }
+
+  if (state.mode === "challenge" && state.challengeMeta) {
+    const reqs = state.challengeMeta.requirements || [];
+    if (!reqs.length) { objectivesBody.textContent = "Complete the challenge."; return; }
+    reqs.forEach(requirement => {
+      const done = !!state.objectiveStatus[requirement.id];
+      const row = makeEl("div", `sbx-objective ${done?"is-done":""}`);
+      row.append(makeEl("i", `bi ${done?"bi-check-circle-fill text-success":"bi-circle"} me-2`), makeEl("span", null, requirement.label || requirement.description || ""));
+      objectivesBody.appendChild(row);
+    });
+    return;
+  }
+
+  objectivesBody.innerHTML = `<div class="sbx-objective-guide"><div class="sbx-objective-guide-icon"><i class="bi bi-compass"></i></div><div class="sbx-objective-guide-title">Free Build Mode</div><div class="text-muted small mt-2">You're in free mode — build any network you like! To follow a guided lesson, launch a tutorial from the carousel above or navigate to a course.</div><div class="sbx-objective-guide-actions"><button class="sbx-empty-quick" onclick="document.getElementById('sbxTutorialsToggle')?.click()"><i class="bi bi-stars"></i> Show Tutorials</button></div></div>`;
+}
+
+/* ================================================================
+   SECTION 4 — CONNECTION SUGGESTIONS
+   ================================================================ */
+function showConnectionSuggestions(device) {
+  if (!device || state.mode !== "free") return;
+  dismissSuggestions();
+  const compat = DEVICE_COMPAT[device.type] || [];
+  const existing = new Set(state.connections.filter(c => c.from === device.id || c.to === device.id).map(c => c.from === device.id ? c.to : c.from));
+  const suggestions = [];
+  compat.forEach(rule => {
+    state.devices.forEach(otherDevice => {
+      if (otherDevice.id !== device.id && !existing.has(otherDevice.id) && rule.targets.includes(otherDevice.type)) suggestions.push({ device: otherDevice, conn: rule.conn });
+    });
+  });
+  if (!suggestions.length) return;
+  const banner = document.createElement("div"); banner.className = "sbx-suggest-banner"; banner.id = "sbxSuggestBanner";
+  banner.innerHTML = `<span class="sbx-suggest-label"><i class="bi bi-lightbulb me-1"></i>Suggested connections for <strong>${device.name}</strong>:</span>`;
+  const row = makeEl("div","sbx-suggest-row");
+  suggestions.slice(0,4).forEach(suggestion => {
+    const chip = makeEl("button","sbx-suggest-chip",`${suggestion.device.name} (${CONNECTION_TYPES[suggestion.conn]?.label||suggestion.conn})`);
+    chip.addEventListener("click", () => { state.connectType = suggestion.conn; createConnection(device.id, suggestion.device.id); dismissSuggestions(); });
+    row.appendChild(chip);
+  });
+  const close = makeEl("button","sbx-suggest-close","×"); close.addEventListener("click", dismissSuggestions);
+  banner.append(row, close);
+  stageEl?.insertBefore(banner, stageEl.firstChild);
+  suggestionsHideTimer = setTimeout(dismissSuggestions, 12000);
+}
+
+function dismissSuggestions() { clearTimeout(suggestionsHideTimer); suggestionsHideTimer = null; getById("sbxSuggestBanner")?.remove(); }
+
+/* ================================================================
+   SECTION 5 — TUTORIAL CAROUSEL
+   ================================================================ */
+function getAvailableTutorials() { return (window.courseContent || []).flatMap(c => (c.modules || []).flatMap(m => (m.lessons || []).filter(l => l.type === "sandbox" && l.tutorial).map(l => ({ courseId: c.id, courseTitle: c.title, moduleId: m.id, moduleTitle: m.title, lessonId: l.id, title: l.title, description: l.description || "", tutorial: l.tutorial })))); }
+
+function updateTutorialToggleButton() { if (tutorialsToggleBtn) tutorialsToggleBtn.style.display = getAvailableTutorials().length ? "" : "none"; if (tutorialsToggleLabel) tutorialsToggleLabel.textContent = tutorialCarouselState.hidden ? "Show Tutorials" : "Hide Tutorials"; }
+
+function setTutorialCarouselHidden(h) { tutorialCarouselState.hidden = h; localStorage.setItem(TUTORIAL_CAROUSEL_HIDDEN_KEY, h?"1":"0"); updateTutorialToggleButton(); renderTutorialCarousel(); }
+
+function ensureTutorialCarouselControls() {
+  topCarouselPrevBtn?.addEventListener("click", () => setTutorialCarouselIndex(tutorialCarouselState.index - 1));
+  topCarouselNextBtn?.addEventListener("click", () => setTutorialCarouselIndex(tutorialCarouselState.index + 1));
+  tutorialsToggleBtn?.addEventListener("click", () => setTutorialCarouselHidden(!tutorialCarouselState.hidden));
+}
+
+function setTutorialCarouselIndex(i) {
+  const tuts = getAvailableTutorials(); if (!tuts.length) return;
+  tutorialCarouselState.index = ((i % tuts.length) + tuts.length) % tuts.length;
+  renderTutorialCarousel();
+}
+
+function renderTutorialCarousel() {
+  if (!topCarouselWrap) return;
+  const tuts = getAvailableTutorials();
+  if (!tuts.length || tutorialCarouselState.hidden || state.mode !== "free") { topCarouselWrap.style.display = "none"; return; }
+  topCarouselWrap.style.display = ""; tutorialCarouselState.count = tuts.length;
+  if (tutorialCarouselState.index >= tuts.length) tutorialCarouselState.index = 0;
+  if (!topCarouselScroll) return; clearChildren(topCarouselScroll);
+
+  tuts.forEach((tutorial, index) => {
+    const card = makeEl("div", "sbx-carousel-card"); card.dataset.index = index;
+    const badge = makeEl("span", "sbx-carousel-badge", tutorial.courseTitle);
+    const title = makeEl("div", "sbx-carousel-title", tutorial.title);
+    const desc = makeEl("div", "sbx-carousel-desc", tutorial.description || tutorial.moduleTitle || "");
+    const btn = makeEl("button", "btn btn-sm btn-teal sbx-carousel-launch", "Launch");
+    btn.addEventListener("click", () => launchCourseTutorial(tutorial));
+    card.append(badge, title, desc, btn); topCarouselScroll.appendChild(card);
+  });
+
+  const cardWidth = 260 + 16; // card width + gap
+  topCarouselScroll.scrollTo({ left: tutorialCarouselState.index * cardWidth, behavior: "smooth" });
+
+  if (topCarouselDots) {
+    clearChildren(topCarouselDots);
+    tuts.forEach((_, dotIndex) => { const dot = makeEl("button", `sbx-carousel-dot${dotIndex===tutorialCarouselState.index?" is-active":""}`, ""); dot.addEventListener("click", () => setTutorialCarouselIndex(dotIndex)); topCarouselDots.appendChild(dot); });
+  }
+}
+
+function launchCourseTutorial(t) {
+  const steps = normalizeTutorialSteps(t.tutorial?.steps || t.tutorial || []);
+  state.mode = "tutorial";
+  state.tutorialMeta = { courseId: t.courseId, moduleId: t.moduleId, lessonId: t.lessonId, title: t.title, steps, currentStep: 0 };
+  state.devices = []; state.connections = []; state.selectedIds = []; state.objectiveStatus = {};
+  applyAutoNetworkDefaults(); pushHistory(); renderAll(); renderTutorialCarousel();
+  updateTutorialGuidance(); setRightTab("objectives"); showRightPanel();
+  showToast({ title: "Tutorial started", message: `${t.title}`, variant: "success", timeout: 3000 });
+}
+
+/* ================================================================
+   SECTION 6 — IDLE GUIDANCE
+   ================================================================ */
+let idleTimer = null;
+function resetIdleTimer() { clearTimeout(idleTimer); if (state.mode === "free") idleTimer = setTimeout(showIdleGuidance, 60000); }
+
+function showIdleGuidance() {
+  if (state.mode !== "free" || state.devices.length > 0) return;
+  showIdleBanner("Need a starting point? Try a guided tutorial from the carousel above, or drag a device from the library!");
+}
+
+function showIdleBanner(msg) {
+  hideIdleBanner();
+  const banner = makeEl("div","sbx-idle-banner"); banner.id = "sbxIdleBanner";
+  banner.innerHTML = `<i class="bi bi-lightbulb me-2"></i><span>${msg}</span>`;
+  const close = makeEl("button","sbx-idle-close","×"); close.addEventListener("click", hideIdleBanner); banner.appendChild(close);
+  stageEl?.insertBefore(banner, stageEl.firstChild);
+}
+
+function hideIdleBanner() { getById("sbxIdleBanner")?.remove(); }
+
+/* ================================================================
+   SECTION 7 — GUIDED HIGHLIGHTS
+   ================================================================ */
+function clearGuidedHighlights() { qsa(".sbx-guided-highlight").forEach(el => el.classList.remove("sbx-guided-highlight")); }
+
+function addGuided(selector) { const el = typeof selector === "string" ? qs(selector) : selector; if (el) el.classList.add("sbx-guided-highlight"); }
+
+function deriveFocusFromChecks(checks) {
+  if (!Array.isArray(checks)) return [];
+  const hints = [];
+  checks.forEach(check => {
+    if (!check) return;
+    const checkType = check.type || check.check || "";
+    if (checkType === "device_count" || checkType === "has_device") hints.push(".sbx-device-library");
+    if (checkType === "connection_count" || checkType === "has_connection") hints.push('[data-tool="connect"]');
+    if (checkType === "device_configured" || checkType === "ip_assigned") hints.push(".sbx-device.is-selected");
+    if (checkType === "ping_success") hints.push("#pingBtn");
+  });
+  return hints;
+}
+
+function applyTutorialFocus(step) {
+  clearGuidedHighlights(); if (!step) return;
+  deriveFocusFromChecks(step.checks).forEach(sel => addGuided(sel));
+}
+
+/* ================================================================
+   SECTION 8 — TUTORIAL EVALUATION
+   ================================================================ */
+function normalizeTutorialProgress(meta) {
+  if (!meta?.steps) return {};
+  const prog = loadTutorialProgress();
+  meta.steps.forEach(step => { if (!prog[step.id]) prog[step.id] = { done: false }; });
+  return prog;
+}
+
+function evaluateRequirement(req) {
+  if (!req) return false;
+  const checkType = req.type || req.check || "";
+  if (checkType === "device_count") return state.devices.length >= (req.min || req.count || 1);
+  if (checkType === "has_device") return state.devices.some(d => d.type === req.deviceType);
+  if (checkType === "connection_count") return state.connections.length >= (req.min || req.count || 1);
+  if (checkType === "has_connection") return state.connections.some(conn => { const types = req.between || []; if (!types.length) return true; const fromDevice = findDevice(conn.from), toDevice = findDevice(conn.to); return types.includes(fromDevice?.type) && types.includes(toDevice?.type); });
+  if (checkType === "device_configured" || checkType === "ip_assigned") return state.devices.some(d => (req.deviceType ? d.type === req.deviceType : true) && d.config?.ipAddress);
+  if (checkType === "ping_success") return !!state.pingInspector?.success;
+  if (checkType === "all_configured") return state.devices.length > 0 && state.devices.every(d => d.config?.ipAddress);
+  if (checkType === "min_device_types") { const types = new Set(state.devices.map(d => d.type)); return types.size >= (req.min || 2); }
+  return false;
+}
+
+function evaluateTutorialStep(step) { if (!step?.checks?.length) return true; return step.checks.every(evaluateRequirement); }
+
+function completeTutorialStep(step, prog) {
+  if (!step || prog[step.id]?.done) return false;
+  prog[step.id] = { done: true, completedAt: Date.now() };
+  saveTutorialProgress(prog);
+  showToast({ title: "Step complete!", message: step.title, variant: "success", timeout: 2500 });
+  return true;
+}
+
+function updateTutorialGuidance() {
+  if (state.mode !== "tutorial" || !state.tutorialMeta?.steps?.length) return;
+  const meta = state.tutorialMeta, steps = meta.steps, prog = normalizeTutorialProgress(meta);
+  let nextIdx = steps.findIndex(step => !prog[step.id]?.done);
+  if (nextIdx === -1) {
+    // All steps done
+    showToast({ title: "Tutorial complete!", message: `You finished "${meta.title}"!`, variant: "success", timeout: 4000 });
+    clearGuidedHighlights();
+    logProgressEvent("tutorial_complete", { courseId: meta.courseId, moduleId: meta.moduleId, lessonId: meta.lessonId });
+    return;
+  }
+  meta.currentStep = nextIdx;
+  const step = steps[nextIdx];
+  applyTutorialFocus(step);
+  if (step.hint) { const guide = { title: step.title, body: step.hint || step.description, x: 320, y: 80, arrow: "top", stepIndex: nextIdx, stepTotal: steps.length }; if (nextIdx > 0) guide.onPrev = () => { meta.currentStep = Math.max(0, nextIdx-1); updateTutorialGuidance(); }; showGuide(guide); }
+  renderObjectives();
+}
+
+function notifyTutorialProgress() {
+  if (state.mode === "tutorial" && state.tutorialMeta?.steps?.length) {
+    const meta = state.tutorialMeta, prog = normalizeTutorialProgress(meta);
+    meta.steps.forEach(step => { if (!prog[step.id]?.done && evaluateTutorialStep(step)) completeTutorialStep(step, prog); });
+    updateTutorialGuidance();
+  }
+  if (state.mode === "challenge") { validateChallenge(); }
+}
+
+/* ================================================================
+   SECTION 9 — CHALLENGE PROGRESS
+   ================================================================ */
+function buildChallengeProgress() {
+  if (!state.challengeMeta?.requirements) return { total: 0, done: 0, pct: 0 };
+  const reqs = state.challengeMeta.requirements;
+  const done = reqs.filter(requirement => evaluateRequirement(requirement)).length;
+  reqs.forEach(requirement => { state.objectiveStatus[requirement.id] = evaluateRequirement(requirement); });
+  return { total: reqs.length, done, pct: reqs.length ? Math.round(done / reqs.length * 100) : 0 };
+}
+
+/* ================================================================
+   SECTION 10 — XP SYSTEM
+   ================================================================ */
+function totalXpForLevel(level) { return level <= 0 ? 0 : 100 + (level - 1) * 50; }
+function levelFromTotalXp(xp) { let level = 1, runningTotal = 0; while (runningTotal + totalXpForLevel(level) <= xp) { runningTotal += totalXpForLevel(level); level++; } return { level, xpInLevel: xp - runningTotal, xpNeeded: totalXpForLevel(level) }; }
+function rankForLevel(level) { if (level >= 20) return "Network Architect"; if (level >= 15) return "Senior Engineer"; if (level >= 10) return "Network Engineer"; if (level >= 5) return "Technician"; return "Novice"; }
+
+function resolveXpProgress(user) {
+  const xp = Number(user?.xp ?? user?.total_xp ?? 0);
+  const info = levelFromTotalXp(xp);
+  return { totalXp: xp, level: info.level, xpInLevel: info.xpInLevel, xpNeeded: info.xpNeeded, rank: rankForLevel(info.level), pct: info.xpNeeded ? Math.round(info.xpInLevel / info.xpNeeded * 100) : 0 };
+}
+
+function applyXpToUser(user, amount) {
+  if (!user || !amount) return user;
+  const oldXp = Number(user.xp ?? user.total_xp ?? 0);
+  const newXp = oldXp + amount;
+  if (user.xp !== undefined) user.xp = newXp; else user.total_xp = newXp;
+  return user;
+}
+
+function updateUserStorage(user) { if (!user) return; const storageKey = localStorage.getItem("netology_user") ? "netology_user" : "user"; localStorage.setItem(storageKey, JSON.stringify(user)); }
+
+async function bumpUserXP(amount, reason = "") {
+  const user = getLoggedInUser(); if (!user?.email) return;
+  applyXpToUser(user, amount); updateUserStorage(user);
+  showToast({ title: `+${amount} XP`, message: reason || "Experience gained!", variant: "success", timeout: 2800 });
+  try { if (XP?.awardXP) await XP.awardXP(user.email, amount, reason); } catch (e) { console.warn("XP server sync failed:", e); }
+}
+
+/* ================================================================
+   SECTION 11 — PROGRESS LOGGING
+   ================================================================ */
+function logProgressEvent(event, data = {}) {
+  const user = getLoggedInUser(); if (!user?.email) return;
+  const payload = { email: user.email, event, timestamp: Date.now(), ...data };
+  try { if (window.NetologyProgress?.logEvent) window.NetologyProgress.logEvent(payload); } catch {}
+}
+
+async function markChallengeCompletion(meta) {
+  if (!meta) return;
+  logProgressEvent("challenge_complete", { courseId: meta.courseId, moduleId: meta.moduleId, lessonId: meta.lessonId, challengeId: meta.challengeId || meta.lessonId });
+  const xp = meta.xpReward || 50;
+  await bumpUserXP(xp, `Completed challenge: ${meta.title || "Challenge"}`);
+}
+
+/* ================================================================
+   SECTION 12 — LESSON SESSION (DB SAVE/LOAD)
+   ================================================================ */
+const lessonSession = { courseId: null, moduleId: null, lessonId: null, saving: false, dirty: false };
+let autoSaveTimer = null;
+
+async function saveLessonSessionToDb() {
+  if (lessonSession.saving || !lessonSession.courseId) return;
+  const user = getLoggedInUser(); if (!user?.email) return;
+  lessonSession.saving = true;
+  try {
+    const ep = ENDPOINTS.sandbox?.saveSession || "/sandbox/save-session";
+    await fetch(`${API_BASE}${ep}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, courseId: lessonSession.courseId, moduleId: lessonSession.moduleId, lessonId: lessonSession.lessonId, devices: state.devices, connections: state.connections, progress: loadTutorialProgress(), timestamp: Date.now() }) });
+    lessonSession.dirty = false;
+  } catch (e) { console.warn("Session save failed:", e); }
+  finally { lessonSession.saving = false; }
+}
+
+function scheduleAutoSave() { clearTimeout(autoSaveTimer); autoSaveTimer = setTimeout(saveLessonSessionToDb, 15000); }
+function markDirtyAndSaveSoon() { lessonSession.dirty = true; scheduleAutoSave(); }
+
+async function loadLessonSessionFromDb() {
+  if (!lessonSession.courseId) return false;
+  const user = getLoggedInUser(); if (!user?.email) return false;
+  try {
+    const ep = ENDPOINTS.sandbox?.loadSession || "/sandbox/load-session";
+    const data = await apiGet(ep, { email: user.email, courseId: lessonSession.courseId, moduleId: lessonSession.moduleId, lessonId: lessonSession.lessonId });
+    if (data?.devices?.length) { replaceTopology(data.devices, data.connections || []); pushHistory(); renderAll(); return true; }
+  } catch (e) { console.warn("Session load failed:", e); }
+  return false;
+}
+
+/* ================================================================
+   SECTION 13 — CHROME / NAV
+   ================================================================ */
+function getLoggedInUser() { return getStoredUser(); }
+
+function buildReturnToModuleUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const courseId = params.get("courseId"), moduleId = params.get("moduleId");
+  if (courseId) return `course.html?id=${encodeURIComponent(courseId)}${moduleId ? `&module=${encodeURIComponent(moduleId)}` : ""}`;
+  return "courses.html";
+}
+
+async function refreshUserFromServer() {
+  const user = getLoggedInUser(); if (!user?.email) return;
+  try {
+    const ep = ENDPOINTS.user?.profile || "/user/profile";
+    const data = await apiGet(ep, { email: user.email });
+    if (data && !data.error) { updateUserStorage(data); fillIdentity(); }
+  } catch {}
+}
+
+function initChrome() {
+  const user = getLoggedInUser();
+  if (user?.email) wireChrome(); else wireChromeGuest();
+  wireSidebar(); wireBrandRouting();
+}
+
+function wireBrandRouting() {
+  const brand = qs(".navbar-brand, .sbx-brand");
+  if (brand) { brand.style.cursor = "pointer"; brand.addEventListener("click", e => { e.preventDefault(); window.location.href = getLoggedInUser() ? "dashboard.html" : "index.html"; }); }
+}
+
+function wireChromeGuest() {
+  const drop = getById("userDropdown") || getById("navUserDropdown");
+  if (drop) drop.style.display = "none";
+  const loginBtn = getById("navLoginBtn");
+  if (loginBtn) { loginBtn.style.display = ""; loginBtn.addEventListener("click", () => { window.location.href = "login.html"; }); }
+}
+
+function wireChrome() {
+  fillIdentity(); wireUserDropdown();
+  const loginBtn = getById("navLoginBtn"); if (loginBtn) loginBtn.style.display = "none";
+}
+
+function wireSidebar() {
+  const returnBtn = getById("sbxReturnBtn") || getById("sidebarReturnBtn");
+  if (returnBtn) returnBtn.addEventListener("click", () => { window.location.href = buildReturnToModuleUrl(); });
+}
+
+function wireUserDropdown() {
+  const toggle = getById("userDropdownToggle") || getById("navUserToggle");
+  const menu = getById("userDropdownMenu") || getById("navUserMenu");
+  if (toggle && menu) {
+    toggle.addEventListener("click", e => { e.stopPropagation(); toggleDropdown(menu); });
+    document.addEventListener("click", e => { if (!menu.contains(e.target) && e.target !== toggle) menu.classList.remove("is-open"); });
+  }
+  const logoutBtn = getById("logoutBtn") || qs("[data-action='logout']");
+  if (logoutBtn) logoutBtn.addEventListener("click", logout);
+}
+
+function toggleDropdown(menu) { if (menu) menu.classList.toggle("is-open"); }
+
+function fillIdentity() {
+  const user = getLoggedInUser(); if (!user) return;
+  setText("navUserName", user.first_name || user.name || user.email || "");
+  setText("navUserEmail", user.email || "");
+  const avatar = getById("navUserAvatar");
+  if (avatar) { const initials = ((user.first_name || "")[0] || "") + ((user.last_name || "")[0] || ""); avatar.textContent = initials.toUpperCase() || "U"; }
+  const xpInfo = resolveXpProgress(user);
+  setText("navUserLevel", `Level ${xpInfo.level}`);
+  setText("navUserRank", xpInfo.rank);
+  const bar = getById("navUserXpBar"); if (bar) bar.style.width = `${xpInfo.pct}%`;
+}
+
+function logout() { localStorage.removeItem("netology_user"); localStorage.removeItem("user"); window.location.href = "login.html"; }
+
+/* ================================================================
+   SECTION 14 — CHALLENGE VALIDATION & OVERLAY
+   ================================================================ */
+function showChallengeCompleteOverlay() {
+  const modal = getById("challengeCompleteModal");
+  if (modal) new bootstrap.Modal(modal).show();
+  else showToast({ title: "Challenge Complete!", message: "Great work!", variant: "success", timeout: 5000 });
+}
+
+function validateChallenge({ showPartialProgress = false } = {}) {
+  if (state.mode !== "challenge" || !state.challengeMeta) return;
+  const prog = buildChallengeProgress();
+  renderObjectives();
+  if (prog.pct >= 100) { showChallengeCompleteOverlay(); markChallengeCompletion(state.challengeMeta); }
+  else if (showPartialProgress) showToast({ title: `${prog.pct}% complete`, message: `${prog.done}/${prog.total} requirements met.`, variant: "info", timeout: 3000 });
+}
+
+/* ================================================================
+   SECTION 15 — INIT FUNCTIONS
+   ================================================================ */
+function initChallenge(meta) {
+  if (!meta) return;
+  state.mode = "challenge"; state.challengeMeta = meta;
+  state.devices = []; state.connections = []; state.selectedIds = []; state.objectiveStatus = {};
+  if (meta.preload?.devices) { replaceTopology(meta.preload.devices, meta.preload.connections || []); }
+  lessonSession.courseId = meta.courseId; lessonSession.moduleId = meta.moduleId; lessonSession.lessonId = meta.lessonId;
+  pushHistory(); renderAll(); renderObjectives(); setRightTab("objectives"); showRightPanel();
+  showToast({ title: "Challenge loaded", message: meta.title || "Complete the objectives.", variant: "info", timeout: 3500 });
+  const validateBtn = getById("validateChallengeBtn");
+  if (validateBtn) validateBtn.addEventListener("click", () => validateChallenge({ showPartialProgress: true }));
+}
+
+function initTutorial(meta) {
+  if (!meta) return;
+  const steps = normalizeTutorialSteps(meta.steps || meta.tutorial?.steps || []);
+  state.mode = "tutorial";
+  state.tutorialMeta = { courseId: meta.courseId, moduleId: meta.moduleId, lessonId: meta.lessonId, title: meta.title || "Tutorial", steps, currentStep: 0 };
+  state.devices = []; state.connections = []; state.selectedIds = []; state.objectiveStatus = {};
+  if (meta.preload?.devices) { replaceTopology(meta.preload.devices, meta.preload.connections || []); }
+  lessonSession.courseId = meta.courseId; lessonSession.moduleId = meta.moduleId; lessonSession.lessonId = meta.lessonId;
+  pushHistory(); renderAll(); updateTutorialGuidance(); setRightTab("objectives"); showRightPanel();
+  showToast({ title: "Tutorial started", message: meta.title || "Follow the steps.", variant: "success", timeout: 3000 });
+}
+
+/* ================================================================
+   SECTION 16 — MAIN BOOTSTRAP (init)
+   ================================================================ */
+(function init() {
+  // Chrome / navbar
+  initChrome();
+
+  // Canvas
+  applyCanvasWorldSize(); resetViewport();
+
+  // Event binding
+  bindTooltips(); bindLibraryDrag(); bindToolbar(); bindPanels(); bindStage();
+  bindKeyboardShortcuts(); bindMouseWheelZoom(); bindContextMenu(); bindDeviceContextMenu();
+  patchMultiSelect(); bindDeviceFilter(); bindDeviceGroupCollapse();
+
+  // Console
+  loadConsoleHistory(); registerConsoleApi();
+  if (window.sandboxConsole?.showWelcome) window.sandboxConsole.showWelcome();
+
+  // Terminal
+  initTerminalWindowControls();
+
+  // Tutorial carousel
+  ensureTutorialCarouselControls(); renderTutorialCarousel(); updateTutorialToggleButton();
+
+  // Idle timer
+  resetIdleTimer();
+  ["click","keydown","pointerdown"].forEach(e => document.addEventListener(e, resetIdleTimer, { passive: true }));
+
+  // Startup history snapshot
+  pushHistory(); renderAll(); updateGrid();
+
+  // Check for lesson context from URL params
+  const params = new URLSearchParams(window.location.search);
+  const courseId = params.get("courseId"), moduleId = params.get("moduleId"), lessonId = params.get("lessonId"), mode = params.get("mode");
+
+  if (courseId && lessonId) {
+    lessonSession.courseId = courseId; lessonSession.moduleId = moduleId; lessonSession.lessonId = lessonId;
+    loadLessonSessionFromDb().then(loaded => {
+      if (loaded) return;
+      const course = (window.courseContent || []).find(c => c.id === courseId);
+      const lesson = course?.modules?.find(m => m.id === moduleId)?.lessons?.find(l => l.id === lessonId);
+      if (mode === "challenge" && lesson?.challenge) initChallenge({ ...lesson.challenge, courseId, moduleId, lessonId, title: lesson.title });
+      else if (mode === "tutorial" && lesson?.tutorial) initTutorial({ ...lesson, courseId, moduleId });
+    });
+  }
+
+  // Refresh user info in background
+  refreshUserFromServer();
+})();
