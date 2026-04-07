@@ -77,6 +77,13 @@ function renderTopologyPreview(container) {
   container.appendChild(svgElement);
 }
 
+// Open the ping modal with the currently selected device as source
+function openPingModal() {
+  updatePingOverview();
+  var modal = new bootstrap.Modal(getById("pingModal"));
+  modal.show();
+}
+
 // Update the ping overview section in the ping modal
 function updatePingOverview() {
   var sourceDevice = getSelectedDevice();
@@ -118,18 +125,6 @@ function updateEmptyState() {
     emptyState.style.display = "";
   } else {
     emptyState.style.display = "none";
-  }
-}
-
-// Show or hide ping-related buttons based on whether a device is selected
-function updatePingVisibility() {
-  var pingButton = getById("pingBtn");
-  if (pingButton) {
-    if (state.selectedIds.length === 1) {
-      pingButton.style.display = "";
-    } else {
-      pingButton.style.display = "none";
-    }
   }
 }
 
@@ -1193,7 +1188,6 @@ function renderAll() {
   renderObjects();
   renderInspectActions();
   renderProps();
-  updatePingVisibility();
   updateDeviceCountBadges();
   updateStatsBar();
   updateDeviceStatusIndicators();
@@ -1806,21 +1800,26 @@ function executeCommand(commandText) {
   var args = parts.slice(1);
 
   if (command === "help") {
-    addConsoleOutput("Available commands: " + CONSOLE_COMMANDS.join(", "), "");
-    addConsoleOutput("  ping &lt;source&gt; &lt;destination&gt; - Test connectivity", "");
-    addConsoleOutput("  traceroute &lt;source&gt; &lt;destination&gt; - Show route", "");
-    addConsoleOutput("  ipconfig &lt;device&gt; - Show IP configuration", "");
-    addConsoleOutput("  configure &lt;device&gt; ip &lt;address&gt; - Set IP address", "");
-    addConsoleOutput("  dhcp &lt;device&gt; - Request DHCP address", "");
-    addConsoleOutput("  arp &lt;device&gt; - Show ARP table", "");
-    addConsoleOutput("  explain - Explain the current topology", "");
-    addConsoleOutput("  devices - List all devices", "");
-    addConsoleOutput("  connections - List all connections", "");
-    addConsoleOutput("  status - Show network status", "");
-    addConsoleOutput("  show mac|routes|dhcp|dns &lt;device&gt; - Show table info", "");
-    addConsoleOutput("  clear - Clear console", "");
-    addConsoleOutput("  save - Save topology", "");
-    addConsoleOutput("  reset - Clear workspace", "");
+    addConsoleOutput("Available commands:", "");
+    addConsoleOutput("  <strong>ping</strong> &lt;destination&gt;              — ping from your selected device", "");
+    addConsoleOutput("  <strong>ping</strong> &lt;source&gt; &lt;destination&gt;    — ping between any two devices", "");
+    addConsoleOutput("  Use device names or IP addresses, e.g:", "");
+    addConsoleOutput("    ping Router-1", "");
+    addConsoleOutput("    ping PC-1 Router-1", "");
+    addConsoleOutput("    ping 192.168.1.10 192.168.1.1", "");
+    addConsoleOutput("  <strong>traceroute</strong> &lt;destination&gt;          — trace route from selected device", "");
+    addConsoleOutput("  <strong>traceroute</strong> &lt;source&gt; &lt;destination&gt; — trace route between two devices", "");
+    addConsoleOutput("  <strong>ipconfig</strong> &lt;device&gt;                — show IP config for a device", "");
+    addConsoleOutput("  <strong>configure</strong> &lt;device&gt; ip &lt;address&gt;  — set IP address", "");
+    addConsoleOutput("  <strong>configure</strong> &lt;device&gt; gateway &lt;ip&gt;  — set default gateway", "");
+    addConsoleOutput("  <strong>dhcp</strong> &lt;device&gt;                    — request a DHCP address", "");
+    addConsoleOutput("  <strong>arp</strong> &lt;device&gt;                     — show ARP table", "");
+    addConsoleOutput("  <strong>devices</strong>                          — list all devices on canvas", "");
+    addConsoleOutput("  <strong>connections</strong>                      — list all connections", "");
+    addConsoleOutput("  <strong>status</strong>                           — show network summary", "");
+    addConsoleOutput("  <strong>explain</strong>                          — describe the current topology", "");
+    addConsoleOutput("  <strong>show</strong> mac|routes|dhcp|dns &lt;device&gt; — show device tables", "");
+    addConsoleOutput("  <strong>save</strong>  — save topology  |  <strong>reset</strong> — clear workspace  |  <strong>clear</strong> — clear console", "");
     return;
   }
 
@@ -1883,16 +1882,15 @@ function executeCommand(commandText) {
   }
 
   if (command === "ping") {
-    var endpoints = resolveCommandEndpoints(args[0], args[1] || args[0]);
-    if (args.length === 1) {
-      endpoints = resolveCommandEndpoints(null, args[0]);
-    }
+    var endpoints = args.length >= 2
+      ? resolveCommandEndpoints(args[0], args[1])
+      : resolveCommandEndpoints(null, args[0]);
     if (!endpoints.source) {
-      addConsoleOutput('<span class="text-danger">Source device not found. Select a device or specify: ping &lt;source&gt; &lt;dest&gt;</span>', "");
+      addConsoleOutput('<span class="text-danger">No source device. Click a device to select it, or use: ping &lt;source&gt; &lt;destination&gt;</span>', "");
       return;
     }
     if (!endpoints.destination) {
-      addConsoleOutput('<span class="text-danger">Destination device not found.</span>', "");
+      addConsoleOutput('<span class="text-danger">Destination device not found. Use a device name or IP address.</span>', "");
       return;
     }
     var pingResult = executePing(endpoints.source, endpoints.destination);
@@ -1911,12 +1909,11 @@ function executeCommand(commandText) {
   }
 
   if (command === "traceroute") {
-    var traceEndpoints = resolveCommandEndpoints(args[0], args[1] || args[0]);
-    if (args.length === 1) {
-      traceEndpoints = resolveCommandEndpoints(null, args[0]);
-    }
+    var traceEndpoints = args.length >= 2
+      ? resolveCommandEndpoints(args[0], args[1])
+      : resolveCommandEndpoints(null, args[0]);
     if (!traceEndpoints.source || !traceEndpoints.destination) {
-      addConsoleOutput('<span class="text-danger">Specify source and destination.</span>', "");
+      addConsoleOutput('<span class="text-danger">No source device. Click a device to select it, or use: traceroute &lt;source&gt; &lt;destination&gt;</span>', "");
       return;
     }
     var path = findPath(traceEndpoints.source.id, traceEndpoints.destination.id);
@@ -2370,16 +2367,8 @@ function bindToolbar() {
     saveConfirmButton.addEventListener("click", confirmSaveTopology);
   }
 
-  // Ping button and modal
-  var pingButton = getById("pingBtn");
+  // Ping modal
   var runPingButton = getById("runPingBtn");
-  if (pingButton) {
-    pingButton.addEventListener("click", function () {
-      updatePingOverview();
-      var modal = new bootstrap.Modal(getById("pingModal"));
-      modal.show();
-    });
-  }
   if (runPingButton) {
     runPingButton.addEventListener("click", function () {
       var sourceDevice = getSelectedDevice();
@@ -2418,10 +2407,7 @@ function bindToolbar() {
   // Inspect action buttons
   var inspPingButton = getById("inspActPing");
   if (inspPingButton) {
-    inspPingButton.addEventListener("click", function () {
-      var pingBtn = getById("pingBtn");
-      if (pingBtn) { pingBtn.click(); }
-    });
+    inspPingButton.addEventListener("click", openPingModal);
   }
 
   var inspShowIpButton = getById("inspActShowIp");
@@ -2815,7 +2801,6 @@ function bindStage() {
         state.selectedIds = [deviceId];
         renderDevices();
         renderProps();
-        updatePingVisibility();
 
         var freshElement = deviceLayer.querySelector('[data-id="' + deviceId + '"]');
         if (!freshElement) {
@@ -3159,7 +3144,8 @@ function ensureContextMenu() {
       duplicateSelected();
     } else if (action === "ping") {
       state.selectedIds = [deviceId];
-      getById("pingBtn")?.click();
+      renderAll();
+      openPingModal();
     } else if (action === "interfaces") {
       state.selectedIds = [deviceId];
       state.configTab = "interfaces";

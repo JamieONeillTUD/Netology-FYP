@@ -50,7 +50,7 @@ Notes:
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
 
   <!-- Slide Sidebar -->
-  <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
+  <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true" inert>
     <div class="net-sidehead">
       <div class="d-flex align-items-center justify-content-between gap-2">
         <a href="dashboard.html" class="net-brandchip" id="sideBrand" aria-label="Netology home">
@@ -133,7 +133,7 @@ Notes:
         <div class="net-topnav-center">
           <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
-            <h2 class="net-brand-text">Netology</h2>
+            <span class="net-brand-text">Netology</span>
           </a>
         </div>
 
@@ -163,10 +163,10 @@ Notes:
                   <span class="badge text-bg-light border" id="ddRank">Novice</span>
                 </div>
               </div>
-              <a href="account.html"><i class="bi bi-person-circle"></i> My Account</a>
-              <a href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
-              <div class="net-ddsep"></div>
-              <button class="danger" id="topLogoutBtn" type="button">
+              <a href="account.html" role="menuitem"><i class="bi bi-person-circle"></i> My Account</a>
+              <a href="account.html#preferences" role="menuitem"><i class="bi bi-gear"></i> Settings</a>
+              <div class="net-ddsep" role="separator"></div>
+              <button class="danger" role="menuitem" id="topLogoutBtn" type="button">
                 <i class="bi bi-box-arrow-right"></i> Logout
               </button>
             </div>
@@ -214,7 +214,7 @@ Notes:
 
     <!-- FOCUS AREAS -->
     <div class="mb-3">
-      <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Your Focus</h5>
+      <h2 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Your Focus</h2>
     </div>
     <!-- STATS ROW -->
     <div class="row g-3 mb-4">
@@ -359,7 +359,7 @@ Notes:
         <!-- CONTINUE LEARNING -->
         <section class="dash-card net-card net-pop p-4 mb-4" data-tour="courses-section">
           <div class="d-flex align-items-center justify-content-between mb-3">
-            <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Continue Learning</h5>
+            <h2 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Continue Learning</h2>
             <a href="courses.html" class="text-decoration-none small fw-bold net-link-hover">View All</a>
           </div>
           <div class="text-muted small mb-3" id="continueSubtitle">Pick up where you left off.</div>
@@ -373,7 +373,7 @@ Notes:
 
         <section class="dash-card net-card net-pop p-4 mb-4" data-tour="achievements-section">
           <div class="d-flex align-items-center justify-content-between mb-3">
-            <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Achievements</h5>
+            <h2 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Achievements</h2>
             <span class="small text-muted">Next up</span>
           </div>
           <div class="dash-achieve">
@@ -389,29 +389,29 @@ Notes:
       <aside class="dash-side">
         <section class="dash-card net-card net-pop p-4 mb-4" data-tour="challenges-section">
           <div class="d-flex align-items-center justify-content-between mb-3">
-            <h5 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Focus</h5>
+            <h2 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Focus</h2>
             <button class="btn btn-outline-secondary btn-sm d-none" id="challengesRetryBtn" type="button">
               <i class="bi bi-arrow-clockwise me-1"></i>Retry
             </button>
           </div>
           <div class="dash-toggle" role="tablist" aria-label="Weekly goals and achievements">
-            <button class="dash-toggle-btn is-active" type="button" data-panel="dailyPanel">
+            <button class="dash-toggle-btn is-active" type="button" role="tab" id="dailyTab" aria-selected="true" aria-controls="dailyPanel" data-panel="dailyPanel">
               <span class="dash-toggle-dot"></span>
               DAILY
             </button>
-            <button class="dash-toggle-btn" type="button" data-panel="weeklyPanel">
+            <button class="dash-toggle-btn" type="button" role="tab" id="weeklyTab" aria-selected="false" aria-controls="weeklyPanel" data-panel="weeklyPanel">
               <span class="dash-toggle-dot"></span>
               WEEKLY
             </button>
           </div>
 
-          <div id="dailyPanel" class="dash-panel is-active">
+          <div id="dailyPanel" class="dash-panel is-active" role="tabpanel" aria-labelledby="dailyTab">
             <div class="dash-tasklist" id="dailyTasks">
               <div class="small text-muted">Loading daily focus…</div>
             </div>
           </div>
 
-            <div id="weeklyPanel" class="dash-panel" hidden>
+            <div id="weeklyPanel" class="dash-panel" role="tabpanel" aria-labelledby="weeklyTab" hidden>
             <div class="dash-tasklist" id="weeklyTasks">
               <div class="small text-muted">Loading weekly challenges…</div>
             </div>

@@ -420,8 +420,8 @@
     var sidebar  = document.getElementById("slideSidebar");
     var backdrop = document.getElementById("sideBackdrop");
     if (!sidebar) return;
-    function open()  { sidebar.classList.add("is-open"); sidebar.setAttribute("aria-hidden","false"); if (backdrop) { backdrop.classList.add("is-open"); backdrop.setAttribute("aria-hidden","false"); } document.body.classList.add("net-noscroll"); }
-    function close() { sidebar.classList.remove("is-open"); sidebar.setAttribute("aria-hidden","true"); if (backdrop) { backdrop.classList.remove("is-open"); backdrop.setAttribute("aria-hidden","true"); } document.body.classList.remove("net-noscroll"); }
+    function open()  { sidebar.classList.add("is-open"); sidebar.setAttribute("aria-hidden","false"); sidebar.removeAttribute("inert"); if (backdrop) { backdrop.classList.add("is-open"); backdrop.setAttribute("aria-hidden","false"); } document.body.classList.add("net-noscroll"); }
+    function close() { sidebar.classList.remove("is-open"); sidebar.setAttribute("aria-hidden","true"); sidebar.setAttribute("inert",""); if (backdrop) { backdrop.classList.remove("is-open"); backdrop.setAttribute("aria-hidden","true"); } document.body.classList.remove("net-noscroll"); }
     if (openBtn)  openBtn.addEventListener("click",  open);
     if (closeBtn) closeBtn.addEventListener("click", close);
     if (backdrop) backdrop.addEventListener("click", close);
