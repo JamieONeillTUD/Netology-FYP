@@ -21,8 +21,6 @@ from db import get_db_connection
 @pytest.fixture
 def clean_db():
     # Delete all test user rows before each integration test.
-    # Only removes emails ending in @test.com — real user data is never touched.
-    # Foreign key cascades automatically clean up related rows (xp_log, user_lessons, etc.).
     conn = get_db_connection()
     conn.autocommit = True
     conn.execute("DELETE FROM users WHERE email LIKE '%@test.com'")

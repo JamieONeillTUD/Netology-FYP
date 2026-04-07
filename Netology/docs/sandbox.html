@@ -139,9 +139,9 @@ Notes:
 
         <!-- Center brand -->
         <div class="net-topnav-center">
-          <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
+          <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home (navigation bar)">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
-            <h2 class="net-brand-text">Netology</h2>
+            <span class="net-brand-text">Netology</span>
           </a>
         </div>
 
@@ -156,7 +156,7 @@ Notes:
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
-            <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
+            <div class="net-dd" id="userDropdown">
               <div class="net-ddhead">
                 <div class="d-flex align-items-center gap-2">
                   <div class="net-avatar-sm" id="ddAvatar" aria-hidden="true">S</div>
@@ -187,6 +187,7 @@ Notes:
 
   <!-- Main -->
   <main class="container-fluid px-3 px-lg-4 py-2 net-sbx">
+    <h1 class="visually-hidden">Network Sandbox</h1>
     <section class="net-card p-4 net-loading-only" aria-label="Loading sandbox">
       <div class="net-skel net-w-60 mb-3"></div>
       <div class="net-skel net-w-90 mb-2"></div>
@@ -253,40 +254,40 @@ Notes:
         </div>
         <div class="sbx-float-sep"></div>
         <div class="sbx-float-group">
-          <button class="sbx-float-btn" id="undoBtn" type="button" data-tooltip="Undo (Ctrl+Z)">
-            <i class="bi bi-arrow-counterclockwise"></i>
+          <button class="sbx-float-btn" id="undoBtn" type="button" data-tooltip="Undo (Ctrl+Z)" aria-label="Undo (Ctrl+Z)">
+            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
           </button>
-          <button class="sbx-float-btn" id="redoBtn" type="button" data-tooltip="Redo (Ctrl+Y)">
-            <i class="bi bi-arrow-clockwise"></i>
-          </button>
-        </div>
-        <div class="sbx-float-sep"></div>
-        <div class="sbx-float-group">
-          <button class="sbx-float-btn" id="autoLayoutBtn" type="button" data-tooltip="Auto-layout">
-            <i class="bi bi-grid-3x3-gap"></i>
-          </button>
-          <button class="sbx-float-btn" id="minimapToggleBtn" type="button" data-tooltip="Minimap">
-            <i class="bi bi-pip"></i>
+          <button class="sbx-float-btn" id="redoBtn" type="button" data-tooltip="Redo (Ctrl+Y)" aria-label="Redo (Ctrl+Y)">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
           </button>
         </div>
         <div class="sbx-float-sep"></div>
         <div class="sbx-float-group">
-          <button class="sbx-float-btn" id="clearBtn" type="button" data-tooltip="Clear workspace">
-            <i class="bi bi-trash3"></i>
+          <button class="sbx-float-btn" id="autoLayoutBtn" type="button" data-tooltip="Auto-layout" aria-label="Auto-layout">
+            <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
           </button>
-          <button class="sbx-float-btn" id="saveBtn" type="button" data-tooltip="Save (Ctrl+S)">
-            <i class="bi bi-floppy"></i>
+          <button class="sbx-float-btn" id="minimapToggleBtn" type="button" data-tooltip="Minimap" aria-label="Toggle minimap">
+            <i class="bi bi-pip" aria-hidden="true"></i>
           </button>
-          <button class="sbx-float-btn" id="loadBtn" type="button" data-tooltip="Load saved topologies">
-            <i class="bi bi-folder2-open"></i>
+        </div>
+        <div class="sbx-float-sep"></div>
+        <div class="sbx-float-group">
+          <button class="sbx-float-btn" id="clearBtn" type="button" data-tooltip="Clear workspace" aria-label="Clear workspace">
+            <i class="bi bi-trash3" aria-hidden="true"></i>
+          </button>
+          <button class="sbx-float-btn" id="saveBtn" type="button" data-tooltip="Save (Ctrl+S)" aria-label="Save topology (Ctrl+S)">
+            <i class="bi bi-floppy" aria-hidden="true"></i>
+          </button>
+          <button class="sbx-float-btn" id="loadBtn" type="button" data-tooltip="Load saved topologies" aria-label="Load saved topologies">
+            <i class="bi bi-folder2-open" aria-hidden="true"></i>
           </button>
         </div>
         <div class="sbx-float-sep"></div>
         <div class="sbx-float-group">
           <div class="sbx-conn-dropdown">
-            <button class="sbx-float-btn" id="templateDropBtn" type="button" data-tooltip="Load a topology template">
-              <i class="bi bi-diagram-3-fill"></i>
-              <i class="bi bi-chevron-down" style="font-size:.55rem;margin-left:2px;"></i>
+            <button class="sbx-float-btn" id="templateDropBtn" type="button" data-tooltip="Load a topology template" aria-label="Load a topology template" aria-haspopup="true" aria-expanded="false">
+              <i class="bi bi-diagram-3-fill" aria-hidden="true"></i>
+              <i class="bi bi-chevron-down" aria-hidden="true" style="font-size:.75rem;margin-left:2px;"></i>
             </button>
             <div class="sbx-conn-dropdown-menu" id="templateMenu">
               <button class="sbx-conn-dropdown-item" data-template="star" type="button">
@@ -306,12 +307,12 @@ Notes:
         </div>
         <div class="sbx-float-sep"></div>
         <div class="sbx-float-group sbx-zoom-group">
-          <button class="sbx-float-btn" id="zoomOutBtn" type="button" data-tooltip="Zoom out (-)">
-            <i class="bi bi-dash-lg"></i>
+          <button class="sbx-float-btn" id="zoomOutBtn" type="button" data-tooltip="Zoom out (-)" aria-label="Zoom out">
+            <i class="bi bi-dash-lg" aria-hidden="true"></i>
           </button>
-          <span class="sbx-zoom-label" id="sbxZoomLabel" data-tooltip="Current zoom level">100%</span>
-          <button class="sbx-float-btn" id="zoomInBtn" type="button" data-tooltip="Zoom in (+)">
-            <i class="bi bi-plus-lg"></i>
+          <span class="sbx-zoom-label" id="sbxZoomLabel" data-tooltip="Current zoom level" aria-label="Current zoom level: 100%">100%</span>
+          <button class="sbx-float-btn" id="zoomInBtn" type="button" data-tooltip="Zoom in (+)" aria-label="Zoom in">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
           </button>
         </div>
       </div>
@@ -324,8 +325,8 @@ Notes:
               <div class="sbx-panel-sub">Drag or click to add devices</div>
             </div>
             <button class="sbx-iconbtn sbx-panel-toggle" id="leftPanelToggle" type="button"
-              data-tooltip="Hide device library">
-              <i class="bi bi-chevron-left"></i>
+              data-tooltip="Hide device library" aria-label="Hide device library">
+              <i class="bi bi-chevron-left" aria-hidden="true"></i>
             </button>
           </div>
           <div class="sbx-panel-body" id="deviceLibrary">
@@ -511,8 +512,8 @@ Notes:
               </button>
             </div>
             <button class="sbx-iconbtn sbx-panel-toggle" id="rightPanelToggle" type="button"
-              data-tooltip="Hide right panel">
-              <i class="bi bi-chevron-right"></i>
+              data-tooltip="Hide right panel" aria-label="Hide inspector panel">
+              <i class="bi bi-chevron-right" aria-hidden="true"></i>
             </button>
           </div>
 
@@ -624,8 +625,8 @@ Notes:
             <!-- Config (hidden tab, shown programmatically) -->
             <div class="sbx-tabpanel" id="panelConfig">
               <div class="sbx-config-header" id="sbxConfigHeader">
-                <button class="sbx-back-btn" id="sbxConfigBackBtn" type="button" data-tooltip="Back to Objects">
-                  <i class="bi bi-arrow-left"></i>
+                <button class="sbx-back-btn" id="sbxConfigBackBtn" type="button" data-tooltip="Back to Objects" aria-label="Back to objects">
+                  <i class="bi bi-arrow-left" aria-hidden="true"></i>
                 </button>
                 <div class="sbx-config-device-name" id="sbxConfigDeviceName">Device</div>
               </div>
@@ -714,7 +715,7 @@ Notes:
       <div class="modal-content sbx-modal">
 
         <div class="modal-header sbx-modal-head-gradient">
-          <h5 class="modal-title"><i class="bi bi-folder2-open"></i> Saved Topologies</h5>
+          <h2 class="modal-title"><i class="bi bi-folder2-open"></i> Saved Topologies</h2>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
             data-tooltip="Close modal"></button>
         </div>
@@ -747,7 +748,7 @@ Notes:
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content sbx-modal">
         <div class="modal-header">
-          <h5 class="modal-title">
+          <h2 class="modal-title">
             <i class="bi bi-floppy2"></i> Save Topology
             <span class="sbx-live-indicator" aria-hidden="true">
               <span class="sbx-live-dot"></span>
@@ -760,7 +761,7 @@ Notes:
         <div class="modal-body">
           <div class="sbx-save-grid">
             <div>
-              <label class="form-label">Topology name</label>
+              <label class="form-label" for="saveTopologyName">Topology name</label>
               <input type="text" id="saveTopologyName" class="form-control" placeholder="e.g., Branch Office v2">
               <div class="sbx-save-summary" id="saveTopologySummary"></div>
             </div>
@@ -787,7 +788,7 @@ Notes:
       <div class="modal-content sbx-modal">
 
         <div class="modal-header sbx-modal-head-gradient">
-          <h5 class="modal-title"><i class="bi bi-broadcast-pin"></i> Ping Device</h5>
+          <h2 class="modal-title"><i class="bi bi-broadcast-pin"></i> Ping Device</h2>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
             data-tooltip="Close modal"></button>
         </div>
@@ -817,7 +818,7 @@ Notes:
             <div class="sbx-ping-route-list" id="pingOverviewRoute">Select a destination to preview the route.</div>
           </div>
 
-          <label class="form-label">Select target device</label>
+          <label class="form-label" for="pingTargetSelect">Select target device</label>
           <select id="pingTargetSelect" class="form-select mb-3"></select>
           <div class="sbx-ping-help mb-3">
             <div><strong>Source:</strong> the currently selected device.</div>
@@ -829,7 +830,7 @@ Notes:
         </div>
 
         <div class="modal-footer">
-          <button id="runPingBtn" class="btn btn-success" data-tooltip="Run the ping test">Test Ping</button>
+          <button id="runPingBtn" class="btn btn-success" type="button" data-tooltip="Run the ping test">Test Ping</button>
           <button class="btn btn-secondary" data-bs-dismiss="modal" data-tooltip="Close modal">Close</button>
         </div>
 
@@ -857,7 +858,7 @@ Notes:
         <a class="sbx-complete-btn sbx-complete-btn--primary" id="sbxCompleteReturn" href="#">
           <i class="bi bi-arrow-left-circle"></i> Return to Module
         </a>
-        <button class="sbx-complete-btn sbx-complete-btn--secondary" id="sbxCompleteClose">
+        <button class="sbx-complete-btn sbx-complete-btn--secondary" id="sbxCompleteClose" type="button">
           Keep Exploring
         </button>
       </div>

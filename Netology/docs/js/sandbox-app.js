@@ -224,32 +224,37 @@ function loadSandboxContent(sandboxData) {
     return;
   }
 
-  // Load tutorial if present
-  if (sandboxData.tutorial) {
-    var tutorialData = normaliseLessonSteps(sandboxData.tutorial, "tutorial");
-    state.tutorialMeta = tutorialData;
-    state.mode = "tutorial";
-    renderLessonUI(tutorialData, "tutorial");
-  }
-
-  // Load challenge if present
-  if (sandboxData.challenge) {
-    var challengeData = normaliseLessonSteps(sandboxData.challenge, "challenge");
-    state.challengeMeta = challengeData;
-    state.mode = "challenge";
-    renderLessonUI(challengeData, "challenge");
-  }
-
-  // Load preset devices if the sandbox content provides them
-  if (sandboxData.presetDevices && sandboxData.presetDevices.length > 0) {
-    for (var i = 0; i < sandboxData.presetDevices.length; i++) {
-      state.devices.push(normalizeDevice(sandboxData.presetDevices[i]));
+  try {
+    // Load tutorial if present
+    if (sandboxData.tutorial) {
+      var tutorialData = normaliseLessonSteps(sandboxData.tutorial, "tutorial");
+      state.tutorialMeta = tutorialData;
+      state.mode = "tutorial";
+      renderLessonUI(tutorialData, "tutorial");
     }
-  }
-  if (sandboxData.presetConnections && sandboxData.presetConnections.length > 0) {
-    for (var j = 0; j < sandboxData.presetConnections.length; j++) {
-      state.connections.push(normalizeConnection(sandboxData.presetConnections[j]));
+
+    // Load challenge if present
+    if (sandboxData.challenge) {
+      var challengeData = normaliseLessonSteps(sandboxData.challenge, "challenge");
+      state.challengeMeta = challengeData;
+      state.mode = "challenge";
+      renderLessonUI(challengeData, "challenge");
     }
+
+    // Load preset devices if the sandbox content provides them
+    if (sandboxData.presetDevices && sandboxData.presetDevices.length > 0) {
+      for (var i = 0; i < sandboxData.presetDevices.length; i++) {
+        state.devices.push(normalizeDevice(sandboxData.presetDevices[i]));
+      }
+    }
+    if (sandboxData.presetConnections && sandboxData.presetConnections.length > 0) {
+      for (var j = 0; j < sandboxData.presetConnections.length; j++) {
+        state.connections.push(normalizeConnection(sandboxData.presetConnections[j]));
+      }
+    }
+  } catch (e) {
+    console.error("loadSandboxContent: failed to load lesson data", e);
+    showSandboxToast({ title: "Load error", message: "Could not load lesson content. Starting in free mode.", variant: "warning", timeout: 4000 });
   }
 
   pushHistory();

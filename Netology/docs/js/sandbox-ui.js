@@ -374,7 +374,6 @@ function renderConnections() {
     var deleteCircle = makeSvgElement("circle");
     deleteCircle.setAttribute("r", "10");
     deleteCircle.setAttribute("fill", "#ef4444");
-    deleteCircle.setAttribute("opacity", "0");
     deleteGroup.appendChild(deleteCircle);
 
     var deleteText = makeSvgElement("text");
@@ -382,23 +381,8 @@ function renderConnections() {
     deleteText.setAttribute("dominant-baseline", "central");
     deleteText.setAttribute("fill", "white");
     deleteText.setAttribute("font-size", "12");
-    deleteText.setAttribute("opacity", "0");
     deleteText.textContent = "×";
     deleteGroup.appendChild(deleteText);
-
-    // Show on hover
-    deleteGroup.addEventListener("mouseenter", function () {
-      var circles = this.querySelectorAll("circle");
-      var texts = this.querySelectorAll("text");
-      for (var c = 0; c < circles.length; c++) { circles[c].setAttribute("opacity", "1"); }
-      for (var t = 0; t < texts.length; t++) { texts[t].setAttribute("opacity", "1"); }
-    });
-    deleteGroup.addEventListener("mouseleave", function () {
-      var circles = this.querySelectorAll("circle");
-      var texts = this.querySelectorAll("text");
-      for (var c = 0; c < circles.length; c++) { circles[c].setAttribute("opacity", "0"); }
-      for (var t = 0; t < texts.length; t++) { texts[t].setAttribute("opacity", "0"); }
-    });
 
     connectionLayer.appendChild(deleteGroup);
   }
@@ -646,20 +630,6 @@ function renderObjects() {
     gearButton.innerHTML = '<i class="bi bi-gear"></i>';
     gearButton.setAttribute("data-device-id", device.id);
     row.appendChild(gearButton);
-
-    // Click to select, gear to configure
-    (function (deviceId) {
-      row.addEventListener("click", function () {
-        state.selectedIds = [deviceId];
-        renderAll();
-      });
-      gearButton.addEventListener("click", function (event) {
-        event.stopPropagation();
-        state.selectedIds = [deviceId];
-        showConfigTab();
-        renderAll();
-      });
-    })(device.id);
 
     objectsBody.appendChild(row);
   }
@@ -2618,6 +2588,32 @@ function bindPanels() {
         getById("sbx" + tabId.charAt(0).toUpperCase() + tabId.slice(1) + "Panel")?.classList.add("is-active");
       });
     }
+  }
+
+  // Delegated click handler for the objects panel (set up once, not per device row)
+  var objectsBodyEl = getById("sbxObjectsBody");
+  if (objectsBodyEl) {
+    objectsBodyEl.addEventListener("click", function (event) {
+      var gear = event.target.closest(".sbx-object-gear");
+      if (gear) {
+        event.stopPropagation();
+        var gearDeviceId = gear.getAttribute("data-device-id");
+        if (gearDeviceId) {
+          state.selectedIds = [gearDeviceId];
+          showConfigTab();
+          renderAll();
+        }
+        return;
+      }
+      var row = event.target.closest(".sbx-object-row");
+      if (row) {
+        var rowDeviceId = row.getAttribute("data-device-id");
+        if (rowDeviceId) {
+          state.selectedIds = [rowDeviceId];
+          renderAll();
+        }
+      }
+    });
   }
 
   // Terminal clear button
