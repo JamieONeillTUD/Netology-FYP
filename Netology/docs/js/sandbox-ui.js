@@ -45,8 +45,8 @@ function renderTopologyPreview(container) {
   var scale = Math.min(scaleX, scaleY);
 
   // Draw connections
-  for (var i = 0; i < state.connections.length; i++) {
-    var connection = state.connections[i];
+  for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+    var connection = state.connections[connectionIndex];
     var fromDevice = findDevice(connection.from);
     var toDevice = findDevice(connection.to);
     if (fromDevice && toDevice) {
@@ -62,13 +62,13 @@ function renderTopologyPreview(container) {
   }
 
   // Draw devices
-  for (var j = 0; j < state.devices.length; j++) {
-    var device = state.devices[j];
-    var cx = (device.x + DEVICE_RADIUS) * scale;
-    var cy = (device.y + DEVICE_RADIUS) * scale;
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var device = state.devices[deviceIndex];
+    var centerX = (device.x + DEVICE_RADIUS) * scale;
+    var centerY = (device.y + DEVICE_RADIUS) * scale;
     var circle = makeSvgElement("circle");
-    circle.setAttribute("cx", cx);
-    circle.setAttribute("cy", cy);
+    circle.setAttribute("cx", centerX);
+    circle.setAttribute("cy", centerY);
     circle.setAttribute("r", "5");
     circle.setAttribute("fill", getTypeColor(device.type));
     svgElement.appendChild(circle);
@@ -99,8 +99,8 @@ function updatePingOverview() {
     defaultOption.textContent = "-- Select target --";
     selectElement.appendChild(defaultOption);
 
-    for (var i = 0; i < state.devices.length; i++) {
-      var device = state.devices[i];
+    for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+      var device = state.devices[deviceIndex];
       if (sourceDevice && device.id === sourceDevice.id) {
         continue;
       }
@@ -169,8 +169,8 @@ function renderDevices() {
   }
   clearChildren(deviceLayer);
 
-  for (var i = 0; i < state.devices.length; i++) {
-    var device = state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var device = state.devices[deviceIndex];
     var typeInfo = DEVICE_TYPES[device.type] || DEVICE_TYPES.pc;
     var isSelected = state.selectedIds.indexOf(device.id) !== -1;
 
@@ -220,30 +220,9 @@ function renderDevices() {
     // Action buttons (config, copy, delete)
     var actionsWrap = document.createElement("div");
     actionsWrap.className = "sbx-device-actions";
-
-    var configButton = document.createElement("button");
-    configButton.className = "sbx-device-action";
-    configButton.setAttribute("data-action", "config");
-    configButton.setAttribute("data-device-id", device.id);
-    configButton.setAttribute("data-tooltip", "Configure");
-    configButton.innerHTML = '<i class="bi bi-gear"></i>';
-    actionsWrap.appendChild(configButton);
-
-    var copyButton = document.createElement("button");
-    copyButton.className = "sbx-device-action";
-    copyButton.setAttribute("data-action", "copy");
-    copyButton.setAttribute("data-device-id", device.id);
-    copyButton.setAttribute("data-tooltip", "Duplicate");
-    copyButton.innerHTML = '<i class="bi bi-copy"></i>';
-    actionsWrap.appendChild(copyButton);
-
-    var deleteButton = document.createElement("button");
-    deleteButton.className = "sbx-device-action";
-    deleteButton.setAttribute("data-action", "delete");
-    deleteButton.setAttribute("data-device-id", device.id);
-    deleteButton.setAttribute("data-tooltip", "Delete");
-    deleteButton.innerHTML = '<i class="bi bi-trash3"></i>';
-    actionsWrap.appendChild(deleteButton);
+    actionsWrap.appendChild(makeActionButton("config", device.id, "Configure", "bi-gear"));
+    actionsWrap.appendChild(makeActionButton("copy", device.id, "Duplicate", "bi-copy"));
+    actionsWrap.appendChild(makeActionButton("delete", device.id, "Delete", "bi-trash3"));
 
     deviceElement.appendChild(actionsWrap);
     deviceLayer.appendChild(deviceElement);
@@ -253,59 +232,35 @@ function renderDevices() {
 
 // Update SVG connection paths (called during drag to avoid full re-render)
 function updateConnectionPaths() {
-  var allPaths = connectionLayer ? connectionLayer.querySelectorAll(".sbx-conn-path") : [];
-  for (var i = 0; i < allPaths.length; i++) {
-    var pathElement = allPaths[i];
-    var connId = pathElement.getAttribute("data-conn-id");
-    if (!connId) {
-      continue;
-    }
-    // Find this connection
-    var connection = null;
-    for (var j = 0; j < state.connections.length; j++) {
-      if (state.connections[j].id === connId) {
-        connection = state.connections[j];
-        break;
-      }
-    }
-    if (!connection) {
-      continue;
-    }
+  var allLines = connectionLayer ? connectionLayer.querySelectorAll(".sbx-conn-path") : [];
+  for (var lineIndex = 0; lineIndex < allLines.length; lineIndex++) {
+    var lineElement = allLines[lineIndex];
+    var connection = findConnection(lineElement.getAttribute("data-conn-id"));
+    if (!connection) { continue; }
     var fromDevice = findDevice(connection.from);
     var toDevice = findDevice(connection.to);
-    if (!fromDevice || !toDevice) {
-      continue;
-    }
-    var x1 = fromDevice.x + DEVICE_RADIUS;
-    var y1 = fromDevice.y + DEVICE_RADIUS;
-    var x2 = toDevice.x + DEVICE_RADIUS;
-    var y2 = toDevice.y + DEVICE_RADIUS;
-    pathElement.setAttribute("d", "M" + x1 + "," + y1 + " L" + x2 + "," + y2);
+    if (!fromDevice || !toDevice) { continue; }
+    var startX = fromDevice.x + DEVICE_RADIUS;
+    var startY = fromDevice.y + DEVICE_RADIUS;
+    var endX = toDevice.x + DEVICE_RADIUS;
+    var endY = toDevice.y + DEVICE_RADIUS;
+    lineElement.setAttribute("x1", startX);
+    lineElement.setAttribute("y1", startY);
+    lineElement.setAttribute("x2", endX);
+    lineElement.setAttribute("y2", endY);
   }
 
   // Also update any delete buttons at midpoints
   var deleteGroups = connectionLayer ? connectionLayer.querySelectorAll(".sbx-conn-delete-group") : [];
-  for (var k = 0; k < deleteGroups.length; k++) {
-    var group = deleteGroups[k];
-    var groupConnId = group.getAttribute("data-conn-id");
-    if (!groupConnId) {
-      continue;
-    }
-    var conn = null;
-    for (var m = 0; m < state.connections.length; m++) {
-      if (state.connections[m].id === groupConnId) {
-        conn = state.connections[m];
-        break;
-      }
-    }
-    if (!conn) {
-      continue;
-    }
-    var fDev = findDevice(conn.from);
-    var tDev = findDevice(conn.to);
-    if (fDev && tDev) {
-      var midX = (fDev.x + tDev.x) / 2 + DEVICE_RADIUS;
-      var midY = (fDev.y + tDev.y) / 2 + DEVICE_RADIUS;
+  for (var deleteGroupIndex = 0; deleteGroupIndex < deleteGroups.length; deleteGroupIndex++) {
+    var group = deleteGroups[deleteGroupIndex];
+    var conn = findConnection(group.getAttribute("data-conn-id"));
+    if (!conn) { continue; }
+    var fromDevice2 = findDevice(conn.from);
+    var toDevice2 = findDevice(conn.to);
+    if (fromDevice2 && toDevice2) {
+      var midX = (fromDevice2.x + toDevice2.x) / 2 + DEVICE_RADIUS;
+      var midY = (fromDevice2.y + toDevice2.y) / 2 + DEVICE_RADIUS;
       group.setAttribute("transform", "translate(" + midX + "," + midY + ")");
     }
   }
@@ -319,18 +274,18 @@ function renderConnections() {
   }
   clearChildren(connectionLayer);
 
-  for (var i = 0; i < state.connections.length; i++) {
-    var connection = state.connections[i];
+  for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+    var connection = state.connections[connectionIndex];
     var fromDevice = findDevice(connection.from);
     var toDevice = findDevice(connection.to);
     if (!fromDevice || !toDevice) {
       continue;
     }
 
-    var x1 = fromDevice.x + DEVICE_RADIUS;
-    var y1 = fromDevice.y + DEVICE_RADIUS;
-    var x2 = toDevice.x + DEVICE_RADIUS;
-    var y2 = toDevice.y + DEVICE_RADIUS;
+    var startX = fromDevice.x + DEVICE_RADIUS;
+    var startY = fromDevice.y + DEVICE_RADIUS;
+    var endX = toDevice.x + DEVICE_RADIUS;
+    var endY = toDevice.y + DEVICE_RADIUS;
 
     var typeInfo = CONNECTION_TYPES[connection.type] || CONNECTION_TYPES.ethernet;
     var lineColor = typeInfo.color;
@@ -341,24 +296,26 @@ function renderConnections() {
     }
 
     // Draw the line
-    var pathElement = makeSvgElement("path");
-    pathElement.setAttribute("class", "sbx-conn-path");
-    pathElement.setAttribute("data-conn-id", connection.id);
-    pathElement.setAttribute("d", "M" + x1 + "," + y1 + " L" + x2 + "," + y2);
-    pathElement.setAttribute("stroke", lineColor);
-    pathElement.setAttribute("stroke-width", "2.5");
-    pathElement.setAttribute("fill", "none");
+    var lineElement = makeSvgElement("line");
+    lineElement.setAttribute("class", "sbx-conn-path");
+    lineElement.setAttribute("data-conn-id", connection.id);
+    lineElement.setAttribute("x1", startX);
+    lineElement.setAttribute("y1", startY);
+    lineElement.setAttribute("x2", endX);
+    lineElement.setAttribute("y2", endY);
+    lineElement.setAttribute("stroke", lineColor);
+    lineElement.setAttribute("stroke-width", "2.5");
     if (typeInfo.dash) {
-      pathElement.setAttribute("stroke-dasharray", typeInfo.dash);
+      lineElement.setAttribute("stroke-dasharray", typeInfo.dash);
     }
     if (!connection.isUp) {
-      pathElement.setAttribute("opacity", "0.4");
+      lineElement.setAttribute("opacity", "0.4");
     }
-    connectionLayer.appendChild(pathElement);
+    connectionLayer.appendChild(lineElement);
 
     // Delete button at the midpoint
-    var midX = (x1 + x2) / 2;
-    var midY = (y1 + y2) / 2;
+    var midX = (startX + endX) / 2;
+    var midY = (startY + endY) / 2;
 
     var deleteGroup = makeSvgElement("g");
     deleteGroup.setAttribute("class", "sbx-conn-delete-group");
@@ -388,16 +345,16 @@ function renderConnections() {
 function renderConnectionLabels() {
   // Remove existing labels first
   var existingLabels = stage ? stage.querySelectorAll(".sbx-conn-label") : [];
-  for (var r = 0; r < existingLabels.length; r++) {
-    existingLabels[r].remove();
+  for (var existingLabelIndex = 0; existingLabelIndex < existingLabels.length; existingLabelIndex++) {
+    existingLabels[existingLabelIndex].remove();
   }
 
   if (!stage) {
     return;
   }
 
-  for (var i = 0; i < state.connections.length; i++) {
-    var connection = state.connections[i];
+  for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+    var connection = state.connections[connectionIndex];
     var fromDevice = findDevice(connection.from);
     var toDevice = findDevice(connection.to);
     if (!fromDevice || !toDevice) {
@@ -482,9 +439,9 @@ function setPingResult(result) {
     }
     if (routeEl) {
       var routeHtml = "";
-      for (var i = 0; i < result.hops.length; i++) {
-        routeHtml += '<span class="sbx-ping-route-hop">' + escapeHtml(result.hops[i]) + '</span>';
-        if (i < result.hops.length - 1) {
+      for (var hopIndex = 0; hopIndex < result.hops.length; hopIndex++) {
+        routeHtml += '<span class="sbx-ping-route-hop">' + escapeHtml(result.hops[hopIndex]) + '</span>';
+        if (hopIndex < result.hops.length - 1) {
           routeHtml += ' <i class="bi bi-arrow-right"></i> ';
         }
       }
@@ -532,13 +489,13 @@ function animatePacket(path) {
     packetDot.setAttribute("fill", "#22d3ee");
     packetDot.setAttribute("opacity", "0.9");
 
-    var x1 = fromDevice.x + DEVICE_RADIUS;
-    var y1 = fromDevice.y + DEVICE_RADIUS;
-    var x2 = toDevice.x + DEVICE_RADIUS;
-    var y2 = toDevice.y + DEVICE_RADIUS;
+    var startX = fromDevice.x + DEVICE_RADIUS;
+    var startY = fromDevice.y + DEVICE_RADIUS;
+    var endX = toDevice.x + DEVICE_RADIUS;
+    var endY = toDevice.y + DEVICE_RADIUS;
 
-    packetDot.setAttribute("cx", x1);
-    packetDot.setAttribute("cy", y1);
+    packetDot.setAttribute("cx", startX);
+    packetDot.setAttribute("cy", startY);
     connectionLayer.appendChild(packetDot);
 
     // Animate from start to end using requestAnimationFrame
@@ -576,7 +533,7 @@ function animatePacket(path) {
 
         requestAnimationFrame(animate);
       }, delayMs);
-    })(packetDot, x1, y1, x2, y2, step * 650);
+    })(packetDot, startX, startY, endX, endY, step * 650);
   }
 }
 
@@ -594,8 +551,8 @@ function renderObjects() {
     return;
   }
 
-  for (var i = 0; i < state.devices.length; i++) {
-    var device = state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var device = state.devices[deviceIndex];
     var typeInfo = DEVICE_TYPES[device.type] || DEVICE_TYPES.pc;
     var isSelected = state.selectedIds.indexOf(device.id) !== -1;
 
@@ -656,8 +613,8 @@ function hideConfigTab() {
 function updateWarnings() {
   // Remove existing warnings
   var existingWarnings = stage ? stage.querySelectorAll(".sbx-subnet-warning") : [];
-  for (var r = 0; r < existingWarnings.length; r++) {
-    existingWarnings[r].remove();
+  for (var existingWarningIndex = 0; existingWarningIndex < existingWarnings.length; existingWarningIndex++) {
+    existingWarnings[existingWarningIndex].remove();
   }
 
   var conflicts = findSubnetConflicts();
@@ -669,12 +626,12 @@ function updateWarnings() {
   warningBar.className = "sbx-subnet-warning";
   warningBar.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>';
 
-  for (var i = 0; i < conflicts.length; i++) {
+  for (var conflictIndex = 0; conflictIndex < conflicts.length; conflictIndex++) {
     var warningText = document.createElement("span");
     warningText.className = "sbx-warning-text";
-    warningText.textContent = conflicts[i].message;
+    warningText.textContent = conflicts[conflictIndex].message;
     warningBar.appendChild(warningText);
-    if (i < conflicts.length - 1) {
+    if (conflictIndex < conflicts.length - 1) {
       warningBar.appendChild(document.createTextNode(" | "));
     }
   }
@@ -720,70 +677,16 @@ function renderProps() {
 // Render the general configuration tab for a device
 function renderGeneralConfig(device) {
   propsElement.innerHTML = "";
-
   var form = document.createElement("div");
   form.className = "sbx-config-form";
 
-  // Device name
-  var nameLabel = document.createElement("label");
-  nameLabel.className = "form-label";
-  nameLabel.textContent = "Device Name";
-  var nameInput = document.createElement("input");
-  nameInput.type = "text";
-  nameInput.className = "form-control";
-  nameInput.value = device.name;
-  form.appendChild(nameLabel);
-  form.appendChild(nameInput);
+  var nameInput = makeField(form, "Device Name", "text", device.name);
+  var ipInput = makeField(form, "IP Address", "text", device.config.ipAddress || "", { mt: 2, placeholder: "e.g. 192.168.1.10" });
+  var maskInput = makeField(form, "Subnet Mask", "text", device.config.subnetMask || "255.255.255.0", { mt: 2 });
+  var gwInput = makeField(form, "Default Gateway", "text", device.config.defaultGateway || "", { mt: 2, placeholder: "e.g. 192.168.1.1" });
+  var vlanInput = makeField(form, "VLAN ID (0 = none)", "number", device.vlan || 0, { mt: 2, min: 0, max: 8 });
 
-  // IP Address
-  var ipLabel = document.createElement("label");
-  ipLabel.className = "form-label mt-2";
-  ipLabel.textContent = "IP Address";
-  var ipInput = document.createElement("input");
-  ipInput.type = "text";
-  ipInput.className = "form-control";
-  ipInput.value = device.config.ipAddress || "";
-  ipInput.placeholder = "e.g. 192.168.1.10";
-  form.appendChild(ipLabel);
-  form.appendChild(ipInput);
-
-  // Subnet Mask
-  var maskLabel = document.createElement("label");
-  maskLabel.className = "form-label mt-2";
-  maskLabel.textContent = "Subnet Mask";
-  var maskInput = document.createElement("input");
-  maskInput.type = "text";
-  maskInput.className = "form-control";
-  maskInput.value = device.config.subnetMask || "255.255.255.0";
-  form.appendChild(maskLabel);
-  form.appendChild(maskInput);
-
-  // Default Gateway
-  var gwLabel = document.createElement("label");
-  gwLabel.className = "form-label mt-2";
-  gwLabel.textContent = "Default Gateway";
-  var gwInput = document.createElement("input");
-  gwInput.type = "text";
-  gwInput.className = "form-control";
-  gwInput.value = device.config.defaultGateway || "";
-  gwInput.placeholder = "e.g. 192.168.1.1";
-  form.appendChild(gwLabel);
-  form.appendChild(gwInput);
-
-  // VLAN assignment
-  var vlanLabel = document.createElement("label");
-  vlanLabel.className = "form-label mt-2";
-  vlanLabel.textContent = "VLAN ID (0 = none)";
-  var vlanInput = document.createElement("input");
-  vlanInput.type = "number";
-  vlanInput.className = "form-control";
-  vlanInput.value = device.vlan || 0;
-  vlanInput.min = "0";
-  vlanInput.max = "8";
-  form.appendChild(vlanLabel);
-  form.appendChild(vlanInput);
-
-  // DHCP toggle
+  // DHCP toggle checkbox
   var dhcpCheck = document.createElement("div");
   dhcpCheck.className = "form-check mt-3";
   var dhcpInput = document.createElement("input");
@@ -799,19 +702,8 @@ function renderGeneralConfig(device) {
   dhcpCheck.appendChild(dhcpLabel);
   form.appendChild(dhcpCheck);
 
-  // MAC address (read only)
-  var macLabel = document.createElement("label");
-  macLabel.className = "form-label mt-2";
-  macLabel.textContent = "MAC Address";
-  var macInput = document.createElement("input");
-  macInput.type = "text";
-  macInput.className = "form-control";
-  macInput.value = device.config.macAddress || "";
-  macInput.readOnly = true;
-  form.appendChild(macLabel);
-  form.appendChild(macInput);
+  makeField(form, "MAC Address", "text", device.config.macAddress || "", { mt: 2, readOnly: true });
 
-  // Update button
   var updateButton = document.createElement("button");
   updateButton.className = "btn btn-teal mt-3 me-2";
   updateButton.textContent = "Update";
@@ -828,13 +720,10 @@ function renderGeneralConfig(device) {
   });
   form.appendChild(updateButton);
 
-  // Delete button
   var deleteButton = document.createElement("button");
   deleteButton.className = "btn btn-outline-danger mt-3";
   deleteButton.textContent = "Delete";
-  deleteButton.addEventListener("click", function () {
-    deleteDevices([device.id]);
-  });
+  deleteButton.addEventListener("click", function () { deleteDevices([device.id]); });
   form.appendChild(deleteButton);
 
   propsElement.appendChild(form);
@@ -850,8 +739,8 @@ function renderInterfacesConfig(device) {
     return;
   }
 
-  for (var i = 0; i < interfaces.length; i++) {
-    var iface = interfaces[i];
+  for (var ifaceIndex = 0; ifaceIndex < interfaces.length; ifaceIndex++) {
+    var iface = interfaces[ifaceIndex];
     var row = document.createElement("div");
     row.className = "sbx-interface-row mb-3 p-2 border rounded";
 
@@ -917,8 +806,8 @@ function renderRoutingConfig(device) {
   table.innerHTML = "<thead><tr><th>Network</th><th>Mask</th><th>Next Hop</th><th></th></tr></thead>";
   var tbody = document.createElement("tbody");
 
-  for (var i = 0; i < routes.length; i++) {
-    var route = routes[i];
+  for (var routeIndex = 0; routeIndex < routes.length; routeIndex++) {
+    var route = routes[routeIndex];
     var tr = document.createElement("tr");
     tr.innerHTML = "<td>" + escapeHtml(route.network) + "</td><td>" + escapeHtml(route.mask) + "</td><td>" + escapeHtml(route.nextHop) + "</td>";
 
@@ -926,13 +815,13 @@ function renderRoutingConfig(device) {
     var deleteBtn = document.createElement("button");
     deleteBtn.className = "btn btn-sm btn-outline-danger";
     deleteBtn.textContent = "×";
-    (function (index) {
+    (function (capturedRouteIndex) {
       deleteBtn.addEventListener("click", function () {
-        device.config.routingTable.splice(index, 1);
+        device.config.routingTable.splice(capturedRouteIndex, 1);
         pushHistory();
         renderProps();
       });
-    })(i);
+    })(routeIndex);
     deleteCell.appendChild(deleteBtn);
     tr.appendChild(deleteCell);
     tbody.appendChild(tr);
@@ -944,11 +833,11 @@ function renderRoutingConfig(device) {
 // Render the DHCP server config tab
 function renderDhcpConfig(device) {
   propsElement.innerHTML = "";
-
   var dhcp = device.config.dhcpServer || {};
   var form = document.createElement("div");
   form.className = "sbx-config-form";
 
+  // Enable DHCP server checkbox
   var enableCheck = document.createElement("div");
   enableCheck.className = "form-check mb-2";
   var enableInput = document.createElement("input");
@@ -964,38 +853,9 @@ function renderDhcpConfig(device) {
   enableCheck.appendChild(enableLabel);
   form.appendChild(enableCheck);
 
-  var startLabel = document.createElement("label");
-  startLabel.className = "form-label";
-  startLabel.textContent = "Pool Start";
-  var startInput = document.createElement("input");
-  startInput.type = "text";
-  startInput.className = "form-control";
-  startInput.value = dhcp.poolStart || "";
-  startInput.placeholder = "e.g. 192.168.1.100";
-  form.appendChild(startLabel);
-  form.appendChild(startInput);
-
-  var endLabel = document.createElement("label");
-  endLabel.className = "form-label mt-2";
-  endLabel.textContent = "Pool End";
-  var endInput = document.createElement("input");
-  endInput.type = "text";
-  endInput.className = "form-control";
-  endInput.value = dhcp.poolEnd || "";
-  endInput.placeholder = "e.g. 192.168.1.200";
-  form.appendChild(endLabel);
-  form.appendChild(endInput);
-
-  var dnsLabel = document.createElement("label");
-  dnsLabel.className = "form-label mt-2";
-  dnsLabel.textContent = "DNS Server";
-  var dnsInput = document.createElement("input");
-  dnsInput.type = "text";
-  dnsInput.className = "form-control";
-  dnsInput.value = dhcp.dns || "";
-  dnsInput.placeholder = "e.g. 8.8.8.8";
-  form.appendChild(dnsLabel);
-  form.appendChild(dnsInput);
+  var startInput = makeField(form, "Pool Start", "text", dhcp.poolStart || "", { placeholder: "e.g. 192.168.1.100" });
+  var endInput = makeField(form, "Pool End", "text", dhcp.poolEnd || "", { mt: 2, placeholder: "e.g. 192.168.1.200" });
+  var dnsInput = makeField(form, "DNS Server", "text", dhcp.dns || "", { mt: 2, placeholder: "e.g. 8.8.8.8" });
 
   var saveButton = document.createElement("button");
   saveButton.className = "btn btn-teal mt-3";
@@ -1072,21 +932,21 @@ function renderDnsConfig(device) {
   table.innerHTML = "<thead><tr><th>Hostname</th><th>IP</th><th></th></tr></thead>";
   var tbody = document.createElement("tbody");
 
-  for (var i = 0; i < records.length; i++) {
-    var record = records[i];
+  for (var recordIndex = 0; recordIndex < records.length; recordIndex++) {
+    var record = records[recordIndex];
     var tr = document.createElement("tr");
     tr.innerHTML = "<td>" + escapeHtml(record.hostname) + "</td><td>" + escapeHtml(record.ip) + "</td>";
     var deleteCell = document.createElement("td");
     var deleteBtn = document.createElement("button");
     deleteBtn.className = "btn btn-sm btn-outline-danger";
     deleteBtn.textContent = "×";
-    (function (index) {
+    (function (capturedRecordIndex) {
       deleteBtn.addEventListener("click", function () {
-        device.config.dnsServer.records.splice(index, 1);
+        device.config.dnsServer.records.splice(capturedRecordIndex, 1);
         pushHistory();
         renderProps();
       });
-    })(i);
+    })(recordIndex);
     deleteCell.appendChild(deleteBtn);
     tr.appendChild(deleteCell);
     tbody.appendChild(tr);
@@ -1119,8 +979,8 @@ function renderMacConfig(device) {
   table.innerHTML = "<thead><tr><th>MAC</th><th>Interface</th><th>Type</th></tr></thead>";
   var tbody = document.createElement("tbody");
 
-  for (var i = 0; i < macTable.length; i++) {
-    var entry = macTable[i];
+  for (var macEntryIndex = 0; macEntryIndex < macTable.length; macEntryIndex++) {
+    var entry = macTable[macEntryIndex];
     var tr = document.createElement("tr");
     tr.innerHTML = "<td>" + escapeHtml(entry.mac) + "</td><td>" + escapeHtml(entry.interface) + "</td><td>" + escapeHtml(entry.type) + "</td>";
     tbody.appendChild(tr);
@@ -1139,12 +999,12 @@ function renderLogs() {
     actionLogsElement.textContent = "No actions logged yet.";
     return;
   }
-  var html = "";
-  for (var i = state.actionLogs.length - 1; i >= 0; i--) {
-    var log = state.actionLogs[i];
-    html += '<div class="sbx-log-entry"><span class="sbx-log-time">' + escapeHtml(log.time) + '</span> ' + escapeHtml(log.text) + '</div>';
+  var logsHtml = "";
+  for (var logIndex = state.actionLogs.length - 1; logIndex >= 0; logIndex--) {
+    var log = state.actionLogs[logIndex];
+    logsHtml += '<div class="sbx-log-entry"><span class="sbx-log-time">' + escapeHtml(log.time) + '</span> ' + escapeHtml(log.text) + '</div>';
   }
-  actionLogsElement.innerHTML = html;
+  actionLogsElement.innerHTML = logsHtml;
 }
 
 // Render the packet logs in the Packets tab
@@ -1156,12 +1016,12 @@ function renderPackets() {
     packetLogsElement.textContent = "No packet activity yet.";
     return;
   }
-  var html = "";
-  for (var i = state.packets.length - 1; i >= 0; i--) {
-    var packet = state.packets[i];
-    html += '<div class="sbx-log-entry"><span class="sbx-log-time">' + escapeHtml(packet.time) + '</span> ' + escapeHtml(packet.text) + '</div>';
+  var packetsHtml = "";
+  for (var packetIndex = state.packets.length - 1; packetIndex >= 0; packetIndex--) {
+    var packet = state.packets[packetIndex];
+    packetsHtml += '<div class="sbx-log-entry"><span class="sbx-log-time">' + escapeHtml(packet.time) + '</span> ' + escapeHtml(packet.text) + '</div>';
   }
-  packetLogsElement.innerHTML = html;
+  packetLogsElement.innerHTML = packetsHtml;
 }
 
 // Render the console output
@@ -1169,12 +1029,12 @@ function renderConsole() {
   if (!consoleOutputElement) {
     return;
   }
-  var html = "";
-  for (var i = 0; i < state.consoleOutput.length; i++) {
-    var entry = state.consoleOutput[i];
-    html += '<div class="sbx-console-line ' + (entry.type || "") + '">' + entry.html + '</div>';
+  var consoleHtml = "";
+  for (var outputIndex = 0; outputIndex < state.consoleOutput.length; outputIndex++) {
+    var entry = state.consoleOutput[outputIndex];
+    consoleHtml += '<div class="sbx-console-line ' + (entry.type || "") + '">' + entry.html + '</div>';
   }
-  consoleOutputElement.innerHTML = html;
+  consoleOutputElement.innerHTML = consoleHtml;
   consoleOutputElement.scrollTop = consoleOutputElement.scrollHeight;
 }
 
@@ -1220,12 +1080,12 @@ function pushHistory() {
 // Replace the current topology with new devices and connections
 function replaceTopology(newDevices, newConnections) {
   state.devices = [];
-  for (var i = 0; i < newDevices.length; i++) {
-    state.devices.push(normalizeDevice(newDevices[i]));
+  for (var deviceIndex = 0; deviceIndex < newDevices.length; deviceIndex++) {
+    state.devices.push(normalizeDevice(newDevices[deviceIndex]));
   }
   state.connections = [];
-  for (var j = 0; j < newConnections.length; j++) {
-    state.connections.push(normalizeConnection(newConnections[j]));
+  for (var connectionIndex = 0; connectionIndex < newConnections.length; connectionIndex++) {
+    state.connections.push(normalizeConnection(newConnections[connectionIndex]));
   }
   state.selectedIds = [];
 }
@@ -1252,12 +1112,12 @@ function restoreHistory(index) {
     return;
   }
   state.devices = [];
-  for (var i = 0; i < snapshot.devices.length; i++) {
-    state.devices.push(normalizeDevice(snapshot.devices[i]));
+  for (var deviceIndex = 0; deviceIndex < snapshot.devices.length; deviceIndex++) {
+    state.devices.push(normalizeDevice(snapshot.devices[deviceIndex]));
   }
   state.connections = [];
-  for (var j = 0; j < snapshot.connections.length; j++) {
-    state.connections.push(normalizeConnection(snapshot.connections[j]));
+  for (var connectionIndex = 0; connectionIndex < snapshot.connections.length; connectionIndex++) {
+    state.connections.push(normalizeConnection(snapshot.connections[connectionIndex]));
   }
   state.selectedIds = [];
   state.historyIndex = index;
@@ -1323,41 +1183,14 @@ function addDevice(deviceType) {
 
 // Delete one or more devices and their connections
 function deleteDevices(deviceIds) {
-  if (!deviceIds || deviceIds.length === 0) {
-    return;
+  if (!deviceIds || deviceIds.length === 0) { return; }
+
+  for (var deviceIndex = 0; deviceIndex < deviceIds.length; deviceIndex++) {
+    var deviceId = deviceIds[deviceIndex];
+    state.connections = state.connections.filter(function (conn) { return conn.from !== deviceId && conn.to !== deviceId; });
+    state.devices = state.devices.filter(function (device) { return device.id !== deviceId; });
   }
-
-  for (var i = 0; i < deviceIds.length; i++) {
-    var deviceId = deviceIds[i];
-
-    // Remove connections to this device
-    var remainingConnections = [];
-    for (var j = 0; j < state.connections.length; j++) {
-      var connection = state.connections[j];
-      if (connection.from !== deviceId && connection.to !== deviceId) {
-        remainingConnections.push(connection);
-      }
-    }
-    state.connections = remainingConnections;
-
-    // Remove the device
-    var remainingDevices = [];
-    for (var k = 0; k < state.devices.length; k++) {
-      if (state.devices[k].id !== deviceId) {
-        remainingDevices.push(state.devices[k]);
-      }
-    }
-    state.devices = remainingDevices;
-  }
-
-  // Clear selection if deleted device was selected
-  var newSelected = [];
-  for (var s = 0; s < state.selectedIds.length; s++) {
-    if (deviceIds.indexOf(state.selectedIds[s]) === -1) {
-      newSelected.push(state.selectedIds[s]);
-    }
-  }
-  state.selectedIds = newSelected;
+  state.selectedIds = state.selectedIds.filter(function (selectedId) { return deviceIds.indexOf(selectedId) === -1; });
 
   finishTopologyChange({ refreshTutorial: true });
   addActionLog("Deleted " + deviceIds.length + " device(s)");
@@ -1366,8 +1199,8 @@ function deleteDevices(deviceIds) {
 // Create a connection between two devices
 function createConnection(fromId, toId) {
   // Check if a connection already exists between these two devices
-  for (var i = 0; i < state.connections.length; i++) {
-    var existing = state.connections[i];
+  for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+    var existing = state.connections[connectionIndex];
     if ((existing.from === fromId && existing.to === toId) || (existing.from === toId && existing.to === fromId)) {
       showSandboxToast({ title: "Already connected", message: "These devices are already connected.", variant: "warning", timeout: 2500 });
       return;
@@ -1404,13 +1237,7 @@ function createConnection(fromId, toId) {
 
 // Delete a connection by its id
 function deleteConnection(connectionId) {
-  var remainingConnections = [];
-  for (var i = 0; i < state.connections.length; i++) {
-    if (state.connections[i].id !== connectionId) {
-      remainingConnections.push(state.connections[i]);
-    }
-  }
-  state.connections = remainingConnections;
+  state.connections = state.connections.filter(function (conn) { return conn.id !== connectionId; });
   rebuildMacTables();
   finishTopologyChange({ refreshTutorial: true });
   addActionLog("Deleted a connection");
@@ -1421,8 +1248,8 @@ function pickInterface(device) {
   if (!device || !device.config || !device.config.interfaces) {
     return null;
   }
-  for (var i = 0; i < device.config.interfaces.length; i++) {
-    var iface = device.config.interfaces[i];
+  for (var ifaceIndex = 0; ifaceIndex < device.config.interfaces.length; ifaceIndex++) {
+    var iface = device.config.interfaces[ifaceIndex];
     if (!iface.linked && iface.status === "up") {
       return iface.name;
     }
@@ -1439,9 +1266,9 @@ function clearInterfaceLink(device, interfaceName, linkedDeviceName) {
   if (!device || !device.config || !device.config.interfaces) {
     return;
   }
-  for (var i = 0; i < device.config.interfaces.length; i++) {
-    if (device.config.interfaces[i].name === interfaceName) {
-      device.config.interfaces[i].linked = linkedDeviceName || null;
+  for (var ifaceIndex = 0; ifaceIndex < device.config.interfaces.length; ifaceIndex++) {
+    if (device.config.interfaces[ifaceIndex].name === interfaceName) {
+      device.config.interfaces[ifaceIndex].linked = linkedDeviceName || null;
       break;
     }
   }
@@ -1454,8 +1281,8 @@ function duplicateSelected() {
   }
 
   var newIds = [];
-  for (var i = 0; i < state.selectedIds.length; i++) {
-    var originalDevice = findDevice(state.selectedIds[i]);
+  for (var selectionIndex = 0; selectionIndex < state.selectedIds.length; selectionIndex++) {
+    var originalDevice = findDevice(state.selectedIds[selectionIndex]);
     if (!originalDevice) {
       continue;
     }
@@ -1492,10 +1319,10 @@ function duplicateSelected() {
 
 // Toggle a connection up or down
 function toggleConnectionUpDown(connectionId) {
-  for (var i = 0; i < state.connections.length; i++) {
-    if (state.connections[i].id === connectionId) {
-      state.connections[i].isUp = !state.connections[i].isUp;
-      var status = state.connections[i].isUp ? "up" : "down";
+  for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+    if (state.connections[connectionIndex].id === connectionId) {
+      state.connections[connectionIndex].isUp = !state.connections[connectionIndex].isUp;
+      var status = state.connections[connectionIndex].isUp ? "up" : "down";
       addActionLog("Connection set to " + status);
       finishTopologyChange({ refreshTutorial: false });
       return;
@@ -1610,8 +1437,8 @@ function refreshTopologyList() {
       }
 
       listElement.innerHTML = "";
-      for (var i = 0; i < list.length; i++) {
-        var topology = list[i];
+      for (var topologyIndex = 0; topologyIndex < list.length; topologyIndex++) {
+        var topology = list[topologyIndex];
         var tr = document.createElement("tr");
 
         var nameCell = document.createElement("td");
@@ -1833,8 +1660,8 @@ function executeCommand(commandText) {
       addConsoleOutput("No devices on canvas.", "");
       return;
     }
-    for (var i = 0; i < state.devices.length; i++) {
-      var device = state.devices[i];
+    for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+      var device = state.devices[deviceIndex];
       var ip = (device.config && device.config.ipAddress) ? device.config.ipAddress : "no IP";
       addConsoleOutput("  " + device.name + " (" + device.type + ") - " + ip, "");
     }
@@ -1846,12 +1673,12 @@ function executeCommand(commandText) {
       addConsoleOutput("No connections.", "");
       return;
     }
-    for (var j = 0; j < state.connections.length; j++) {
-      var conn = state.connections[j];
-      var fromDev = findDevice(conn.from);
-      var toDev = findDevice(conn.to);
-      var fromName = fromDev ? fromDev.name : "?";
-      var toName = toDev ? toDev.name : "?";
+    for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+      var conn = state.connections[connectionIndex];
+      var fromDevice = findDevice(conn.from);
+      var toDevice = findDevice(conn.to);
+      var fromName = fromDevice ? fromDevice.name : "?";
+      var toName = toDevice ? toDevice.name : "?";
       var connType = CONNECTION_TYPES[conn.type] ? CONNECTION_TYPES[conn.type].label : conn.type;
       var upDown = conn.isUp ? "up" : "DOWN";
       var interfaceInfo = "";
@@ -1866,8 +1693,8 @@ function executeCommand(commandText) {
   if (command === "status") {
     addConsoleOutput("Devices: " + state.devices.length + " | Connections: " + state.connections.length, "");
     var configuredCount = 0;
-    for (var s = 0; s < state.devices.length; s++) {
-      if (state.devices[s].config && state.devices[s].config.ipAddress) {
+    for (var statusDeviceIndex = 0; statusDeviceIndex < state.devices.length; statusDeviceIndex++) {
+      if (state.devices[statusDeviceIndex].config && state.devices[statusDeviceIndex].config.ipAddress) {
         configuredCount++;
       }
     }
@@ -1922,20 +1749,17 @@ function executeCommand(commandText) {
       return;
     }
     addConsoleOutput("Tracing route to " + traceEndpoints.destination.name + ":", "");
-    for (var h = 0; h < path.length; h++) {
-      var hopDevice = findDevice(path[h]);
+    for (var hopIndex = 0; hopIndex < path.length; hopIndex++) {
+      var hopDevice = findDevice(path[hopIndex]);
       var hopIp = (hopDevice && hopDevice.config) ? hopDevice.config.ipAddress || "no IP" : "?";
-      addConsoleOutput("  " + (h + 1) + ". " + (hopDevice ? hopDevice.name : "?") + " (" + hopIp + ")", "");
+      addConsoleOutput("  " + (hopIndex + 1) + ". " + (hopDevice ? hopDevice.name : "?") + " (" + hopIp + ")", "");
     }
     animatePacket(path);
     return;
   }
 
   if (command === "ipconfig") {
-    var targetDevice = findDeviceByIdentifier(args[0]);
-    if (!targetDevice && state.selectedIds.length === 1) {
-      targetDevice = findDevice(state.selectedIds[0]);
-    }
+    var targetDevice = resolveDevice(args[0]);
     if (!targetDevice) {
       addConsoleOutput('<span class="text-danger">Device not found.</span>', "");
       return;
@@ -1958,6 +1782,7 @@ function executeCommand(commandText) {
       addConsoleOutput('<span class="text-danger">Device not found.</span>', "");
       return;
     }
+    var configMsg = null;
     if (args[1] === "ip" && args[2]) {
       if (!isValidIpAddress(args[2])) {
         addConsoleOutput('<span class="text-danger">Invalid IP address.</span>', "");
@@ -1965,35 +1790,31 @@ function executeCommand(commandText) {
       }
       configDevice.config.ipAddress = args[2];
       updateDeviceStatus(configDevice);
-      finishTopologyChange({ refreshTutorial: true });
-      addConsoleOutput('<span class="text-success">Set IP of ' + configDevice.name + ' to ' + args[2] + '</span>', "");
+      configMsg = "Set IP of " + configDevice.name + " to " + args[2];
     } else if (args[1] === "gateway" && args[2]) {
       configDevice.config.defaultGateway = args[2];
-      finishTopologyChange({ refreshTutorial: true });
-      addConsoleOutput('<span class="text-success">Set gateway of ' + configDevice.name + ' to ' + args[2] + '</span>', "");
+      configMsg = "Set gateway of " + configDevice.name + " to " + args[2];
     } else if (args[1] === "mask" && args[2]) {
       configDevice.config.subnetMask = args[2];
-      finishTopologyChange({ refreshTutorial: true });
-      addConsoleOutput('<span class="text-success">Set mask of ' + configDevice.name + ' to ' + args[2] + '</span>', "");
+      configMsg = "Set mask of " + configDevice.name + " to " + args[2];
     } else if (args[1] === "name" && args[2]) {
       configDevice.name = args.slice(2).join(" ");
-      finishTopologyChange({ refreshTutorial: true });
-      addConsoleOutput('<span class="text-success">Renamed device to ' + configDevice.name + '</span>', "");
+      configMsg = "Renamed device to " + configDevice.name;
     } else if (args[1] === "vlan" && args[2]) {
       configDevice.vlan = Number(args[2]) || 0;
-      finishTopologyChange({ refreshTutorial: true });
-      addConsoleOutput('<span class="text-success">Set VLAN of ' + configDevice.name + ' to ' + configDevice.vlan + '</span>', "");
+      configMsg = "Set VLAN of " + configDevice.name + " to " + configDevice.vlan;
     } else {
       addConsoleOutput("Usage: configure &lt;device&gt; ip|gateway|mask|name|vlan &lt;value&gt;", "");
+    }
+    if (configMsg) {
+      finishTopologyChange({ refreshTutorial: true });
+      addConsoleOutput('<span class="text-success">' + configMsg + '</span>', "");
     }
     return;
   }
 
   if (command === "dhcp") {
-    var dhcpDevice = findDeviceByIdentifier(args[0]);
-    if (!dhcpDevice && state.selectedIds.length === 1) {
-      dhcpDevice = findDevice(state.selectedIds[0]);
-    }
+    var dhcpDevice = resolveDevice(args[0]);
     if (!dhcpDevice) {
       addConsoleOutput('<span class="text-danger">Device not found.</span>', "");
       return;
@@ -2009,10 +1830,7 @@ function executeCommand(commandText) {
   }
 
   if (command === "arp") {
-    var arpDevice = findDeviceByIdentifier(args[0]);
-    if (!arpDevice && state.selectedIds.length === 1) {
-      arpDevice = findDevice(state.selectedIds[0]);
-    }
+    var arpDevice = resolveDevice(args[0]);
     if (!arpDevice) {
       addConsoleOutput('<span class="text-danger">Device not found. Usage: arp &lt;device&gt;</span>', "");
       return;
@@ -2024,8 +1842,8 @@ function executeCommand(commandText) {
     }
     addConsoleOutput("ARP table for " + arpDevice.name + ":", "");
     addConsoleOutput("  IP Address         MAC Address         Interface   Type", "");
-    for (var a = 0; a < arpTable.length; a++) {
-      var entry = arpTable[a];
+    for (var arpEntryIndex = 0; arpEntryIndex < arpTable.length; arpEntryIndex++) {
+      var entry = arpTable[arpEntryIndex];
       addConsoleOutput("  " + entry.ip.padEnd(20) + entry.mac.padEnd(20) + entry.interface.padEnd(12) + entry.type, "");
     }
     return;
@@ -2034,8 +1852,8 @@ function executeCommand(commandText) {
   if (command === "explain") {
     var explanation = generateTopologySummary();
     var lines = explanation.split("\n");
-    for (var e = 0; e < lines.length; e++) {
-      addConsoleOutput(escapeHtml(lines[e]), "");
+    for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      addConsoleOutput(escapeHtml(lines[lineIndex]), "");
     }
     return;
   }
@@ -2053,10 +1871,7 @@ function executeCommand(commandText) {
 
   if (command === "show") {
     var subcommand = args[0] ? args[0].toLowerCase() : "";
-    var showDevice = findDeviceByIdentifier(args[1]);
-    if (!showDevice && state.selectedIds.length === 1) {
-      showDevice = findDevice(state.selectedIds[0]);
-    }
+    var showDevice = resolveDevice(args[1]);
     if (!showDevice) {
       addConsoleOutput('<span class="text-danger">Device not found.</span>', "");
       return;
@@ -2069,8 +1884,8 @@ function executeCommand(commandText) {
         addConsoleOutput("MAC table for " + showDevice.name + " is empty.", "");
       } else {
         addConsoleOutput("MAC table for " + showDevice.name + ":", "");
-        for (var mi = 0; mi < mac.length; mi++) {
-          addConsoleOutput("  " + mac[mi].mac + " on " + mac[mi].interface + " (" + mac[mi].type + ")", "");
+        for (var macEntryIndex = 0; macEntryIndex < mac.length; macEntryIndex++) {
+          addConsoleOutput("  " + mac[macEntryIndex].mac + " on " + mac[macEntryIndex].interface + " (" + mac[macEntryIndex].type + ")", "");
         }
       }
     } else if (subcommand === "routes") {
@@ -2079,8 +1894,8 @@ function executeCommand(commandText) {
         addConsoleOutput("No routes for " + showDevice.name + ".", "");
       } else {
         addConsoleOutput("Routing table for " + showDevice.name + ":", "");
-        for (var ri = 0; ri < routes.length; ri++) {
-          addConsoleOutput("  " + routes[ri].network + "/" + routes[ri].mask + " via " + routes[ri].nextHop, "");
+        for (var routeIndex = 0; routeIndex < routes.length; routeIndex++) {
+          addConsoleOutput("  " + routes[routeIndex].network + "/" + routes[routeIndex].mask + " via " + routes[routeIndex].nextHop, "");
         }
       }
     } else if (subcommand === "dhcp") {
@@ -2094,8 +1909,8 @@ function executeCommand(commandText) {
       var dnsInfo = showDevice.config.dnsServer || {};
       addConsoleOutput("DNS Server on " + showDevice.name + ": " + (dnsInfo.enabled ? "enabled" : "disabled"), "");
       var dnsRecords = dnsInfo.records || [];
-      for (var di = 0; di < dnsRecords.length; di++) {
-        addConsoleOutput("  " + dnsRecords[di].hostname + " → " + dnsRecords[di].ip, "");
+      for (var dnsRecordIndex = 0; dnsRecordIndex < dnsRecords.length; dnsRecordIndex++) {
+        addConsoleOutput("  " + dnsRecords[dnsRecordIndex].hostname + " → " + dnsRecords[dnsRecordIndex].ip, "");
       }
     } else {
       addConsoleOutput("Usage: show mac|routes|dhcp|dns &lt;device&gt;", "");
@@ -2154,14 +1969,14 @@ function bindTooltips() {
       tip.style.opacity = "1";
       // Position near the element
       var rect = target.getBoundingClientRect();
-      var tipX = rect.left + rect.width / 2;
-      var tipY = rect.bottom + 8;
+      var tooltipX = rect.left + rect.width / 2;
+      var tooltipY = rect.bottom + 8;
       // Keep it on screen
-      tip.style.left = Math.min(tipX, window.innerWidth - 180) + "px";
-      tip.style.top = tipY + "px";
+      tip.style.left = Math.min(tooltipX, window.innerWidth - 180) + "px";
+      tip.style.top = tooltipY + "px";
       tip.style.transform = "translateX(-50%)";
       // If it would go below the viewport, show above
-      if (tipY + 40 > window.innerHeight) {
+      if (tooltipY + 40 > window.innerHeight) {
         tip.style.top = (rect.top - 32) + "px";
       }
     }, 350);
@@ -2179,8 +1994,8 @@ function bindTooltips() {
 // Bind drag events on the device library cards
 function bindLibraryDrag() {
   var deviceCards = querySelectorAll(".sbx-device-card");
-  for (var i = 0; i < deviceCards.length; i++) {
-    var card = deviceCards[i];
+  for (var cardIndex = 0; cardIndex < deviceCards.length; cardIndex++) {
+    var card = deviceCards[cardIndex];
 
     // Click to add device
     card.addEventListener("click", function (event) {
@@ -2250,47 +2065,38 @@ function bindLibraryDrag() {
 }
 
 
+// Activate a tool button and deactivate all others
+function activateTool(button, toolValue, tipText) {
+  state.tool = toolValue;
+  state.connectFrom = null;
+  var allToolButtons = querySelectorAll("[data-tool]");
+  for (var toolButtonIndex = 0; toolButtonIndex < allToolButtons.length; toolButtonIndex++) {
+    allToolButtons[toolButtonIndex].classList.remove("is-active");
+  }
+  button.classList.add("is-active");
+  setTip(tipText);
+  updateConnectionTypeGroupVisibility();
+}
+
 // Bind all toolbar button events
 function bindToolbar() {
-  // Select tool button
   var selectButton = getById("toolSelectBtn");
   if (selectButton) {
-    selectButton.addEventListener("click", function () {
-      state.tool = TOOL.SELECT;
-      state.connectFrom = null;
-      var allToolButtons = querySelectorAll("[data-tool]");
-      for (var i = 0; i < allToolButtons.length; i++) {
-        allToolButtons[i].classList.remove("is-active");
-      }
-      selectButton.classList.add("is-active");
-      setTip("Select and drag devices.");
-      updateConnectionTypeGroupVisibility();
-    });
+    selectButton.addEventListener("click", function () { activateTool(selectButton, TOOL.SELECT, "Select and drag devices."); });
   }
 
-  // Connect tool button
   var connectButton = getById("toolConnectBtn");
   if (connectButton) {
-    connectButton.addEventListener("click", function () {
-      state.tool = TOOL.CONNECT;
-      state.connectFrom = null;
-      var allToolButtons = querySelectorAll("[data-tool]");
-      for (var i = 0; i < allToolButtons.length; i++) {
-        allToolButtons[i].classList.remove("is-active");
-      }
-      connectButton.classList.add("is-active");
-      setTip("Select a device to start a connection.");
-      updateConnectionTypeGroupVisibility();
-    });
+    connectButton.addEventListener("click", function () { activateTool(connectButton, TOOL.CONNECT, "Select a device to start a connection."); });
   }
 
   // Connection type buttons — flat buttons in the toolbar, no dropdown
   var connTypeButtons = querySelectorAll("#connTypeGroup [data-conn-type]");
-  for (var c = 0; c < connTypeButtons.length; c++) {
-    connTypeButtons[c].addEventListener("click", function () {
+  for (var connTypeIndex = 0; connTypeIndex < connTypeButtons.length; connTypeIndex++) {
+    connTypeButtons[connTypeIndex].addEventListener("click", function () {
       state.connectType = this.getAttribute("data-conn-type");
-      for (var j = 0; j < connTypeButtons.length; j++) {
-        connTypeButtons[j].classList.remove("is-active");
+      for (var connTypeInnerIndex = 0; connTypeInnerIndex < connTypeButtons.length; connTypeInnerIndex++) {
+        connTypeButtons[connTypeInnerIndex].classList.remove("is-active");
       }
       this.classList.add("is-active");
     });
@@ -2301,12 +2107,12 @@ function bindToolbar() {
   var templateMenu = getById("templateMenu");
   if (templateDropButton && templateMenu) {
     var templateDropdownParent = templateDropButton.closest(".sbx-conn-dropdown");
-    templateDropButton.addEventListener("click", function (e) {
-      e.stopPropagation();
+    templateDropButton.addEventListener("click", function (clickEvent) {
+      clickEvent.stopPropagation();
       if (templateDropdownParent) {
         var allDropdowns = querySelectorAll(".sbx-conn-dropdown.is-open");
-        for (var d = 0; d < allDropdowns.length; d++) {
-          if (allDropdowns[d] !== templateDropdownParent) { allDropdowns[d].classList.remove("is-open"); }
+        for (var dropdownIndex = 0; dropdownIndex < allDropdowns.length; dropdownIndex++) {
+          if (allDropdowns[dropdownIndex] !== templateDropdownParent) { allDropdowns[dropdownIndex].classList.remove("is-open"); }
         }
         templateDropdownParent.classList.toggle("is-open");
       }
@@ -2344,27 +2150,16 @@ function bindToolbar() {
   }
 
   // Save, Load, Clear
-  var saveButton = getById("saveBtn");
+  bindClick("saveBtn", handleSaveTopology);
+  bindClick("clearBtn", confirmClearTopology);
+  bindClick("saveTopologyConfirm", confirmSaveTopology);
   var loadButton = getById("loadBtn");
-  var clearButton = getById("clearBtn");
-  if (saveButton) {
-    saveButton.addEventListener("click", handleSaveTopology);
-  }
   if (loadButton) {
     loadButton.addEventListener("click", function () {
       refreshTopologyList();
       var modal = new bootstrap.Modal(getById("topologyModal"));
       modal.show();
     });
-  }
-  if (clearButton) {
-    clearButton.addEventListener("click", confirmClearTopology);
-  }
-
-  // Save topology confirm button
-  var saveConfirmButton = getById("saveTopologyConfirm");
-  if (saveConfirmButton) {
-    saveConfirmButton.addEventListener("click", confirmSaveTopology);
   }
 
   // Ping modal
@@ -2392,23 +2187,10 @@ function bindToolbar() {
     });
   }
 
-  // Auto layout button
-  var autoLayoutButton = getById("autoLayoutBtn");
-  if (autoLayoutButton) {
-    autoLayoutButton.addEventListener("click", autoLayout);
-  }
-
-  // Minimap toggle
-  var minimapButton = getById("minimapToggleBtn");
-  if (minimapButton) {
-    minimapButton.addEventListener("click", toggleMinimap);
-  }
-
-  // Inspect action buttons
-  var inspPingButton = getById("inspActPing");
-  if (inspPingButton) {
-    inspPingButton.addEventListener("click", openPingModal);
-  }
+  // Auto layout, minimap, inspect ping
+  bindClick("autoLayoutBtn", autoLayout);
+  bindClick("minimapToggleBtn", toggleMinimap);
+  bindClick("inspActPing", openPingModal);
 
   var inspShowIpButton = getById("inspActShowIp");
   if (inspShowIpButton) {
@@ -2489,8 +2271,8 @@ function bindPanels() {
   var rightTabs = getById("sbxRightTabs");
   if (rightTabs) {
     var tabs = rightTabs.querySelectorAll(".sbx-tab");
-    for (var i = 0; i < tabs.length; i++) {
-      tabs[i].addEventListener("click", function () {
+    for (var tabIndex = 0; tabIndex < tabs.length; tabIndex++) {
+      tabs[tabIndex].addEventListener("click", function () {
         var tabId = this.getAttribute("data-tab");
         if (tabId) {
           setRightTab(tabId);
@@ -2512,14 +2294,14 @@ function bindPanels() {
   var configTabs = getById("sbxConfigTabs");
   if (configTabs) {
     var subtabs = configTabs.querySelectorAll(".sbx-subtab");
-    for (var s = 0; s < subtabs.length; s++) {
-      subtabs[s].addEventListener("click", function () {
+    for (var subtabIndex = 0; subtabIndex < subtabs.length; subtabIndex++) {
+      subtabs[subtabIndex].addEventListener("click", function () {
         var subtabId = this.getAttribute("data-subtab");
         if (subtabId) {
           state.configTab = subtabId;
           var allSubtabs = configTabs.querySelectorAll(".sbx-subtab");
-          for (var t = 0; t < allSubtabs.length; t++) {
-            allSubtabs[t].classList.remove("is-active");
+          for (var allSubtabIndex = 0; allSubtabIndex < allSubtabs.length; allSubtabIndex++) {
+            allSubtabs[allSubtabIndex].classList.remove("is-active");
           }
           this.classList.add("is-active");
           renderProps();
@@ -2553,23 +2335,23 @@ function bindPanels() {
   // Bottom tab switching
   var bottomTabs = getById("sbxBottomTabs");
   if (bottomTabs) {
-    var btabs = bottomTabs.querySelectorAll(".sbx-tab");
-    for (var b = 0; b < btabs.length; b++) {
-      btabs[b].addEventListener("click", function () {
+    var bottomTabButtons = bottomTabs.querySelectorAll(".sbx-tab");
+    for (var bottomTabIndex = 0; bottomTabIndex < bottomTabButtons.length; bottomTabIndex++) {
+      bottomTabButtons[bottomTabIndex].addEventListener("click", function () {
         var tabId = this.getAttribute("data-bottom-tab");
         if (!tabId) {
           return;
         }
         state.bottomTab = tabId;
-        var allBTabs = bottomTabs.querySelectorAll(".sbx-tab");
-        for (var t = 0; t < allBTabs.length; t++) {
-          allBTabs[t].classList.remove("is-active");
+        var allBottomTabs = bottomTabs.querySelectorAll(".sbx-tab");
+        for (var allBottomTabIndex = 0; allBottomTabIndex < allBottomTabs.length; allBottomTabIndex++) {
+          allBottomTabs[allBottomTabIndex].classList.remove("is-active");
         }
         this.classList.add("is-active");
 
         var allPanels = querySelectorAll(".sbx-bottom-panel", bottomPanel);
-        for (var p = 0; p < allPanels.length; p++) {
-          allPanels[p].classList.remove("is-active");
+        for (var panelIndex = 0; panelIndex < allPanels.length; panelIndex++) {
+          allPanels[panelIndex].classList.remove("is-active");
         }
         getById("sbx" + tabId.charAt(0).toUpperCase() + tabId.slice(1) + "Panel")?.classList.add("is-active");
       });
@@ -2602,11 +2384,7 @@ function bindPanels() {
     });
   }
 
-  // Terminal clear button
-  var terminalClearButton = getById("terminalClearBtn");
-  if (terminalClearButton) {
-    terminalClearButton.addEventListener("click", clearConsoleOutput);
-  }
+  bindClick("terminalClearBtn", clearConsoleOutput);
 
   // Console input
   function submitConsoleCommand() {
@@ -2649,9 +2427,9 @@ function bindPanels() {
           return;
         }
         var matches = [];
-        for (var i = 0; i < CONSOLE_COMMANDS.length; i++) {
-          if (CONSOLE_COMMANDS[i].indexOf(currentText) === 0) {
-            matches.push(CONSOLE_COMMANDS[i]);
+        for (var commandIndex = 0; commandIndex < CONSOLE_COMMANDS.length; commandIndex++) {
+          if (CONSOLE_COMMANDS[commandIndex].indexOf(currentText) === 0) {
+            matches.push(CONSOLE_COMMANDS[commandIndex]);
           }
         }
         if (matches.length === 1) {
@@ -2705,8 +2483,8 @@ function initTerminalWindowControls() {
 function bindStage() {
   // Quick add buttons in empty state
   var quickAddButtons = querySelectorAll("[data-quick-add]");
-  for (var q = 0; q < quickAddButtons.length; q++) {
-    quickAddButtons[q].addEventListener("click", function () {
+  for (var quickAddIndex = 0; quickAddIndex < quickAddButtons.length; quickAddIndex++) {
+    quickAddButtons[quickAddIndex].addEventListener("click", function () {
       var deviceType = this.getAttribute("data-quick-add");
       if (deviceType) {
         addDevice(deviceType);
@@ -2820,8 +2598,8 @@ function bindStage() {
 
         // Remove connection delete buttons during drag
         var deleteGroups = connectionLayer.querySelectorAll(".sbx-conn-delete-group");
-        for (var d = 0; d < deleteGroups.length; d++) {
-          deleteGroups[d].remove();
+        for (var deleteGroupIndex = 0; deleteGroupIndex < deleteGroups.length; deleteGroupIndex++) {
+          deleteGroups[deleteGroupIndex].remove();
         }
       }
     });
@@ -2866,8 +2644,8 @@ function bindStage() {
   document.addEventListener("click", function (event) {
     if (!event.target.closest(".sbx-conn-dropdown")) {
       var openDropdowns = querySelectorAll(".sbx-conn-dropdown.is-open");
-      for (var od = 0; od < openDropdowns.length; od++) {
-        openDropdowns[od].classList.remove("is-open");
+      for (var openDropdownIndex = 0; openDropdownIndex < openDropdowns.length; openDropdownIndex++) {
+        openDropdowns[openDropdownIndex].classList.remove("is-open");
       }
     }
   });
@@ -2936,14 +2714,11 @@ function showInlineConfig(deviceId) {
   var body = document.createElement("div");
   body.className = "sbx-inline-config-body";
 
-  var activeTab = "general";
-
   function renderTab(tabId) {
-    activeTab = tabId;
     // Update active class
     var allTabBtns = tabsEl.querySelectorAll(".sbx-inline-config-tab");
-    for (var t = 0; t < allTabBtns.length; t++) {
-      allTabBtns[t].classList.toggle("is-active", allTabBtns[t].getAttribute("data-tab") === tabId);
+    for (var tabButtonIndex = 0; tabButtonIndex < allTabBtns.length; tabButtonIndex++) {
+      allTabBtns[tabButtonIndex].classList.toggle("is-active", allTabBtns[tabButtonIndex].getAttribute("data-tab") === tabId);
     }
     // Render content into body using the existing render functions,
     // but temporarily redirect propsElement
@@ -2954,7 +2729,7 @@ function showInlineConfig(deviceId) {
     propsElement = origProps;
   }
 
-  for (var ti = 0; ti < tabDefs.length; ti++) {
+  for (var tabDefIndex = 0; tabDefIndex < tabDefs.length; tabDefIndex++) {
     (function(tab) {
       var tabBtn = document.createElement("button");
       tabBtn.className = "sbx-inline-config-tab" + (tab.id === "general" ? " is-active" : "");
@@ -2962,7 +2737,7 @@ function showInlineConfig(deviceId) {
       tabBtn.textContent = tab.label;
       tabBtn.addEventListener("click", function() { renderTab(tab.id); });
       tabsEl.appendChild(tabBtn);
-    })(tabDefs[ti]);
+    })(tabDefs[tabDefIndex]);
   }
 
   popover.appendChild(tabsEl);
@@ -2977,8 +2752,8 @@ function showInlineConfig(deviceId) {
   renderTab("general");
 
   // Stop clicks inside popover from bubbling to stage (would close selection)
-  popover.addEventListener("pointerdown", function(e) { e.stopPropagation(); });
-  popover.addEventListener("click", function(e) { e.stopPropagation(); });
+  popover.addEventListener("pointerdown", function(pointerEvent) { pointerEvent.stopPropagation(); });
+  popover.addEventListener("click", function(clickEvent) { clickEvent.stopPropagation(); });
 }
 
 
@@ -3040,30 +2815,15 @@ function bindKeyboardShortcuts() {
       return;
     }
 
-    // V for select tool
+    // V for select tool, C for connect tool
     if (event.key === "v" || event.key === "V") {
-      state.tool = TOOL.SELECT;
-      var allToolButtons = querySelectorAll("[data-tool]");
-      for (var i = 0; i < allToolButtons.length; i++) {
-        allToolButtons[i].classList.remove("is-active");
-      }
-      getById("toolSelectBtn")?.classList.add("is-active");
-      state.connectFrom = null;
-      setTip("Select and drag devices.");
-      updateConnectionTypeGroupVisibility();
+      var selectToolButton = getById("toolSelectBtn");
+      if (selectToolButton) { activateTool(selectToolButton, TOOL.SELECT, "Select and drag devices."); }
       return;
     }
-
-    // C for connect tool
     if (event.key === "c" || event.key === "C") {
-      state.tool = TOOL.CONNECT;
-      var allToolBtns = querySelectorAll("[data-tool]");
-      for (var j = 0; j < allToolBtns.length; j++) {
-        allToolBtns[j].classList.remove("is-active");
-      }
-      getById("toolConnectBtn")?.classList.add("is-active");
-      setTip("Select a device to start a connection.");
-      updateConnectionTypeGroupVisibility();
+      var connectToolButton = getById("toolConnectBtn");
+      if (connectToolButton) { activateTool(connectToolButton, TOOL.CONNECT, "Select a device to start a connection."); }
       return;
     }
 
@@ -3152,15 +2912,15 @@ function ensureContextMenu() {
       showConfigTab();
       renderAll();
       var allSubtabs = querySelectorAll(".sbx-subtab", getById("sbxConfigTabs"));
-      for (var i = 0; i < allSubtabs.length; i++) {
-        allSubtabs[i].classList.remove("is-active");
+      for (var subtabIndex = 0; subtabIndex < allSubtabs.length; subtabIndex++) {
+        allSubtabs[subtabIndex].classList.remove("is-active");
       }
       querySelector('.sbx-subtab[data-subtab="interfaces"]', getById("sbxConfigTabs"))?.classList.add("is-active");
     } else if (action === "toggleconn") {
       // Toggle the first connection involving this device
-      for (var j = 0; j < state.connections.length; j++) {
-        if (state.connections[j].from === deviceId || state.connections[j].to === deviceId) {
-          toggleConnectionUpDown(state.connections[j].id);
+      for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+        if (state.connections[connectionIndex].from === deviceId || state.connections[connectionIndex].to === deviceId) {
+          toggleConnectionUpDown(state.connections[connectionIndex].id);
           break;
         }
       }
@@ -3261,8 +3021,8 @@ function bindDeviceFilter() {
   filterInput.addEventListener("input", function () {
     var query = filterInput.value.toLowerCase().trim();
     var cards = querySelectorAll(".sbx-device-card");
-    for (var i = 0; i < cards.length; i++) {
-      var card = cards[i];
+    for (var cardIndex = 0; cardIndex < cards.length; cardIndex++) {
+      var card = cards[cardIndex];
       var labelElement = card.querySelector(".sbx-device-label");
       var labelText = labelElement ? labelElement.textContent.toLowerCase() : "";
       var deviceType = card.getAttribute("data-device") || "";
@@ -3279,8 +3039,8 @@ function bindDeviceFilter() {
 // Collapse/expand device groups in the library
 function bindDeviceGroupCollapse() {
   var groupTitles = querySelectorAll(".sbx-device-group-title");
-  for (var i = 0; i < groupTitles.length; i++) {
-    groupTitles[i].addEventListener("click", function () {
+  for (var groupTitleIndex = 0; groupTitleIndex < groupTitles.length; groupTitleIndex++) {
+    groupTitles[groupTitleIndex].addEventListener("click", function () {
       var group = this.closest(".sbx-device-group");
       if (group) {
         group.classList.toggle("is-collapsed");
@@ -3301,10 +3061,10 @@ function autoLayout() {
   var cellWidth = Math.floor((CANVAS_WIDTH - padding * 2) / columns);
   var cellHeight = Math.floor(cellWidth * 0.9);
 
-  for (var i = 0; i < state.devices.length; i++) {
-    var device = state.devices[i];
-    var column = i % columns;
-    var row = Math.floor(i / columns);
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var device = state.devices[deviceIndex];
+    var column = deviceIndex % columns;
+    var row = Math.floor(deviceIndex / columns);
     device.x = padding + column * cellWidth + (cellWidth - DEVICE_SIZE) / 2;
     device.y = padding + 40 + row * cellHeight + (cellHeight - DEVICE_SIZE) / 2;
 
@@ -3328,23 +3088,9 @@ function toggleMinimap() {
   minimapVisible = !minimapVisible;
   var minimapElement = getById("sbxMinimap");
   var minimapButton = getById("minimapToggleBtn");
-  if (minimapElement) {
-    if (minimapVisible) {
-      minimapElement.classList.add("is-visible");
-    } else {
-      minimapElement.classList.remove("is-visible");
-    }
-  }
-  if (minimapButton) {
-    if (minimapVisible) {
-      minimapButton.classList.add("is-active");
-    } else {
-      minimapButton.classList.remove("is-active");
-    }
-  }
-  if (minimapVisible) {
-    updateMinimap();
-  }
+  if (minimapElement) { minimapElement.classList.toggle("is-visible", minimapVisible); }
+  if (minimapButton) { minimapButton.classList.toggle("is-active", minimapVisible); }
+  if (minimapVisible) { updateMinimap(); }
 }
 
 function updateMinimap() {
@@ -3360,40 +3106,40 @@ function updateMinimap() {
   var scaleY = 100 / CANVAS_HEIGHT;
   var scale = Math.min(scaleX, scaleY);
 
-  var html = "";
+  var svgHtml = "";
 
   // Draw connections
-  for (var i = 0; i < state.connections.length; i++) {
-    var connection = state.connections[i];
+  for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+    var connection = state.connections[connectionIndex];
     var fromDevice = findDevice(connection.from);
     var toDevice = findDevice(connection.to);
     if (fromDevice && toDevice) {
-      var x1 = (fromDevice.x + DEVICE_RADIUS) * scale;
-      var y1 = (fromDevice.y + DEVICE_RADIUS) * scale;
-      var x2 = (toDevice.x + DEVICE_RADIUS) * scale;
-      var y2 = (toDevice.y + DEVICE_RADIUS) * scale;
-      html += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="#94a3b8" stroke-width="1"/>';
+      var startX = (fromDevice.x + DEVICE_RADIUS) * scale;
+      var startY = (fromDevice.y + DEVICE_RADIUS) * scale;
+      var endX = (toDevice.x + DEVICE_RADIUS) * scale;
+      var endY = (toDevice.y + DEVICE_RADIUS) * scale;
+      svgHtml += '<line x1="' + startX + '" y1="' + startY + '" x2="' + endX + '" y2="' + endY + '" stroke="#94a3b8" stroke-width="1"/>';
     }
   }
 
   // Draw devices
-  for (var j = 0; j < state.devices.length; j++) {
-    var device = state.devices[j];
-    var cx = (device.x + DEVICE_RADIUS) * scale;
-    var cy = (device.y + DEVICE_RADIUS) * scale;
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var device = state.devices[deviceIndex];
+    var centerX = (device.x + DEVICE_RADIUS) * scale;
+    var centerY = (device.y + DEVICE_RADIUS) * scale;
     var color = state.selectedIds.indexOf(device.id) !== -1 ? "#0d9488" : "#64748b";
-    html += '<circle cx="' + cx + '" cy="' + cy + '" r="3" fill="' + color + '"/>';
+    svgHtml += '<circle cx="' + centerX + '" cy="' + centerY + '" r="3" fill="' + color + '"/>';
   }
 
-  svgElement.innerHTML = html;
+  svgElement.innerHTML = svgHtml;
 }
 
 
 // Update device count badges in the library
 function updateDeviceCountBadges() {
   var counts = {};
-  for (var i = 0; i < state.devices.length; i++) {
-    var deviceType = state.devices[i].type;
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var deviceType = state.devices[deviceIndex].type;
     if (!counts[deviceType]) {
       counts[deviceType] = 0;
     }
@@ -3401,16 +3147,12 @@ function updateDeviceCountBadges() {
   }
 
   var badges = querySelectorAll("[data-count-for]");
-  for (var j = 0; j < badges.length; j++) {
-    var badge = badges[j];
+  for (var badgeIndex = 0; badgeIndex < badges.length; badgeIndex++) {
+    var badge = badges[badgeIndex];
     var countFor = badge.getAttribute("data-count-for");
     var count = counts[countFor] || 0;
     badge.textContent = count;
-    if (count > 0) {
-      badge.classList.add("is-visible");
-    } else {
-      badge.classList.remove("is-visible");
-    }
+    badge.classList.toggle("is-visible", count > 0);
   }
 }
 
@@ -3435,8 +3177,8 @@ function updateStatsBar() {
 // Update device status indicator dots
 function updateDeviceStatusIndicators() {
   var statusDots = querySelectorAll(".sbx-device-status");
-  for (var i = 0; i < statusDots.length; i++) {
-    var dot = statusDots[i];
+  for (var statusDotIndex = 0; statusDotIndex < statusDots.length; statusDotIndex++) {
+    var dot = statusDots[statusDotIndex];
     var deviceElement = dot.closest(".sbx-device");
     if (!deviceElement) {
       continue;
@@ -3483,14 +3225,14 @@ function setRightTab(tabId) {
   state.rightTab = tabId;
 
   var allTabs = tabsWrap.querySelectorAll(".sbx-tab");
-  for (var i = 0; i < allTabs.length; i++) {
-    allTabs[i].classList.remove("is-active");
+  for (var tabIndex = 0; tabIndex < allTabs.length; tabIndex++) {
+    allTabs[tabIndex].classList.remove("is-active");
   }
   targetTab.classList.add("is-active");
 
   var allPanels = rightPanel.querySelectorAll(".sbx-tabpanel");
-  for (var j = 0; j < allPanels.length; j++) {
-    allPanels[j].classList.remove("is-active");
+  for (var panelIndex = 0; panelIndex < allPanels.length; panelIndex++) {
+    allPanels[panelIndex].classList.remove("is-active");
   }
   var panelId = "panel" + tabId.charAt(0).toUpperCase() + tabId.slice(1);
   var panel = getById(panelId);

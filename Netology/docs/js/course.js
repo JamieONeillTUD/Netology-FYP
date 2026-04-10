@@ -464,6 +464,7 @@
 
     if (item.type === "sandbox") {
       return buildSandboxUrl(courseId, unitIndex, "practice", "netology_active_tutorial", {
+        title: item.title || "Tutorial",
         steps: item.steps || [],
         tips: item.tips || "",
         xp: item.xpReward || 0

@@ -87,25 +87,25 @@ var TOOL = { SELECT: "select", CONNECT: "connect" };
 
 // All the device types available in the sandbox
 var DEVICE_TYPES = {
-  pc:          { label: "PC",          icon: "bi-pc-display",    color: "#3b82f6", category: "End Devices" },
-  laptop:      { label: "Laptop",      icon: "bi-laptop",        color: "#6366f1", category: "End Devices" },
-  smartphone:  { label: "Smartphone",  icon: "bi-phone",         color: "#a855f7", category: "End Devices" },
-  printer:     { label: "Printer",     icon: "bi-printer",       color: "#ec4899", category: "End Devices" },
-  router:      { label: "Router",      icon: "bi-diagram-3",     color: "#14b8a6", category: "Network Devices" },
-  switch:      { label: "Switch",      icon: "bi-hdd-network",   color: "#f59e0b", category: "Network Devices" },
-  "wireless-ap": { label: "Wireless AP", icon: "bi-wifi",        color: "#22d3ee", category: "Network Devices" },
-  firewall:    { label: "Firewall",    icon: "bi-shield-lock",   color: "#ef4444", category: "Network Devices" },
-  server:      { label: "Server",      icon: "bi-server",        color: "#10b981", category: "Servers" },
-  cloud:       { label: "Internet",    icon: "bi-cloud",         color: "#94a3b8", category: "Servers" }
+  pc: { label: "PC", icon: "bi-pc-display", color: "#3b82f6", category: "End Devices" },
+  laptop: { label: "Laptop", icon: "bi-laptop", color: "#6366f1", category: "End Devices" },
+  smartphone: { label: "Smartphone", icon: "bi-phone", color: "#a855f7", category: "End Devices" },
+  printer: { label: "Printer", icon: "bi-printer", color: "#ec4899", category: "End Devices" },
+  router: { label: "Router", icon: "bi-diagram-3", color: "#14b8a6", category: "Network Devices" },
+  switch: { label: "Switch", icon: "bi-hdd-network", color: "#f59e0b", category: "Network Devices" },
+  "wireless-ap": { label: "Wireless AP", icon: "bi-wifi", color: "#22d3ee", category: "Network Devices" },
+  firewall: { label: "Firewall", icon: "bi-shield-lock", color: "#ef4444", category: "Network Devices" },
+  server: { label: "Server", icon: "bi-server", color: "#10b981", category: "Servers" },
+  cloud: { label: "Internet", icon: "bi-cloud", color: "#94a3b8", category: "Servers" }
 };
 
 // Connection types with labels, colors and dash patterns
 var CONNECTION_TYPES = {
-  ethernet: { label: "Ethernet",  color: "#3b82f6", dash: "" },
-  fiber:    { label: "Fiber",     color: "#f59e0b", dash: "8 4" },
-  serial:   { label: "Serial",    color: "#a855f7", dash: "4 4" },
-  wireless: { label: "Wireless",  color: "#22d3ee", dash: "2 6" },
-  console:  { label: "Console",   color: "#94a3b8", dash: "6 3" }
+  ethernet: { label: "Ethernet", color: "#3b82f6", dash: "" },
+  fiber: { label: "Fiber", color: "#f59e0b", dash: "8 4" },
+  serial: { label: "Serial", color: "#a855f7", dash: "4 4" },
+  wireless: { label: "Wireless", color: "#22d3ee", dash: "2 6" },
+  console: { label: "Console", color: "#94a3b8", dash: "6 3" }
 };
 
 // Bandwidth for each connection type (used in latency calculations)
@@ -119,16 +119,16 @@ var BANDWIDTH_MAP = {
 
 // Which devices can connect to which other devices, and with what cable
 var DEVICE_COMPATIBILITY = {
-  pc:          [{ targets: ["switch", "router", "wireless-ap", "firewall"], conn: "ethernet" }],
-  laptop:      [{ targets: ["switch", "router", "wireless-ap"], conn: "ethernet" }, { targets: ["wireless-ap"], conn: "wireless" }],
-  smartphone:  [{ targets: ["wireless-ap"], conn: "wireless" }],
-  printer:     [{ targets: ["switch", "router"], conn: "ethernet" }],
-  router:      [{ targets: ["switch", "firewall", "cloud", "router"], conn: "ethernet" }, { targets: ["router"], conn: "serial" }],
-  switch:      [{ targets: ["switch", "router", "server", "firewall", "wireless-ap"], conn: "ethernet" }, { targets: ["switch"], conn: "fiber" }],
+  pc: [{ targets: ["switch", "router", "wireless-ap", "firewall"], conn: "ethernet" }],
+  laptop: [{ targets: ["switch", "router", "wireless-ap"], conn: "ethernet" }, { targets: ["wireless-ap"], conn: "wireless" }],
+  smartphone: [{ targets: ["wireless-ap"], conn: "wireless" }],
+  printer: [{ targets: ["switch", "router"], conn: "ethernet" }],
+  router: [{ targets: ["switch", "firewall", "cloud", "router"], conn: "ethernet" }, { targets: ["router"], conn: "serial" }],
+  switch: [{ targets: ["switch", "router", "server", "firewall", "wireless-ap"], conn: "ethernet" }, { targets: ["switch"], conn: "fiber" }],
   "wireless-ap": [{ targets: ["switch", "router"], conn: "ethernet" }],
-  firewall:    [{ targets: ["router", "switch", "server"], conn: "ethernet" }],
-  server:      [{ targets: ["switch", "router", "firewall"], conn: "ethernet" }],
-  cloud:       [{ targets: ["router", "firewall"], conn: "ethernet" }]
+  firewall: [{ targets: ["router", "switch", "server"], conn: "ethernet" }],
+  server: [{ targets: ["switch", "router", "firewall"], conn: "ethernet" }],
+  cloud: [{ targets: ["router", "firewall"], conn: "ethernet" }]
 };
 
 // VLAN color list for color-coding VLANs on the canvas
@@ -227,10 +227,10 @@ function clamp(value, minimum, maximum) {
 // Darken or lighten a hex color by a percentage amount (negative = darker)
 function shadeColor(hex, percent) {
   var num = parseInt(hex.replace("#", ""), 16);
-  var r = clamp(((num >> 16) & 0xff) + Math.round(255 * percent / 100), 0, 255);
-  var g = clamp(((num >> 8) & 0xff) + Math.round(255 * percent / 100), 0, 255);
-  var b = clamp((num & 0xff) + Math.round(255 * percent / 100), 0, 255);
-  return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+  var redChannel = clamp(((num >> 16) & 0xff) + Math.round(255 * percent / 100), 0, 255);
+  var greenChannel = clamp(((num >> 8) & 0xff) + Math.round(255 * percent / 100), 0, 255);
+  var blueChannel = clamp((num & 0xff) + Math.round(255 * percent / 100), 0, 255);
+  return "#" + ((1 << 24) | (redChannel << 16) | (greenChannel << 8) | blueChannel).toString(16).slice(1);
 }
 
 // Create a debounced version of a function that waits before calling it
@@ -373,8 +373,7 @@ function resetViewport() {
 }
 
 // Set the zoom level (zoom is disabled — canvas uses native scroll at 1:1 scale)
-function setZoom(newZoom, mouseX, mouseY) {
-  // Zoom is disabled to keep the canvas simple and stable
+function setZoom() {
   state.zoom = 1;
   if (typeof updateZoomLabel === "function") {
     updateZoomLabel();
@@ -394,9 +393,9 @@ function isValidIpAddress(ip) {
   if (parts.length !== 4) {
     return false;
   }
-  for (var i = 0; i < parts.length; i++) {
-    var number = Number(parts[i]);
-    if (isNaN(number) || number < 0 || number > 255 || parts[i] !== String(number)) {
+  for (var partIndex = 0; partIndex < parts.length; partIndex++) {
+    var number = Number(parts[partIndex]);
+    if (isNaN(number) || number < 0 || number > 255 || parts[partIndex] !== String(number)) {
       return false;
     }
   }
@@ -419,8 +418,8 @@ function isValidSubnet(mask) {
 function ipToInt(ip) {
   var parts = ip.split(".");
   var result = 0;
-  for (var i = 0; i < 4; i++) {
-    result = result * 256 + Number(parts[i]);
+  for (var octetIndex = 0; octetIndex < 4; octetIndex++) {
+    result = result * 256 + Number(parts[octetIndex]);
   }
   return result;
 }
@@ -443,8 +442,8 @@ function buildAutoLanIp(hostNumber) {
 // Find a free IP address that no device is already using
 function pickAvailableAutoLanIp() {
   var usedAddresses = [];
-  for (var i = 0; i < state.devices.length; i++) {
-    var device = state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var device = state.devices[deviceIndex];
     if (device.config && device.config.ipAddress) {
       usedAddresses.push(device.config.ipAddress);
     }
@@ -461,13 +460,13 @@ function pickAvailableAutoLanIp() {
 // Check for IP conflicts - two devices with the same IP address
 function findSubnetConflicts() {
   var conflicts = [];
-  for (var i = 0; i < state.devices.length; i++) {
-    var deviceA = state.devices[i];
+  for (var deviceOuterIndex = 0; deviceOuterIndex < state.devices.length; deviceOuterIndex++) {
+    var deviceA = state.devices[deviceOuterIndex];
     if (!deviceA.config || !deviceA.config.ipAddress) {
       continue;
     }
-    for (var j = i + 1; j < state.devices.length; j++) {
-      var deviceB = state.devices[j];
+    for (var deviceInnerIndex = deviceOuterIndex + 1; deviceInnerIndex < state.devices.length; deviceInnerIndex++) {
+      var deviceB = state.devices[deviceInnerIndex];
       if (!deviceB.config || !deviceB.config.ipAddress) {
         continue;
       }
@@ -483,8 +482,8 @@ function findSubnetConflicts() {
   }
 
   // Check for devices connected directly but on different subnets
-  for (var k = 0; k < state.connections.length; k++) {
-    var connection = state.connections[k];
+  for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+    var connection = state.connections[connectionIndex];
     var fromDevice = findDevice(connection.from);
     var toDevice = findDevice(connection.to);
     if (!fromDevice || !toDevice) {
@@ -514,7 +513,7 @@ function findSubnetConflicts() {
 // Generate a random MAC address (like AA:BB:CC:DD:EE:FF)
 function generateMacAddress() {
   var hexParts = [];
-  for (var i = 0; i < 6; i++) {
+  for (var byteIndex = 0; byteIndex < 6; byteIndex++) {
     var randomByte = Math.floor(Math.random() * 256);
     var hexString = randomByte.toString(16).padStart(2, "0");
     hexParts.push(hexString.toUpperCase());
@@ -554,8 +553,8 @@ function generateDeviceName(deviceType) {
   var label = typeInfo.label;
   // Count how many devices of this type already exist
   var count = 0;
-  for (var i = 0; i < state.devices.length; i++) {
-    if (state.devices[i].type === deviceType) {
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    if (state.devices[deviceIndex].type === deviceType) {
       count++;
     }
   }
@@ -566,7 +565,6 @@ function generateDeviceName(deviceType) {
 function normalizeDevice(partial) {
   var deviceId = partial.id || ("dev-" + Date.now() + "-" + Math.random().toString(36).substring(2, 8));
   var deviceType = partial.type || "pc";
-  var typeInfo = DEVICE_TYPES[deviceType] || DEVICE_TYPES.pc;
   var existingConfig = partial.config || {};
 
   var device = {
@@ -609,9 +607,9 @@ function normalizeConnection(partial) {
 
 // Find a device in the devices list by its id
 function findDevice(deviceId) {
-  for (var i = 0; i < state.devices.length; i++) {
-    if (state.devices[i].id === deviceId) {
-      return state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    if (state.devices[deviceIndex].id === deviceId) {
+      return state.devices[deviceIndex];
     }
   }
   return null;
@@ -631,9 +629,9 @@ function findDeviceByName(name) {
     return null;
   }
   var lowerName = name.toLowerCase();
-  for (var i = 0; i < state.devices.length; i++) {
-    if (state.devices[i].name.toLowerCase() === lowerName) {
-      return state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    if (state.devices[deviceIndex].name.toLowerCase() === lowerName) {
+      return state.devices[deviceIndex];
     }
   }
   return null;
@@ -644,9 +642,9 @@ function findDeviceByIp(ip) {
   if (!ip) {
     return null;
   }
-  for (var i = 0; i < state.devices.length; i++) {
-    if (state.devices[i].config && state.devices[i].config.ipAddress === ip) {
-      return state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    if (state.devices[deviceIndex].config && state.devices[deviceIndex].config.ipAddress === ip) {
+      return state.devices[deviceIndex];
     }
   }
   return null;
@@ -665,6 +663,69 @@ function findDeviceByIdentifier(identifier) {
 }
 
 
+// Resolve a device from an identifier (name/IP) or fall back to the selected device
+function resolveDevice(identifier) {
+  var found = findDeviceByIdentifier(identifier);
+  if (!found && state.selectedIds.length === 1) {
+    found = findDevice(state.selectedIds[0]);
+  }
+  return found;
+}
+
+// Count devices that pass a test function — avoids repeated loops
+function countDevicesMatching(test) {
+  var count = 0;
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    if (test(state.devices[deviceIndex])) { count++; }
+  }
+  return count;
+}
+
+// Find a connection by its id
+function findConnection(connectionId) {
+  for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+    if (state.connections[connectionIndex].id === connectionId) {
+      return state.connections[connectionIndex];
+    }
+  }
+  return null;
+}
+
+// Wire a click listener to an element by id — does nothing if element doesn't exist
+function bindClick(id, handler) {
+  var element = getById(id);
+  if (element) { element.addEventListener("click", handler); }
+}
+
+// Build a labelled form field (label + input) and append both to a container
+function makeField(container, labelText, inputType, value, opts) {
+  var label = document.createElement("label");
+  label.className = "form-label" + (opts && opts.mt ? " mt-" + opts.mt : "");
+  label.textContent = labelText;
+  var input = document.createElement("input");
+  input.type = inputType || "text";
+  input.className = "form-control";
+  input.value = value !== undefined && value !== null ? value : "";
+  if (opts && opts.placeholder) { input.placeholder = opts.placeholder; }
+  if (opts && opts.readOnly) { input.readOnly = true; }
+  if (opts && opts.min !== undefined) { input.min = String(opts.min); }
+  if (opts && opts.max !== undefined) { input.max = String(opts.max); }
+  container.appendChild(label);
+  container.appendChild(input);
+  return input;
+}
+
+// Build a device action button (config / copy / delete overlay buttons)
+function makeActionButton(action, deviceId, tooltip, iconClass) {
+  var btn = document.createElement("button");
+  btn.className = "sbx-device-action";
+  btn.setAttribute("data-action", action);
+  btn.setAttribute("data-device-id", deviceId);
+  btn.setAttribute("data-tooltip", tooltip);
+  btn.innerHTML = '<i class="bi ' + iconClass + '"></i>';
+  return btn;
+}
+
 // Update a device's status based on whether it has an IP
 function updateDeviceStatus(device) {
   if (!device || !device.config) {
@@ -676,8 +737,8 @@ function updateDeviceStatus(device) {
 // Automatically assign IP addresses and gateways to all devices
 function applyAutoNetworkDefaults() {
   // First pass: give IP addresses to devices that dont have one
-  for (var i = 0; i < state.devices.length; i++) {
-    var device = state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var device = state.devices[deviceIndex];
     if (!device.config) {
       continue;
     }
@@ -692,8 +753,8 @@ function applyAutoNetworkDefaults() {
   }
 
   // Second pass: set gateways for end devices
-  for (var j = 0; j < state.devices.length; j++) {
-    var endDevice = state.devices[j];
+  for (var gatewayDeviceIndex = 0; gatewayDeviceIndex < state.devices.length; gatewayDeviceIndex++) {
+    var endDevice = state.devices[gatewayDeviceIndex];
     if (!endDevice.config || endDevice.config.defaultGateway) {
       continue;
     }
@@ -720,8 +781,8 @@ function findPath(startId, endId) {
     var currentNode = currentPath[currentPath.length - 1];
 
     // Look at all connections from the current device
-    for (var i = 0; i < state.connections.length; i++) {
-      var connection = state.connections[i];
+    for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+      var connection = state.connections[connectionIndex];
 
       // Skip connections that are down
       if (!connection.isUp) {
@@ -753,16 +814,16 @@ function findPath(startId, endId) {
 
 // Rebuild MAC address tables for all switches
 function rebuildMacTables() {
-  for (var i = 0; i < state.devices.length; i++) {
-    var device = state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var device = state.devices[deviceIndex];
     if (device.type !== "switch") {
       continue;
     }
     device.config.macTable = [];
 
     // Look at all connections to this switch
-    for (var j = 0; j < state.connections.length; j++) {
-      var connection = state.connections[j];
+    for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+      var connection = state.connections[connectionIndex];
       var connectedDeviceId = null;
       var interfaceName = null;
 
@@ -824,7 +885,20 @@ function executePing(sourceDevice, destinationDevice) {
       result.message = "Ping failed: " + sourceDevice.name + " has no default gateway set for off-subnet traffic.";
       return result;
     }
+    // Try to find the gateway device by its exact IP first
     var gatewayDevice = findDeviceByIp(sourceDevice.config.defaultGateway);
+    // If no device has that exact IP, look for any reachable router in the topology
+    if (!gatewayDevice) {
+      for (var routerSearchIndex = 0; routerSearchIndex < state.devices.length; routerSearchIndex++) {
+        var candidate = state.devices[routerSearchIndex];
+        if ((candidate.type === "router" || candidate.type === "firewall") && candidate.id !== sourceDevice.id) {
+          if (findPath(sourceDevice.id, candidate.id)) {
+            gatewayDevice = candidate;
+            break;
+          }
+        }
+      }
+    }
     if (!gatewayDevice) {
       result.message = "Ping failed: Default gateway " + sourceDevice.config.defaultGateway + " is not reachable.";
       return result;
@@ -841,17 +915,17 @@ function executePing(sourceDevice, destinationDevice) {
   // Calculate latency based on the connections in the path
   var totalLatency = 0;
   var hopNames = [];
-  for (var i = 0; i < path.length; i++) {
-    var device = findDevice(path[i]);
+  for (var hopIndex = 0; hopIndex < path.length; hopIndex++) {
+    var device = findDevice(path[hopIndex]);
     if (device) {
       hopNames.push(device.name);
     }
-    if (i < path.length - 1) {
+    if (hopIndex < path.length - 1) {
       // Find the connection between this hop and the next
-      for (var j = 0; j < state.connections.length; j++) {
-        var conn = state.connections[j];
-        var connects = (conn.from === path[i] && conn.to === path[i + 1]) ||
-                       (conn.to === path[i] && conn.from === path[i + 1]);
+      for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+        var conn = state.connections[connectionIndex];
+        var connects = (conn.from === path[hopIndex] && conn.to === path[hopIndex + 1]) ||
+                       (conn.to === path[hopIndex] && conn.from === path[hopIndex + 1]);
         if (connects) {
           var bandwidth = BANDWIDTH_MAP[conn.type] || 100;
           totalLatency += Math.max(1, Math.round(1000 / bandwidth));
@@ -878,8 +952,8 @@ function requestDhcp(device) {
 
   // Look for a DHCP server on the network
   var dhcpServer = null;
-  for (var i = 0; i < state.devices.length; i++) {
-    var otherDevice = state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var otherDevice = state.devices[deviceIndex];
     if (otherDevice.id !== device.id && otherDevice.config && otherDevice.config.dhcpServer && otherDevice.config.dhcpServer.enabled) {
       var pathToServer = findPath(device.id, otherDevice.id);
       if (pathToServer) {
@@ -916,9 +990,9 @@ function requestDhcp(device) {
 
   // Collect already used IPs
   var usedIps = [];
-  for (var j = 0; j < state.devices.length; j++) {
-    if (state.devices[j].config && state.devices[j].config.ipAddress) {
-      usedIps.push(state.devices[j].config.ipAddress);
+  for (var usedIpDeviceIndex = 0; usedIpDeviceIndex < state.devices.length; usedIpDeviceIndex++) {
+    if (state.devices[usedIpDeviceIndex].config && state.devices[usedIpDeviceIndex].config.ipAddress) {
+      usedIps.push(state.devices[usedIpDeviceIndex].config.ipAddress);
     }
   }
 
@@ -948,34 +1022,34 @@ function getVisibleCenter() {
   if (!stage) {
     return { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
   }
-  var cx = stage.scrollLeft + stage.clientWidth / 2;
-  var cy = stage.scrollTop + stage.clientHeight / 2;
+  var centerX = stage.scrollLeft + stage.clientWidth / 2;
+  var centerY = stage.scrollTop + stage.clientHeight / 2;
   // Clamp to canvas bounds
-  cx = Math.max(DEVICE_SIZE, Math.min(CANVAS_WIDTH - DEVICE_SIZE, cx));
-  cy = Math.max(DEVICE_SIZE, Math.min(CANVAS_HEIGHT - DEVICE_SIZE, cy));
-  return { x: cx, y: cy };
+  centerX = Math.max(DEVICE_SIZE, Math.min(CANVAS_WIDTH - DEVICE_SIZE, centerX));
+  centerY = Math.max(DEVICE_SIZE, Math.min(CANVAS_HEIGHT - DEVICE_SIZE, centerY));
+  return { x: centerX, y: centerY };
 }
 
 // Scroll the stage so a given world position is visible
 function scrollToDevice(device) {
   if (!stage) { return; }
-  var dx = device.x + DEVICE_RADIUS;
-  var dy = device.y + DEVICE_RADIUS;
-  var left = dx - stage.clientWidth / 2;
-  var top = dy - stage.clientHeight / 2;
+  var deviceCenterX = device.x + DEVICE_RADIUS;
+  var deviceCenterY = device.y + DEVICE_RADIUS;
+  var left = deviceCenterX - stage.clientWidth / 2;
+  var top = deviceCenterY - stage.clientHeight / 2;
   stage.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: "smooth" });
 }
 
 // Find a good position for a new device on the canvas (spiral outward from visible center)
 function getNextDevicePosition() {
-  var vc = getVisibleCenter();
+  var visibleCenter = getVisibleCenter();
   if (state.devices.length === 0) {
-    return { x: vc.x - DEVICE_RADIUS, y: vc.y - DEVICE_RADIUS };
+    return { x: visibleCenter.x - DEVICE_RADIUS, y: visibleCenter.y - DEVICE_RADIUS };
   }
 
   var spacing = DEVICE_SIZE + 40;
-  var centerX = vc.x;
-  var centerY = vc.y;
+  var centerX = visibleCenter.x;
+  var centerY = visibleCenter.y;
   var angle = 0;
   var radius = spacing;
 
@@ -990,8 +1064,8 @@ function getNextDevicePosition() {
 
     // Check if this position overlaps with any existing device
     var overlaps = false;
-    for (var i = 0; i < state.devices.length; i++) {
-      var existingDevice = state.devices[i];
+    for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+      var existingDevice = state.devices[deviceIndex];
       var distanceX = Math.abs(candidateX - existingDevice.x);
       var distanceY = Math.abs(candidateY - existingDevice.y);
       if (distanceX < DEVICE_SIZE && distanceY < DEVICE_SIZE) {
@@ -1057,10 +1131,10 @@ var TOPOLOGY_TEMPLATES = {
 
       // Add 4 PCs around the switch
       var angles = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
-      for (var i = 0; i < 4; i++) {
-        var pcX = centerX + Math.cos(angles[i]) * 200 - DEVICE_RADIUS;
-        var pcY = centerY + Math.sin(angles[i]) * 200 - DEVICE_RADIUS;
-        var pc = normalizeDevice({ type: "pc", x: pcX, y: pcY, name: "PC-" + (i + 1) });
+      for (var pcIndex = 0; pcIndex < 4; pcIndex++) {
+        var pcX = centerX + Math.cos(angles[pcIndex]) * 200 - DEVICE_RADIUS;
+        var pcY = centerY + Math.sin(angles[pcIndex]) * 200 - DEVICE_RADIUS;
+        var pc = normalizeDevice({ type: "pc", x: pcX, y: pcY, name: "PC-" + (pcIndex + 1) });
         devices.push(pc);
         connections.push(normalizeConnection({ from: pc.id, to: switchDevice.id, type: "ethernet" }));
       }
@@ -1077,15 +1151,15 @@ var TOPOLOGY_TEMPLATES = {
       var devices = [];
       var connections = [];
 
-      for (var i = 0; i < 4; i++) {
-        var pc = normalizeDevice({ type: "pc", x: startX + i * 250, y: startY - 150, name: "PC-" + (i + 1) });
-        var sw = normalizeDevice({ type: "switch", x: startX + i * 250, y: startY, name: "Switch-" + (i + 1) });
+      for (var busSegmentIndex = 0; busSegmentIndex < 4; busSegmentIndex++) {
+        var pc = normalizeDevice({ type: "pc", x: startX + busSegmentIndex * 250, y: startY - 150, name: "PC-" + (busSegmentIndex + 1) });
+        var segmentSwitch = normalizeDevice({ type: "switch", x: startX + busSegmentIndex * 250, y: startY, name: "Switch-" + (busSegmentIndex + 1) });
         devices.push(pc);
-        devices.push(sw);
-        connections.push(normalizeConnection({ from: pc.id, to: sw.id, type: "ethernet" }));
-        if (i > 0) {
-          var previousSwitch = devices[(i * 2) - 1];
-          connections.push(normalizeConnection({ from: previousSwitch.id, to: sw.id, type: "ethernet" }));
+        devices.push(segmentSwitch);
+        connections.push(normalizeConnection({ from: pc.id, to: segmentSwitch.id, type: "ethernet" }));
+        if (busSegmentIndex > 0) {
+          var previousSwitch = devices[(busSegmentIndex * 2) - 1];
+          connections.push(normalizeConnection({ from: previousSwitch.id, to: segmentSwitch.id, type: "ethernet" }));
         }
       }
 
@@ -1102,20 +1176,20 @@ var TOPOLOGY_TEMPLATES = {
       var connections = [];
       var deviceCount = 6;
 
-      for (var i = 0; i < deviceCount; i++) {
-        var angle = (i / deviceCount) * Math.PI * 2 - Math.PI / 2;
+      for (var ringIndex = 0; ringIndex < deviceCount; ringIndex++) {
+        var angle = (ringIndex / deviceCount) * Math.PI * 2 - Math.PI / 2;
         var deviceX = centerX + Math.cos(angle) * 250 - DEVICE_RADIUS;
         var deviceY = centerY + Math.sin(angle) * 250 - DEVICE_RADIUS;
-        var deviceType = (i % 2 === 0) ? "switch" : "pc";
-        var deviceName = deviceType.charAt(0).toUpperCase() + deviceType.slice(1) + "-" + (i + 1);
+        var deviceType = (ringIndex % 2 === 0) ? "switch" : "pc";
+        var deviceName = deviceType.charAt(0).toUpperCase() + deviceType.slice(1) + "-" + (ringIndex + 1);
         var device = normalizeDevice({ type: deviceType, x: deviceX, y: deviceY, name: deviceName });
         devices.push(device);
       }
 
       // Connect in a ring
-      for (var j = 0; j < devices.length; j++) {
-        var nextIndex = (j + 1) % devices.length;
-        connections.push(normalizeConnection({ from: devices[j].id, to: devices[nextIndex].id, type: "ethernet" }));
+      for (var ringConnectionIndex = 0; ringConnectionIndex < devices.length; ringConnectionIndex++) {
+        var nextIndex = (ringConnectionIndex + 1) % devices.length;
+        connections.push(normalizeConnection({ from: devices[ringConnectionIndex].id, to: devices[nextIndex].id, type: "ethernet" }));
       }
 
       return { devices: devices, connections: connections };
@@ -1131,18 +1205,18 @@ var TOPOLOGY_TEMPLATES = {
       var connections = [];
       var routerCount = 4;
 
-      for (var i = 0; i < routerCount; i++) {
-        var angle = (i / routerCount) * Math.PI * 2 - Math.PI / 2;
+      for (var routerIndex = 0; routerIndex < routerCount; routerIndex++) {
+        var angle = (routerIndex / routerCount) * Math.PI * 2 - Math.PI / 2;
         var routerX = centerX + Math.cos(angle) * 220 - DEVICE_RADIUS;
         var routerY = centerY + Math.sin(angle) * 220 - DEVICE_RADIUS;
-        var router = normalizeDevice({ type: "router", x: routerX, y: routerY, name: "Router-" + (i + 1) });
+        var router = normalizeDevice({ type: "router", x: routerX, y: routerY, name: "Router-" + (routerIndex + 1) });
         devices.push(router);
       }
 
       // Connect every router to every other router
-      for (var a = 0; a < devices.length; a++) {
-        for (var b = a + 1; b < devices.length; b++) {
-          connections.push(normalizeConnection({ from: devices[a].id, to: devices[b].id, type: "ethernet" }));
+      for (var outerRouterIndex = 0; outerRouterIndex < devices.length; outerRouterIndex++) {
+        for (var innerRouterIndex = outerRouterIndex + 1; innerRouterIndex < devices.length; innerRouterIndex++) {
+          connections.push(normalizeConnection({ from: devices[outerRouterIndex].id, to: devices[innerRouterIndex].id, type: "ethernet" }));
         }
       }
 
@@ -1162,8 +1236,8 @@ function generateTopologySummary() {
 
   // Count device types
   var typeCounts = {};
-  for (var i = 0; i < state.devices.length; i++) {
-    var deviceType = state.devices[i].type;
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var deviceType = state.devices[deviceIndex].type;
     if (!typeCounts[deviceType]) {
       typeCounts[deviceType] = 0;
     }
@@ -1172,11 +1246,11 @@ function generateTopologySummary() {
 
   summary += "Devices: ";
   var typeNames = Object.keys(typeCounts);
-  for (var j = 0; j < typeNames.length; j++) {
-    var typeName = typeNames[j];
+  for (var typeIndex = 0; typeIndex < typeNames.length; typeIndex++) {
+    var typeName = typeNames[typeIndex];
     var typeLabel = DEVICE_TYPES[typeName] ? DEVICE_TYPES[typeName].label : typeName;
     summary += typeCounts[typeName] + " " + typeLabel;
-    if (j < typeNames.length - 1) {
+    if (typeIndex < typeNames.length - 1) {
       summary += ", ";
     }
   }
@@ -1184,8 +1258,8 @@ function generateTopologySummary() {
 
   // Count connection types
   var connCounts = {};
-  for (var k = 0; k < state.connections.length; k++) {
-    var connType = state.connections[k].type;
+  for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+    var connType = state.connections[connectionIndex].type;
     if (!connCounts[connType]) {
       connCounts[connType] = 0;
     }
@@ -1195,11 +1269,11 @@ function generateTopologySummary() {
   if (state.connections.length > 0) {
     summary += "Connections: ";
     var connNames = Object.keys(connCounts);
-    for (var m = 0; m < connNames.length; m++) {
-      var connName = connNames[m];
+    for (var connTypeIndex = 0; connTypeIndex < connNames.length; connTypeIndex++) {
+      var connName = connNames[connTypeIndex];
       var connLabel = CONNECTION_TYPES[connName] ? CONNECTION_TYPES[connName].label : connName;
       summary += connCounts[connName] + " " + connLabel;
-      if (m < connNames.length - 1) {
+      if (connTypeIndex < connNames.length - 1) {
         summary += ", ";
       }
     }
@@ -1209,8 +1283,8 @@ function generateTopologySummary() {
   // Check for configured devices
   var configuredCount = 0;
   var unconfiguredCount = 0;
-  for (var n = 0; n < state.devices.length; n++) {
-    if (state.devices[n].config && state.devices[n].config.ipAddress) {
+  for (var configCheckIndex = 0; configCheckIndex < state.devices.length; configCheckIndex++) {
+    if (state.devices[configCheckIndex].config && state.devices[configCheckIndex].config.ipAddress) {
       configuredCount++;
     } else {
       unconfiguredCount++;
@@ -1222,8 +1296,8 @@ function generateTopologySummary() {
   var conflicts = findSubnetConflicts();
   if (conflicts.length > 0) {
     summary += "\nWarnings:\n";
-    for (var p = 0; p < conflicts.length; p++) {
-      summary += "  - " + conflicts[p].message + "\n";
+    for (var conflictIndex = 0; conflictIndex < conflicts.length; conflictIndex++) {
+      summary += "  - " + conflicts[conflictIndex].message + "\n";
     }
   } else if (configuredCount > 0) {
     summary += "\nNo IP conflicts or subnet mismatches detected.";
@@ -1240,8 +1314,8 @@ function buildArpTable(device) {
   var arpEntries = [];
   var mask = device.config.subnetMask || "255.255.255.0";
 
-  for (var i = 0; i < state.devices.length; i++) {
-    var otherDevice = state.devices[i];
+  for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
+    var otherDevice = state.devices[deviceIndex];
     if (otherDevice.id === device.id) {
       continue;
     }
@@ -1251,8 +1325,8 @@ function buildArpTable(device) {
     // Only show devices on the same subnet or directly connected
     var sameNet = isSameSubnet(device.config.ipAddress, otherDevice.config.ipAddress, mask);
     var directlyConnected = false;
-    for (var j = 0; j < state.connections.length; j++) {
-      var conn = state.connections[j];
+    for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+      var conn = state.connections[connectionIndex];
       if ((conn.from === device.id && conn.to === otherDevice.id) || (conn.to === device.id && conn.from === otherDevice.id)) {
         directlyConnected = true;
         break;

@@ -780,12 +780,18 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Explain how the switch learns the source MAC address.",
-              hint: "Switches learn the source MAC from incoming frames."
+              text: "Run 'show mac Switch-1' in the console — the switch has learned a MAC for each connected PC.",
+              hint: "Switches record the source MAC of every frame they receive, along with which port it came from.",
+              checks: [
+                { type: "min_connections", count: 2 }
+              ]
             },
             {
-              text: "Explain why unknown destinations are flooded to all ports.",
-              hint: "Switches flood until they learn where a MAC lives."
+              text: "Add the third PC and connect it to the switch — unknown destinations are flooded to all ports until learned.",
+              hint: "If the switch doesn't know which port a MAC lives on, it sends the frame out every port.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 3 }
+              ]
             }
           ],
           tips: "Switches learn MACs from source addresses and flood unknown destinations."
@@ -1393,12 +1399,24 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Open the switch config panel and note the MAC table section.",
-              hint: "Select the switch and look for the MAC address table in Properties."
+              text: "Open the switch config panel — the MAC table shows which MAC address was learned on each port.",
+              hint: "Select the switch and click the gear icon to open its config. Look at the MAC table tab.",
+              checks: [
+                {
+                  type: "min_connections",
+                  count: 2
+                }
+              ]
             },
             {
-              text: "Explain how traffic from each PC would populate the table.",
-              hint: "Each incoming frame teaches the switch which port that MAC address is on."
+              text: "When a PC sends a frame the switch records its MAC address and the port it arrived on. This is how switches learn the network.",
+              hint: "Try running 'show mac Switch-1' in the console to see the MAC table entries.",
+              checks: [
+                {
+                  type: "min_connections",
+                  count: 2
+                }
+              ]
             }
           ],
           tips: "MAC tables map source MAC addresses to the port they were learned on."
@@ -1947,10 +1965,35 @@ const COURSE_CONTENT = {
           title: "Calculate subnet ranges",
           xp: 50,
           steps: [
-            "Add a router, a switch, and four PCs.",
-            "Connect all PCs to the switch and the switch to the router.",
-            "Assign two PCs to 192.168.10.0/26 (example: .10 and .20).",
-            "Assign two PCs to 192.168.10.64/26 (example: .70 and .80)."
+            {
+              text: "Add a router, a switch, and four PCs.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "pc", count: 4 }
+              ]
+            },
+            {
+              text: "Connect all four PCs to the switch and connect the switch to the router.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 4 },
+                { type: "connection", from: "switch", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Assign IP addresses to two PCs in the 192.168.10.0/26 range (example: 192.168.10.10 and 192.168.10.20).",
+              hint: "A /26 subnet has 64 addresses. Valid host range: 192.168.10.1 to 192.168.10.62.",
+              checks: [
+                { type: "ip", deviceType: "pc", count: 2 }
+              ]
+            },
+            {
+              text: "Assign IP addresses to the other two PCs in the 192.168.10.64/26 range (example: 192.168.10.70 and 192.168.10.80).",
+              hint: "The second /26 starts at .64. Valid host range: 192.168.10.65 to 192.168.10.126.",
+              checks: [
+                { type: "ip", deviceType: "pc", count: 4 }
+              ]
+            }
           ],
           tips: "A /26 has 64 addresses; the network IDs here are .0 and .64."
         },
@@ -2253,10 +2296,33 @@ const COURSE_CONTENT = {
           title: "Assign VLANs to ports",
           xp: 50,
           steps: [
-            "Add two switches and four PCs.",
-            "Connect two PCs to Switch A and two PCs to Switch B.",
-            "Link the two switches together with one uplink.",
-            "Rename two PCs with VLAN10 and two PCs with VLAN20 to model segmentation."
+            {
+              text: "Add two switches and four PCs.",
+              checks: [
+                { type: "device", deviceType: "switch", count: 2 },
+                { type: "device", deviceType: "pc", count: 4 }
+              ]
+            },
+            {
+              text: "Connect two PCs to each switch (two PCs to Switch-1 and two PCs to Switch-2).",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 4 }
+              ]
+            },
+            {
+              text: "Link the two switches together with one uplink connection.",
+              hint: "This trunk link would carry both VLANs between switches in a real network.",
+              checks: [
+                { type: "connection", from: "switch", to: "switch", count: 1 }
+              ]
+            },
+            {
+              text: "Rename two PCs to include 'VLAN10' and two PCs to include 'VLAN20' to model segmentation.",
+              hint: "Click a PC, open its config panel, and update the Device Name field.",
+              checks: [
+                { type: "name_contains", deviceType: "pc", contains: "VLAN", count: 2 }
+              ]
+            }
           ],
           tips: "VLANs are logical; use naming to keep groups clear while you design."
         },
@@ -2557,10 +2623,36 @@ const COURSE_CONTENT = {
           title: "Configure inter-VLAN routing",
           xp: 50,
           steps: [
-            "Add a router, a switch, and three PCs.",
-            "Connect all PCs to the switch and connect the switch to the router.",
-            "Name one PC VLAN10 and two PCs VLAN20 to model two groups.",
-            "Assign gateway IPs on the router (one per VLAN) in your notes."
+            {
+              text: "Add a router, a switch, and three PCs.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "pc", count: 3 }
+              ]
+            },
+            {
+              text: "Connect all three PCs to the switch and connect the switch to the router.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 3 },
+                { type: "connection", from: "switch", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Rename one PC to include 'VLAN10' and two PCs to include 'VLAN20' to model two separate groups.",
+              hint: "Click a PC, open its config panel, and update the Device Name field.",
+              checks: [
+                { type: "name_contains", deviceType: "pc", contains: "VLAN", count: 3 }
+              ]
+            },
+            {
+              text: "Set an IP address on each PC and set a default gateway pointing to the router.",
+              hint: "Each VLAN group needs a different subnet — for example 192.168.10.x for VLAN10 and 192.168.20.x for VLAN20.",
+              checks: [
+                { type: "ip", deviceType: "pc", count: 3 },
+                { type: "gateway", deviceType: "pc", count: 3 }
+              ]
+            }
           ],
           tips: "Router-on-a-stick uses subinterfaces; each VLAN needs its own gateway IP."
         },
@@ -2742,10 +2834,35 @@ const COURSE_CONTENT = {
           title: "Compare routing methods",
           xp: 50,
           steps: [
-            "Add two routers (R1 and R2) and a PC to the canvas.",
-            "Connect the PC to R1, then R1 to R2 with a link.",
-            "On R1, note the command you would use to add a static route to the network behind R2.",
-            "Explain in one sentence why you would choose OSPF instead if there were five routers."
+            {
+              text: "Add two routers (name them R1 and R2) and one PC to the canvas.",
+              checks: [
+                { type: "device", deviceType: "router", count: 2 },
+                { type: "device", deviceType: "pc", count: 1 }
+              ]
+            },
+            {
+              text: "Connect the PC to R1, then connect R1 to R2.",
+              checks: [
+                { type: "connection", from: "pc", to: "router", count: 1 },
+                { type: "connection", from: "router", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Set an IP address on the PC and on both routers.",
+              hint: "A static route on R1 would look like: ip route 192.168.2.0 255.255.255.0 [R2 IP]",
+              checks: [
+                { type: "ip", deviceType: "router", count: 2 },
+                { type: "ip", deviceType: "pc", count: 1 }
+              ]
+            },
+            {
+              text: "Run 'ping PC-1 R2' in the console — if it succeeds, traffic is routing through R1 to R2.",
+              hint: "With only two routers, static routes work fine. OSPF becomes the better choice when you have five or more routers.",
+              checks: [
+                { type: "ping_success" }
+              ]
+            }
           ],
           tips: "Static routes are simple but do not scale — OSPF is the right choice when your network can change or grow."
         },
@@ -2753,12 +2870,12 @@ const COURSE_CONTENT = {
           title: "Design a routed network",
           xp: 100,
           rules: {
-            description: "You have three branch offices that must all be able to reach each other. Use the sandbox to plan and document your routing approach.",
-            objectives: [
-              "Connect all three branches via two routers",
-              "Choose between static and OSPF and justify your choice",
-              "Verify that a packet from Branch A can theoretically reach Branch C"
-            ]
+            minDevices: 5,
+            minConnections: 4,
+            requiredTypes: {
+              router: 2,
+              pc: 3
+            }
           },
           steps: [
             "Add three PCs (one per branch) and two routers to the canvas.",
@@ -2927,10 +3044,35 @@ const COURSE_CONTENT = {
           title: "Configure DHCP and DNS roles",
           xp: 50,
           steps: [
-            "Add a router, a server, and two PCs to the canvas.",
-            "Connect both PCs to the router, and the server to the router.",
-            "Mark the server as your DHCP server — list the four pieces of info it would hand to each PC.",
-            "Explain what would break for users if the DNS server went offline."
+            {
+              text: "Add a router, a server, and two PCs to the canvas.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "server", count: 1 },
+                { type: "device", deviceType: "pc", count: 2 }
+              ]
+            },
+            {
+              text: "Connect both PCs to the router and connect the server to the router.",
+              checks: [
+                { type: "connection", from: "pc", to: "router", count: 2 },
+                { type: "connection", from: "server", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Set an IP on the server, then open its config panel and enable the DHCP server with a pool.",
+              hint: "Give the server an IP like 192.168.1.1, then set Pool Start to 192.168.1.10 and Pool End to 192.168.1.50.",
+              checks: [
+                { type: "ip", deviceType: "server", count: 1 }
+              ]
+            },
+            {
+              text: "Run 'dhcp PC-1' and 'dhcp PC-2' in the console — each PC should receive an IP from the server pool.",
+              hint: "The DHCP server hands out: IP address, subnet mask, default gateway, and DNS server.",
+              checks: [
+                { type: "ip", deviceType: "pc", count: 2 }
+              ]
+            }
           ],
           tips: "DHCP and DNS are silent heroes — most users never notice them until they stop working."
         },
@@ -2938,12 +3080,13 @@ const COURSE_CONTENT = {
           title: "Troubleshoot a broken network service",
           xp: 100,
           rules: {
-            description: "A user complains they can ping 8.8.8.8 but cannot open any website. Use the sandbox to map out what is working and what is not.",
-            objectives: [
-              "Identify whether IP connectivity is working",
-              "Identify which specific service is failing",
-              "Propose a fix for the broken service"
-            ]
+            minDevices: 3,
+            minConnections: 2,
+            requiredTypes: {
+              router: 1,
+              server: 1,
+              pc: 1
+            }
           },
           steps: [
             "Add a PC, a router, and a DNS server to the canvas.",
@@ -3246,10 +3389,38 @@ const COURSE_CONTENT = {
           title: "Spot hardening gaps",
           xp: 60,
           steps: [
-            "Add a router, firewall, switch, two PCs, and a server.",
-            "Connect PCs and server to the switch, then switch to firewall, firewall to router.",
-            "List three services you would disable on the server if unused.",
-            "Identify one logging source you would always keep enabled."
+            {
+              text: "Add a router, a firewall, a switch, two PCs, and a server.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "firewall", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "pc", count: 2 },
+                { type: "device", deviceType: "server", count: 1 }
+              ]
+            },
+            {
+              text: "Connect both PCs and the server to the switch, then switch to firewall, and firewall to router.",
+              checks: [
+                { type: "connection", from: "switch", to: "firewall", count: 1 },
+                { type: "connection", from: "firewall", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Name the server to include 'WebServer' — in a real network you would disable FTP, Telnet, and SNMP if unused.",
+              hint: "Disabling unused services removes attack surface. Open ports are potential entry points.",
+              checks: [
+                { type: "name_contains", deviceType: "server", contains: "Server", count: 1 }
+              ]
+            },
+            {
+              text: "Set an IP on all devices — in a real network you would enable firewall logging and keep it always on.",
+              hint: "Logging on the firewall gives you a record of blocked and allowed connections for incident response.",
+              checks: [
+                { type: "ip", deviceType: "server", count: 1 },
+                { type: "ip", deviceType: "pc", count: 2 }
+              ]
+            }
           ],
           tips: "Least privilege and minimal services reduce exposure and simplify monitoring."
         },
@@ -3559,10 +3730,35 @@ const COURSE_CONTENT = {
           title: "Sketch an ACL policy",
           xp: 60,
           steps: [
-            "Add a router (with ACL capability), two VLANs, and the Internet cloud to the canvas.",
-            "Connect VLAN 10 (staff) and VLAN 20 (guest) to the router, then router to Internet.",
-            "List two traffic types you would explicitly permit from the staff VLAN.",
-            "List one traffic type you would block from the guest VLAN and explain why."
+            {
+              text: "Add a router, two PCs (one for staff, one for guest), and an Internet cloud to the canvas.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "pc", count: 2 },
+                { type: "device", deviceType: "cloud", count: 1 }
+              ]
+            },
+            {
+              text: "Connect both PCs to the router and connect the router to the Internet cloud.",
+              checks: [
+                { type: "connection", from: "pc", to: "router", count: 2 },
+                { type: "connection", from: "router", to: "cloud", count: 1 }
+              ]
+            },
+            {
+              text: "Rename one PC to 'Staff-PC' and the other to 'Guest-PC' to model the two groups.",
+              hint: "In a real ACL: permit Staff HTTPS and DNS outbound, permit Guest HTTP only.",
+              checks: [
+                { type: "name_contains", deviceType: "pc", contains: "PC", count: 2 }
+              ]
+            },
+            {
+              text: "Set IP addresses on both PCs — the router would apply ACL rules per subnet in a real deployment.",
+              hint: "ACLs are read top-to-bottom and stop at the first match. Always put specific rules before general ones.",
+              checks: [
+                { type: "ip", deviceType: "pc", count: 2 }
+              ]
+            }
           ],
           tips: "ACLs are read top-to-bottom and stop at the first match — order your rules from most specific to least specific."
         }
@@ -3834,10 +4030,37 @@ const COURSE_CONTENT = {
           title: "Analyze a log snippet",
           xp: 60,
           steps: [
-            "Add a firewall and a server to the canvas.",
-            "Connect the server to the firewall, then connect the firewall to the Internet cloud.",
-            "In your notes, list two signals that would make a log entry suspicious.",
-            "Explain how a SIEM would correlate repeated failures from one IP."
+            {
+              text: "Add a firewall and a server to the canvas.",
+              checks: [
+                { type: "device", deviceType: "firewall", count: 1 },
+                { type: "device", deviceType: "server", count: 1 }
+              ]
+            },
+            {
+              text: "Connect the server to the firewall, then add an Internet cloud and connect the firewall to it.",
+              checks: [
+                { type: "device", deviceType: "cloud", count: 1 },
+                { type: "connection", from: "server", to: "firewall", count: 1 },
+                { type: "connection", from: "firewall", to: "cloud", count: 1 }
+              ]
+            },
+            {
+              text: "Set an IP on the server and rename it to 'SIEM-Server' — in a real network this would receive all firewall logs.",
+              hint: "Suspicious log signals: repeated failures from one IP, login at 03:00, login from a new country.",
+              checks: [
+                { type: "ip", deviceType: "server", count: 1 },
+                { type: "name_contains", deviceType: "server", contains: "Server", count: 1 }
+              ]
+            },
+            {
+              text: "Add a PC to represent the attacker's target host and connect it to the firewall.",
+              hint: "A SIEM correlates events: 500 failed logins + 1 success = likely brute force attack.",
+              checks: [
+                { type: "device", deviceType: "pc", count: 1 },
+                { type: "connection", from: "pc", to: "firewall", count: 1 }
+              ]
+            }
           ],
           tips: "Look for repeated failures, impossible travel, or unusual ports for quick wins."
         },
@@ -3845,12 +4068,13 @@ const COURSE_CONTENT = {
           title: "Design an incident response plan",
           xp: 120,
           rules: {
-            description: "A SIEM alert fires at 03:00 showing 500 failed SSH logins from a single external IP in 10 minutes, followed by one success. Plan your response.",
-            objectives: [
-              "Identify the likely attack type",
-              "List the first three actions you would take",
-              "Describe how you would prevent recurrence"
-            ]
+            minDevices: 4,
+            minConnections: 3,
+            requiredTypes: {
+              firewall: 1,
+              server: 2,
+              pc: 1
+            }
           },
           steps: [
             "Add a firewall, a jump host, and a SIEM server to the canvas.",
@@ -4020,10 +4244,34 @@ const COURSE_CONTENT = {
           title: "Map a WAN topology",
           xp: 60,
           steps: [
-            "Add two office routers (HQ and Branch) and an Internet cloud to the canvas.",
-            "Connect both routers to the cloud to represent a dual-ISP SD-WAN setup.",
-            "Label which link you would prefer for real-time traffic (VoIP) and which for bulk data.",
-            "Explain in one sentence why MPLS is preferred over the public Internet for sensitive traffic."
+            {
+              text: "Add two routers (name them HQ-Router and Branch-Router) and an Internet cloud to the canvas.",
+              checks: [
+                { type: "device", deviceType: "router", count: 2 },
+                { type: "device", deviceType: "cloud", count: 1 }
+              ]
+            },
+            {
+              text: "Connect both routers to the Internet cloud to represent a dual-ISP SD-WAN setup.",
+              checks: [
+                { type: "connection", from: "router", to: "cloud", count: 2 }
+              ]
+            },
+            {
+              text: "Rename the routers to include 'HQ' and 'Branch' to label the two sites.",
+              hint: "SD-WAN policies route VoIP over the lower-latency link and bulk transfers over the cheaper link.",
+              checks: [
+                { type: "name_contains", deviceType: "router", contains: "Router", count: 2 }
+              ]
+            },
+            {
+              text: "Add a PC to each site and connect them to their local router.",
+              hint: "MPLS is preferred for sensitive traffic because it travels through a private provider network, not the public Internet.",
+              checks: [
+                { type: "device", deviceType: "pc", count: 2 },
+                { type: "connection", from: "pc", to: "router", count: 2 }
+              ]
+            }
           ],
           tips: "SD-WAN policies apply quality-of-service rules per application — always mark real-time traffic as high priority."
         },
@@ -4031,19 +4279,42 @@ const COURSE_CONTENT = {
           title: "Troubleshoot a BGP session",
           xp: 120,
           rules: {
-            description: "Your BGP session with your upstream ISP is down. The physical link is up. Walk through a systematic troubleshooting approach.",
-            objectives: [
-              "Identify the most common causes of a BGP session failure",
-              "Describe the BGP state machine steps",
-              "Propose specific commands or checks you would run"
-            ]
+            minDevices: 3,
+            minConnections: 2,
+            requiredTypes: {
+              router: 2,
+              cloud: 1
+            }
           },
           steps: [
-            "Add two routers (your edge router and the ISP router) and an Internet cloud.",
-            "Connect both routers to each other to represent the eBGP peering link.",
-            "List the BGP states in order: Idle → Connect → Active → OpenSent → OpenConfirm → Established.",
-            "Identify two configuration mismatches (e.g. wrong AS number, wrong neighbor IP) that would prevent Established.",
-            "Write the single show command that tells you the current BGP neighbor state."
+            {
+              text: "Add two routers (name them Edge-Router and ISP-Router) and an Internet cloud to the canvas.",
+              checks: [
+                { type: "device", deviceType: "router", count: 2 },
+                { type: "device", deviceType: "cloud", count: 1 }
+              ]
+            },
+            {
+              text: "Connect both routers to the Internet cloud to represent the eBGP peering link via the ISP.",
+              checks: [
+                { type: "connection", from: "router", to: "cloud", count: 2 }
+              ]
+            },
+            {
+              text: "Rename the routers to include 'Edge' and 'ISP' to label each side of the BGP session.",
+              hint: "The BGP state machine progresses: Idle → Connect → Active → OpenSent → OpenConfirm → Established.",
+              checks: [
+                { type: "name_contains", deviceType: "router", contains: "Router", count: 2 }
+              ]
+            },
+            {
+              text: "Add a PC to the Edge-Router side and connect it — this represents a host in your AS that BGP should advertise.",
+              hint: "Common BGP failures: wrong AS number, wrong neighbor IP, or mismatched MD5 auth key.",
+              checks: [
+                { type: "device", deviceType: "pc", count: 1 },
+                { type: "connection", from: "pc", to: "router", count: 1 }
+              ]
+            }
           ],
           tips: "Check AS numbers, neighbor IP addresses, and MD5 auth keys first — 90% of BGP session failures are one of these three."
         }
@@ -4206,10 +4477,37 @@ const COURSE_CONTENT = {
           title: "Plan an automation workflow",
           xp: 60,
           steps: [
-            "Add three network devices (router, switch, firewall) and a management server to the canvas.",
-            "Connect all devices to the management server to represent out-of-band management.",
-            "List the three steps an Ansible playbook would follow to push a VLAN config to all switches.",
-            "Identify one risk of running an untested automation script on production devices."
+            {
+              text: "Add a router, a switch, a firewall, and a server to the canvas. The server will act as the management/automation host.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "firewall", count: 1 },
+                { type: "device", deviceType: "server", count: 1 }
+              ]
+            },
+            {
+              text: "Connect each network device (router, switch, firewall) to the management server to represent out-of-band management.",
+              checks: [
+                { type: "connection", from: "router", to: "server", count: 1 },
+                { type: "connection", from: "switch", to: "server", count: 1 },
+                { type: "connection", from: "firewall", to: "server", count: 1 }
+              ]
+            },
+            {
+              text: "Rename the server to 'Ansible-Control' to label it as the automation controller.",
+              hint: "An Ansible playbook follows three steps: inventory (which devices), tasks (what to change), handlers (what to do after).",
+              checks: [
+                { type: "name_contains", deviceType: "server", contains: "Ansible", count: 1 }
+              ]
+            },
+            {
+              text: "Set an IP address on the management server so it can reach the managed devices.",
+              hint: "The biggest risk of untested automation: a bad playbook can push a broken config to every device at once.",
+              checks: [
+                { type: "ip", deviceType: "server", count: 1 }
+              ]
+            }
           ],
           tips: "Always test automation in a staging environment first — a bad playbook can misconfigure every device simultaneously."
         },
@@ -4217,19 +4515,48 @@ const COURSE_CONTENT = {
           title: "Set up a monitoring baseline",
           xp: 120,
           rules: {
-            description: "You have been asked to set up basic monitoring for a 20-device network. Design what you would monitor, how you would alert, and what thresholds you would set.",
-            objectives: [
-              "Choose at least four metrics to monitor per device",
-              "Define alert thresholds for each metric",
-              "Describe how SNMP traps fit into your design"
-            ]
+            minDevices: 5,
+            minConnections: 4,
+            requiredTypes: {
+              router: 1,
+              switch: 1,
+              firewall: 1,
+              server: 2
+            }
           },
           steps: [
-            "Add four device types (router, switch, firewall, server) and an NMS to the canvas.",
-            "Connect all devices to the NMS server.",
-            "List the four metrics you would poll via SNMP GET on each device.",
-            "Define a threshold for each metric that would trigger a warning alert.",
-            "Explain when you would use SNMP traps instead of polling."
+            {
+              text: "Add a router, switch, firewall, and two servers to the canvas. One server will be the NMS (network monitoring station).",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "firewall", count: 1 },
+                { type: "device", deviceType: "server", count: 2 }
+              ]
+            },
+            {
+              text: "Connect the router, switch, and firewall to one of the servers to represent SNMP polling from the NMS.",
+              checks: [
+                { type: "connection", from: "router", to: "server", count: 1 },
+                { type: "connection", from: "switch", to: "server", count: 1 },
+                { type: "connection", from: "firewall", to: "server", count: 1 }
+              ]
+            },
+            {
+              text: "Rename the monitoring server to 'NMS-Server' to label it clearly.",
+              hint: "The four key SNMP metrics to poll: interface utilisation, CPU load, memory usage, and error counters.",
+              checks: [
+                { type: "name_contains", deviceType: "server", contains: "NMS", count: 1 }
+              ]
+            },
+            {
+              text: "Set an IP address on the NMS server and connect the second server to it — this second server represents a monitored application host.",
+              hint: "Use SNMP traps for critical thresholds (e.g. link down) so the alert reaches you immediately rather than waiting for the next poll cycle.",
+              checks: [
+                { type: "ip", deviceType: "server", count: 1 },
+                { type: "connection", from: "server", to: "server", count: 1 }
+              ]
+            }
           ],
           tips: "Start with interface utilisation, CPU, memory, and error counters — these cover 80% of real outages."
         }

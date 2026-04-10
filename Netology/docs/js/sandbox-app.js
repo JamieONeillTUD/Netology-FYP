@@ -59,7 +59,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Start onboarding tour if active for this stage
   if (typeof window.maybeStartOnboardingTour === "function") {
     var sbxUser = null;
-    try { sbxUser = JSON.parse(localStorage.getItem("user") || localStorage.getItem("netology_user")); } catch (e) {}
+    try { sbxUser = JSON.parse(localStorage.getItem("user") || localStorage.getItem("netology_user")); } catch (parseError) {}
     if (sbxUser && sbxUser.email) {
       window.maybeStartOnboardingTour("sandbox", sbxUser.email);
     }
@@ -69,10 +69,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Load sandbox lesson/tutorial/challenge data from the URL params
 function loadSandboxFromUrl() {
-  var params    = new URLSearchParams(window.location.search);
-  var courseId  = params.get("course");
+  var params = new URLSearchParams(window.location.search);
+  var courseId = params.get("course");
   var unitIndex = Number(params.get("unit") || -1);
-  var mode      = params.get("mode") || "free";
+  var mode = params.get("mode") || "free";
   var topologyId = params.get("topology");
 
   if (topologyId) {
@@ -96,7 +96,7 @@ function loadSandboxFromUrl() {
     if (challengeData) {
       savedChallenge = JSON.parse(challengeData);
     }
-  } catch (e) {
+  } catch (parseError) {
     // ignore parse errors
   }
 
@@ -104,7 +104,7 @@ function loadSandboxFromUrl() {
   var content = window.COURSE_CONTENT && window.COURSE_CONTENT[String(courseId)];
   if (!content) return;
   var units = content.units || content.modules || [];
-  var unit  = units[unitIndex];
+  var unit = units[unitIndex];
   if (!unit) return;
 
   if (mode === "practice") {
@@ -123,8 +123,8 @@ function loadSandboxFromUrl() {
 function clonePlainObject(source) {
   var output = {};
   var keys = Object.keys(source || {});
-  for (var i = 0; i < keys.length; i++) {
-    output[keys[i]] = source[keys[i]];
+  for (var keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+    output[keys[keyIndex]] = source[keys[keyIndex]];
   }
   return output;
 }
@@ -243,17 +243,17 @@ function loadSandboxContent(sandboxData) {
 
     // Load preset devices if the sandbox content provides them
     if (sandboxData.presetDevices && sandboxData.presetDevices.length > 0) {
-      for (var i = 0; i < sandboxData.presetDevices.length; i++) {
-        state.devices.push(normalizeDevice(sandboxData.presetDevices[i]));
+      for (var deviceIndex = 0; deviceIndex < sandboxData.presetDevices.length; deviceIndex++) {
+        state.devices.push(normalizeDevice(sandboxData.presetDevices[deviceIndex]));
       }
     }
     if (sandboxData.presetConnections && sandboxData.presetConnections.length > 0) {
-      for (var j = 0; j < sandboxData.presetConnections.length; j++) {
-        state.connections.push(normalizeConnection(sandboxData.presetConnections[j]));
+      for (var connectionIndex = 0; connectionIndex < sandboxData.presetConnections.length; connectionIndex++) {
+        state.connections.push(normalizeConnection(sandboxData.presetConnections[connectionIndex]));
       }
     }
-  } catch (e) {
-    console.error("loadSandboxContent: failed to load lesson data", e);
+  } catch (loadError) {
+    console.error("loadSandboxContent: failed to load lesson data", loadError);
     showSandboxToast({ title: "Load error", message: "Could not load lesson content. Starting in free mode.", variant: "warning", timeout: 4000 });
   }
 
@@ -325,22 +325,22 @@ function renderLessonUI(data, type) {
       stepsWrap.style.display = "";
       stepsList.innerHTML = "";
 
-      for (var i = 0; i < data.steps.length; i++) {
-        var step = data.steps[i];
+      for (var stepIndex = 0; stepIndex < data.steps.length; stepIndex++) {
+        var step = data.steps[stepIndex];
         var stepItem = document.createElement("li");
         stepItem.className = "sbx-step";
-        stepItem.setAttribute("data-step-index", i);
+        stepItem.setAttribute("data-step-index", stepIndex);
 
         // Step number is handled by CSS counter
 
         var stepText = document.createElement("span");
         stepText.className = "sbx-step-text";
-        stepText.textContent = step.text || "Step " + (i + 1);
+        stepText.textContent = step.text || "Step " + (stepIndex + 1);
         stepItem.appendChild(stepText);
 
         var statusIcon = document.createElement("i");
         statusIcon.className = "bi bi-circle sbx-step-status";
-        statusIcon.setAttribute("data-step-index", i);
+        statusIcon.setAttribute("data-step-index", stepIndex);
         stepItem.appendChild(statusIcon);
 
         // Hint button for each step
@@ -451,31 +451,31 @@ function renderObjectives() {
   var completedCount = 0;
   var firstIncomplete = -1;
 
-  for (var i = 0; i < data.steps.length; i++) {
-    var step = data.steps[i];
-    var passed = evaluateStepRequirements(step, i);
-    var wasAlreadyDone = state.objectiveStatus[i] === true;
-    state.objectiveStatus[i] = passed;
+  for (var stepIndex = 0; stepIndex < data.steps.length; stepIndex++) {
+    var step = data.steps[stepIndex];
+    var passed = evaluateStepRequirements(step, stepIndex);
+    var wasAlreadyDone = state.objectiveStatus[stepIndex] === true;
+    state.objectiveStatus[stepIndex] = passed;
 
     if (passed) {
       completedCount++;
     } else if (firstIncomplete === -1) {
-      firstIncomplete = i;
+      firstIncomplete = stepIndex;
     }
 
     // Update the step in the list
     var stepsList = getById("sbxStepsList");
     if (stepsList) {
-      var icon = stepsList.querySelector('.sbx-step-status[data-step-index="' + i + '"]');
-      var stepElement = stepsList.querySelector('.sbx-step[data-step-index="' + i + '"]');
+      var statusIcon = stepsList.querySelector('.sbx-step-status[data-step-index="' + stepIndex + '"]');
+      var stepElement = stepsList.querySelector('.sbx-step[data-step-index="' + stepIndex + '"]');
 
-      if (icon) {
+      if (statusIcon) {
         if (passed) {
-          icon.className = "bi bi-check-circle-fill text-success sbx-step-status";
+          statusIcon.className = "bi bi-check-circle-fill text-success sbx-step-status";
         } else {
-          icon.className = "bi bi-circle sbx-step-status";
+          statusIcon.className = "bi bi-circle sbx-step-status";
         }
-        icon.setAttribute("data-step-index", i);
+        statusIcon.setAttribute("data-step-index", stepIndex);
       }
       if (stepElement) {
         if (passed) {
@@ -492,7 +492,7 @@ function renderObjectives() {
         }
 
         // Mark current active step
-        if (i === firstIncomplete) {
+        if (stepIndex === firstIncomplete) {
           stepElement.classList.add("is-current");
         } else {
           stepElement.classList.remove("is-current");
@@ -524,8 +524,8 @@ function notifyTutorialProgress() {
 
 
 function arePreviousStepsCompleted(stepIndex) {
-  for (var i = 0; i < stepIndex; i++) {
-    if (state.objectiveStatus[i] !== true) {
+  for (var priorStepIndex = 0; priorStepIndex < stepIndex; priorStepIndex++) {
+    if (state.objectiveStatus[priorStepIndex] !== true) {
       return false;
     }
   }
@@ -543,8 +543,8 @@ function evaluateStepRequirements(step, stepIndex) {
   }
 
   // Every check in the step must pass
-  for (var i = 0; i < step.checks.length; i++) {
-    var check = step.checks[i];
+  for (var checkIndex = 0; checkIndex < step.checks.length; checkIndex++) {
+    var check = step.checks[checkIndex];
     var passed = evaluateSingleRequirement(check);
     if (!passed) {
       return false;
@@ -559,99 +559,52 @@ function evaluateSingleRequirement(check) {
     return false;
   }
 
+  var need = check.count || 1;
+
   if (check.type === "device") {
-    // Count devices of the specified type
-    var deviceCount = 0;
-    for (var i = 0; i < state.devices.length; i++) {
-      if (state.devices[i].type === check.deviceType) {
-        deviceCount++;
-      }
-    }
-    return deviceCount >= (check.count || 1);
+    return countDevicesMatching(function (device) { return device.type === check.deviceType; }) >= need;
   }
 
   if (check.type === "min_devices") {
-    var requiredDevices = Number(check.count || 1);
-    if (!Number.isFinite(requiredDevices) || requiredDevices <= 0) {
-      requiredDevices = 1;
-    }
-    return state.devices.length >= requiredDevices;
+    return state.devices.length >= (Number(check.count) || 1);
   }
 
   if (check.type === "min_connections") {
-    var requiredConnections = Number(check.count || 1);
-    if (!Number.isFinite(requiredConnections) || requiredConnections <= 0) {
-      requiredConnections = 1;
-    }
-    return state.connections.length >= requiredConnections;
+    return state.connections.length >= (Number(check.count) || 1);
   }
 
   if (check.type === "connection") {
-    // Count connections between the specified device types
     var connectionCount = 0;
-    for (var j = 0; j < state.connections.length; j++) {
-      var conn = state.connections[j];
+    for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
+      var conn = state.connections[connectionIndex];
       var fromDevice = findDevice(conn.from);
       var toDevice = findDevice(conn.to);
-      if (!fromDevice || !toDevice) {
-        continue;
-      }
-      // Check both directions since connections can be either way
-      var matchForward = (fromDevice.type === check.from && toDevice.type === check.to);
-      var matchReverse = (fromDevice.type === check.to && toDevice.type === check.from);
-      if (matchForward || matchReverse) {
+      if (!fromDevice || !toDevice) { continue; }
+      if ((fromDevice.type === check.from && toDevice.type === check.to) ||
+          (fromDevice.type === check.to && toDevice.type === check.from)) {
         connectionCount++;
       }
     }
-    return connectionCount >= (check.count || 1);
+    return connectionCount >= need;
   }
 
   if (check.type === "ip") {
-    // Count devices of the specified type that have IP addresses set
-    var ipCount = 0;
-    for (var k = 0; k < state.devices.length; k++) {
-      var device = state.devices[k];
-      if (device.type === check.deviceType && device.config && device.config.ipAddress) {
-        ipCount++;
-      }
-    }
-    return ipCount >= (check.count || 1);
+    return countDevicesMatching(function (device) { return device.type === check.deviceType && device.config && device.config.ipAddress; }) >= need;
   }
 
   if (check.type === "gateway") {
-    // Count devices of the specified type that have gateways set
-    var gatewayCount = 0;
-    for (var g = 0; g < state.devices.length; g++) {
-      var gwDevice = state.devices[g];
-      if (gwDevice.type === check.deviceType && gwDevice.config && gwDevice.config.defaultGateway) {
-        gatewayCount++;
-      }
-    }
-    return gatewayCount >= (check.count || 1);
+    return countDevicesMatching(function (device) { return device.type === check.deviceType && device.config && device.config.defaultGateway; }) >= need;
   }
 
   if (check.type === "name_contains") {
-    // Count devices whose name contains the specified text
-    var nameCount = 0;
     var searchText = (check.contains || "").toLowerCase();
-    for (var n = 0; n < state.devices.length; n++) {
-      var namedDevice = state.devices[n];
-      if (check.deviceType && namedDevice.type !== check.deviceType) {
-        continue;
-      }
-      if (namedDevice.name.toLowerCase().indexOf(searchText) !== -1) {
-        nameCount++;
-      }
-    }
-    return nameCount >= (check.count || 1);
+    return countDevicesMatching(function (device) {
+      return (!check.deviceType || device.type === check.deviceType) && device.name.toLowerCase().indexOf(searchText) !== -1;
+    }) >= need;
   }
 
   if (check.type === "ping_success") {
-    // Check if the last ping was successful
-    if (state.pingInspector && state.pingInspector.success) {
-      return true;
-    }
-    return false;
+    return !!(state.pingInspector && state.pingInspector.success);
   }
 
   // Unknown check type
@@ -844,7 +797,7 @@ function spawnConfetti() {
   container.innerHTML = "";
 
   var colors = ["#f59e0b", "#10b981", "#3b82f6", "#ec4899", "#8b5cf6", "#06b6d4"];
-  for (var i = 0; i < 40; i++) {
+  for (var particleIndex = 0; particleIndex < 40; particleIndex++) {
     var particle = document.createElement("span");
     var size = 6 + Math.random() * 8;
     var color = colors[Math.floor(Math.random() * colors.length)];
@@ -895,8 +848,8 @@ function bindTemplateButtons() {
   }
 
   var templateItems = templateDropdown.querySelectorAll("[data-template]");
-  for (var i = 0; i < templateItems.length; i++) {
-    templateItems[i].addEventListener("click", function () {
+  for (var templateIndex = 0; templateIndex < templateItems.length; templateIndex++) {
+    templateItems[templateIndex].addEventListener("click", function () {
       var templateId = this.getAttribute("data-template");
       if (!templateId || !TOPOLOGY_TEMPLATES[templateId]) {
         return;
@@ -946,8 +899,8 @@ function buildTutorialCards() {
   topCarouselScroll.innerHTML = "";
   tutorialCarouselState.count = cards.length;
 
-  for (var i = 0; i < cards.length; i++) {
-    var card = cards[i];
+  for (var cardIndex = 0; cardIndex < cards.length; cardIndex++) {
+    var card = cards[cardIndex];
     var cardElement = document.createElement("div");
     cardElement.className = "sbx-tut-card";
     cardElement.innerHTML =
@@ -960,10 +913,10 @@ function buildTutorialCards() {
   // Build dots
   if (topCarouselDots) {
     topCarouselDots.innerHTML = "";
-    for (var d = 0; d < cards.length; d++) {
+    for (var dotIndex = 0; dotIndex < cards.length; dotIndex++) {
       var dot = document.createElement("button");
-      dot.className = "sbx-carousel-dot" + (d === 0 ? " is-active" : "");
-      dot.setAttribute("data-dot-index", d);
+      dot.className = "sbx-carousel-dot" + (dotIndex === 0 ? " is-active" : "");
+      dot.setAttribute("data-dot-index", dotIndex);
       topCarouselDots.appendChild(dot);
     }
   }
@@ -1036,11 +989,11 @@ function scrollTutorialCarouselTo(index) {
   // Update dots
   if (topCarouselDots) {
     var dots = topCarouselDots.querySelectorAll(".sbx-carousel-dot");
-    for (var i = 0; i < dots.length; i++) {
-      if (i === index) {
-        dots[i].classList.add("is-active");
+    for (var dotIndex = 0; dotIndex < dots.length; dotIndex++) {
+      if (dotIndex === index) {
+        dots[dotIndex].classList.add("is-active");
       } else {
-        dots[i].classList.remove("is-active");
+        dots[dotIndex].classList.remove("is-active");
       }
     }
   }
@@ -1069,9 +1022,9 @@ function updateTutorialsToggleLabel() {
     tutorialsToggleLabel.textContent = tutorialCarouselState.hidden ? "Show tutorials" : "Hide tutorials";
   }
   if (tutorialsToggleButton) {
-    var icon = tutorialsToggleButton.querySelector("i");
-    if (icon) {
-      icon.className = tutorialCarouselState.hidden ? "bi bi-eye" : "bi bi-eye-slash";
+    var iconElement = tutorialsToggleButton.querySelector("i");
+    if (iconElement) {
+      iconElement.className = tutorialCarouselState.hidden ? "bi bi-eye" : "bi bi-eye-slash";
     }
     tutorialsToggleButton.setAttribute("aria-pressed", tutorialCarouselState.hidden ? "false" : "true");
   }
@@ -1101,19 +1054,19 @@ function showConnectionSuggestions(device) {
 
   // Find devices on the canvas that this device can connect to
   var suggestions = [];
-  for (var c = 0; c < compatibility.length; c++) {
-    var rule = compatibility[c];
-    for (var t = 0; t < rule.targets.length; t++) {
-      var targetType = rule.targets[t];
-      for (var d = 0; d < state.devices.length; d++) {
-        var candidate = state.devices[d];
+  for (var compatibilityIndex = 0; compatibilityIndex < compatibility.length; compatibilityIndex++) {
+    var rule = compatibility[compatibilityIndex];
+    for (var targetIndex = 0; targetIndex < rule.targets.length; targetIndex++) {
+      var targetType = rule.targets[targetIndex];
+      for (var deviceCandidateIndex = 0; deviceCandidateIndex < state.devices.length; deviceCandidateIndex++) {
+        var candidate = state.devices[deviceCandidateIndex];
         if (candidate.id === device.id || candidate.type !== targetType) {
           continue;
         }
         // Check if already connected
         var alreadyConnected = false;
-        for (var e = 0; e < state.connections.length; e++) {
-          var conn = state.connections[e];
+        for (var connectionCheckIndex = 0; connectionCheckIndex < state.connections.length; connectionCheckIndex++) {
+          var conn = state.connections[connectionCheckIndex];
           if ((conn.from === device.id && conn.to === candidate.id) || (conn.to === device.id && conn.from === candidate.id)) {
             alreadyConnected = true;
             break;
@@ -1137,8 +1090,8 @@ function showConnectionSuggestions(device) {
   suggestBody.innerHTML = "";
   // Show up to 3 suggestions
   var maxSuggestions = Math.min(suggestions.length, 3);
-  for (var s = 0; s < maxSuggestions; s++) {
-    var suggestion = suggestions[s];
+  for (var suggestionIndex = 0; suggestionIndex < maxSuggestions; suggestionIndex++) {
+    var suggestion = suggestions[suggestionIndex];
     var button = document.createElement("button");
     button.className = "sbx-conn-suggest-btn";
     button.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Connect to ' + escapeHtml(suggestion.device.name) + ' (' + suggestion.connectionType + ')';
