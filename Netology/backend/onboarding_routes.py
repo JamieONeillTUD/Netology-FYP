@@ -1,4 +1,18 @@
-# onboarding_routes.py — Onboarding tour API routes.
+"""
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+onboarding_routes.py - Onboarding Tour Routes
+---
+This file handles the backend routes used by the Netology
+onboarding tour. It starts the tour, records completed steps,
+marks the tour as completed or skipped, and returns the small
+API response used by the onboarding flow.
+
+These routes are mainly used by onboarding-tour.js.
+"""
 
 from flask import Blueprint, jsonify, request
 
@@ -7,12 +21,20 @@ from db import email_from, get_db_connection
 
 onboarding = Blueprint("onboarding", __name__)
 
+def request_data():
+    # Read JSON request data and fall back to an empty dictionary.
+    return request.get_json(silent=True) or {}
+
+
+def request_user_email():
+    # Read and clean the user email sent to the onboarding routes.
+    return email_from(request_data().get("user_email"))
+
 
 @onboarding.post("/api/onboarding/start")
 def start_onboarding():
-    # Mark onboarding as started.
-    data = request.get_json(silent=True) or {}
-    user_email = email_from(data.get("user_email"))
+    # Mark the onboarding tour as started.
+    user_email = request_user_email()
     if not user_email:
         return jsonify({"error": "user_email required"}), 400
 
@@ -35,9 +57,8 @@ def start_onboarding():
 
 @onboarding.post("/api/onboarding/complete")
 def complete_onboarding():
-    # Mark onboarding as complete.
-    data = request.get_json(silent=True) or {}
-    user_email = email_from(data.get("user_email"))
+    # Mark the onboarding tour as completed.
+    user_email = request_user_email()
     if not user_email:
         return jsonify({"error": "user_email required"}), 400
 
@@ -71,9 +92,8 @@ def complete_onboarding():
 
 @onboarding.post("/api/onboarding/skip")
 def skip_onboarding():
-    # Skip the onboarding tour.
-    data = request.get_json(silent=True) or {}
-    user_email = email_from(data.get("user_email"))
+    # Mark the onboarding tour as skipped.
+    user_email = request_user_email()
     if not user_email:
         return jsonify({"error": "user_email required"}), 400
 
@@ -96,16 +116,14 @@ def skip_onboarding():
 
 @onboarding.get("/api/onboarding/steps")
 def get_onboarding_steps():
-    # Returns an empty steps list — steps are defined client-side in onboarding-tour.js.
-    # This endpoint exists so the tour's API call doesn't 404.
+    # Return an empty list because the real tour steps live in onboarding-tour.js.
     return jsonify({"success": True, "steps": []})
 
 
 @onboarding.post("/api/onboarding/step/<string:stage_id>")
 def complete_onboarding_step(stage_id):
-    # Record completion of a single onboarding stage step.
-    data = request.get_json(silent=True) or {}
-    user_email = email_from(data.get("user_email"))
+    # Record one completed onboarding stage.
+    user_email = request_user_email()
     if not user_email:
         return jsonify({"error": "user_email required"}), 400
 

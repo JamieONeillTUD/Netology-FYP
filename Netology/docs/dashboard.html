@@ -1,27 +1,36 @@
 <!--
 Student Number: C22320301
-Student Name:   Jamie O’Neill
-Course Code:    TU857/4
-Date:           09/02/2026
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 09/02/2026
 
-HTML
----------------------------------------
-dashboard.html – Netology Dashboard (Main Hub)
+dashboard.html - Main Dashboard Page
+---
+This is the main page that the user lands on after every login. It has as lot
+of diffrent parts:
 
-Purpose:
-- Main hub shown after every login
-- Slide-out sidebar + sticky top navbar with user avatar dropdown
-- Hero banner: ‘Welcome back’ greeting, rotating daily tip, Start Learning / Open Sandbox CTAs
-- Stats row: rank/level card, animated XP arc gauge, streak + 7-day calendar, activity carousel
-- ‘Continue Learning’ card: in-progress courses with progress bars
-- Achievements scroller: earned badges and next-up achievements
-- Focus card: Daily and Weekly challenge tabs
-- First-login welcome overlay with animated network topology and platform intro
+Hero banner: a welcome greeting with the user’s name, a rotating networking
+tip that cycles every 10 seconds, and two buttons (Start
+Learning and Open Sandbox).
 
-Notes:
-- All dynamic data loaded by dashboard.js from the backend API
-- Sidebar and top nav user info populated by app.js
-- Scripts: config.js → app.js → course_content.js → dashboard.js → Bootstrap JS
+Stats row: four cards showing rank/level, an animated semicircle XP gauge,
+login streak with a 7-day calendar, and a carousel that cycles through
+active courses, lessons done, quizzes passed, and sandbox topologies built.
+
+Continue Learning: cards for any courses the user has already started,
+with a progress bar and a Continue button linking straight to that course.
+
+Achievements: a horizontal scroller showing earned badges (coloured) and
+locked badges (greyed out).
+
+Focus panel: a daily/weekly toggle showing the user’s current challenges
+and how far through them they are.
+
+First-login welcome overlay: shown once on first login with an animated
+network topology background and a short intro to the platform. Controlled
+by background.js.
+
+All data is loaded from the backend API by dashboard.js.
 -->
 
 <!doctype html>
@@ -33,16 +42,10 @@ Notes:
   <title>Netology – Dashboard</title>
   <meta name="description" content="Your Netology learning dashboard. Track XP, streaks, achievements, and continue your networking courses.">
 
-  <!-- REQUIRED: Render API base -->
-  <!-- Bootstrap + Icons -->
+  <!-- Netology CSS and Bootstrap -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-  <!-- Netology CSS -->
   <link rel="stylesheet" href="css/style.css">
-
-  <!-- Tiny topbar-size reduction (kept here so you don't have to touch CSS yet) -->
-  <!-- Dashboard styles moved to `css/style.css` (scoped to body.net-landing) -->
 </head>
 
 <body class="net-bg net-landing">
@@ -51,7 +54,7 @@ Notes:
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
 
   <!-- Slide Sidebar -->
-  <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true" inert>
+  <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
     <div class="net-sidehead">
       <div class="d-flex align-items-center justify-content-between gap-2">
         <a href="dashboard.html" class="net-brandchip" id="sideBrand" aria-label="Netology home">
@@ -59,31 +62,19 @@ Notes:
           <div class="net-brandname">Netology</div>
         </a>
 
-        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu" type="button">
+        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu">
           <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
       </div>
     </div>
 
     <nav class="net-sidenav" aria-label="Sidebar navigation">
-      <a class="net-sidelink is-active" href="dashboard.html">
-        <i class="bi bi-house-door"></i> Dashboard
-      </a>
-      <a class="net-sidelink" href="account.html">
-        <i class="bi bi-person-circle"></i> My Profile
-      </a>
-      <a class="net-sidelink" href="courses.html">
-        <i class="bi bi-journal-bookmark"></i> Courses
-      </a>
-      <a class="net-sidelink" href="progress.html">
-        <i class="bi bi-graph-up-arrow"></i> Progress
-      </a>
-      <a class="net-sidelink" href="sandbox.html">
-        <i class="bi bi-diagram-3"></i> Network Sandbox
-      </a>
-      <a class="net-sidelink" href="account.html#preferences">
-        <i class="bi bi-gear"></i> Settings
-      </a>
+      <a class="net-sidelink is-active" href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
+      <a class="net-sidelink" href="account.html"><i class="bi bi-person-circle"></i> My Profile</a>
+      <a class="net-sidelink" href="courses.html"><i class="bi bi-journal-bookmark"></i> My Courses</a>
+      <a class="net-sidelink" href="progress.html"><i class="bi bi-graph-up-arrow"></i> Progress</a>
+      <a class="net-sidelink" href="sandbox.html"><i class="bi bi-diagram-3"></i> Network Sandbox</a>
+      <a class="net-sidelink" href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
     </nav>
 
     <div class="net-sidefoot">
@@ -96,94 +87,65 @@ Notes:
           </div>
           <span class="badge text-bg-light border" id="sideLevelBadge">Lv 1</span>
         </div>
-
-        <div class="mt-3">
-          <div class="d-flex justify-content-between small text-muted mb-1">
-            <span>XP</span>
-            <span class="fw-semibold" id="sideXpText">0/100</span>
-          </div>
-          <div class="progress" style="height: 10px;">
-            <div class="progress-bar net-progress net-progress-fill" id="sideXpBar" style="width:0%"></div>
-          </div>
-          <div class="small text-muted mt-2" id="sideXpHint">100 XP to next level</div>
-        </div>
-
-        <div class="d-grid gap-2 mt-3">
-          <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
-            <i class="bi bi-box-arrow-right me-2"></i>Logout
-          </button>
-        </div>
+      </div>
+      <div class="d-grid mt-3">
+        <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
+          <i class="bi bi-box-arrow-right me-2"></i>Logout
+        </button>
       </div>
     </div>
   </aside>
 
-  <!-- TOP NAV (no search now) -->
+  <!-- Header Navigation -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
       <div class="net-topnav-inner">
 
-        <!-- Left -->
         <div class="net-topnav-left">
-          <button class="net-hambtn" id="openSidebarBtn" type="button" aria-label="Open menu">
+          <button class="net-hambtn"
+                  id="openSidebarBtn"
+                  type="button"
+                  aria-label="Open menu">
             <span class="net-hambtn-bars" aria-hidden="true"><span></span><span></span><span></span></span>
             <span class="visually-hidden">Open menu</span>
           </button>
         </div>
 
-        <!-- Center brand -->
         <div class="net-topnav-center">
           <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
-            <span class="net-brand-text">Netology</span>
+            <h2 class="net-brand-text">Netology</h2>
           </a>
         </div>
 
-        <!-- Right (dropdown only) -->
         <div class="net-topnav-right position-relative">
-
-          <!-- User dropdown -->
           <div class="position-relative">
-            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu"
-              aria-expanded="false">
+            <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
-            <!-- Dropdown shows details (dashboard.js fills ddName + ddEmail) -->
             <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
               <div class="net-ddhead">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="net-avatar-sm" id="ddAvatar" aria-hidden="true">S</div>
-                  <div class="min-width-0">
-                    <div class="fw-semibold text-truncate" id="ddName">Student</div>
-                    <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
-                  </div>
-                </div>
-                <div class="d-flex flex-wrap gap-2 mt-2">
-                  <span class="badge text-bg-light border" id="ddLevel">Level 1</span>
-                  <span class="badge text-bg-light border" id="ddRank">Novice</span>
-                </div>
+                <div class="fw-semibold text-truncate" id="ddName">Student</div>
+                <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
               </div>
-              <a href="account.html" role="menuitem"><i class="bi bi-person-circle"></i> My Account</a>
-              <a href="account.html#preferences" role="menuitem"><i class="bi bi-gear"></i> Settings</a>
-              <div class="net-ddsep" role="separator"></div>
-              <button class="danger" role="menuitem" id="topLogoutBtn" type="button">
-                <i class="bi bi-box-arrow-right"></i> Logout
-              </button>
+              <a href="account.html"><i class="bi bi-person-circle"></i> My Account</a>
+              <a href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
+              <div class="net-ddsep"></div>
+              <button class="danger" id="topLogoutBtn" type="button"><i class="bi bi-box-arrow-right"></i> Logout</button>
             </div>
           </div>
-
         </div>
 
       </div>
     </div>
   </header>
 
-  <!-- MAIN -->
+  <!-- Main Dashboard Area -->
   <main class="container py-4 net-shell net-dashboard net-shell--wide">
 
-    <!-- HERO / OVERVIEW -->
-    <!-- HERO BANNER -->
+    <!-- Hero Card: Welcome Message -->
     <section class="net-dash-hero p-4 p-md-5 mb-4 rounded-4 position-relative overflow-hidden shadow-sm" data-tour="dashboard-header">
       <!-- CTA Mode Animated Icons -->
       <div class="net-cta-icons" aria-hidden="true">
@@ -200,7 +162,6 @@ Notes:
           <i class="bi bi-lightbulb-fill text-warning"></i>
           <span id="dailyTip" class="fst-italic text-center" data-bs-toggle="tooltip" title="">Loading your daily insight...</span>
         </div>
-        <div id="dailyTipControls" class="daily-indicators" role="tablist" aria-label="Course indicators" aria-hidden="true"></div>
         <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
           <a href="courses.html" class="btn btn-light fw-bold rounded-pill px-4 py-2 net-hero-btn net-hero-btn--green" data-bs-toggle="tooltip" title="Browse your unlocked courses and resume learning" data-tour="first-lesson-btn">
             <i class="bi bi-play-fill me-1"></i>Start Learning
@@ -213,11 +174,10 @@ Notes:
       
     </section>
 
-    <!-- FOCUS AREAS -->
+    <!-- Stats Row: rank, XP gauge, streak, activity carousel -->
     <div class="mb-3">
       <h2 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Your Focus</h2>
     </div>
-    <!-- STATS ROW -->
     <div class="row g-3 mb-4">
       <!-- Rank -->
         <div class="col-6 col-md-3">
@@ -249,7 +209,7 @@ Notes:
             </div>
           </div>
           <div class="text-center w-100 d-flex align-items-center justify-content-center flex-grow-1">
-            <!-- Arc Gauge injected by dashboard.js -->
+            <!-- XP Arc Gauge used by dashboard.js -->
             <div id="heroXP" class="visually-hidden">0</div>
           </div>
         </div>
@@ -272,13 +232,13 @@ Notes:
             <!-- New Weekly Calendar -->
             <div id="streakCalendar" class="net-streak-calendar"
               title="Your activity for the last 7 days">
-              <!-- JS will populate: Mon T W T F S Sun pills -->
+              <!-- dashboard.js creates this using: Mon T W T F S Sun pills -->
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Stats Carousel – click to open Progress page -->
+      <!-- Stats Carousel: User Progress Page -->
       <div class="col-6 col-md-3">
         <div class="net-stat-card bg-white p-3 rounded-4 shadow-sm h-100 border position-relative overflow-hidden net-clickable-card"
           id="statsCarouselCard" role="button" tabindex="0" aria-label="View all activities and progress"
@@ -287,7 +247,7 @@ Notes:
           <div class="net-stats-carousel">
             <!-- Slides Container -->
             <div class="net-carousel-track" id="statsTrack">
-              <!-- Slide 1: Active Courses -->
+              <!--  Active Courses Slide -->
               <div class="net-carousel-slide is-active" data-index="0">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <span class="small text-muted fw-bold text-uppercase ls-1">Active</span>
@@ -300,7 +260,7 @@ Notes:
                   <div class="small text-muted">Courses</div>
                 </div>
               </div>
-              <!-- Slide 2: Lessons -->
+              <!--  Lessons Slide -->
               <div class="net-carousel-slide" data-index="1">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <span class="small text-muted fw-bold text-uppercase ls-1">Lessons</span>
@@ -313,7 +273,7 @@ Notes:
                   <div class="small text-muted">Completed</div>
                 </div>
               </div>
-              <!-- Slide 3: Quizzes -->
+              <!--  Quizzes Slide -->
               <div class="net-carousel-slide" data-index="2">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <span class="small text-muted fw-bold text-uppercase ls-1">Quizzes</span>
@@ -326,7 +286,7 @@ Notes:
                   <div class="small text-muted">Passed</div>
                 </div>
               </div>
-              <!-- Slide 4: Challenges -->
+              <!--  Challenges Slide -->
               <div class="net-carousel-slide" data-index="3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <span class="small text-muted fw-bold text-uppercase ls-1">Sandbox</span>
@@ -341,7 +301,7 @@ Notes:
               </div>
             </div>
 
-            <!-- Indicators -->
+            <!-- Carousel Indicators -->
             <div class="net-carousel-indicators" id="statsIndicators">
               <button class="net-indicator active" data-slide="0" aria-label="Slide 1"></button>
               <button class="net-indicator" data-slide="1" aria-label="Slide 2"></button>
@@ -354,10 +314,10 @@ Notes:
       </div>
     </div>
 
-    <!-- MAIN GRID -->
+    <!-- Main Dashboard Area -->
     <section class="dash-grid">
       <div class="dash-main">
-        <!-- CONTINUE LEARNING -->
+        <!-- Continue Learning Section -->
         <section class="dash-card net-card net-pop p-4 mb-4" data-tour="courses-section">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <h2 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Continue Learning</h2>
@@ -386,14 +346,11 @@ Notes:
 
       </div>
 
-      <!-- Right rail -->
+      <!-- Daily and Weekly Challenges -->
       <aside class="dash-side">
         <section class="dash-card net-card net-pop p-4 mb-4" data-tour="challenges-section">
           <div class="d-flex align-items-center justify-content-between mb-3">
             <h2 class="fw-bold mb-0 text-uppercase ls-1 text-secondary">Focus</h2>
-            <button class="btn btn-outline-secondary btn-sm d-none" id="challengesRetryBtn" type="button">
-              <i class="bi bi-arrow-clockwise me-1"></i>Retry
-            </button>
           </div>
           <div class="dash-toggle" role="tablist" aria-label="Weekly goals and achievements">
             <button class="dash-toggle-btn is-active" type="button" role="tab" id="dailyTab" aria-selected="true" aria-controls="dailyPanel" data-panel="dailyPanel">
@@ -424,14 +381,15 @@ Notes:
 
   </main>
 
-  <footer class="net-footer-wide text-center border-top py-4 bg-white mt-4" role="contentinfo">
+  <!-- Footer -->
+  <footer class="text-center border-top py-3 bg-white">
     <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
   </footer>
 
-  <!-- Dashboard welcome overlay (shown before onboarding on first login) -->
+  <!-- Dashboard welcome overlay  -->
   <div id="dashboardWelcomeOverlay" class="net-network-overlay net-network-overlay--welcome d-none" aria-hidden="true">
     <svg class="net-network-svg" id="welcomeTopologySvg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <!-- Topology is injected dynamically by JS -->
+      <!-- Topology Design is created by background.js  -->
     </svg>
     <div class="net-welcome-particles" id="welcomeParticles" aria-hidden="true"></div>
     <div class="net-network-content net-welcome-intro">
@@ -468,6 +426,7 @@ Notes:
   </div>
 
   <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/toasts.js"></script>
   <script src="js/app.js"></script>
@@ -475,7 +434,6 @@ Notes:
   <script src="js/background.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/dashboard.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

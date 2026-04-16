@@ -1,9 +1,7 @@
-/*
-  Student: C22320301 - Jamie O'Neill
-  File: sandbox-core.js
-  Purpose: Core data, constants, state, and utility functions
-           for the Netology network sandbox.
-*/
+// sandbox-core.js — Core data, constants, state, and utility functions for the Netology network sandbox.
+// Student: C22320301 - Jamie O'Neill
+
+"use strict";
 
 // Get an element by its id
 function getById(id) {

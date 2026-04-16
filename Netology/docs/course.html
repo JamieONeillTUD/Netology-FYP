@@ -1,23 +1,25 @@
 <!--
 Student Number: C22320301
-Student Name:   Jamie O’Neill
-Course Code:    TU857/4
-Date:           09/02/2026
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 09/02/2026
 
-HTML
----------------------------------------
-course.html – Netology Course Detail
+course.html - Single Course Detail Page
+---
+This page shows the full detail view for one course. The course to display
+is picked up from the URL query string like course.html?course=1.
 
-Purpose:
-- Detailed view of a single course, loaded via URL param ?course=<id>
-- Slide-out sidebar + sticky top navbar + breadcrumb trail
-- Hero: course title, difficulty pill, status chips (locked/active/completed),
-  description, module/time/XP stats, and an SVG progress ring
-- ‘Up Next’ action card with Continue / Review button and quick inline stats
-- Modules list: course.js builds and injects collapsible module cards
-Notes:
-- URL param: ?course=<courseId>  (read by course.js on page load)
-- Scripts: Bootstrap → config.js → app.js → course_content.js → course.js
+At the top there is a hero card with the course title, difficulty level,
+description, and a circular SVG progress ring showing how far through the
+course the user is. Below that is an "Up Next" card with a Continue button
+that jumps straight to the next unfinished lesson.
+
+The bottom section shows the course modules as tabs. Clicking a tab swaps
+the panel below it to show that module’s lessons, quizzes, sandbox tasks,
+and challenges. course.js builds all of this dynamically from the course
+data in course_content.js.
+
+The sidebar and top nav are the same shared layout used across all pages.
 -->
 
 <!doctype html>
@@ -27,22 +29,19 @@ Notes:
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Course</title>
-
-  <!-- Vendor: Bootstrap + Icons -->
+  
+  <!-- Netology CSS and Bootstrap -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-  <!-- App CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body class="net-bg net-landing net-course-page net-loading">
 
-  <!-- =======================================================
-       SLIDE SIDEBAR (Dashboard Chrome)
-  ======================================================== -->
+  <!-- Slide Sidebar Backdrop -->
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
 
+  <!-- Slide Sidebar -->
   <aside id="slideSidebar" class="net-slideside" aria-label="Sidebar menu" aria-hidden="true">
     <div class="net-sidehead">
       <div class="d-flex align-items-center justify-content-between gap-2">
@@ -96,14 +95,11 @@ Notes:
     </div>
   </aside>
 
-  <!-- =======================================================
-       TOP NAV (Dashboard Chrome)
-  ======================================================== -->
+  <!-- Header Navigation -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
       <div class="net-topnav-inner">
 
-        <!-- Left -->
         <div class="net-topnav-left">
           <button class="net-hambtn" id="openSidebarBtn" type="button" aria-label="Open menu">
             <span class="net-hambtn-bars" aria-hidden="true"><span></span><span></span><span></span></span>
@@ -111,7 +107,6 @@ Notes:
           </button>
         </div>
 
-        <!-- Center brand: JS will route dashboard if logged in else index -->
         <div class="net-topnav-center">
           <a href="dashboard.html" id="brandHome" class="net-topnav-brand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
@@ -119,9 +114,7 @@ Notes:
           </a>
         </div>
 
-        <!-- Right -->
         <div class="net-topnav-right position-relative">
-          <!-- User dropdown -->
           <div class="position-relative">
             <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu"
               aria-expanded="false">
@@ -148,12 +141,10 @@ Notes:
     </div>
   </header>
 
-  <!-- =======================================================
-       MAIN
-  ======================================================== -->
+  <!-- Main Content -->
   <main class="container my-4" role="main">
 
-    <!-- Skeleton shown while loading -->
+    <!-- Skeleton shown while loading content -->
     <section class="net-card p-4 net-loading-only" aria-label="Loading course">
       <div class="net-skel net-w-60 mb-3"></div>
       <div class="net-skel net-w-90 mb-2"></div>
@@ -172,13 +163,10 @@ Notes:
         <span id="breadcrumbCourse">Course</span>
       </nav>
 
-      <!-- =====================================================
-           HERO
-      ====================================================== -->
+      <!-- Hero Card: course title, difficulty, stats, and progress ring -->
       <section class="crs-hero net-card p-4 mb-3" aria-label="Course overview" data-tour="course-hero">
         <div class="crs-hero-layout">
 
-          <!-- Left: info -->
           <div class="crs-hero-info">
             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
               <h1 class="crs-title mb-0" id="courseTitle">Loading…</h1>
@@ -201,7 +189,7 @@ Notes:
             </div>
           </div>
 
-          <!-- Right: progress ring -->
+          <!-- Course Progress ring -->
           <div class="crs-ring-wrap">
             <div class="crs-ring">
               <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -226,9 +214,7 @@ Notes:
         </div>
       </section>
 
-      <!-- =====================================================
-           UP NEXT
-      ====================================================== -->
+      <!-- Up Next: continue button and quick progress stats -->
       <section class="crs-upnext net-card p-3 p-sm-4 mb-3" aria-label="Up next" data-tour="course-continue">
         <div class="crs-upnext-row">
           <div>
@@ -251,9 +237,7 @@ Notes:
         </div>
       </section>
 
-      <!-- =====================================================
-           MODULES
-      ====================================================== -->
+      <!-- Modules: tab picker and lesson list panel -->
       <section aria-label="Modules list" data-tour="course-modules">
         <div class="d-flex align-items-center gap-2 mb-3">
           <h2 class="h5 fw-bold mb-0">Course Modules</h2>
@@ -280,13 +264,6 @@ Notes:
         </div>
       </section>
 
-      <!-- Hidden compat stubs -->
-      <div class="d-none">
-        <span id="progressText">0%</span>
-        <div id="progressBar"></div>
-        <span id="courseStreakBadge"></span>
-        <span id="courseXpHint"></span>
-      </div>
 
     </div>
   </main>
@@ -299,10 +276,8 @@ Notes:
     <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
   </footer>
 
-  <!-- Vendor (IMPORTANT: bootstrap before course.js so modal works) -->
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-  <!-- App scripts -->
   <script src="js/theme.js"></script>
   <script src="js/toasts.js"></script>
   <script src="js/app.js"></script>

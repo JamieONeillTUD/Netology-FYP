@@ -26,39 +26,39 @@ from user_routes import _challenge_target, _challenge_progress_value
 # Happy path
 
 def test_challenge_target_daily_complete_lessons_is_two():
-    result = _challenge_target('complete_lessons', 'daily', 'Study Session', '', None)
+    result = _challenge_target('complete_lessons', 'daily', None)
     assert result == 2
 
 def test_challenge_target_weekly_complete_lessons_is_five():
-    result = _challenge_target('complete_lessons', 'weekly', 'Knowledge Sprint', '', None)
+    result = _challenge_target('complete_lessons', 'weekly', None)
     assert result == 5
 
 def test_challenge_target_daily_login_is_seven():
-    result = _challenge_target('daily_login', 'weekly', 'Consistency Wins', '', None)
+    result = _challenge_target('daily_login', 'weekly', None)
     assert result == 7
 
 def test_challenge_target_sandbox_topologies_is_three():
-    result = _challenge_target('sandbox_topologies', 'weekly', 'Network Architect', '', None)
+    result = _challenge_target('sandbox_topologies', 'weekly', None)
     assert result == 3
 
 def test_challenge_target_complete_courses_is_three():
-    result = _challenge_target('complete_courses', 'event', 'All Star', '', None)
+    result = _challenge_target('complete_courses', 'event', None)
     assert result == 3
 
 def test_challenge_target_quiz_score_is_one():
-    result = _challenge_target('quiz_score', 'weekly', 'Quiz Master', '', None)
+    result = _challenge_target('quiz_score', 'weekly', None)
     assert result == 1
 
 # Boundary — explicit action_target overrides the default
 
 def test_challenge_target_explicit_numeric_target_is_used_directly():
-    result = _challenge_target('complete_lessons', 'daily', 'Custom', '', '10')
+    result = _challenge_target('complete_lessons', 'daily', '10')
     assert result == 10
 
 # Edge case
 
 def test_challenge_target_unknown_action_defaults_to_one():
-    result = _challenge_target('some_unknown_action', 'daily', 'Unknown', '', None)
+    result = _challenge_target('some_unknown_action', 'daily', None)
     assert result == 1
 
 

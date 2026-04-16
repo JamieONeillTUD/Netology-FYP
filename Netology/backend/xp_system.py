@@ -1,10 +1,23 @@
-# xp_system.py — XP award, level calculation, and rank helpers.
+"""
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
 
-from db import get_db_connection
+xp_system.py - XP and Level System
+---
+This file handles the XP and level system for Netology.
+It works out the user's level, rank, and progress to the
+next level, and it also saves new XP when the user earns it.
 
+It is mainly used when lessons, quizzes, challenges,
+and achievements give XP rewards.
+"""
+
+from db import email_from, get_db_connection, to_int
 
 def rank_for_level(level):
-    # Convert numeric level to a rank name.
+    # Convert a numeric level into the matching rank name.
     if level >= 5:
         return "Advanced"
     if level >= 3:
@@ -13,8 +26,8 @@ def rank_for_level(level):
 
 
 def get_level_progress(total_xp):
-    # Returns (level, xp_into_level, xp_needed_for_next_level).
-    xp = max(0, int(total_xp or 0))
+    # Return the level, XP into that level, and XP needed for the next one.
+    xp = max(0, to_int(total_xp))
     level = 1
     needed = 100
 
@@ -27,8 +40,9 @@ def get_level_progress(total_xp):
 
 
 def add_xp_to_user(email, amount, action="Lesson Completed"):
-    # Add XP, update level, log it. Returns (xp_added, new_level).
-    amount = max(0, int(amount or 0))
+    # Add XP to a user, update their level, and save the XP log entry.
+    email = email_from(email)
+    amount = max(0, to_int(amount))
     if not email or amount <= 0:
         return 0, 1
 
@@ -41,9 +55,10 @@ def add_xp_to_user(email, amount, action="Lesson Completed"):
             return 0, 1
 
         new_level, _, _ = get_level_progress(row[0])
+        new_rank = rank_for_level(new_level)
         cur.execute(
             "UPDATE users SET numeric_level = %s, level = %s WHERE email = %s",
-            (new_level, rank_for_level(new_level), email),
+            (new_level, new_rank, email),
         )
         cur.execute(
             "INSERT INTO xp_log (user_email, action, xp_awarded) VALUES (%s, %s, %s)",

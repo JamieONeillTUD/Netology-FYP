@@ -1,39 +1,44 @@
-<!doctype html>
 <!--
 Student Number: C22320301
-Student Name:   Jamie O’Neill
+Student Name:   Jamie O'Neill
 Course Code:    TU857/4
 Date:           10/11/2025
 
-HTML
----------------------------------------
-signup.html – Netology Signup Page (Multi-step Wizard)
+signup.html - New User Registration Page
+---
+This is the account creation page. It uses a 4-step wizard so the
+form does not feel overwhelming. Each step shows only the relevant
+fields and the user can go back and forward before submitting.
 
-Purpose:
-- New user account creation via a guided 4-step wizard
-- Animated background matching the landing/login theme
-- Step 1: Personal details (name, username, date of birth, email, password)
-- Step 2: Choose starting level (Novice / Intermediate / Advanced)
-- Step 3: Learning motivations — select from 10 checkbox cards
-- Step 4: Review all details and submit to create account
-- Full-page success overlay with animated network topology after registration
+Step 1 collects personal details: first name, last name, username,
+date of birth, email, password, and confirm password. 
 
-Notes:
-- Wizard navigation and backend registration handled by app.js (POST /register)
-- Scripts: config.js → app.js → Bootstrap JS
+Step 2 asks the user to pick a starting level (Novice, Intermediate, or Advanced) which
+unlocks the matching course tiers.
+
+Step 3 shows 10 checkbox cards for learning motivations (career, certification, personal interest, etc.)
+so the platform can personalise suggestions. 
+
+Step 4 is a read-only review of everything before the user clicks 'Create account'.
+
+On a successful registration a full-page success overlay appears with
+a static animated network topology SVG, then the user is redirected
+to login.html. signup.js handles all wizard navigation, field
+validation, and the POST /register API call.
 -->
 
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Signup</title>
 
-  <!-- Vendor: Bootstrap + Icons -->
+  <!-- Vendor: Bootstrap CSS + Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-  <!-- Font -->
+  <!-- Font: auth pages use Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -44,7 +49,7 @@ Notes:
 
 <body class="net-figma-landing net-auth-page net-auth-v2">
 
-  <!-- Animated Background (Figma-style) -->
+  <!-- Animated background blobs and floating network icons -->
   <div class="net-figma-bg" aria-hidden="true">
     <span class="net-figma-blob blob-1"></span>
     <span class="net-figma-blob blob-2"></span>
@@ -58,10 +63,7 @@ Notes:
     <span class="net-figma-icon icon-6"><i class="bi bi-book"></i></span>
   </div>
 
-  <!-- =========================================================
-       TOP BAR
-       - Brand links back to index.html
-  ========================================================== -->
+  <!-- Top bar: brand on the left, sign in link on the right -->
   <header class="net-figma-nav sticky-top" role="banner">
     <div class="net-figma-container nav-inner">
       <a href="index.html" class="net-figma-brand" aria-label="Netology home">
@@ -79,9 +81,7 @@ Notes:
     <div class="row justify-content-center g-4">
       <div class="col-12 col-lg-9 col-xl-8">
 
-        <!-- =========================================================
-             TITLE (Figma-style)
-        ========================================================== -->
+        <!-- Page logo and title -->
         <div class="text-center mb-4 net-pop">
           <div class="net-auth-logo mx-auto mb-3" aria-hidden="true">
             <i class="bi bi-mortarboard-fill"></i>
@@ -90,9 +90,7 @@ Notes:
           <p class="text-muted mb-0">Start your networking journey</p>
         </div>
 
-        <!-- =========================================================
-             CARD (Wizard Container)
-        ========================================================== -->
+        <!-- Wizard card: contains the step header, progress bar, and all four step sections -->
         <div class="p-4 p-lg-5 net-auth-card net-pop">
 
           <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
@@ -101,7 +99,7 @@ Notes:
               <p class="text-muted mb-0">Step-by-step signup — quick, clear, and friendly.</p>
             </div>
 
-            <!-- Step pills (optional enhancement; app.js supports this) -->
+            <!-- Step pill indicators: signup.js updates the is-active class as the user moves through steps -->
             <div class="small text-muted" id="stepPills" aria-hidden="true">
               <span class="net-step-pill is-active" data-pill="1">1</span>
               <span class="net-step-pill" data-pill="2">2</span>
@@ -110,7 +108,7 @@ Notes:
             </div>
           </div>
 
-          <!-- Progress -->
+          <!-- Progress bar and step label: updated by signup.js on each step change -->
           <div class="mb-4">
             <div class="d-flex justify-content-between small text-muted mb-2">
               <span id="stepLabel">Step 1 of 4</span>
@@ -121,16 +119,13 @@ Notes:
             </div>
           </div>
 
-          <!-- Inline banner (wizard + validation messages) -->
-          <div id="signupBanner"
-               class="alert d-none net-banner mb-4"
-               role="status"
-               aria-live="polite"></div>
+          <!-- Inline banner: signup.js shows validation errors and server messages here -->
+          <div id="signupBanner" class="alert d-none net-banner mb-4" role="status" aria-live="polite"></div>
 
-          <!-- IMPORTANT: keep ids/names for app.js backend -->
+          <!-- Signup form: all field IDs and names are required by signup.js for validation and submission -->
           <form id="signupForm" method="POST" action="#" aria-label="Signup form" novalidate>
 
-            <!-- STEP 1: DETAILS -->
+            <!-- Step 1: personal details with  name, username, date of birth, email, and password -->
             <section class="net-step-page" data-step="1" aria-label="Step 1: Your details">
               <h3 class="h5 fw-bold mb-3 text-teal"><i class="bi bi-person-vcard me-2"></i>Your Details</h3>
 
@@ -233,7 +228,7 @@ Notes:
               </div>
             </section>
 
-            <!-- STEP 2: LEVEL -->
+            <!-- Step 2: starting level with Novice, Intermediate, or Advanced -->
             <section class="net-step-page d-none" data-step="2" aria-label="Step 2: Your level">
               <h3 class="h5 fw-bold mb-2 text-teal"><i class="bi bi-bar-chart-steps me-2"></i>Choose your starting level</h3>
               <p class="text-muted small mb-3">Pick what best describes you (you can change later).</p>
@@ -282,7 +277,7 @@ Notes:
               </div>
             </section>
 
-            <!-- STEP 3: REASONS -->
+            <!-- Step 3: learning motivations with at least one checkbox must be selected -->
             <section class="net-step-page d-none" data-step="3" aria-label="Step 3: Your reasons">
               <h3 class="h5 fw-bold mb-2 text-teal"><i class="bi bi-lightbulb me-2"></i>Why are you learning networking?</h3>
               <p class="text-muted small mb-3">Select at least one (helps personalise your learning).</p>
@@ -424,7 +419,7 @@ Notes:
               </div>
             </section>
 
-            <!-- STEP 4: REVIEW -->
+            <!-- Step 4: review with read-only summary of all entries before submitting -->
             <section class="net-step-page d-none" data-step="4" aria-label="Step 4: Review">
               <h3 class="h5 fw-bold mb-2 text-teal"><i class="bi bi-clipboard-check me-2"></i>Review & create</h3>
               <p class="text-muted small mb-3">Check your details, then create your account.</p>
@@ -474,7 +469,7 @@ Notes:
               </div>
             </section>
 
-            <!-- Nav buttons -->
+            <!-- Wizard navigation: Back moves one step back, Next moves forward and Create account submits -->
             <div class="d-flex justify-content-between align-items-center mt-4 gap-2">
               <button type="button" id="backBtn" class="btn btn-outline-secondary" aria-label="Go back">
                 <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
@@ -487,6 +482,7 @@ Notes:
                   <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
                 </button>
 
+                <!-- submitBtn is hidden until the user reaches the final step -->
                 <button type="submit" id="submitBtn" class="btn btn-teal d-none" aria-label="Create account">
                   Create account
                 </button>
@@ -504,13 +500,14 @@ Notes:
     </div>
   </main>
 
-  <footer class="net-auth-footer" role="contentinfo">
-    <p>© 2026 Netology – Jamie O'Neill – TU857/4</p>
+  <!-- Footer -->
+  <footer class="net-footer-wide text-center border-top py-4 bg-white mt-4" role="contentinfo">
+    <p class="small text-muted mb-0">© 2026 Netology – Jamie O'Neill – TU857/4</p>
   </footer>
 
-  <!-- Full-page success celebration overlay (hidden by default) -->
+
+  <!-- Full-page success overlay shown by signup.js after a successful registration. The SVG topology and animated packets are static HTML  -->
   <div id="signupSuccessOverlay" class="net-signup-success-overlay d-none" aria-hidden="true">
-    <!-- Animated network topology background -->
     <svg class="net-signup-success-topology" aria-hidden="true" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
       <g class="net-topo-connections">
         <line class="net-topo-line" x1="120" y1="80" x2="300" y2="180"/>
@@ -534,7 +531,7 @@ Notes:
         <circle class="net-topo-node net-topo-node--pc" cx="620" cy="420" r="9"/>
         <circle class="net-topo-node net-topo-node--pc" cx="60" cy="260" r="9"/>
       </g>
-      <!-- Animated data packets travelling along connections -->
+      <!-- Animated data packets travelling along the connections -->
       <circle class="net-topo-packet" r="4">
         <animateMotion dur="3s" repeatCount="indefinite" path="M120,80 L300,180 L400,320"/>
       </circle>
@@ -545,7 +542,6 @@ Notes:
         <animateMotion dur="3.5s" repeatCount="indefinite" begin="0.5s" path="M680,200 L500,120 L300,180"/>
       </circle>
     </svg>
-    <!-- Particle confetti layer -->
     <div class="net-signup-success-confetti" aria-hidden="true"></div>
     <div class="net-signup-success-content">
       <div class="net-signup-success-icon">
@@ -564,12 +560,13 @@ Notes:
     </div>
   </div>
 
-  <!-- JS -->
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/toasts.js"></script>
   <script src="js/app.js"></script>
   <script src="js/signup.js"></script>
   <script src="js/onboarding-tour.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

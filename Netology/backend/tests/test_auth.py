@@ -256,6 +256,24 @@ def test_forgot_password_missing_email_returns_400(integration_client):
 
 
 # ─────────────────────────────────────────────────────────────
+# API TESTS — POST /delete-account   (real database)
+# ─────────────────────────────────────────────────────────────
+
+def test_delete_account_valid_email_returns_200(integration_client, make_user):
+    make_user('delete@test.com')
+    resp = integration_client.post('/delete-account', data={'email': 'delete@test.com'})
+    assert resp.status_code == 200
+
+def test_delete_account_unknown_email_returns_404(integration_client):
+    resp = integration_client.post('/delete-account', data={'email': 'missing@test.com'})
+    assert resp.status_code == 404
+
+def test_delete_account_missing_email_returns_400(integration_client):
+    resp = integration_client.post('/delete-account', data={})
+    assert resp.status_code == 400
+
+
+# ─────────────────────────────────────────────────────────────
 # INTEGRATION TESTS — register and login with a real database
 # ─────────────────────────────────────────────────────────────
 
@@ -303,3 +321,11 @@ def test_user_info_returns_registered_users_name_and_email(integration_client):
     body = json.loads(resp.data)
     assert body['first_name'] == 'Alice'
     assert body['email'] == 'alice@test.com'
+
+
+@pytest.mark.integration
+def test_delete_account_removes_the_user_row(integration_client, make_user, db):
+    make_user('delete2@test.com')
+    integration_client.post('/delete-account', data={'email': 'delete2@test.com'})
+    row = db.execute("SELECT email FROM users WHERE email = 'delete2@test.com'").fetchone()
+    assert row is None

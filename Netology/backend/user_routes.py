@@ -1,26 +1,39 @@
-# user_routes.py — Progress, activity, streak, and challenge APIs.
+"""
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+user_routes.py - Progress, Activity, and Challenge Routes
+---
+This file handles the user progress routes for Netology.
+It returns challenge data, activity heatmap data, achievement
+lists, and login streak data used across the main app pages.
+
+These routes are mainly used by dashboard.js, progress.js,
+and account.js.
+"""
 
 from flask import Blueprint, jsonify, request
 
 from achievement_engine import login_streak
-from db import get_db_connection
+from db import email_from, get_db_connection
 
 user_api = Blueprint("user_api", __name__)
 
-
-# ── Challenges ────────────────────────────────────────────────────────────────
+# User Challenges and Progress
 
 _DEFAULT_CHALLENGES = [
-    ("Learn IP Addressing",  "Complete the IP Addressing course lesson.",          "daily",  25),
-    ("Build a Topology",     "Create a network topology in the sandbox.",          "daily",  50),
-    ("Pass a Quiz",          "Score 80%+ on any quiz.",                            "daily",  30),
-    ("Study Session",        "Complete 2 lessons in one sitting.",                 "daily",  40),
-    ("Review Notes",         "Revisit a completed lesson to reinforce knowledge.", "daily",  20),
-    ("Quiz Master",          "Score 100% on any quiz.",                            "weekly", 100),
-    ("Consistency Wins",     "Log in for 7 consecutive days.",                     "weekly", 75),
-    ("Course Explorer",      "Start a new course you have not tried before.",      "weekly", 60),
-    ("Network Architect",    "Build 3 different network topologies.",              "weekly", 120),
-    ("Knowledge Sprint",     "Complete 5 lessons across any courses.",             "weekly", 80),
+    ("Learn IP Addressing", "Complete the IP Addressing course lesson.", "daily", 25),
+    ("Build a Topology", "Create a network topology in the sandbox.", "daily", 50),
+    ("Pass a Quiz", "Score 80%+ on any quiz.", "daily", 30),
+    ("Study Session", "Complete 2 lessons in one sitting.", "daily", 40),
+    ("Review Notes", "Revisit a completed lesson to reinforce knowledge.", "daily",  20),
+    ("Quiz Master", "Score 100% on any quiz.", "weekly", 100),
+    ("Consistency Wins", "Log in for 7 consecutive days.", "weekly", 75),
+    ("Course Explorer", "Start a new course you have not tried before.", "weekly", 60),
+    ("Network Architect", "Build 3 different network topologies.", "weekly", 120),
+    ("Knowledge Sprint", "Complete 5 lessons across any courses.", "weekly", 80),
 ]
 
 
@@ -38,7 +51,8 @@ def _seed_challenges_if_empty(cur, conn):
         conn.commit()
 
 
-def _challenge_target(required_action, challenge_type, title, description, action_target):
+def _challenge_target(required_action, challenge_type, action_target):
+    # Return the target number needed to complete a challenge.
     default_target = 1
 
     try:
@@ -63,6 +77,7 @@ def _challenge_target(required_action, challenge_type, title, description, actio
 
 
 def _challenge_progress_value(required_action, metrics):
+    # Return the user's current progress value for one challenge action.
     action = str(required_action or "").strip().lower()
 
     if action in ("complete_lesson", "review_lesson"):
@@ -83,6 +98,7 @@ def _challenge_progress_value(required_action, metrics):
 
 
 def _load_challenge_metrics(cur, email):
+    # Load the counts used to calculate challenge progress.
     metrics = {
         "lessons_done": 0,
         "quizzes_done": 0,
@@ -137,9 +153,9 @@ def _load_challenge_metrics(cur, email):
 
 @user_api.get("/api/user/challenges")
 def get_user_challenges():
-    # Daily or weekly challenges for the dashboard.
-    challenge_type = request.args.get("type", "daily")
-    user_email = (request.args.get("user_email") or "").strip().lower()
+    # Return daily or weekly challenges for the dashboard.
+    challenge_type = (request.args.get("type") or "daily").strip().lower()
+    user_email = email_from(request.args.get("user_email"))
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -175,7 +191,7 @@ def get_user_challenges():
         for row in rows:
             required_action = row[4] if len(row) > 4 else None
             action_target = row[5] if len(row) > 5 else None
-            target = _challenge_target(required_action, challenge_type, row[1], row[2], action_target)
+            target = _challenge_target(required_action, challenge_type, action_target)
             progress_value = _challenge_progress_value(required_action, metrics) if metrics else 0
             if target <= 0:
                 progress_percent = 0
@@ -202,12 +218,11 @@ def get_user_challenges():
         conn.close()
 
 
-# ── Activity heatmap ──────────────────────────────────────────────────────────
-
+# User activity and Progress Heatmap
 @user_api.get("/api/user/activity")
 def get_user_activity():
-    # Merged daily activity data for the heatmap (last N days).
-    email = (request.args.get("user_email") or "").strip().lower()
+    # Return merged daily activity data for the heatmap.
+    email = email_from(request.args.get("user_email"))
     if not email:
         return jsonify({"success": False, "message": "user_email required"}), 400
 
@@ -221,7 +236,7 @@ def get_user_activity():
     try:
         by_date = {}
 
-        # Pull from user_daily_activity summary table if it exists
+        # Pull from the daily summary table if it exists.
         try:
             cur.execute(
                 """
@@ -238,13 +253,16 @@ def get_user_activity():
             for row in cur.fetchall():
                 key = str(row[0])
                 by_date[key] = {
-                    "xp": int(row[1]), "lessons": int(row[2]),
-                    "quizzes": int(row[3]), "challenges": int(row[4]), "logins": int(row[5]),
+                    "xp": int(row[1]),
+                    "lessons": int(row[2]),
+                    "quizzes": int(row[3]),
+                    "challenges": int(row[4]),
+                    "logins": int(row[5]),
                 }
         except Exception as e:
             print("get_user_activity (daily_activity table) error:", e)
 
-        # Fill in any gaps from xp_log
+        # Fill in any gaps from xp_log.
         try:
             cur.execute(
                 """
@@ -264,16 +282,16 @@ def get_user_activity():
                 key = str(row[0])
                 ex = by_date.get(key, {})
                 by_date[key] = {
-                    "xp":        max(ex.get("xp", 0),         int(row[1])),
-                    "lessons":   max(ex.get("lessons", 0),    int(row[2])),
-                    "quizzes":   max(ex.get("quizzes", 0),    int(row[3])),
-                    "challenges":max(ex.get("challenges", 0), int(row[4])),
-                    "logins":    ex.get("logins", 0),
+                    "xp": max(ex.get("xp", 0), int(row[1])),
+                    "lessons": max(ex.get("lessons", 0), int(row[2])),
+                    "quizzes": max(ex.get("quizzes", 0), int(row[3])),
+                    "challenges": max(ex.get("challenges", 0), int(row[4])),
+                    "logins": ex.get("logins", 0),
                 }
         except Exception as e:
             print("get_user_activity (xp_log fallback) error:", e)
 
-        # Login counts from user_logins
+        # Add login counts from user_logins.
         try:
             cur.execute(
                 """
@@ -295,11 +313,11 @@ def get_user_activity():
         activity = []
         for date_key in sorted(by_date.keys()):
             d = by_date[date_key]
-            lessons    = d.get("lessons", 0)
-            quizzes    = d.get("quizzes", 0)
+            lessons = d.get("lessons", 0)
+            quizzes = d.get("quizzes", 0)
             challenges = d.get("challenges", 0)
-            logins     = d.get("logins", 0)
-            xp         = d.get("xp", 0)
+            logins = d.get("logins", 0)
+            xp = d.get("xp", 0)
             activity.append({
                 "date": date_key,
                 "xp": xp,
@@ -319,12 +337,11 @@ def get_user_activity():
         conn.close()
 
 
-# ── Achievements ─────────────────────────────────────────────────────────────
-
+# User Achievements
 @user_api.get("/api/user/achievements")
 def get_user_achievements():
     # Return all achievements split into unlocked and locked lists for a user.
-    email = (request.args.get("user_email") or "").strip().lower()
+    email = email_from(request.args.get("user_email"))
     if not email:
         return jsonify({"success": False, "message": "user_email required"}), 400
 
@@ -378,12 +395,11 @@ def get_user_achievements():
         conn.close()
 
 
-# ── Streaks ───────────────────────────────────────────────────────────────────
-
+# User Streaks
 @user_api.get("/api/user/streaks")
 def get_user_streaks():
     # Current login streak for a user.
-    email = (request.args.get("user_email") or "").strip().lower()
+    email = email_from(request.args.get("user_email"))
     if not email:
         return jsonify({"success": False, "message": "user_email required"}), 400
 

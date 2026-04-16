@@ -1,4 +1,19 @@
-# course_routes.py — Course and progress API routes.
+"""
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+course_routes.py - Course and Progress Routes
+---
+This file handles the main course routes for Netology.
+It loads the course list, returns single course data, saves
+lesson, quiz, and challenge completions, and returns progress
+data for the logged-in user.
+
+These routes are mainly used by the courses, course, lesson,
+quiz, dashboard, progress, and sandbox pages.
+"""
 
 from flask import Blueprint, jsonify, request
 
@@ -8,19 +23,24 @@ from xp_system import add_xp_to_user
 
 courses = Blueprint("courses", __name__)
 
-
 def course_row(row):
-    # Turns a courses table row (10 columns) into a dict to send back as JSON.
+    # Turn one courses table row into a JSON-friendly dictionary.
     return {
-        "id": row[0], "title": row[1], "description": row[2],
-        "total_lessons": row[3], "module_count": row[4], "xp_reward": row[5],
-        "difficulty": row[6], "category": row[7], "required_level": row[8],
+        "id": row[0],
+        "title": row[1],
+        "description": row[2],
+        "total_lessons": row[3],
+        "module_count": row[4],
+        "xp_reward": row[5],
+        "difficulty": row[6],
+        "category": row[7],
+        "required_level": row[8],
         "estimated_time": row[9],
     }
 
 
 def check_achievements(email, event):
-    # Run achievement checks; returns (list of unlocked, total xp from them).
+    # Check for new achievements and return the unlocks plus their XP total.
     try:
         new_achievements = evaluate_achievements_for_event(email, event) or []
     except Exception as err:
@@ -29,7 +49,12 @@ def check_achievements(email, event):
     return new_achievements, sum(to_int(a.get("xp_added")) for a in new_achievements)
 
 
-@courses.route("/courses", methods=["GET"])
+def request_data():
+    # Read request data from JSON first, then fall back to form data.
+    return request.get_json(silent=True) or request.form or {}
+
+
+@courses.get("/courses")
 def list_courses():
     # Return all active courses.
     conn = get_db_connection()
@@ -53,7 +78,7 @@ def list_courses():
         conn.close()
 
 
-@courses.route("/course", methods=["GET"])
+@courses.get("/course")
 def get_course():
     # Return a single course by ID.
     course_id = to_int(request.args.get("id"), 0)
@@ -84,7 +109,7 @@ def get_course():
         conn.close()
 
 
-@courses.route("/user-courses", methods=["GET"])
+@courses.get("/user-courses")
 def user_courses():
     # Return all courses with the user's progress status.
     email = email_from(request.args.get("email"))
@@ -121,10 +146,10 @@ def user_courses():
         conn.close()
 
 
-@courses.route("/complete-lesson", methods=["POST"])
+@courses.post("/complete-lesson")
 def complete_lesson():
-    # Record a completed lesson, update progress, and award XP.
-    data = request.get_json(silent=True) or request.form or {}
+    # Save a completed lesson, update the course progress, and award XP.
+    data = request_data()
     email = email_from(data.get("email"))
     course_id = to_int(data.get("course_id"), 0)
     lesson_number = to_int(data.get("lesson_number"), 0)
@@ -136,20 +161,20 @@ def complete_lesson():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Get total lessons for this course
+        # Load the total lesson count for this course.
         cur.execute("SELECT total_lessons FROM courses WHERE id = %s AND is_active = TRUE", (course_id,))
         row = cur.fetchone()
         if not row:
             return jsonify({"success": False, "message": "Course not found."}), 404
         total_lessons = max(1, to_int(row[0], 1))
 
-        # Ensure user_courses row exists
+        # Make sure the user has a progress row for this course.
         cur.execute(
             "INSERT INTO user_courses (user_email, course_id, progress, completed) VALUES (%s, %s, 0, FALSE) ON CONFLICT DO NOTHING",
             (email, course_id),
         )
 
-        # Record the lesson (does nothing if already recorded)
+        # Save the lesson only once.
         cur.execute(
             """
             INSERT INTO user_lessons (user_email, course_id, lesson_number, xp_awarded)
@@ -160,7 +185,7 @@ def complete_lesson():
         )
         first_time = cur.rowcount == 1
 
-        # Only recalculate and update progress on first completion
+        # Only update progress the first time this lesson is completed.
         if first_time:
             cur.execute(
                 "SELECT COUNT(*) FROM user_lessons WHERE user_email = %s AND course_id = %s",
@@ -195,10 +220,10 @@ def complete_lesson():
         conn.close()
 
 
-@courses.route("/complete-quiz", methods=["POST"])
+@courses.post("/complete-quiz")
 def complete_quiz():
     # Record a completed quiz and award XP.
-    data = request.get_json(silent=True) or request.form or {}
+    data = request_data()
     email = email_from(data.get("email"))
     course_id = to_int(data.get("course_id"), 0)
     lesson_number = to_int(data.get("lesson_number"), -1)
@@ -241,10 +266,10 @@ def complete_quiz():
         conn.close()
 
 
-@courses.route("/complete-challenge", methods=["POST"])
+@courses.post("/complete-challenge")
 def complete_challenge():
     # Record a completed challenge and award XP.
-    data = request.get_json(silent=True) or request.form or {}
+    data = request_data()
     email = email_from(data.get("email"))
     course_id = to_int(data.get("course_id"), 0)
     lesson_number = to_int(data.get("lesson_number"), -1)
@@ -287,7 +312,7 @@ def complete_challenge():
         conn.close()
 
 
-@courses.route("/user-course-status", methods=["GET"])
+@courses.get("/user-course-status")
 def user_course_status():
     # Return which lessons, quizzes, and challenges a user has done in a course.
     email = email_from(request.args.get("email"))
@@ -298,12 +323,12 @@ def user_course_status():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Single query instead of three separate ones
+        # Load lessons, quizzes, and challenges in one query.
         cur.execute(
             """
-            SELECT 'lesson'    AS kind, lesson_number FROM user_lessons    WHERE user_email = %s AND course_id = %s
+            SELECT 'lesson' AS kind, lesson_number FROM user_lessons WHERE user_email = %s AND course_id = %s
             UNION ALL
-            SELECT 'quiz'      AS kind, lesson_number FROM user_quizzes    WHERE user_email = %s AND course_id = %s
+            SELECT 'quiz' AS kind, lesson_number FROM user_quizzes WHERE user_email = %s AND course_id = %s
             UNION ALL
             SELECT 'challenge' AS kind, lesson_number FROM user_challenges WHERE user_email = %s AND course_id = %s
             ORDER BY lesson_number
@@ -329,7 +354,7 @@ def user_course_status():
         conn.close()
 
 
-@courses.route("/user-progress-summary", methods=["GET"])
+@courses.get("/user-progress-summary")
 def user_progress_summary():
     # Return overall progress counts (lessons, quizzes, challenges, courses).
     email = email_from(request.args.get("email"))
@@ -342,12 +367,12 @@ def user_progress_summary():
         cur.execute(
             """
             SELECT
-                (SELECT COUNT(*) FROM user_lessons    WHERE user_email = %s),
-                (SELECT COUNT(*) FROM user_quizzes    WHERE user_email = %s),
+                (SELECT COUNT(*) FROM user_lessons WHERE user_email = %s),
+                (SELECT COUNT(*) FROM user_quizzes WHERE user_email = %s),
                 (SELECT COUNT(*) FROM user_challenges WHERE user_email = %s),
-                (SELECT COUNT(*) FROM user_courses    WHERE user_email = %s AND completed = TRUE),
-                (SELECT COUNT(*) FROM user_courses    WHERE user_email = %s AND completed = FALSE AND progress > 0),
-                (SELECT COUNT(*) FROM courses         WHERE is_active = TRUE)
+                (SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = TRUE),
+                (SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = FALSE AND progress > 0),
+                (SELECT COUNT(*) FROM courses WHERE is_active = TRUE)
             """,
             (email, email, email, email, email),
         )

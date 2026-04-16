@@ -439,14 +439,6 @@
     }
   }
 
-  // point logo links to the dashboard
-  function setupLogoLinks() {
-    var topBrandLink = document.getElementById("topBrand");
-    var sideBrandLink = document.getElementById("sideBrand");
-    if (topBrandLink) topBrandLink.setAttribute("href", "dashboard.html");
-    if (sideBrandLink) sideBrandLink.setAttribute("href", "dashboard.html");
-  }
-
   // main entry point, runs when the page loads
   async function initialiseCoursesPage() {
     var userData = readSavedUserFromLocalStorage();
@@ -455,7 +447,6 @@
       return;
     }
 
-    setupLogoLinks();
     window.NetologyNav.displayNavUser(userData);
     setupDifficultyFilterButtons();
 

@@ -1,9 +1,7 @@
-/*
-  Student: C22320301 - Jamie O'Neill
-  File: sandbox-ui.js
-  Purpose: All the rendering, event binding, and UI logic
-           for the Netology network sandbox.
-*/
+// sandbox-ui.js — All the rendering, event binding, and UI logic for the Netology network sandbox.
+// Student: C22320301 - Jamie O'Neill
+
+"use strict";
 
 // Get the color associated with a device type
 function getTypeColor(deviceType) {

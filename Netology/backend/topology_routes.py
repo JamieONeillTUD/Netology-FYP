@@ -1,4 +1,18 @@
-# topology_routes.py — Sandbox persistence (auto-session + named saves).
+"""
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+topology_routes.py - Sandbox Save and Load Routes
+---
+This file handles the backend routes used by the Netology
+sandbox. It saves lesson session work in the background,
+stores named topologies, loads saved topologies, and deletes
+them when the user chooses to remove one.
+
+These routes are mainly used by sandbox-ui.js and sandbox-app.js.
+"""
 
 import json
 
@@ -8,13 +22,17 @@ from db import email_from, get_db_connection, to_int
 
 topology = Blueprint("topology", __name__)
 
+def request_data():
+    # Read JSON request data and fall back to an empty dictionary.
+    return request.get_json(silent=True) or {}
 
-# ── Auto-session (background save while in a lesson) ─────────────────────────
 
-@topology.route("/lesson-session/save", methods=["POST"])
+# Auto-session (background save while in a lesson)
+
+@topology.post("/lesson-session/save")
 def save_lesson_session():
-    # Auto-save sandbox state for the current course+lesson.
-    data = request.get_json(silent=True) or {}
+    # Save the current sandbox state for one lesson.
+    data = request_data()
     email = email_from(data.get("email"))
     course_id = to_int(data.get("course_id"), None)
     lesson_number = to_int(data.get("lesson_number"), None)
@@ -51,9 +69,9 @@ def save_lesson_session():
         conn.close()
 
 
-@topology.route("/lesson-session/load", methods=["GET"])
+@topology.get("/lesson-session/load")
 def load_lesson_session():
-    # Auto-load sandbox state for the current course+lesson.
+    # Load the saved sandbox state for one lesson.
     email = email_from(request.args.get("email"))
     course_id = to_int(request.args.get("course_id"), None)
     lesson_number = to_int(request.args.get("lesson_number"), None)
@@ -85,12 +103,12 @@ def load_lesson_session():
         conn.close()
 
 
-# ── Named saves (user-triggered from toolbar) ────────────────────────────────
+#  Named saves (user-triggered from toolbar)
 
-@topology.route("/save-topology", methods=["POST"])
+@topology.post("/save-topology")
 def save_topology():
     # Save a named topology snapshot.
-    data = request.get_json(silent=True) or {}
+    data = request_data()
     email = email_from(data.get("email"))
     name = (data.get("name") or "").strip() or "Untitled"
     devices = data.get("devices")
@@ -116,7 +134,7 @@ def save_topology():
         conn.close()
 
 
-@topology.route("/load-topologies", methods=["GET"])
+@topology.get("/load-topologies")
 def load_topologies():
     # List all named saves for a user.
     email = email_from(request.args.get("email"))
@@ -143,9 +161,9 @@ def load_topologies():
         conn.close()
 
 
-@topology.route("/load-topology/<int:tid>", methods=["GET"])
+@topology.get("/load-topology/<int:tid>")
 def load_topology(tid):
-    # Load one named save by ID — ownership is verified via email param.
+    # Load one named save by ID for the matching user.
     email = email_from(request.args.get("email"))
     if not email:
         return jsonify({"success": False, "message": "Email required."}), 400
@@ -169,10 +187,10 @@ def load_topology(tid):
         conn.close()
 
 
-@topology.route("/delete-topology/<int:tid>", methods=["DELETE"])
+@topology.delete("/delete-topology/<int:tid>")
 def delete_topology(tid):
-    # Delete a named save (must belong to the requesting user).
-    data = request.get_json(silent=True) or {}
+    # Delete one named topology that belongs to the user.
+    data = request_data()
     email = email_from(data.get("email"))
     if not email:
         return jsonify({"success": False, "message": "Email required."}), 400

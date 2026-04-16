@@ -1,4 +1,19 @@
-# app.py — Main backend entry point and API route registration.
+"""
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+app.py - Main Flask App Setup
+---
+This file is the main starting point for the Netology backend.
+It creates the Flask app, enables CORS for the frontend, and
+registers the route files used across the project.
+
+It also serves the frontend files from the docs folder, redirects
+the root URL to the landing page, and provides a small health
+check route for deployment.
+"""
 
 from dotenv import load_dotenv
 from flask import Flask, redirect
@@ -12,16 +27,18 @@ from user_routes import user_api
 
 load_dotenv()
 
+ALLOWED_ORIGINS = [
+    "https://jamieoneilltud.github.io",
+    "https://netology-fyp.onrender.com",
+]
+
 app = Flask(
     __name__,
     static_folder="../docs",
     static_url_path="",
 )
 
-CORS(app, origins=[
-    "https://jamieoneilltud.github.io",
-    "https://netology-fyp.onrender.com",
-])
+CORS(app, origins=ALLOWED_ORIGINS)
 
 auth_bcrypt.init_app(app)
 
@@ -32,13 +49,13 @@ app.register_blueprint(user_api)
 app.register_blueprint(topology)
 
 
-@app.route("/")
+@app.get("/")
 def home():
-    # Redirect root URL to the landing page.
+    # Send the root URL to the landing page.
     return redirect("/index.html")
 
 
 @app.get("/healthz")
 def healthz():
-    # Health check endpoint for Render.
+    # Simple check used by Render to see if the app is running.
     return {"ok": True}

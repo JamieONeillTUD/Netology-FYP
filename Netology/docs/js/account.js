@@ -379,6 +379,7 @@
 
       // fill all the profile fields
       setTextById("profileName", displayName);
+      setTextById("profileAvatar", displayName.charAt(0).toUpperCase());
       setTextById("profileEmail", user.email);
       setTextById("profileSkillLine", "Level " + level + " - " + rank);
       setTextById("currentRankInput", rank);

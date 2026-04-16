@@ -1,54 +1,46 @@
-<!doctype html>
 <!--
 Student Number: C22320301
-Student Name:   Jamie O’Neill
-Course Code:    TU857/4
-Date:           10/11/2025
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 09/02/2026
 
-HTML
----------------------------------------
-login.html – Netology Login Page
+login.html - Netology Login Page
+---
+This is the sign-in page for existing users. It shares the same
+animated background, top bar, and card layout as signup.html and
+forgot.html so the whole auth flow feels consistent.
 
-Purpose:
-- Sign-in page for existing users; redirects to dashboard on success
-- Animated background matching the landing page theme
-- Login form: email, password with show/hide toggle, ‘Forgot password?’ link
-- Inline alert banner for real-time feedback (wrong password, server errors)
-- Full-page success overlay with animated network topology and ‘Welcome back’ message
+The form has an email field, a password field with a show/hide toggle,
+and a 'Forgot password?' link that goes to forgot.html. Client-side
+validation runs before anything is sent to the server. On a successful
+login the form fades out and a full-page success overlay appears with
+an animated network topology and a welcome-back message. After a short
+delay the user is redirected to dashboard.html.
 
-Notes:
-- Form submission and success overlay handled by app.js (POST /login)
-- Scripts: config.js → app.js → Bootstrap JS
+login.js handles the form submission, session saving to localStorage,
+and the onboarding check for first-time users. background.js draws the
+animated network topology shown in the success overlay.
 -->
 
+<!doctype html>
 <html lang="en">
 <head>
-  <!-- Meta -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Login</title>
 
-  <!-- Vendor: Bootstrap + Icons -->
+  <!-- Netology CSS and Bootstrap -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-  <!-- Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-  <!-- Netology CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<!--
-  net-bg: shared Netology background
-  net-landing: enables the subtle gradient overlay (same as index.html)
-  net-auth-page: page-specific spacing helpers
--->
 <body class="net-figma-landing net-auth-page net-auth-v2">
 
-  <!-- Animated Background (Figma-style) -->
+  <!-- Animated background blobs and floating network icons -->
   <div class="net-figma-bg" aria-hidden="true">
     <span class="net-figma-blob blob-1"></span>
     <span class="net-figma-blob blob-2"></span>
@@ -62,11 +54,7 @@ Notes:
     <span class="net-figma-icon icon-6"><i class="bi bi-book"></i></span>
   </div>
 
-  <!-- =========================================================
-       TOP BAR
-       - Brand links back to index.html
-       - Quick action to create account
-  ========================================================== -->
+    <!-- Header Navigation -->
   <header class="net-figma-nav sticky-top" role="banner">
     <div class="net-figma-container nav-inner">
       <a href="index.html" class="net-figma-brand" aria-label="Netology home">
@@ -84,125 +72,96 @@ Notes:
     <div class="row justify-content-center">
       <div class="col-12 col-md-10 col-lg-6 col-xl-5">
 
-        <!-- =========================================================
-             LOGO / TITLE (Figma-style)
-        ========================================================== -->
         <div class="text-center mb-4 net-pop">
           <div class="net-auth-logo mx-auto mb-3" aria-hidden="true">
             <i class="bi bi-mortarboard-fill"></i>
           </div>
-
           <h1 class="h2 fw-bold mb-1 net-gradient-text">Netology</h1>
           <p class="text-muted mb-0">Master Computer Networking Through Play</p>
         </div>
 
-        <!-- =========================================================
-             LOGIN CARD
-             - Includes inline banner region for mobile-friendly feedback
-        ========================================================== -->
+        <!-- Login card -->
         <div class="net-auth-card p-4 p-lg-5 net-pop">
-
           <h2 class="h3 fw-bold mb-2">Welcome Back</h2>
           <p class="text-muted mb-4">Sign in to continue your networking journey.</p>
 
-          <!-- Inline banner (controlled by app.js) -->
-          <div id="loginBanner"
-               class="alert d-none net-banner"
-               role="status"
-               aria-live="polite"></div>
+          <!-- Inline banner shown by login.js on errors (wrong password, server error) -->
+          <div id="loginBanner" class="alert d-none net-banner" role="status" aria-live="polite"></div>
 
           <form id="loginForm" method="POST" action="#" aria-label="Login form" novalidate>
-            <!-- Email -->
+
+            <!-- Email field -->
             <div class="mb-3">
               <label for="email" class="form-label fw-semibold">Email Address</label>
               <div class="position-relative">
                 <span class="net-input-ico" aria-hidden="true">
                   <i class="bi bi-envelope"></i>
                 </span>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  class="form-control net-input net-input-pad"
-                  placeholder="you@example.com"
-                  autocomplete="email"
-                  inputmode="email"
-                  aria-required="true"
-                  required
-                />
-                <div class="invalid-feedback">
-                  Please enter a valid email address.
-                </div>
+                <input type="email" id="email" name="email"
+                       class="form-control net-input net-input-pad"
+                       placeholder="you@example.com"
+                       autocomplete="email"
+                       inputmode="email"
+                       aria-required="true"
+                       required />
+                <div class="invalid-feedback">Please enter a valid email address.</div>
               </div>
             </div>
 
-            <!-- Password -->
+            <!-- Password field with show/hide toggle -->
             <div class="mb-2">
               <label for="password" class="form-label fw-semibold">Password</label>
               <div class="position-relative">
                 <span class="net-input-ico" aria-hidden="true">
                   <i class="bi bi-lock"></i>
                 </span>
-
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  class="form-control net-input net-input-pad"
-                  placeholder="••••••••"
-                  autocomplete="current-password"
-                  aria-required="true"
-                  required
-                  minlength="8"
-                />
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary net-pass-toggle"
-                  data-toggle="password"
-                  data-target="#password"
-                  aria-label="Show password"
-                  aria-pressed="false">
+                <input type="password" id="password" name="password"
+                       class="form-control net-input net-input-pad"
+                       placeholder="••••••••"
+                       autocomplete="current-password"
+                       aria-required="true"
+                       required
+                       minlength="8" />
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary net-pass-toggle"
+                        data-toggle="password"
+                        data-target="#password"
+                        aria-label="Show password"
+                        aria-pressed="false">
                   <i class="bi bi-eye" aria-hidden="true"></i>
                 </button>
-
-                <div class="invalid-feedback">
-                  Password must be at least 8 characters.
-                </div>
+                <div class="invalid-feedback">Password must be at least 8 characters.</div>
               </div>
             </div>
 
-            <!-- Forgot password -->
+            <!-- Forgot password link -->
             <div class="d-flex justify-content-end mb-3">
               <a href="forgot.html" class="link-teal small fw-semibold" aria-label="Recover your password">
                 Forgot password?
               </a>
             </div>
 
-            <!-- Submit -->
+            <!-- Submit button -->
             <div class="d-grid">
-              <button type="submit"
-                      class="btn btn-teal btn-lg net-btn-shadow"
-                      aria-label="Sign in to your Netology account">
+              <button type="submit" class="btn btn-teal btn-lg net-btn-shadow" aria-label="Sign in to your Netology account">
                 Sign In
               </button>
             </div>
 
             <!-- Sign up link -->
             <p class="text-center mt-3 mb-0 small text-muted">
-              Don’t have an account?
-              <a href="signup.html" class="link-teal fw-semibold" aria-label="Register for a new account">
-                Sign Up
-              </a>
+              Don't have an account?
+              <a href="signup.html" class="link-teal fw-semibold" aria-label="Register for a new account">Sign Up</a>
             </p>
           </form>
         </div>
 
-        <!-- Optional helper card (kept subtle like Figma) -->
+        <!-- Tip card shown below the login card -->
         <div class="net-helper mt-3 net-pop" aria-label="Learning tip">
           <div class="d-flex gap-2 align-items-start">
             <i class="bi bi-info-circle text-teal mt-1" aria-hidden="true"></i>
             <div class="small text-muted">
-              Tip: Use a real email + your password. If you forget it, reset via “Forgot password”.
+              Tip: Use a real email and your password. If you forget it, reset via "Forgot password".
             </div>
           </div>
         </div>
@@ -211,14 +170,15 @@ Notes:
     </div>
   </main>
 
+  <!-- Footer -->
   <footer class="net-auth-footer" role="contentinfo">
     <p>© 2026 Netology – Jamie O'Neill – TU857/4</p>
   </footer>
 
-  <!-- Full-page login success overlay (hidden by default) -->
+  <!-- Full-page success overlay shown by login.js after a successful sign-in. background.js draws the animated network topology into the SVG. -->
   <div id="loginSuccessOverlay" class="net-network-overlay net-network-overlay--login d-none" aria-hidden="true">
     <svg class="net-network-svg" id="loginTopologySvg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <!-- Topology is injected dynamically by JS -->
+      <!-- Topology used by background.js -->
     </svg>
     <div class="net-welcome-particles" id="loginParticles" aria-hidden="true"></div>
     <div class="net-network-content">

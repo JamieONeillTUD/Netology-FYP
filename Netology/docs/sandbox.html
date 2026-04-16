@@ -1,52 +1,61 @@
 <!--
 Student Number: C22320301
-Student Name:   Jamie O’Neill
-Course Code:    TU857/4
-Date:           10/11/2025
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 09/02/2026
 
-HTML
----------------------------------------
-sandbox.html – Netology Network Sandbox
+sandbox.html - Netology Network Sandbox
+---
+This is the main interactive sandbox page where users can build, connect,
+and configure network topologies on a drag-and-drop canvas. It works in
+three modes depending on how it was launched: Free mode lets the user build
+anything they like with no objectives, Tutorial mode steps them through a
+guided exercise loaded from course_content.js, and Challenge mode sets a
+scored build task that is validated client-side when the user finishes.
 
-Purpose:
-- Interactive drag-and-drop network topology editor (canvas-based)
-- Slide-out sidebar + sticky top navbar; three operating modes:
-  Free (open canvas), Tutorial (guided steps), Challenge (scored build task)
-- Objectives banner shown in tutorial/challenge mode with step progress
-- Floating toolbar: Select/Connect tools, connection types (Ethernet/Fiber/
-  Serial/Wireless), Undo/Redo, Auto-layout, Minimap, Clear, Save
-- Left panel: Device Library — three groups (End Devices, Network Devices,
-  Servers); drag or click to add devices to the canvas
-- Canvas: topology stage with SVG connections, device nodes, minimap,
-  tutorial quick-challenge carousel, and smart connection suggestions
-- Right panel: four tabs — Objectives, Objects, Inspect (device quick actions),
-  Config (device settings subtabs: General/Interfaces/Routing/DHCP/DNS/MAC)
-- Bottom console: Console (command input + output), Logs, Packets tabs
-- Modals: Saved Topologies, Save Topology, Clear Workspace, Ping Device
-- Challenge completion overlay with confetti and XP earned
+When the page loads it shows a skeleton placeholder while the sandbox scripts
+initialise. The main layout has a sticky top navbar and slide-out sidebar on
+the left, the canvas workspace in the centre, and a collapsible right panel
+for objectives, objects, and device configuration. A floating toolbar at the
+top of the canvas lets the user switch between Select and Connect tools, pick
+a cable type (Ethernet, Fiber, Serial, Wireless, Console), undo/redo actions,
+auto-layout, toggle the minimap, clear the workspace, save, and load saved
+topologies. A bottom console panel has three tabs: Console (command input and
+output), Logs, and Packets.
 
-Notes:
-- Topology data is saved and loaded by the sandbox runtime files in `docs/js/`
-- Challenge objectives are validated client-side by the sandbox learning runtime
-- Console commands are handled by the sandbox console runtime
-- Scripts: config.js → app.js → sandbox-core.js → sandbox modules → sandbox.js → Bootstrap JS
+The left panel is a Device Library with three groups: End Devices, Network
+Devices, and Servers. Devices can be dragged onto the canvas or clicked to
+add them at a default position. The right panel has Objectives (free/guided
+mode info, step list, and completion CTA), Objects (canvas inventory and
+quick actions for the selected device), and Config (device subtabs for
+General, Interfaces, Routing, DHCP, DNS, and MAC). A challenge completion
+overlay with confetti and XP earned is shown when the user finishes a
+scored challenge.
+
+Modals handle: Saved Topologies (load a previous build), Save Topology
+(name the current canvas and save it), and Ping Device (pick source and
+destination, run a ping, see the route and result). The Clear workspace
+action uses the browser confirm() dialog so no separate modal is needed.
+
+The sandbox runtime is split across three JS files. sandbox-core.js handles
+the canvas state, device/connection data model, undo/redo, and core
+utilities. sandbox-ui.js manages all DOM rendering, panel logic, tooltips,
+and the toolbar interactions. sandbox-app.js handles tutorial and challenge
+loading from course_content.js, XP awarding, API calls, and the onboarding
+tour integration.
 -->
 
 <!doctype html>
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Sandbox</title>
 
-  <!-- Bootstrap -->
+  <!-- Netology CSS and Bootstrap -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-
-  <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-  <!-- Custom CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -63,7 +72,6 @@ Notes:
           <div class="net-logo" aria-hidden="true"></div>
           <div class="net-brandname">Netology</div>
         </a>
-
         <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu" type="button"
           data-tooltip="Close menu">
           <i class="bi bi-x-lg" aria-hidden="true"></i>
@@ -72,24 +80,12 @@ Notes:
     </div>
 
     <nav class="net-sidenav" aria-label="Sidebar navigation">
-      <a class="net-sidelink" href="dashboard.html">
-        <i class="bi bi-house-door"></i> Dashboard
-      </a>
-      <a class="net-sidelink" href="account.html">
-        <i class="bi bi-person-circle"></i> My Profile
-      </a>
-      <a class="net-sidelink" href="courses.html">
-        <i class="bi bi-journal-bookmark"></i> Courses
-      </a>
-      <a class="net-sidelink" href="progress.html">
-        <i class="bi bi-graph-up-arrow"></i> Progress
-      </a>
-      <a class="net-sidelink is-active" href="sandbox.html">
-        <i class="bi bi-diagram-3"></i> Network Sandbox
-      </a>
-      <a class="net-sidelink" href="account.html#preferences">
-        <i class="bi bi-gear"></i> Settings
-      </a>
+      <a class="net-sidelink" href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
+      <a class="net-sidelink" href="account.html"><i class="bi bi-person-circle"></i> My Profile</a>
+      <a class="net-sidelink" href="courses.html"><i class="bi bi-journal-bookmark"></i> My Courses</a>
+      <a class="net-sidelink" href="progress.html"><i class="bi bi-graph-up-arrow"></i> Progress</a>
+      <a class="net-sidelink is-active" href="sandbox.html"><i class="bi bi-diagram-3"></i> Network Sandbox</a>
+      <a class="net-sidelink" href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
     </nav>
 
     <div class="net-sidefoot">
@@ -103,6 +99,7 @@ Notes:
           <span class="badge text-bg-light border" id="sideLevelBadge">Lv 1</span>
         </div>
 
+        <!-- XP progress bar shown in the sidebar footer -->
         <div class="mt-3">
           <div class="d-flex justify-content-between small text-muted mb-1">
             <span>XP</span>
@@ -114,7 +111,7 @@ Notes:
           <div class="small text-muted mt-2" id="sideXpHint">100 XP to next level</div>
         </div>
 
-        <div class="d-grid gap-2 mt-3">
+        <div class="d-grid mt-3">
           <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button"
             data-tooltip="Log out of Netology">
             <i class="bi bi-box-arrow-right me-2"></i>Logout
@@ -124,31 +121,23 @@ Notes:
     </div>
   </aside>
 
-  <!-- TOP NAV -->
+  <!-- Header Navigation -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
       <div class="net-topnav-inner">
-
-        <!-- Left -->
         <div class="net-topnav-left">
           <button class="net-hambtn" id="openSidebarBtn" type="button" aria-label="Open menu">
             <span class="net-hambtn-bars" aria-hidden="true"><span></span><span></span><span></span></span>
             <span class="visually-hidden">Open menu</span>
           </button>
         </div>
-
-        <!-- Center brand -->
         <div class="net-topnav-center">
-          <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home (navigation bar)">
+          <a href="dashboard.html" class="net-topnav-brand" id="topBrand" aria-label="Netology home">
             <span class="net-logo net-logo-sm" aria-hidden="true"></span>
             <span class="net-brand-text">Netology</span>
           </a>
         </div>
-
-        <!-- Right (dropdown only) -->
         <div class="net-topnav-right position-relative">
-
-          <!-- User dropdown -->
           <div class="position-relative">
             <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu"
               aria-expanded="false">
@@ -156,7 +145,7 @@ Notes:
               <i class="bi bi-chevron-down net-user-chevron" aria-hidden="true"></i>
             </button>
 
-            <div class="net-dd" id="userDropdown">
+            <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
               <div class="net-ddhead">
                 <div class="d-flex align-items-center gap-2">
                   <div class="net-avatar-sm" id="ddAvatar" aria-hidden="true">S</div>
@@ -178,16 +167,15 @@ Notes:
               </button>
             </div>
           </div>
-
         </div>
-
       </div>
     </div>
   </header>
 
-  <!-- Main -->
   <main class="container-fluid px-3 px-lg-4 py-2 net-sbx">
     <h1 class="visually-hidden">Network Sandbox</h1>
+
+    <!-- Skeleton shown while the sandbox scripts are loading -->
     <section class="net-card p-4 net-loading-only" aria-label="Loading sandbox">
       <div class="net-skel net-w-60 mb-3"></div>
       <div class="net-skel net-w-90 mb-2"></div>
@@ -195,8 +183,10 @@ Notes:
       <div class="net-skel net-w-60"></div>
     </section>
 
+    <!-- Main content: hidden until the sandbox runtime removes net-loading from body -->
     <div class="net-loading-hide">
-      <!-- Objectives Banner (visible during tutorial/challenge mode) -->
+
+      <!-- Objectives Banner: shown during tutorial or challenge mode with the current step -->
       <div class="sbx-objectives-banner" id="sbxObjectivesBanner" style="display:none;" aria-live="polite">
         <div class="sbx-objectives-banner-inner">
           <div class="sbx-objectives-banner-icon">
@@ -213,7 +203,7 @@ Notes:
         </div>
       </div>
 
-      <!-- Toolbar -->
+      <!-- Floating Toolbar: tool selection, cable types, undo/redo, layout, save, load, templates, zoom -->
       <div class="sbx-float-bar" data-tour="sandbox-toolbar">
         <span class="sbx-toolbar-title">Toolbar</span>
         <div class="sbx-float-sep"></div>
@@ -230,6 +220,8 @@ Notes:
           </button>
         </div>
         <div class="sbx-float-sep"></div>
+
+        <!-- Cable type picker: shown only when Connect tool is active -->
         <div class="sbx-float-group" id="connTypeGroup" style="display:none;">
           <button class="sbx-float-btn is-active" data-conn-type="ethernet" type="button" data-tooltip="Ethernet cable">
             <i class="bi bi-ethernet"></i>
@@ -253,6 +245,8 @@ Notes:
           </button>
         </div>
         <div class="sbx-float-sep"></div>
+
+        <!-- Undo / Redo -->
         <div class="sbx-float-group">
           <button class="sbx-float-btn" id="undoBtn" type="button" data-tooltip="Undo (Ctrl+Z)" aria-label="Undo (Ctrl+Z)">
             <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
@@ -262,6 +256,8 @@ Notes:
           </button>
         </div>
         <div class="sbx-float-sep"></div>
+
+        <!-- Auto-layout and Minimap -->
         <div class="sbx-float-group">
           <button class="sbx-float-btn" id="autoLayoutBtn" type="button" data-tooltip="Auto-layout" aria-label="Auto-layout">
             <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
@@ -271,6 +267,8 @@ Notes:
           </button>
         </div>
         <div class="sbx-float-sep"></div>
+
+        <!-- Clear, Save, Load -->
         <div class="sbx-float-group">
           <button class="sbx-float-btn" id="clearBtn" type="button" data-tooltip="Clear workspace" aria-label="Clear workspace">
             <i class="bi bi-trash3" aria-hidden="true"></i>
@@ -283,6 +281,8 @@ Notes:
           </button>
         </div>
         <div class="sbx-float-sep"></div>
+
+        <!-- Topology template quick-load dropdown -->
         <div class="sbx-float-group">
           <div class="sbx-conn-dropdown">
             <button class="sbx-float-btn" id="templateDropBtn" type="button" data-tooltip="Load a topology template" aria-label="Load a topology template" aria-haspopup="true" aria-expanded="false">
@@ -306,6 +306,8 @@ Notes:
           </div>
         </div>
         <div class="sbx-float-sep"></div>
+
+        <!-- Zoom controls -->
         <div class="sbx-float-group sbx-zoom-group">
           <button class="sbx-float-btn" id="zoomOutBtn" type="button" data-tooltip="Zoom out (-)" aria-label="Zoom out">
             <i class="bi bi-dash-lg" aria-hidden="true"></i>
@@ -316,8 +318,10 @@ Notes:
           </button>
         </div>
       </div>
+
       <div class="sbx-workspace" data-tour="sandbox-workspace">
-        <!-- Left Panel -->
+
+        <!-- Left Panel: Device Library with End Devices, Network Devices and Servers groups -->
         <aside class="sbx-panel sbx-panel-left" id="sbxLeftPanel" data-tour="sandbox-library">
           <div class="sbx-panel-head">
             <div>
@@ -334,6 +338,7 @@ Notes:
               <i class="bi bi-search" aria-hidden="true"></i>
               <input type="text" id="sbxDeviceFilter" placeholder="Filter devices..." aria-label="Filter device library">
             </div>
+
             <div class="sbx-device-group" data-category="End Devices">
               <div class="sbx-device-group-title">End Devices <i class="bi bi-chevron-down sbx-device-group-chevron"></i></div>
               <div class="sbx-device-grid">
@@ -405,9 +410,10 @@ Notes:
           </div>
         </aside>
 
-        <!-- Canvas -->
+        <!-- Canvas: topology stage with SVG connections, device nodes, minimap and overlays -->
         <section class="sbx-stage-wrap" data-tour="sandbox-canvas">
-          <!-- Top Tutorial Carousel (free/sandbox mode only — hidden in guided mode) -->
+
+          <!-- Quick Tutorials carousel shown in free mode at the top of the canvas -->
           <div class="sbx-top-carousel" id="sbxTopCarousel" aria-label="Available sandbox tutorials">
             <div class="sbx-top-carousel-head">
               <div class="sbx-top-carousel-label"><i class="bi bi-stars" aria-hidden="true"></i> Quick Tutorials</div>
@@ -441,21 +447,21 @@ Notes:
             </div>
           </div>
 
-          <!-- Quick Stats Bar -->
+          <!-- Quick stats bar showing device/connection counts and the selected device name -->
           <div class="sbx-stats-bar" id="sbxStatsBar" data-tour="sandbox-stats">
             <span class="sbx-stat"><i class="bi bi-cpu" aria-hidden="true"></i> <span id="sbxStatDevices">0</span> devices</span>
             <span class="sbx-stat"><i class="bi bi-bezier2" aria-hidden="true"></i> <span id="sbxStatConns">0</span> connections</span>
             <span class="sbx-stat" id="sbxStatSelected" style="display:none"><i class="bi bi-cursor" aria-hidden="true"></i> <span id="sbxStatSelectedName">—</span></span>
           </div>
 
+          <!-- The scrollable canvas stage: spacer sets the scroll area, SVG draws connections, devices div holds nodes -->
           <div class="sbx-stage" id="sandboxStage">
-            <!-- Spacer creates scroll area for the full canvas size -->
             <div class="sbx-canvas-spacer" id="sbxCanvasSpacer"></div>
             <svg class="sbx-connections" id="sbxConnections" aria-hidden="true"></svg>
             <div class="sbx-devices" id="sbxDevices"></div>
           </div>
 
-          <!-- Overlays positioned relative to stage-wrap, outside of scroll container -->
+          <!-- Minimap and empty-state overlay are positioned relative to the stage wrapper -->
           <div class="sbx-minimap" id="sbxMinimap" aria-label="Topology overview">
             <svg id="sbxMinimapSvg"></svg>
           </div>
@@ -474,7 +480,7 @@ Notes:
             </div>
           </div>
 
-          <!-- Keyboard Shortcut Hint Bar -->
+          <!-- Keyboard shortcut hint strip shown along the bottom of the canvas -->
           <div class="sbx-shortcut-bar" id="sbxShortcutBar">
             <span class="sbx-shortcut"><kbd>V</kbd> Select</span>
             <span class="sbx-shortcut"><kbd>C</kbd> Connect</span>
@@ -484,7 +490,7 @@ Notes:
             <span class="sbx-shortcut"><kbd>Esc</kbd> Deselect</span>
           </div>
 
-          <!-- Connection Suggestions -->
+          <!-- Smart connection suggestions panel (shown after a device is added) -->
           <div class="sbx-conn-suggest" id="sbxConnSuggest" aria-live="polite" role="status">
             <div class="sbx-conn-suggest-header">
               <span class="sbx-conn-suggest-title">Try this next</span>
@@ -496,17 +502,17 @@ Notes:
           </div>
         </section>
 
-        <!-- Right Panel -->
+        <!-- Right Panel: Objectives, Objects, and Config tabs -->
         <aside class="sbx-panel sbx-panel-right" id="sbxRightPanel" data-tour="sandbox-inspector">
           <div class="sbx-panel-head">
             <div class="sbx-tablist" id="sbxRightTabs">
-              <!-- Tab order: Objectives → Objects → Inspector (Config hidden) -->
               <button class="sbx-tab is-active" data-tab="objectives" type="button" data-tooltip="Lesson objectives &amp; challenges">
                 <i class="bi bi-bullseye"></i> Objectives
               </button>
               <button class="sbx-tab" data-tab="objects" type="button" data-tooltip="Canvas objects &amp; device actions">
                 <i class="bi bi-collection"></i> Objects
               </button>
+              <!-- Config tab is hidden by default and shown programmatically when a device is selected -->
               <button class="sbx-tab" data-tab="config" type="button" data-tooltip="Device configuration" id="sbxConfigTabBtn" style="display:none;">
                 <i class="bi bi-sliders2-vertical"></i> Config
               </button>
@@ -518,11 +524,12 @@ Notes:
           </div>
 
           <div class="sbx-panel-body">
-            <!-- (1) Objectives — always first -->
+
+            <!-- Objectives tab: shows free mode banner or tutorial/challenge step progress -->
             <div class="sbx-tabpanel is-active" id="panelObjectives">
               <div class="sbx-panel-content">
 
-                <!-- Mode banner: shows "Free Mode" when no tutorial/challenge is loaded -->
+                <!-- Mode banner: shows Free Mode when no tutorial/challenge is loaded -->
                 <div class="sbx-mode-banner sbx-mode-free" id="sbxModeBanner">
                   <div class="sbx-mode-icon"><i class="bi bi-stars"></i></div>
                   <div class="sbx-mode-info">
@@ -531,7 +538,7 @@ Notes:
                   </div>
                 </div>
 
-                <!-- Tutorial/Challenge header (hidden by default) -->
+                <!-- Tutorial/Challenge header: hidden until a tutorial or challenge is loaded -->
                 <div class="sbx-lesson-header" id="sbxLessonHeader" style="display:none;">
                   <div class="sbx-lesson-icon" id="sbxLessonIcon"><i class="bi bi-mortarboard-fill"></i></div>
                   <div class="sbx-lesson-info">
@@ -543,7 +550,7 @@ Notes:
                   </div>
                 </div>
 
-                <!-- Progress bar -->
+                <!-- Progress bar for tutorial/challenge steps -->
                 <div class="sbx-progress-wrap" id="sbxProgressWrap" style="display:none;">
                   <div class="sbx-progress-bar">
                     <div class="sbx-progress-fill" id="sbxProgressFill" style="width:0%"></div>
@@ -551,7 +558,7 @@ Notes:
                   <div class="sbx-progress-text" id="sbxProgressText">0 of 0 complete</div>
                 </div>
 
-                <!-- Current step spotlight -->
+                <!-- Current step spotlight: shows the active step text and an optional hint button -->
                 <div class="sbx-current-step" id="sbxCurrentStep" style="display:none;">
                   <div class="sbx-current-step-badge">Current Step</div>
                   <div class="sbx-current-step-text" id="sbxCurrentStepText"></div>
@@ -560,7 +567,7 @@ Notes:
                   </button>
                 </div>
 
-                <!-- Steps list -->
+                <!-- Collapsible full steps list -->
                 <div class="sbx-steps-wrap" id="sbxStepsWrap" style="display:none;">
                   <div class="sbx-steps-toggle" id="sbxStepsToggle">
                     <i class="bi bi-list-check"></i> All Steps
@@ -569,13 +576,13 @@ Notes:
                   <ol class="sbx-steps-list" id="sbxStepsList"></ol>
                 </div>
 
-                <!-- Tips section -->
+                <!-- Tips section shown during tutorial mode -->
                 <div class="sbx-tips-box" id="sbxTipsBox" style="display:none;">
                   <i class="bi bi-lightbulb me-1"></i>
                   <span id="sbxTipsText"></span>
                 </div>
 
-                <!-- Completion CTA (shown when all done) -->
+                <!-- Completion CTA shown when all objectives are done -->
                 <div class="sbx-lesson-done" id="sbxLessonDone" style="display:none;">
                   <div class="sbx-lesson-done-icon"><i class="bi bi-check-circle-fill"></i></div>
                   <div class="sbx-lesson-done-title">All objectives complete!</div>
@@ -593,13 +600,13 @@ Notes:
               </div>
             </div>
 
-            <!-- (2) Objects (includes quick actions when device selected) -->
+            <!-- Objects tab: canvas inventory, quick actions for the selected device -->
             <div class="sbx-tabpanel" id="panelObjects">
               <div class="sbx-panel-hint" id="sbxObjectsHint">
                 <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
                 Drag and drop objects onto the canvas to build your network.
               </div>
-              <!-- Quick actions for selected device -->
+              <!-- Quick action buttons shown when a device is selected on the canvas -->
               <div class="sbx-inspect-actions" id="sbxInspectActions" style="display:none;">
                 <div class="sbx-inspect-actions-label">Quick Actions</div>
                 <div class="sbx-inspect-btn-grid">
@@ -622,7 +629,7 @@ Notes:
               </div>
             </div>
 
-            <!-- Config (hidden tab, shown programmatically) -->
+            <!-- Config tab: device settings subtabs (hidden until a device is opened for config) -->
             <div class="sbx-tabpanel" id="panelConfig">
               <div class="sbx-config-header" id="sbxConfigHeader">
                 <button class="sbx-back-btn" id="sbxConfigBackBtn" type="button" data-tooltip="Back to Objects" aria-label="Back to objects">
@@ -631,12 +638,9 @@ Notes:
                 <div class="sbx-config-device-name" id="sbxConfigDeviceName">Device</div>
               </div>
               <div class="sbx-subtabs" id="sbxConfigTabs">
-                <button class="sbx-subtab is-active" data-subtab="general" type="button"
-                  data-tooltip="General settings">General</button>
-                <button class="sbx-subtab" data-subtab="interfaces" type="button"
-                  data-tooltip="Network interfaces">Interfaces</button>
-                <button class="sbx-subtab" data-subtab="routing" type="button"
-                  data-tooltip="Routing table">Routing</button>
+                <button class="sbx-subtab is-active" data-subtab="general" type="button" data-tooltip="General settings">General</button>
+                <button class="sbx-subtab" data-subtab="interfaces" type="button" data-tooltip="Network interfaces">Interfaces</button>
+                <button class="sbx-subtab" data-subtab="routing" type="button" data-tooltip="Routing table">Routing</button>
                 <button class="sbx-subtab" data-subtab="dhcp" type="button" data-tooltip="DHCP server">DHCP</button>
                 <button class="sbx-subtab" data-subtab="dns" type="button" data-tooltip="DNS records">DNS</button>
                 <button class="sbx-subtab" data-subtab="mac" type="button" data-tooltip="MAC address table">MAC</button>
@@ -648,6 +652,7 @@ Notes:
         </aside>
       </div>
 
+      <!-- Floating buttons to re-open the left or right panel after it has been hidden -->
       <button class="sbx-float-toggle sbx-float-left" id="leftPanelOpenBtn" type="button"
         aria-label="Open device library" data-tooltip="Show device library">
         <i class="bi bi-chevron-right"></i>
@@ -657,7 +662,7 @@ Notes:
         <i class="bi bi-chevron-left"></i>
       </button>
 
-      <!-- Bottom Console (docked to workspace, starts collapsed) -->
+      <!-- Bottom Console: Console, Logs, and Packets tabs — starts collapsed -->
       <section class="sbx-bottom is-collapsed" id="sbxBottomPanel" data-tour="sandbox-console">
         <div class="sbx-bottom-head" id="sbxBottomHead">
           <div class="sbx-tablist" id="sbxBottomTabs">
@@ -706,20 +711,18 @@ Notes:
 
   <!-- Footer -->
   <footer class="sbx-footer text-center py-2">
-    <p class="small text-muted mb-0">2026 – Jamie O'Neill – TU857/4</p>
+    <p class="small text-muted mb-0">© 2026 Netology – Jamie O'Neill – TU857/4</p>
   </footer>
 
-  <!-- Topology Manager Modal -->
+  <!-- Saved Topologies Modal: lists all of the user's saved builds and lets them load or delete one -->
   <div class="modal fade" id="topologyModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
       <div class="modal-content sbx-modal">
-
         <div class="modal-header sbx-modal-head-gradient">
           <h2 class="modal-title"><i class="bi bi-folder2-open"></i> Saved Topologies</h2>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
             data-tooltip="Close modal"></button>
         </div>
-
         <div class="modal-body">
           <table class="table table-hover align-middle">
             <thead>
@@ -730,20 +733,18 @@ Notes:
               </tr>
             </thead>
             <tbody id="topologyList">
-              <!-- JS loads content only when Load is clicked -->
+              <!-- sandbox-app.js populates this when the modal is opened -->
             </tbody>
           </table>
         </div>
-
         <div class="modal-footer">
           <button class="btn btn-secondary" data-bs-dismiss="modal" data-tooltip="Close modal">Close</button>
         </div>
-
       </div>
     </div>
   </div>
 
-  <!-- Save Topology Modal -->
+  <!-- Save Topology Modal: lets the user name and save the current canvas state -->
   <div class="modal fade" id="saveTopologyModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content sbx-modal">
@@ -754,7 +755,7 @@ Notes:
               <span class="sbx-live-dot"></span>
               Live
             </span>
-          </h5>
+          </h2>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
             data-tooltip="Close modal"></button>
         </div>
@@ -773,26 +774,23 @@ Notes:
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" data-tooltip="Cancel save">Cancel</button>
-          <button class="btn btn-teal" id="saveTopologyConfirm" type="button" data-tooltip="Save this topology">Save
-            topology</button>
+          <button class="btn btn-teal" id="saveTopologyConfirm" type="button" data-tooltip="Save this topology">Save topology</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Clear uses confirm() dialog — no modal needed -->
+  <!-- Clear workspace uses the browser confirm() dialog — no modal needed -->
 
-  <!-- Ping Modal -->
+  <!-- Ping Modal: pick source and destination devices, run a ping test, see the route -->
   <div class="modal fade" id="pingModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content sbx-modal">
-
         <div class="modal-header sbx-modal-head-gradient">
           <h2 class="modal-title"><i class="bi bi-broadcast-pin"></i> Ping Device</h2>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
             data-tooltip="Close modal"></button>
         </div>
-
         <div class="modal-body">
           <div class="sbx-ping-overview" id="pingOverview">
             <div class="sbx-ping-col">
@@ -825,22 +823,20 @@ Notes:
             <div><strong>Terminal format:</strong> <code>ping &lt;source&gt; &lt;destination&gt;</code> or <code>ping &lt;destination&gt;</code> when one source device is selected.</div>
             <div><strong>Input:</strong> use device name or IP address. No <code>?</code> needed.</div>
           </div>
-
           <div id="pingResult" class="sbx-ping-result"></div>
         </div>
-
         <div class="modal-footer">
           <button id="runPingBtn" class="btn btn-success" type="button" data-tooltip="Run the ping test">Test Ping</button>
           <button class="btn btn-secondary" data-bs-dismiss="modal" data-tooltip="Close modal">Close</button>
         </div>
-
       </div>
     </div>
   </div>
 
+  <!-- Toast stack for sandbox-ui.js notifications -->
   <div class="sbx-toast-stack" id="sbxToastStack" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- Challenge Completion Celebration Modal -->
+  <!-- Challenge Completion Overlay: shown when all challenge objectives are met with confetti and XP -->
   <div class="sbx-complete-overlay d-none" id="sbxCompleteOverlay" aria-modal="true" role="dialog" aria-labelledby="sbxCompleteTitle">
     <div class="sbx-complete-confetti" id="sbxCompleteConfetti" aria-hidden="true"></div>
     <div class="sbx-complete-card">
@@ -866,6 +862,7 @@ Notes:
   </div>
 
   <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/toasts.js"></script>
   <script src="js/app.js"></script>
@@ -874,8 +871,6 @@ Notes:
   <script src="js/sandbox-core.js"></script>
   <script src="js/sandbox-ui.js"></script>
   <script src="js/sandbox-app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 
 </html>

@@ -1,3 +1,28 @@
+<!--
+Student Number: C22320301
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 09/02/2026
+
+courses.html - Course Catalogue Page
+---
+This page shows all available courses grouped by difficulty level. There are
+three tracks: Novice, Intermediate, and Advanced. Each track has its own
+grid of course cards built dynamically by courses.js from the course data
+in course_content.js.
+
+At the top there is a small hero section and a row of filter buttons. Clicking
+a filter hides the other difficulty sections so the user can focus on one
+track at a time. Below the filters is a "Your Learning Progress" section that
+shows a progress bar for any course the user has already started.
+
+Each course card shows the title, description, lesson count, XP reward, and
+a progress bar. Locked courses are greyed out if the user is not yet at the
+required level.
+
+The sidebar and top nav are the same shared layout used across all pages.
+-->
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,6 +30,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Netology – Courses</title>
 
+  <!-- Netology CSS and Bootstrap -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="css/style.css">
@@ -58,7 +84,7 @@
     </div>
   </aside>
 
-  <!-- TOP NAV -->
+  <!-- Header Navigation -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
       <div class="net-topnav-inner">
@@ -106,7 +132,7 @@
 
   <main class="container-fluid my-4 net-courses-shell" role="main">
 
-    <!-- Hero -->
+    <!-- Hero Card: Networking Course Library Overview-->
     <section class="net-card net-courses-hero p-4 p-lg-5 mb-4 mx-4" aria-label="Course library overview" data-tour="courses-hero">
       <div class="net-courses-hero-grid text-center">
         <div>
@@ -122,7 +148,7 @@
       </div>
     </section>
 
-    <!-- Learning Path Selection -->
+    <!-- User Learning Path Selection -->
     <section class="mx-4 mb-4">
       <div class="net-card p-3">
         <div class="d-flex flex-wrap gap-2 align-items-center justify-content-center" role="tablist" aria-label="Learning path filters">
@@ -142,7 +168,7 @@
       </div>
     </section>
 
-    <!-- Your Learning Progress -->
+    <!-- User Learning Progress -->
     <section class="mx-4 mb-4 net-card p-4 net-learning-progress" data-tour="courses-my-progress">
       <h4 class="fw-bold mb-3"><i class="bi bi-bar-chart-line me-2"></i>Your Learning Progress</h4>
       <div id="myProgressContainer" class="row"></div>
@@ -188,20 +214,20 @@
       <div class="net-course-grid" id="advancedGrid"></div>
     </section>
 
-
-
   </main>
 
+  <!-- Footer -->
   <footer class="text-center border-top py-3 bg-white">
     <p class="small text-muted mb-0">2026 – Jamie O’Neill – TU857/4</p>
   </footer>
 
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/toasts.js"></script>
   <script src="js/app.js"></script>
   <script src="js/onboarding-tour.js"></script>
   <script src="js/course_content.js"></script>
   <script src="js/courses.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

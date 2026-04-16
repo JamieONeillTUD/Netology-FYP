@@ -1,47 +1,43 @@
-<!doctype html>
 <!--
 Student Number: C22320301
-Student Name:   Jamie O’Neill
-Course Code:    TU857/4
-Date:           10/11/2025
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 09/02/2026
 
-HTML
----------------------------------------
-forgot.html – Netology Forgot Password / Reset Page
+forgot.html - Forgot Password / Reset Page
+---
+This page lets users who have forgotten their password set a new one.
+It shares the same animated background, top bar, and card layout as
+login.html and signup.html so the auth flow feels consistent.
 
-Purpose:
-- Password reset page for users who have forgotten their credentials
-- Animated background matching the landing / login / signup theme
-- Sticky top navbar: Netology brand + ‘Back to Sign In’ button
-- Reset form: email, new password, confirm password — all with show/hide toggles
-- Inline alert banner for real-time feedback (success or error messages)
-- On success, swaps the form for a ‘Password Updated’ confirmation panel
+The form asks for the user's email, a new password, and a password
+confirmation. Client-side validation runs first (email format, minimum
+length, matching passwords) and shows errors inline before anything is
+sent to the server. If the server confirms the reset, the form is hidden
+and a success panel is shown in its place with a link back to sign in.
 
-Notes:
-- Form submission handled by app.js (POST /forgot-password)
-- Scripts: config.js → app.js
+forgotpassword.js handles all the form logic and the API call.
 -->
 
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Reset Password</title>
 
+  <!-- Netology CSS and Bootstrap -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-  <!-- Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
   <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body class="net-figma-landing net-auth-page net-auth-v2">
 
-  <!-- Animated Background (Figma-style) -->
+  <!-- Animated background blobs and floating network icons -->
   <div class="net-figma-bg" aria-hidden="true">
     <span class="net-figma-blob blob-1"></span>
     <span class="net-figma-blob blob-2"></span>
@@ -55,7 +51,7 @@ Notes:
     <span class="net-figma-icon icon-6"><i class="bi bi-book"></i></span>
   </div>
 
-  <!-- Top Bar -->
+  <!-- Header Navigation -->
   <header class="net-figma-nav sticky-top" role="banner">
     <div class="net-figma-container nav-inner">
       <a href="index.html" class="net-figma-brand" aria-label="Netology home">
@@ -72,50 +68,56 @@ Notes:
   <main class="container my-5 net-auth-wrap" role="main">
     <div class="row justify-content-center">
       <div class="col-12 col-md-10 col-lg-6">
-
         <div class="text-center mb-4 net-pop">
-          <div class="net-auth-logo mx-auto mb-3">
+          <div class="net-auth-logo mx-auto mb-3" aria-hidden="true">
             <i class="bi bi-mortarboard-fill"></i>
           </div>
           <h1 class="h2 fw-bold net-gradient-text">Netology</h1>
           <p class="text-muted">Reset Your Password</p>
         </div>
 
+        <!-- Reset card -->
         <div class="p-4 p-lg-5 net-auth-card net-pop">
 
+          <!-- Inline alert banner used by forgotpassword.js for errors or success -->
           <div id="forgotBanner" class="alert d-none net-banner mb-4" role="status" aria-live="polite"></div>
 
-          <!-- FORM -->
+          <!-- Forget Password Form view-->
           <div id="forgotFormView">
             <h2 class="h3 fw-bold mb-3">Forgot password?</h2>
 
             <form id="forgotForm" novalidate>
 
+              <!-- Email field -->
               <div class="mb-3">
                 <label for="fp_email" class="form-label fw-semibold">Email</label>
                 <div class="position-relative">
-                  <span class="net-input-ico"><i class="bi bi-envelope"></i></span>
+                  <span class="net-input-ico" aria-hidden="true"><i class="bi bi-envelope"></i></span>
                   <input type="email" id="fp_email"
                          class="form-control net-input net-input-pad"
                          placeholder="you@example.com"
+                         autocomplete="email"
                          required>
                   <div class="invalid-feedback">Enter a valid email address.</div>
                 </div>
               </div>
 
+              <!-- New password and confirm password side by side on medium screens -->
               <div class="row g-3">
                 <div class="col-md-6">
                   <label for="fp_password" class="form-label fw-semibold">New password</label>
                   <div class="position-relative">
-                    <span class="net-input-ico"><i class="bi bi-lock"></i></span>
+                    <span class="net-input-ico" aria-hidden="true"><i class="bi bi-lock"></i></span>
                     <input type="password" id="fp_password"
                            class="form-control net-input net-input-pad"
+                           autocomplete="new-password"
                            minlength="8" required>
                     <button type="button"
                             class="btn btn-sm btn-outline-secondary net-pass-toggle"
                             data-toggle="password"
-                            data-target="#fp_password">
-                      <i class="bi bi-eye"></i>
+                            data-target="#fp_password"
+                            aria-label="Show password">
+                      <i class="bi bi-eye" aria-hidden="true"></i>
                     </button>
                     <div class="invalid-feedback">Minimum 8 characters.</div>
                   </div>
@@ -124,15 +126,17 @@ Notes:
                 <div class="col-md-6">
                   <label for="fp_confirm" class="form-label fw-semibold">Confirm password</label>
                   <div class="position-relative">
-                    <span class="net-input-ico"><i class="bi bi-lock-fill"></i></span>
+                    <span class="net-input-ico" aria-hidden="true"><i class="bi bi-lock-fill"></i></span>
                     <input type="password" id="fp_confirm"
                            class="form-control net-input net-input-pad"
+                           autocomplete="new-password"
                            minlength="8" required>
                     <button type="button"
                             class="btn btn-sm btn-outline-secondary net-pass-toggle"
                             data-toggle="password"
-                            data-target="#fp_confirm">
-                      <i class="bi bi-eye"></i>
+                            data-target="#fp_confirm"
+                            aria-label="Show confirm password">
+                      <i class="bi bi-eye" aria-hidden="true"></i>
                     </button>
                     <div class="invalid-feedback">Passwords must match.</div>
                   </div>
@@ -140,14 +144,14 @@ Notes:
               </div>
 
               <div class="d-grid mt-4">
-                <button class="btn btn-teal btn-lg">Reset Password</button>
+                <button type="submit" class="btn btn-teal btn-lg">Reset Password</button>
               </div>
             </form>
           </div>
 
-          <!-- SUCCESS -->
+          <!-- Forgot Password Success view: hidden by default but shown after a successful Password reset -->
           <div id="forgotSuccessView" class="d-none text-center net-success-panel">
-            <div class="net-success-badge mx-auto mb-3">
+            <div class="net-success-badge mx-auto mb-3" aria-hidden="true">
               <i class="bi bi-check2-circle"></i>
             </div>
             <h2 class="h3 fw-bold">Password Updated</h2>
@@ -160,14 +164,15 @@ Notes:
     </div>
   </main>
 
+  <!-- Footer -->
   <footer class="net-auth-footer" role="contentinfo">
     <p>© 2026 Netology – Jamie O'Neill – TU857/4</p>
   </footer>
 
+  <!-- Scripts  -->
   <script src="js/theme.js"></script>
   <script src="js/toasts.js"></script>
   <script src="js/app.js"></script>
   <script src="js/forgotpassword.js"></script>
-  <script src="js/onboarding-tour.js"></script>
 </body>
 </html>

@@ -1,10 +1,8 @@
-/*
-  Student: C22320301 - Jamie O'Neill
-  File: sandbox-app.js
-  Purpose: Main entry point for the Netology network sandbox.
-           Handles initialisation, tutorials, objectives, templates,
-           connection suggestions, idle hints, and auto-save.
-*/
+// sandbox-app.js — Main entry point for the Netology network sandbox.
+// Handles initialisation, tutorials, objectives, templates, connection suggestions, idle hints, and auto-save.
+// Student: C22320301 - Jamie O'Neill
+
+"use strict";
 
 // Wait for the DOM to be ready before setting everything up
 document.addEventListener("DOMContentLoaded", function () {

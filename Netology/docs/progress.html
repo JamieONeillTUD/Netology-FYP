@@ -1,29 +1,48 @@
 <!--
 Student Number: C22320301
-Student Name:   Jamie O'Neill
-Course Code:    TU857/4
-Date:           09/02/2026
+Student Name: Jamie O’Neill
+Course Code: TU857/4
+Date: 09/02/2026
 
-progress.html – Netology Progress Tracker
+progress.html - User Progress Tracker Page
+---
+This page gives the user a full picture of everything they have done
+on Netology. It is one of the main in-app pages and uses the same
+shared sidebar and top nav layout.
+
+At the top is a banner with the user's current level, followed by four
+stat cards (active courses, lessons done, achievements, day streak).
+Below that is a 12-week activity heatmap that shows how many days the
+user has been active. The achievements section shows all earned badges
+as a grid of icons.
+
+The bottom half has a tab bar with six categories: Courses, Modules,
+Lessons, Quizzes, Tutorials, and Challenges. Clicking a tab filters
+the list below it to show only items of that type. Each item shows the
+user's completion status and a link to jump straight back into it.
+
+progress.js fetches the user's completion data from the server,
+cross-references it with course_content.js to build the tab content,
+and draws the heatmap. app.js handles populating the shared sidebar
+with the user's avatar, name, level, and XP bar.
 -->
 
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netology – Progress</title>
 
+  <!-- Netology CSS and Bootstrap -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="css/style.css">
-
 </head>
 
 <body class="net-bg net-landing net-progress-view net-loading">
 
-  <!-- Sidebar Backdrop -->
+  <!-- Slide Sidebar Backdrop -->
   <div id="sideBackdrop" class="net-sidebackdrop" aria-hidden="true"></div>
 
   <!-- Slide Sidebar -->
@@ -34,7 +53,7 @@ progress.html – Netology Progress Tracker
           <div class="net-logo" aria-hidden="true"></div>
           <div class="net-brandname">Netology</div>
         </a>
-        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu" type="button">
+        <button class="btn btn-outline-secondary btn-sm" id="closeSidebarBtn" aria-label="Close menu">
           <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
       </div>
@@ -43,7 +62,7 @@ progress.html – Netology Progress Tracker
     <nav class="net-sidenav" aria-label="Sidebar navigation">
       <a class="net-sidelink" href="dashboard.html"><i class="bi bi-house-door"></i> Dashboard</a>
       <a class="net-sidelink" href="account.html"><i class="bi bi-person-circle"></i> My Profile</a>
-      <a class="net-sidelink" href="courses.html"><i class="bi bi-journal-bookmark"></i> Courses</a>
+      <a class="net-sidelink" href="courses.html"><i class="bi bi-journal-bookmark"></i> My Courses</a>
       <a class="net-sidelink is-active" href="progress.html"><i class="bi bi-graph-up-arrow"></i> Progress</a>
       <a class="net-sidelink" href="sandbox.html"><i class="bi bi-diagram-3"></i> Network Sandbox</a>
       <a class="net-sidelink" href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
@@ -59,32 +78,23 @@ progress.html – Netology Progress Tracker
           </div>
           <span class="badge text-bg-light border" id="sideLevelBadge">Lv 1</span>
         </div>
-        <div class="mt-3">
-          <div class="d-flex justify-content-between small text-muted mb-1">
-            <span>XP</span>
-            <span class="fw-semibold" id="sideXpText">0/100</span>
-          </div>
-          <div class="progress" style="height:10px;">
-            <div class="progress-bar net-progress net-progress-fill" id="sideXpBar" style="width:0%"></div>
-          </div>
-          <div class="small text-muted mt-2" id="sideXpHint">100 XP to next level</div>
-        </div>
-        <div class="d-grid gap-2 mt-3">
-          <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
-            <i class="bi bi-box-arrow-right me-2"></i>Logout
-          </button>
-        </div>
+      </div>
+      <div class="d-grid mt-3">
+        <button class="btn btn-outline-danger btn-sm" id="sideLogoutBtn" type="button">
+          <i class="bi bi-box-arrow-right me-2"></i>Logout
+        </button>
       </div>
     </div>
   </aside>
 
-  <!-- Top Nav -->
+  <!-- Header Navigation -->
   <header class="net-topnav sticky-top" role="banner">
     <div class="container-fluid">
       <div class="net-topnav-inner">
         <div class="net-topnav-left">
           <button class="net-hambtn" id="openSidebarBtn" type="button" aria-label="Open menu">
             <span class="net-hambtn-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+            <span class="visually-hidden">Open menu</span>
           </button>
         </div>
         <div class="net-topnav-center">
@@ -93,10 +103,7 @@ progress.html – Netology Progress Tracker
             <h2 class="net-brand-text">Netology</h2>
           </a>
         </div>
-        <div class="net-topnav-right position-relative d-flex align-items-center gap-2">
-          <a href="dashboard.html" class="net-progress-btn" title="Back to Dashboard" aria-label="Dashboard">
-            <i class="bi bi-house-door-fill"></i>
-          </a>
+        <div class="net-topnav-right position-relative">
           <div class="position-relative">
             <button class="net-userbtn net-userbtn--icon" id="userBtn" type="button" aria-label="Open user menu" aria-expanded="false">
               <span class="net-avatar-sm" id="topAvatar" aria-hidden="true">S</span>
@@ -104,17 +111,8 @@ progress.html – Netology Progress Tracker
             </button>
             <div class="net-dd" id="userDropdown" role="menu" aria-label="User menu">
               <div class="net-ddhead">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="net-avatar-sm" id="ddAvatar" aria-hidden="true">S</div>
-                  <div class="min-width-0">
-                    <div class="fw-semibold text-truncate" id="ddName">Student</div>
-                    <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
-                  </div>
-                </div>
-                <div class="d-flex flex-wrap gap-2 mt-2">
-                  <span class="badge text-bg-light border" id="ddLevel">Level 1</span>
-                  <span class="badge text-bg-light border" id="ddRank">Novice</span>
-                </div>
+                <div class="fw-semibold text-truncate" id="ddName">Student</div>
+                <div class="small text-muted text-truncate" id="ddEmail">email@example.com</div>
               </div>
               <a href="account.html"><i class="bi bi-person-circle"></i> My Account</a>
               <a href="account.html#preferences"><i class="bi bi-gear"></i> Settings</a>
@@ -129,10 +127,9 @@ progress.html – Netology Progress Tracker
     </div>
   </header>
 
-  <!-- Main -->
   <main class="container py-4 net-shell net-progress-page">
 
-    <!-- Page Banner -->
+    <!-- Page banner: title, subtitle and current level label -->
     <div class="prg-banner">
       <div>
         <div class="prg-banner-title">Your Progress</div>
@@ -141,7 +138,7 @@ progress.html – Netology Progress Tracker
       <div class="prg-banner-level" id="bannerLevel">Novice · Level 1</div>
     </div>
 
-    <!-- Hero Stats -->
+    <!-- Hero stat cards: active courses, lessons done, achievements and streak -->
     <div class="row g-3 mb-4">
       <div class="col-6 col-md-3">
         <div class="prg-stat">
@@ -181,7 +178,7 @@ progress.html – Netology Progress Tracker
       </div>
     </div>
 
-    <!-- Activity Heatmap -->
+    <!-- Activity heatmap: 12 weeks of daily activity, drawn by progress.js -->
     <div class="net-card p-4 mb-4">
       <div class="d-flex align-items-center justify-content-between mb-3">
         <div class="fw-semibold d-flex align-items-center gap-2">
@@ -192,6 +189,7 @@ progress.html – Netology Progress Tracker
       <div class="prg-heatmap-wrap">
         <div id="activityHeatmap"><div class="text-muted small">Loading activity...</div></div>
       </div>
+      <!-- Colour legend for the heatmap -->
       <div class="prg-heatmap-legend">
         <span class="small text-muted me-1">Less</span>
         <div class="prg-hm prg-hm-0"></div>
@@ -203,7 +201,7 @@ progress.html – Netology Progress Tracker
       </div>
     </div>
 
-    <!-- Achievements -->
+    <!-- Achievements grid: badge icons used by progress.js -->
     <div class="net-card p-4 mb-4" id="achievementsSection">
       <div class="d-flex align-items-center justify-content-between mb-3">
         <div class="fw-semibold d-flex align-items-center gap-2">
@@ -217,7 +215,7 @@ progress.html – Netology Progress Tracker
       </div>
     </div>
 
-    <!-- Tab Nav -->
+    <!-- Tab nav: switches the list below between Courses, Modules, and lessons -->
     <div class="net-card mb-3" data-tour="progress-categories">
       <div class="net-progress-nav" role="tablist" aria-label="Progress categories">
         <button class="net-progress-nav-btn is-active" role="tab" aria-selected="true" data-type="courses">
@@ -241,9 +239,10 @@ progress.html – Netology Progress Tracker
       </div>
     </div>
 
-    <!-- Tab Content -->
+    <!-- Tab content: progress.js builds the list items here based on the active tab -->
     <div data-tour="progress-split">
       <div id="progressList"></div>
+      <!-- Empty state shown when there is nothing to display for the active tab -->
       <div id="progressEmpty" class="net-empty d-none">
         <i class="bi bi-info-circle"></i>
         <div class="fw-bold" id="progressEmptyTitle">Nothing here yet</div>
@@ -256,10 +255,12 @@ progress.html – Netology Progress Tracker
 
   </main>
 
+  <!-- Footer -->
   <footer class="net-footer-wide text-center border-top py-4 bg-white mt-4" role="contentinfo">
-    <p class="small text-muted mb-0">2026 – Jamie O'Neill – TU857/4</p>
+    <p class="small text-muted mb-0">© 2026 Netology – Jamie O'Neill – TU857/4</p>
   </footer>
 
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/toasts.js"></script>
@@ -268,5 +269,4 @@ progress.html – Netology Progress Tracker
   <script src="js/course_content.js"></script>
   <script src="js/progress.js"></script>
 </body>
-
 </html>

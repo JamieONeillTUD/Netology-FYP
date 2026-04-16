@@ -1,30 +1,44 @@
-# auth_routes.py — Auth and account management routes.
+"""
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+auth_routes.py - Authentication and Account Routes
+---
+This file handles the main user account routes for Netology.
+It covers signup, login, loading user profile data, recording
+logins, awarding XP for one-off actions, resetting passwords,
+and deleting an account.
+
+These routes are used by the login, signup, forgot password,
+dashboard, and account pages on the frontend.
+"""
 
 from flask import Blueprint, jsonify, request
 from flask_bcrypt import Bcrypt
 
 from achievement_engine import evaluate_achievements_for_event
 from db import email_from, get_db_connection, to_int
-from xp_system import add_xp_to_user, get_level_progress, rank_for_level
+from xp_system import get_level_progress, rank_for_level
 
 auth = Blueprint("auth", __name__)
 bcrypt = Bcrypt()
 
-
 def valid_email(email):
-    # Quick check that an email has @ and a dot in the domain.
-    e = (email or "").strip()
-    return "@" in e and "." in e.split("@")[-1]
+    # Check that an email has an @ and a dot in the domain part.
+    clean_email = (email or "").strip()
+    return "@" in clean_email and "." in clean_email.split("@")[-1]
 
 
 def start_level(raw):
-    # Returns the level if valid, otherwise falls back to "novice".
+    # Keep only the allowed starting levels.
     level = (raw or "").strip().lower()
     return level if level in ("novice", "intermediate", "advanced") else "novice"
 
 
 def level_bootstrap_for_start(level):
-    # Returns starter XP/level/rank based on selected onboarding level.
+    # Return the starter XP and rank for the chosen starting level.
     selected = start_level(level)
     starter_xp = 0
     if selected == "intermediate":
@@ -38,7 +52,7 @@ def level_bootstrap_for_start(level):
 
 
 def xp_payload(total_xp):
-    # Builds the XP / level / rank block included in login and user-info responses.
+    # Build the XP, level, and rank data sent back to the frontend.
     xp = to_int(total_xp)
     numeric_level, xp_into_level, next_level_xp = get_level_progress(xp)
     rank = rank_for_level(numeric_level)
@@ -52,9 +66,9 @@ def xp_payload(total_xp):
     }
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# User Routes
 
-@auth.route("/register", methods=["POST"])
+@auth.post("/register")
 def register():
     # Create a new user account.
     form = request.form
@@ -114,9 +128,9 @@ def register():
         conn.close()
 
 
-@auth.route("/login", methods=["POST"])
+@auth.post("/login")
 def login():
-    # Verify credentials and return user profile + XP info.
+    # Check the login details and return the user's main profile data.
     email = email_from(request.form.get("email"))
     password = request.form.get("password") or ""
 
@@ -154,9 +168,9 @@ def login():
         conn.close()
 
 
-@auth.route("/user-info")
+@auth.get("/user-info")
 def user_info():
-    # Return profile and XP info for a user.
+    # Return saved profile and XP data for one user.
     email = email_from(request.args.get("email"))
     if not email:
         return jsonify({"success": False, "message": "Email required."}), 400
@@ -194,10 +208,9 @@ def user_info():
         conn.close()
 
 
-@auth.route("/award-xp", methods=["POST"])
+@auth.post("/award-xp")
 def award_xp():
-    # Award XP for a one-time action (skips if already awarded).
-    # Check and award happen in one connection to minimise the race window.
+    # Award XP for a one-off action and avoid logging the same action twice.
     data = request.get_json(silent=True) or {}
     email = email_from(data.get("email"))
     action = (data.get("action") or "").strip()
@@ -246,9 +259,9 @@ def award_xp():
     })
 
 
-@auth.route("/record-login", methods=["POST"])
+@auth.post("/record-login")
 def record_login():
-    # Log today's login and check for login-based achievements.
+    # Save today's login and check if it unlocked any achievements.
     data = request.get_json(silent=True) or {}
     email = email_from(data.get("email"))
     if not email:
@@ -286,7 +299,7 @@ def record_login():
         conn.close()
 
 
-@auth.route("/forgot-password", methods=["POST"])
+@auth.post("/forgot-password")
 def forgot_password():
     # Reset a user's password.
     data = request.get_json(silent=True) or {}
@@ -314,6 +327,35 @@ def forgot_password():
     except Exception as e:
         print("Forgot password error:", e)
         return jsonify({"success": False, "message": "Server error."}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@auth.post("/delete-account")
+def delete_account():
+    # Delete a user account. Related rows are removed by database cascade rules.
+    email = email_from(request.form.get("email"))
+    if not email:
+        data = request.get_json(silent=True) or {}
+        email = email_from(data.get("email"))
+
+    if not email:
+        return jsonify({"success": False, "message": "Email required."}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM users WHERE email = %s RETURNING email", (email,))
+        deleted = cur.fetchone()
+        if not deleted:
+            return jsonify({"success": False, "message": "User not found."}), 404
+
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        print("Delete account error:", e)
+        return jsonify({"success": False, "message": "Could not delete account."}), 500
     finally:
         cur.close()
         conn.close()

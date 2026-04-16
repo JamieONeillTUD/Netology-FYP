@@ -1,4 +1,21 @@
-# achievement_engine.py — Achievement rule checks and unlock awarding.
+"""
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+achievement_engine.py - Achievement Engine
+---
+This file handles the achievement badge system for Netology.
+It loads the user's current progress, checks each achievement
+rule from the database, and saves any new achievements the
+user has earned.
+
+It is mainly used after events like logging in, completing
+onboarding, finishing a lesson, completing a quiz, or finishing
+a challenge. If an achievement gives bonus XP, that XP is also
+awarded here.
+"""
 
 import json
 from datetime import datetime, timedelta
@@ -6,9 +23,8 @@ from datetime import datetime, timedelta
 from db import get_db_connection, to_int
 from xp_system import add_xp_to_user, get_level_progress
 
-
 def parse_rule(raw):
-    # Accept dict or JSON string, return a dict.
+    # Turn a stored rule into a Python dictionary.
     if isinstance(raw, dict):
         return raw
     if isinstance(raw, str):
@@ -21,7 +37,7 @@ def parse_rule(raw):
 
 
 def login_streak(dates_desc):
-    # Count consecutive login dates ending today.
+    # Count how many days in a row the user has logged in, ending today.
     if not dates_desc:
         return 0
     check = datetime.now().date()
@@ -36,9 +52,9 @@ def login_streak(dates_desc):
 
 
 def load_stats(cur, email):
-    # Load all user stats needed for achievement rule checks.
+    # Load the user stats needed to check achievement rules.
     cur.execute(
-        "SELECT COALESCE(xp, 0), COALESCE(numeric_level, 1), COALESCE(onboarding_completed, FALSE) FROM users WHERE email = %s",
+        "SELECT COALESCE(xp, 0), COALESCE(numeric_level, 1) FROM users WHERE email = %s",
         (email,),
     )
     row = cur.fetchone()
@@ -55,15 +71,15 @@ def load_stats(cur, email):
     )
     dates = [r[0] for r in cur.fetchall()]
 
-    # All six counts in one round-trip
+    # Load the rest of the counts in one query.
     cur.execute(
         """
         SELECT
-            (SELECT COUNT(*) FROM user_logins     WHERE user_email = %s),
-            (SELECT COUNT(*) FROM user_courses    WHERE user_email = %s),
-            (SELECT COUNT(*) FROM user_courses    WHERE user_email = %s AND completed = TRUE),
-            (SELECT COUNT(*) FROM user_lessons    WHERE user_email = %s),
-            (SELECT COUNT(*) FROM user_quizzes    WHERE user_email = %s),
+            (SELECT COUNT(*) FROM user_logins WHERE user_email = %s),
+            (SELECT COUNT(*) FROM user_courses WHERE user_email = %s),
+            (SELECT COUNT(*) FROM user_courses WHERE user_email = %s AND completed = TRUE),
+            (SELECT COUNT(*) FROM user_lessons WHERE user_email = %s),
+            (SELECT COUNT(*) FROM user_quizzes WHERE user_email = %s),
             (SELECT COUNT(*) FROM user_challenges WHERE user_email = %s)
         """,
         (email, email, email, email, email, email),
@@ -71,20 +87,19 @@ def load_stats(cur, email):
     counts = cur.fetchone()
 
     return {
-        "onboarding_completed": bool(row[2]),
         "total_xp": total_xp,
         "level": level,
-        "logins_total":          to_int(counts[0]),
-        "login_streak":          login_streak(dates),
-        "courses_started":       to_int(counts[1]),
-        "courses_completed":     to_int(counts[2]),
-        "lessons_completed":     to_int(counts[3]),
-        "quizzes_completed":     to_int(counts[4]),
-        "challenges_completed":  to_int(counts[5]),
+        "logins_total": to_int(counts[0]),
+        "login_streak": login_streak(dates),
+        "courses_started": to_int(counts[1]),
+        "courses_completed": to_int(counts[2]),
+        "lessons_completed": to_int(counts[3]),
+        "quizzes_completed": to_int(counts[4]),
+        "challenges_completed": to_int(counts[5]),
     }
 
 
-# Maps rule type to stats key for simple "value >= target" checks.
+# Map each simple rule type to the stat it checks.
 METRIC_KEYS = {
     "logins_total": "logins_total",
     "login_streak": "login_streak",
@@ -99,7 +114,7 @@ METRIC_KEYS = {
 
 
 def rule_matches(rule, stats, event):
-    # Check if a single achievement rule is satisfied.
+    # Return True when one achievement rule has been met.
     kind = (rule.get("type") or "").strip().lower()
     if not kind:
         return False
@@ -120,9 +135,6 @@ def rule_matches(rule, stats, event):
             return False
         return any(rule_matches(parse_rule(c), stats, event) for c in children)
 
-    if kind == "onboarding_completed":
-        return bool(stats.get("onboarding_completed"))
-
     key = METRIC_KEYS.get(kind)
     if not key:
         return False
@@ -130,8 +142,8 @@ def rule_matches(rule, stats, event):
 
 
 def evaluate_achievements_for_event(email, event=None):
-    # Check all achievement rules for a user and award any newly earned badges.
-    # Returns a list of newly unlocked achievement dicts.
+    # Check every achievement for one user and save anything newly unlocked.
+    # Returns a list of the achievements unlocked during this call.
     email = (email or "").strip().lower()
     if not email:
         return []
@@ -143,13 +155,13 @@ def evaluate_achievements_for_event(email, event=None):
     try:
         unlocked = []
 
-        # Fetch the catalog once — it doesn't change between passes.
+        # Load the achievement list once before checking it.
         cur.execute(
             "SELECT id, name, description, icon, xp_reward, rarity, unlock_criteria FROM achievements ORDER BY id"
         )
         catalog = cur.fetchall()
 
-        # Multiple passes so XP from one unlock can chain-trigger another.
+        # Run a few passes so one unlock can award XP and trigger another.
         for _ in range(5):
             stats = load_stats(cur, email)
             if not stats:
