@@ -88,6 +88,12 @@ def request_data():
     return request.get_json(silent=True) or request.form or {}
 
 
+def course_exists(cur, course_id):
+    # Check that a course is real and active before saving progress.
+    cur.execute("SELECT 1 FROM courses WHERE id = %s AND is_active = TRUE", (course_id,))
+    return cur.fetchone() is not None
+
+
 @courses.get("/courses")
 def list_courses():
     # Return all active courses.
@@ -195,6 +201,9 @@ def complete_lesson():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
+        if not course_exists(cur, course_id):
+            return jsonify({"success": False, "message": "Course not found."}), 404
+
         # Save the lesson only once.
         cur.execute(
             """
@@ -246,6 +255,9 @@ def complete_quiz():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
+        if not course_exists(cur, course_id):
+            return jsonify({"success": False, "message": "Course not found."}), 404
+
         cur.execute(
             """
             INSERT INTO user_quizzes (user_email, course_id, lesson_number, xp_awarded)
@@ -296,6 +308,9 @@ def complete_challenge():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
+        if not course_exists(cur, course_id):
+            return jsonify({"success": False, "message": "Course not found."}), 404
+
         cur.execute(
             """
             INSERT INTO user_challenges (user_email, course_id, lesson_number, xp_awarded)

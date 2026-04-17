@@ -1,102 +1,90 @@
-# test_db_utils.py
-# Unit tests for the shared helper functions in db.py
-#
-# Functional Requirement: FR00 — Shared Utility Helpers
-# Functions under test: to_int(), email_from()
-# Test Type: Unit Tests (pure functions — no database, no HTTP needed)
+"""
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+test_db_utils.py - Shared Database Helper Tests
+---
+This file checks the small helper functions in db.py.
 
-from db import to_int, email_from
+It covers:
+  1. Converting values to integers safely.
+  2. Cleaning email values for database use.
 
+These are simple pure-function tests, so they do not need a database.
+"""
 
-# ─────────────────────────────────────────────────────────────
-# to_int() — safely converts a value to an integer
-# ─────────────────────────────────────────────────────────────
-
-# Happy path
-
-def test_to_int_converts_a_normal_integer():
-    result = to_int(42)
-    assert result == 42
-
-def test_to_int_converts_a_number_string():
-    result = to_int('7')
-    assert result == 7
-
-def test_to_int_truncates_a_float():
-    result = to_int(3.9)
-    assert result == 3
-
-# Boundary cases
-
-def test_to_int_zero_is_preserved():
-    result = to_int(0)
-    assert result == 0
-
-def test_to_int_negative_number_is_preserved():
-    result = to_int(-5)
-    assert result == -5
-
-def test_to_int_uses_custom_default_when_conversion_fails():
-    result = to_int('not_a_number', 99)
-    assert result == 99
-
-# Invalid input
-
-def test_to_int_none_returns_zero():
-    result = to_int(None)
-    assert result == 0
-
-def test_to_int_empty_string_returns_zero():
-    result = to_int('')
-    assert result == 0
-
-def test_to_int_letters_return_zero():
-    result = to_int('abc')
-    assert result == 0
-
-def test_to_int_list_returns_zero():
-    result = to_int([1, 2, 3])
-    assert result == 0
+from db import email_from, to_int
 
 
-# ─────────────────────────────────────────────────────────────
-# email_from() — normalises an email to lowercase with no whitespace
-# ─────────────────────────────────────────────────────────────
+# to_int()
 
-# Happy path
+def test_to_int_with_number():
+    assert to_int(42) == 42
 
-def test_email_from_converts_uppercase_to_lowercase():
-    result = email_from('TEST@EXAMPLE.COM')
-    assert result == 'test@example.com'
 
-def test_email_from_strips_surrounding_whitespace():
-    result = email_from('  user@test.com ')
-    assert result == 'user@test.com'
+def test_to_int_with_string():
+    assert to_int("7") == 7
 
-def test_email_from_leaves_clean_email_unchanged():
-    result = email_from('alice@example.com')
-    assert result == 'alice@example.com'
 
-# Boundary cases
+def test_to_int_with_float():
+    assert to_int(3.9) == 3
 
-def test_email_from_handles_mixed_case_and_spaces_together():
-    result = email_from('  ALICE@TEST.COM  ')
-    assert result == 'alice@test.com'
 
-# Invalid input
+def test_to_int_with_zero():
+    assert to_int(0) == 0
 
-def test_email_from_none_returns_empty_string():
-    result = email_from(None)
-    assert result == ''
 
-def test_email_from_empty_string_returns_empty_string():
-    result = email_from('')
-    assert result == ''
+def test_to_int_with_negative():
+    assert to_int(-5) == -5
 
-def test_email_from_whitespace_only_returns_empty_string():
-    result = email_from('   ')
-    assert result == ''
+
+def test_to_int_with_custom_default():
+    assert to_int("not_a_number", 99) == 99
+
+
+def test_to_int_with_none():
+    assert to_int(None) == 0
+
+
+def test_to_int_with_empty_string():
+    assert to_int("") == 0
+
+
+def test_to_int_with_letters():
+    assert to_int("abc") == 0
+
+
+def test_to_int_with_list():
+    assert to_int([1, 2, 3]) == 0
+
+
+# email_from()
+
+def test_email_from_lowercases_email():
+    assert email_from("TEST@EXAMPLE.COM") == "test@example.com"
+
+
+def test_email_from_strips_spaces():
+    assert email_from("  user@test.com ") == "user@test.com"
+
+
+def test_email_from_keeps_clean_email():
+    assert email_from("alice@example.com") == "alice@example.com"
+
+
+def test_email_from_handles_spaces_and_case():
+    assert email_from("  ALICE@TEST.COM  ") == "alice@test.com"
+
+
+def test_email_from_with_none():
+    assert email_from(None) == ""
+
+
+def test_email_from_with_empty_string():
+    assert email_from("") == ""
+
+
+def test_email_from_with_whitespace():
+    assert email_from("   ") == ""

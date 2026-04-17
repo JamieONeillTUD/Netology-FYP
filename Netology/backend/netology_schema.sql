@@ -1,28 +1,19 @@
--- =========================================================
--- NETOLOGY LEARNING PLATFORM – DATABASE SCHEMA
--- Student: Jamie O'Neill (C22320301)
--- Course:  TU857/4
--- Updated: 2026-03-19
+-- Student Number: C22320301
+-- Student Name: Jamie O'Neill
+-- Course Code: TU857/4
+-- Date: 16/04/2026
 --
--- Safe to run on a fresh DB or an existing one.
---   • CREATE TABLE IF NOT EXISTS  → won't break existing tables
---   • INSERT … ON CONFLICT DO UPDATE → upserts seed data cleanly
---   • ALTER TABLE ADD COLUMN IF NOT EXISTS → adds new cols safely
+-- netology_schema.sql - Database Schema
+-- ---
+-- This file creates the Netology database tables and seed data.
+-- It also adds safe column updates for existing databases.
 --
--- Architecture note:
---   Course curriculum (lesson text, quiz questions, sandbox steps)
---   lives in course_content.js on the frontend — zero API calls
---   for content, instant page loads. The DB stores course *metadata*
---   (title, XP, difficulty) and per-user *progress* (completions,
---   scores, streaks). The link between both sides is the course ID:
---   DB courses.id = COURSE_CONTENT key = URL course_id param (1–9).
--- =========================================================
+-- The frontend keeps the lesson and quiz content in course_content.js.
+-- This file stores the course metadata and the user progress data.
 
 
--- ─── USERS ───────────────────────────────────────────────
--- Every registered student. Email is the main identifier used
--- across all progress tables. XP and level update as they
--- complete lessons, quizzes, and challenges.
+-- USERS
+-- Registered users and their progress fields.
 
 CREATE TABLE IF NOT EXISTS users (
     id              SERIAL PRIMARY KEY,
@@ -63,10 +54,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_email_key    ON users(email);
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_key ON users(username);
 
 
--- ─── COURSES ─────────────────────────────────────────────
--- Metadata for the 9 courses. IDs 1–9 match the keys in
--- COURSE_CONTENT on the frontend. This table does NOT store
--- lesson text or quiz questions — that lives client-side.
+-- COURSES
+-- Metadata for the 9 courses.
 
 CREATE TABLE IF NOT EXISTS courses (
     id              SERIAL PRIMARY KEY,
@@ -94,9 +83,8 @@ ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_active      BOOLEAN     DEFAULT 
 ALTER TABLE courses ADD COLUMN IF NOT EXISTS created_at     TIMESTAMP   DEFAULT CURRENT_TIMESTAMP;
 
 
--- ─── USER → COURSE ENROLMENT ─────────────────────────────
--- One row per user per course. Tracks overall progress % and
--- whether they have completed the full course.
+-- USER COURSE ENROLMENT
+-- One row per user per course.
 
 CREATE TABLE IF NOT EXISTS user_courses (
     id          SERIAL PRIMARY KEY,
@@ -146,9 +134,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS user_courses_user_email_course_id_key
     ON user_courses(user_email, course_id);
 
 
--- ─── COMPLETION TRACKING ─────────────────────────────────
--- One row per completed lesson / quiz / challenge per user.
--- lesson_number is sequential across all units (1, 2, 3 … n).
+-- COMPLETION TRACKING
+-- One row per completed lesson, quiz, or challenge.
 
 CREATE TABLE IF NOT EXISTS user_lessons (
     id            SERIAL PRIMARY KEY,
@@ -185,7 +172,7 @@ ALTER TABLE user_quizzes    ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 
 ALTER TABLE user_challenges ADD COLUMN IF NOT EXISTS xp_awarded INTEGER DEFAULT 0;
 
 
--- ─── XP LOG ──────────────────────────────────────────────
+-- XP LOG
 -- Audit trail of every XP award.
 
 CREATE TABLE IF NOT EXISTS xp_log (
@@ -197,9 +184,8 @@ CREATE TABLE IF NOT EXISTS xp_log (
 );
 
 
--- ─── LOGIN ACTIVITY (STREAKS) ────────────────────────────
--- One row per user per calendar day. Backend calculates
--- current and longest streak from consecutive dates.
+-- LOGIN ACTIVITY
+-- One row per user per calendar day.
 
 CREATE TABLE IF NOT EXISTS user_logins (
     user_email  VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
@@ -209,8 +195,8 @@ CREATE TABLE IF NOT EXISTS user_logins (
 );
 
 
--- ─── DAILY ACTIVITY (HEATMAP) ────────────────────────────
--- Aggregated daily stats powering the account-page heatmap.
+-- DAILY ACTIVITY
+-- Aggregated daily stats for the account heatmap.
 
 CREATE TABLE IF NOT EXISTS user_daily_activity (
     id            SERIAL PRIMARY KEY,
@@ -231,8 +217,8 @@ CREATE TABLE IF NOT EXISTS user_daily_activity (
 );
 
 
--- ─── USER PREFERENCES ────────────────────────────────────
--- Theme, font, notification settings per user.
+-- USER PREFERENCES
+-- Theme, font, and notification settings per user.
 
 CREATE TABLE IF NOT EXISTS user_preferences (
     user_email           VARCHAR(255) PRIMARY KEY REFERENCES users(email) ON DELETE CASCADE,
@@ -256,8 +242,8 @@ ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS reduced_motion       BOOLE
 ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN    DEFAULT TRUE;
 
 
--- ─── ACHIEVEMENTS ────────────────────────────────────────
--- Master list of badges + per-user earned badges.
+-- ACHIEVEMENTS
+-- Master list of badges and per-user earned badges.
 
 CREATE TABLE IF NOT EXISTS achievements (
     id              VARCHAR(100) PRIMARY KEY,
@@ -290,7 +276,7 @@ ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS xp_awarded  INTEGER DEFAU
 ALTER TABLE user_achievements ADD COLUMN IF NOT EXISTS earned_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 
--- ─── ONBOARDING TOUR ─────────────────────────────────────
+-- ONBOARDING TOUR
 
 CREATE TABLE IF NOT EXISTS user_tour_progress (
     id                SERIAL PRIMARY KEY,
@@ -305,8 +291,8 @@ CREATE TABLE IF NOT EXISTS user_tour_progress (
 );
 
 
--- ─── SANDBOX ─────────────────────────────────────────────
--- Saved topologies + per-lesson sandbox state.
+-- SANDBOX
+-- Saved topologies and per-lesson sandbox state.
 
 CREATE TABLE IF NOT EXISTS saved_topologies (
     id          SERIAL PRIMARY KEY,
@@ -329,7 +315,7 @@ CREATE TABLE IF NOT EXISTS lesson_sessions (
 );
 
 
--- ─── CHALLENGES SYSTEM ───────────────────────────────────
+-- CHALLENGES SYSTEM
 
 CREATE TABLE IF NOT EXISTS challenges (
     id              SERIAL PRIMARY KEY,
@@ -359,11 +345,9 @@ CREATE TABLE IF NOT EXISTS user_challenge_progress (
 );
 
 
--- =========================================================
 -- SEED DATA
--- =========================================================
 
--- ─── 9 COURSES (IDs 1–9 = COURSE_CONTENT keys) ──────────
+-- 9 COURSES (IDs 1-9 = COURSE_CONTENT keys)
 
 INSERT INTO courses
     (id, title, description, total_lessons, module_count,
@@ -410,7 +394,7 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT setval('courses_id_seq', GREATEST((SELECT MAX(id) FROM courses), 9), true);
 
 
--- ─── 20 ACHIEVEMENTS (matching achievement_engine.py) ────
+-- 20 ACHIEVEMENTS (matching achievement_engine.py)
 
 INSERT INTO achievements
     (id, name, description, category, icon, xp_reward, rarity, unlock_criteria)
@@ -445,7 +429,7 @@ ON CONFLICT (id) DO UPDATE SET
     unlock_criteria = EXCLUDED.unlock_criteria;
 
 
--- ─── 11 CHALLENGES (5 daily + 5 weekly + 1 event) ───────
+-- 11 CHALLENGES (5 daily + 5 weekly + 1 event)
 
 INSERT INTO challenges
     (title, description, challenge_type, difficulty, xp_reward, required_action)
@@ -468,6 +452,4 @@ ON CONFLICT (title, challenge_type) DO UPDATE SET
     required_action = EXCLUDED.required_action;
 
 
--- =========================================================
--- DONE – 13 tables | 9 courses | 20 achievements | 11 challenges
--- =========================================================
+-- DONE - 13 tables | 9 courses | 20 achievements | 11 challenges
