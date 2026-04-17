@@ -1,4 +1,28 @@
-// course.js — shows a single course's modules and lessons
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+course.js - Single Course Page
+
+This file runs the course.html page. It loads a single course by ID
+from COURSE_CONTENT, fetches the user's completion status from the
+backend, and renders the full course view.
+
+The page has three main areas:
+A header with the course title, difficulty, estimated time, XP reward,
+and a progress ring showing how far through the course the user is.
+
+An Up Next panel showing the next incomplete item and a continue button.
+
+A module tab panel where each tab shows that module's lessons, quiz, 
+sandbox, and challenge as a list of clickable rows.
+
+Clicking any row navigates to lesson.html, quiz.html, or sandbox.html
+with the right query parameters. For sandbox and challenge items the
+activity data is also saved to localStorage before navigating.
+*/
 
 (function () {
   "use strict";
@@ -8,6 +32,7 @@
   var ENDPOINTS = window.ENDPOINTS || {};
   var apiGet = window.apiGet;
 
+  // Labels, tooltips, and icons for each item type in the lesson list.
   var TYPE_LABELS = {
     learn: "Lesson",
     quiz: "Quiz",
@@ -29,7 +54,7 @@
     challenge: "bi-flag-fill"
   };
 
-  // all the page state in one place
+  // All mutable state for the page lives here.
   var pageState = {
     user: null,
     courseId: null,
@@ -57,167 +82,144 @@
     }
   };
 
-  // read the saved user from local storage
+  // Read the saved user object from localStorage.
   function readSavedUserFromLocalStorage() {
     try {
-      var rawData = localStorage.getItem("netology_user") || localStorage.getItem("user");
-      return rawData ? JSON.parse(rawData) : null;
-    } catch (error) {
+      var raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
       return null;
     }
   }
 
-  // save the user object to local storage
+  // Write the user object to both localStorage keys.
   function saveUserToLocalStorage(userData) {
-    if (!userData) return;
+    if (!userData) { return; }
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("netology_user", JSON.stringify(userData));
   }
 
-  // safely convert a value to a number, or return the fallback
+  // Convert a value to a finite number, returning fallback if it is not valid.
   function safeNumber(value, fallback) {
-    var converted = Number(value);
-    return Number.isFinite(converted) ? converted : (fallback || 0);
+    var n = Number(value);
+    return Number.isFinite(n) ? n : (fallback || 0);
   }
 
-  // set text content on an element found by id
-  function setTextById(elementId, text) {
-    var element = document.getElementById(elementId);
-    if (element) element.textContent = String(text !== null && text !== undefined ? text : "");
+  // Set the text content of an element found by id.
+  function setTextById(id, text) {
+    var el = document.getElementById(id);
+    if (el) { el.textContent = String(text !== null && text !== undefined ? text : ""); }
   }
 
-  // show or hide an element's d-none class
-  function toggleVisibility(elementId, shouldHide) {
-    var element = document.getElementById(elementId);
-    if (!element) return;
-    if (shouldHide) {
-      element.classList.add("d-none");
-    } else {
-      element.classList.remove("d-none");
-    }
+  // Add or remove Bootstrap's d-none class to show or hide an element.
+  function toggleVisibility(id, shouldHide) {
+    var el = document.getElementById(id);
+    if (!el) { return; }
+    el.classList.toggle("d-none", shouldHide);
   }
 
-  // create an html element with a class and optional text
-  function createElement(tagName, className, textContent) {
-    var element = document.createElement(tagName);
-    if (className) element.className = className;
-    if (textContent !== undefined) element.textContent = textContent;
-    return element;
+  // Create a DOM element with an optional class name and text content.
+  function createElement(tag, className, text) {
+    var el = document.createElement(tag);
+    if (className) { el.className = className; }
+    if (text !== undefined) { el.textContent = text; }
+    return el;
   }
 
-  // create a bootstrap icon element
+  // Create a Bootstrap icon element.
   function createIconElement(iconClass) {
-    var iconElement = document.createElement("i");
-    iconElement.className = iconClass;
-    return iconElement;
+    var el = document.createElement("i");
+    el.className = iconClass;
+    return el;
   }
 
-  // read json safely from localStorage
-  function readJsonFromStorage(storageKey) {
+  // Read and parse a JSON value from localStorage, returning null on failure.
+  function readJsonFromStorage(key) {
     try {
-      var raw = localStorage.getItem(storageKey);
+      var raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : null;
-    } catch (error) {
+    } catch (e) {
       return null;
     }
   }
 
-  // stable lesson completion key (separate from old unit-level keys)
+  // Build the numeric completion key for a specific lesson.
+  // Each lesson gets a unique integer: (unit + 1) * 1000 + (lesson + 1).
   function buildLessonCompletionKey(unitIndex, lessonIndex) {
     return ((Number(unitIndex) + 1) * 1000) + (Number(lessonIndex) + 1);
   }
 
-  // fetch fresh user data from the server and save it
+  // Fetch fresh user data from the server and update localStorage.
+  // Falls back to the locally saved user if the request fails.
   async function fetchFreshUserDataFromServer() {
     var savedUser = readSavedUserFromLocalStorage();
-    var userEmail = "";
-
-    if (savedUser && savedUser.email) {
-      userEmail = savedUser.email;
-    } else {
-      userEmail = localStorage.getItem("netology_last_email") || "";
-    }
-
-    if (!userEmail) return savedUser;
+    var email = (savedUser && savedUser.email)
+      ? savedUser.email
+      : (localStorage.getItem("netology_last_email") || "");
+    if (!email) { return savedUser; }
 
     try {
       var endpoint = (ENDPOINTS.auth && ENDPOINTS.auth.userInfo) || "/user-info";
-      var serverData = await apiGet(endpoint, { email: userEmail });
-
-      if (!serverData || !serverData.success) return savedUser;
+      var serverData = await apiGet(endpoint, { email: email });
+      if (!serverData || !serverData.success) { return savedUser; }
 
       var xpFromServer = serverData.xp !== undefined ? serverData.xp : serverData.total_xp;
 
-      var updatedUser = {};
-      if (savedUser) {
-        var savedKeys = Object.keys(savedUser);
-        for (var keyIndex = 0; keyIndex < savedKeys.length; keyIndex++) {
-          updatedUser[savedKeys[keyIndex]] = savedUser[savedKeys[keyIndex]];
-        }
-      }
+      var updated = Object.assign({}, savedUser, {
+        email: email,
+        first_name: serverData.first_name || (savedUser && savedUser.first_name) || "",
+        last_name: serverData.last_name || (savedUser && savedUser.last_name) || "",
+        username: serverData.username || (savedUser && savedUser.username) || "",
+        xp: safeNumber(xpFromServer, (savedUser && savedUser.xp) || 0),
+        numeric_level: safeNumber(serverData.numeric_level, (savedUser && savedUser.numeric_level) || 1),
+        rank: serverData.rank || serverData.level || (savedUser && savedUser.rank) || "",
+        level: serverData.level || serverData.rank || (savedUser && savedUser.level) || "",
+        isFirstLogin: serverData.is_first_login !== undefined
+          ? Boolean(serverData.is_first_login)
+          : (savedUser && savedUser.isFirstLogin)
+      });
 
-      updatedUser.email = userEmail;
-      updatedUser.first_name = serverData.first_name || (savedUser && savedUser.first_name) || "";
-      updatedUser.last_name = serverData.last_name || (savedUser && savedUser.last_name) || "";
-      updatedUser.username = serverData.username || (savedUser && savedUser.username) || "";
-      updatedUser.xp = safeNumber(xpFromServer, (savedUser && savedUser.xp) || 0);
-      updatedUser.numeric_level = safeNumber(serverData.numeric_level, (savedUser && savedUser.numeric_level) || 1);
-      updatedUser.rank = serverData.rank || serverData.level || (savedUser && savedUser.rank) || "";
-      updatedUser.level = serverData.level || serverData.rank || (savedUser && savedUser.level) || "";
-      updatedUser.isFirstLogin = serverData.is_first_login !== undefined
-        ? Boolean(serverData.is_first_login)
-        : (savedUser && savedUser.isFirstLogin);
-
-      saveUserToLocalStorage(updatedUser);
-      return updatedUser;
-    } catch (error) {
-      console.warn("Could not refresh user data:", error);
+      saveUserToLocalStorage(updated);
+      return updated;
+    } catch (e) {
+      console.warn("Could not refresh user data:", e);
       return savedUser;
     }
   }
 
-  // load course data from COURSE_CONTENT and build a clean course object
+  // Load course data from COURSE_CONTENT and return a clean course object.
   function loadCourseDataFromContent(courseId) {
-    var courseContentData = window.COURSE_CONTENT;
-    if (!courseContentData) return null;
+    var content = window.COURSE_CONTENT;
+    if (!content) { return null; }
+    var raw = content[String(courseId)];
+    if (!raw) { return null; }
 
-    var rawCourse = courseContentData[String(courseId)];
-    if (!rawCourse) return null;
-
-    var units = rawCourse.units || [];
-    var modules = [];
-
-    for (var unitIndex = 0; unitIndex < units.length; unitIndex++) {
-      var unit = units[unitIndex];
-      var items = buildItemsForUnit(unit, unitIndex);
-
-      modules.push({
+    var modules = (raw.units || []).map(function (unit, unitIndex) {
+      return {
         id: "unit-" + unitIndex,
         title: unit.title || "Module",
         description: unit.about || "",
-        items: items
-      });
-    }
+        items: buildItemsForUnit(unit, unitIndex)
+      };
+    });
 
     return {
       id: String(courseId),
-      title: rawCourse.title || "Untitled Course",
-      description: rawCourse.description || "",
-      difficulty: String(rawCourse.difficulty || "novice").toLowerCase(),
-      requiredLevel: Number(rawCourse.required_level || 1),
-      estimatedTime: rawCourse.estimatedTime || "—",
-      totalExperiencePoints: Number(rawCourse.xpReward || 0),
+      title: raw.title || "Untitled Course",
+      description: raw.description || "",
+      difficulty: String(raw.difficulty || "novice").toLowerCase(),
+      requiredLevel: Number(raw.required_level || 1),
+      estimatedTime: raw.estimatedTime || "—",
+      totalExperiencePoints: Number(raw.xpReward || 0),
       modules: modules
     };
   }
 
-  // build all items (lessons, quiz, sandbox, challenge) for a single unit
+  // Build the items list (lessons, quiz, sandbox, challenge) for one unit.
   function buildItemsForUnit(unit, unitIndex) {
     var items = [];
-    var lessons = unit.lessons || [];
 
-    for (var lessonIndex = 0; lessonIndex < lessons.length; lessonIndex++) {
-      var lesson = lessons[lessonIndex];
+    (unit.lessons || []).forEach(function (lesson, lessonIndex) {
       items.push({
         type: "learn",
         title: lesson.title || ("Lesson " + (lessonIndex + 1)),
@@ -227,7 +229,7 @@
         unitTitle: unit.title || "",
         completionKey: buildLessonCompletionKey(unitIndex, lessonIndex)
       });
-    }
+    });
 
     if (unit.quiz) {
       items.push({
@@ -271,117 +273,97 @@
     return items;
   }
 
-  // collect all items from every module into one flat list
+  // Flatten every item from every module into one ordered list.
   function getAllItemsAsFlatList() {
-    var allItems = [];
-    var modules = pageState.course.modules;
-
-    for (var moduleIndex = 0; moduleIndex < modules.length; moduleIndex++) {
-      var items = modules[moduleIndex].items;
-      for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
-        allItems.push(items[itemIndex]);
-      }
-    }
-
-    return allItems;
+    var all = [];
+    pageState.course.modules.forEach(function (mod) {
+      mod.items.forEach(function (item) { all.push(item); });
+    });
+    return all;
   }
 
-  // check if a single item is completed
+  // Return true if a given item has been marked as complete.
   function isItemCompleted(item) {
-    var completionKey = String(item.completionKey || (item.unitIndex + 1));
+    var key = String(item.completionKey || (item.unitIndex + 1));
     var type = item.type;
-    if (type === "quiz")      return pageState.completedQuizzes[completionKey] === true;
-    if (type === "challenge") return pageState.completedChallenges[completionKey] === true;
-    if (type === "sandbox")   return pageState.completedTutorials[completionKey] === true;
-    return pageState.completedLessons[completionKey] === true;
+    if (type === "quiz") { return pageState.completedQuizzes[key] === true; }
+    if (type === "challenge") { return pageState.completedChallenges[key] === true; }
+    if (type === "sandbox") { return pageState.completedTutorials[key] === true; }
+    return pageState.completedLessons[key] === true;
   }
 
+  // Add a list of numeric completion keys into a lookup object.
   function mergeCompletionArrayIntoLookup(lookup, values) {
     var list = Array.isArray(values) ? values : [];
     for (var i = 0; i < list.length; i++) {
-      var numberValue = Number(list[i]);
-      if (Number.isFinite(numberValue) && numberValue > 0) {
-        lookup[String(numberValue)] = true;
-      }
+      var n = Number(list[i]);
+      if (Number.isFinite(n) && n > 0) { lookup[String(n)] = true; }
     }
   }
 
+  // Return the number of sandbox steps defined for a given unit index.
   function tutorialStepCountForUnit(unitIndex) {
-    var module = (pageState.course.modules || [])[unitIndex];
-    if (!module) return 0;
-    var items = module.items || [];
-    for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
-      if (items[itemIndex].type === "sandbox") {
-        var steps = items[itemIndex].steps || [];
-        return steps.length;
+    var mod = (pageState.course.modules || [])[unitIndex];
+    if (!mod) { return 0; }
+    for (var i = 0; i < mod.items.length; i++) {
+      if (mod.items[i].type === "sandbox") {
+        return (mod.items[i].steps || []).length;
       }
     }
     return 0;
   }
 
+  // Check localStorage for sandbox tutorial progress and mark completed units.
+  // A tutorial counts as done if completed is true, or all steps are checked.
   function loadTutorialCompletionFromLocalStorage() {
-    var userData = pageState.user;
+    var user = pageState.user;
     pageState.completedTutorials = {};
-    if (!userData || !userData.email || !pageState.courseId) return;
+    if (!user || !user.email || !pageState.courseId) { return; }
 
-    var prefix = "netology_tutorial_progress:" + userData.email + ":" + pageState.courseId + ":";
-    var keys = Object.keys(localStorage);
-
-    for (var keyIndex = 0; keyIndex < keys.length; keyIndex++) {
-      var storageKey = keys[keyIndex];
-      if (storageKey.indexOf(prefix) !== 0) continue;
-
+    var prefix = "netology_tutorial_progress:" + user.email + ":" + pageState.courseId + ":";
+    Object.keys(localStorage).forEach(function (storageKey) {
+      if (storageKey.indexOf(prefix) !== 0) { return; }
       var unitNumber = Number(storageKey.substring(prefix.length));
-      if (!Number.isFinite(unitNumber) || unitNumber <= 0) continue;
-
+      if (!Number.isFinite(unitNumber) || unitNumber <= 0) { return; }
       var saved = readJsonFromStorage(storageKey) || {};
       var checkedCount = Array.isArray(saved.checked) ? saved.checked.filter(Boolean).length : 0;
       var totalSteps = tutorialStepCountForUnit(unitNumber - 1);
-      var isCompleted = Boolean(saved.completed) || (totalSteps > 0 && checkedCount >= totalSteps);
-      if (isCompleted) {
-        pageState.completedTutorials[String(unitNumber)] = true;
-      }
-    }
+      var isDone = Boolean(saved.completed) || (totalSteps > 0 && checkedCount >= totalSteps);
+      if (isDone) { pageState.completedTutorials[String(unitNumber)] = true; }
+    });
   }
 
-  // count how many items in a module are done
+  // Count how many items in a module the user has completed.
   function countCompletedItemsInModule(module) {
-    var completedCount = 0;
-    var items = module.items;
-
-    for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
-      if (isItemCompleted(items[itemIndex])) {
-        completedCount++;
-      }
-    }
-
-    return completedCount;
+    return module.items.filter(function (item) { return isItemCompleted(item); }).length;
   }
 
-  // calculate overall course progress
+  // Count completed items and total XP earned across the whole course.
   function calculateCourseProgress() {
-    var allItems = getAllItemsAsFlatList();
-    if (!allItems.length) return { percent: 0, completed: 0, total: 0, earnedExperiencePoints: 0 };
+    var all = getAllItemsAsFlatList();
+    if (!all.length) { return { percent: 0, completed: 0, total: 0, earnedExperiencePoints: 0 }; }
 
-    var completedCount = 0;
-    var earnedExperiencePoints = 0;
-
-    for (var itemIndex = 0; itemIndex < allItems.length; itemIndex++) {
-      var item = allItems[itemIndex];
+    var completed = 0;
+    var earned = 0;
+    all.forEach(function (item) {
       if (isItemCompleted(item)) {
-        completedCount++;
-        earnedExperiencePoints += Number(item.xpReward || 0);
+        completed++;
+        earned += Number(item.xpReward || 0);
       }
-    }
+    });
 
-    var percent = Math.round((completedCount / allItems.length) * 100);
-    return { percent: percent, completed: completedCount, total: allItems.length, earnedExperiencePoints: earnedExperiencePoints };
+    return {
+      percent: Math.round((completed / all.length) * 100),
+      completed: completed,
+      total: all.length,
+      earnedExperiencePoints: earned
+    };
   }
 
-  // load which lessons, quizzes, and challenges the user has finished
+  // Fetch lesson, quiz, and challenge completion from the server.
   async function loadCompletionStatusFromServer() {
-    var userData = pageState.user;
-    if (!userData || !userData.email || !pageState.courseId) return;
+    var user = pageState.user;
+    if (!user || !user.email || !pageState.courseId) { return; }
 
     pageState.completedLessons = {};
     pageState.completedQuizzes = {};
@@ -390,76 +372,57 @@
 
     try {
       var endpoint = (ENDPOINTS.courses && ENDPOINTS.courses.userCourseStatus) || "/user-course-status";
-      var requestUrl = API_BASE + endpoint
-        + "?email=" + encodeURIComponent(userData.email)
+      var url = API_BASE + endpoint
+        + "?email=" + encodeURIComponent(user.email)
         + "&course_id=" + pageState.courseId;
-      var response = await fetch(requestUrl);
-      var serverData = await response.json();
-
-      if (serverData && serverData.success) {
-        var lessonNumbers = serverData.lessons || [];
-        var quizNumbers = serverData.quizzes || [];
-        var challengeNumbers = serverData.challenges || [];
-
-        mergeCompletionArrayIntoLookup(pageState.completedLessons, lessonNumbers);
-        mergeCompletionArrayIntoLookup(pageState.completedQuizzes, quizNumbers);
-        mergeCompletionArrayIntoLookup(pageState.completedChallenges, challengeNumbers);
+      var data = await (await fetch(url)).json();
+      if (data && data.success) {
+        mergeCompletionArrayIntoLookup(pageState.completedLessons, data.lessons || []);
+        mergeCompletionArrayIntoLookup(pageState.completedQuizzes, data.quizzes || []);
+        mergeCompletionArrayIntoLookup(pageState.completedChallenges, data.challenges || []);
       }
-    } catch (error) {
-      console.warn("Could not load completion status:", error);
+    } catch (e) {
+      console.warn("Could not load completion status:", e);
     }
 
     loadTutorialCompletionFromLocalStorage();
   }
 
-  // calculate and store the user's level and xp stats
+  // Calculate the user's level, rank, and XP stats and store them in pageState.stats.
+  // Uses the shared NetologyXP module so the maths is always consistent.
   function calculateUserStats(userData) {
-    if (!userData) return;
-
-    var resolved = (XP_SYSTEM && typeof XP_SYSTEM.resolveUserProgress === "function")
+    if (!userData) { return; }
+    var resolved = (XP_SYSTEM && XP_SYSTEM.resolveUserProgress)
       ? XP_SYSTEM.resolveUserProgress(userData)
       : null;
-    var userLevel = resolved ? Number(resolved.level || 1) : Number(userData.numeric_level || userData.level || 1);
-    var totalExperiencePoints = Number(userData.xp || (resolved ? resolved.totalXp : 0) || 0);
-
-    if (XP_SYSTEM && XP_SYSTEM.getLevelInfo) {
-      var levelInfo = XP_SYSTEM.getLevelInfo(userLevel) || {};
-      var experiencePointsToLevel = levelInfo.xpToLevel || 0;
-      var experiencePointsToNext = levelInfo.xpToNext || 1000;
-      var progressInLevel = totalExperiencePoints - experiencePointsToLevel;
-      var progressPercent = Math.round((progressInLevel / experiencePointsToNext) * 100);
-
-      pageState.stats = {
-        level: userLevel,
-        rank: levelInfo.rank || "Novice",
-        experiencePoints: totalExperiencePoints,
-        currentLevelExperiencePoints: progressInLevel,
-        experiencePointsPercent: Math.min(100, Math.max(0, progressPercent)),
-        accessLevel: levelInfo.level || 1
-      };
-    }
+    pageState.stats = {
+      level: resolved ? Number(resolved.level || 1) : Number(userData.numeric_level || 1),
+      rank: resolved ? String(resolved.rank || "Novice") : String(userData.rank || "Novice"),
+      experiencePoints: resolved ? Number(resolved.totalXp || 0) : Number(userData.xp || 0),
+      currentLevelExperiencePoints: resolved ? Number(resolved.xpIntoLevel || 0) : 0,
+      experiencePointsPercent: resolved ? Number(resolved.progressPercent || 0) : 0,
+      accessLevel: resolved ? Number(resolved.level || 1) : Number(userData.numeric_level || 1)
+    };
   }
 
-  // build the url for a lesson item
+  // Build the URL for a lesson, quiz, sandbox, or challenge item.
   function buildLessonUrl(item) {
     var courseId = String(pageState.courseId);
     var unitIndex = item.unitIndex;
 
     if (item.type === "learn") {
-      var lessonParams = new URLSearchParams({
+      return "lesson.html?" + new URLSearchParams({
         course: courseId,
         unit: String(unitIndex),
         lesson: String(item.lessonIndex)
       });
-      return "lesson.html?" + lessonParams;
     }
 
     if (item.type === "quiz") {
-      var quizParams = new URLSearchParams({
+      return "quiz.html?" + new URLSearchParams({
         course: courseId,
         unit: String(unitIndex)
       });
-      return "quiz.html?" + quizParams;
     }
 
     if (item.type === "sandbox") {
@@ -472,76 +435,50 @@
     }
 
     if (item.type === "challenge") {
-      var challengePayload = {};
-      var sourceChallenge = item.challengeRules || {};
-      var challengeKeys = Object.keys(sourceChallenge);
-      for (var challengeKeyIndex = 0; challengeKeyIndex < challengeKeys.length; challengeKeyIndex++) {
-        var challengeKey = challengeKeys[challengeKeyIndex];
-        challengePayload[challengeKey] = sourceChallenge[challengeKey];
-      }
-      if (!Number(challengePayload.xp)) {
-        challengePayload.xp = Number(item.xpReward || 0);
-      }
+      var payload = Object.assign({}, item.challengeRules || {});
+      if (!Number(payload.xp)) { payload.xp = Number(item.xpReward || 0); }
       return buildSandboxUrl(courseId, unitIndex, "challenge", "netology_active_challenge", {
-        title: challengePayload.title || item.title || "Challenge",
-        description: challengePayload.description || "",
-        rules: challengePayload.rules || {},
-        steps: challengePayload.steps || [],
-        checks: challengePayload.checks || [],
-        tips: challengePayload.tips || "",
-        xp: challengePayload.xp
+        title: payload.title || item.title || "Challenge",
+        description: payload.description || "",
+        rules: payload.rules || {},
+        steps: payload.steps || [],
+        checks: payload.checks || [],
+        tips: payload.tips || "",
+        xp: payload.xp
       });
     }
 
     return "courses.html";
   }
 
-  // save sandbox or challenge data to local storage and return the url
+  // Save sandbox or challenge data to localStorage and return the sandbox URL.
   function buildSandboxUrl(courseId, unitIndex, mode, storageKey, extraData) {
-    var dataToStore = {
+    var data = Object.assign({
       courseId: courseId,
       unit: unitIndex,
       courseTitle: pageState.course.title || ""
-    };
-
-    var extraKeys = Object.keys(extraData || {});
-    for (var keyIndex = 0; keyIndex < extraKeys.length; keyIndex++) {
-      var key = extraKeys[keyIndex];
-      dataToStore[key] = extraData[key];
-    }
-
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(dataToStore));
-    } catch (error) {}
-
-    var sandboxParams = new URLSearchParams({
-      course: courseId,
-      unit: String(unitIndex),
-      mode: mode
-    });
-    return "sandbox.html?" + sandboxParams;
+    }, extraData || {});
+    try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch (e) {}
+    return "sandbox.html?" + new URLSearchParams({ course: courseId, unit: String(unitIndex), mode: mode });
   }
 
-  // navigate to a lesson, quiz, sandbox, or challenge
+  // Navigate to the page for a given item.
   function navigateToItem(item) {
     window.location.href = buildLessonUrl(item);
   }
 
-  // point logo and brand links to dashboard or home
+  // Point the logo, sidebar brand, and back link to dashboard if the user is
+  // logged in, or to the landing page if not.
   function setupBrandLinks() {
-    var savedUser = readSavedUserFromLocalStorage();
-    var targetPage = (savedUser && (savedUser.email || savedUser.username)) ? "dashboard.html" : "index.html";
-
-    var topBrandLink = document.getElementById("brandHome");
-    var sideBrandLink = document.getElementById("sideBrandHome");
-    var backLink = document.getElementById("backLink");
-
-    if (topBrandLink) topBrandLink.setAttribute("href", targetPage);
-    if (sideBrandLink) sideBrandLink.setAttribute("href", targetPage);
-    if (backLink) backLink.setAttribute("href", targetPage);
+    var user = readSavedUserFromLocalStorage();
+    var target = (user && (user.email || user.username)) ? "dashboard.html" : "index.html";
+    ["brandHome", "sideBrandHome", "backLink"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) { el.setAttribute("href", target); }
+    });
   }
 
-  // render the course title, difficulty pill, stats, and progress ring
+  // Render the course title, difficulty pill, metadata, and progress indicators.
   function renderCourseHeader() {
     var course = pageState.course;
 
@@ -549,278 +486,220 @@
     setTextById("courseDescription", course.description || "");
     setTextById("breadcrumbCourse", course.title || "Course");
 
-    var difficultyPill = document.getElementById("difficultyPill");
-    if (difficultyPill) {
-      var difficultyLabel = course.difficulty || "novice";
-      difficultyPill.textContent = difficultyLabel.charAt(0).toUpperCase() + difficultyLabel.slice(1);
-      difficultyPill.className = "crs-pill crs-" + difficultyLabel;
+    var pill = document.getElementById("difficultyPill");
+    if (pill) {
+      var d = course.difficulty || "novice";
+      pill.textContent = d.charAt(0).toUpperCase() + d.slice(1);
+      pill.className = "crs-pill crs-" + d;
     }
 
-    var moduleCount = course.modules.length;
-    var modulePlural = moduleCount !== 1 ? "s" : "";
-    setTextById("metaModules", moduleCount + " module" + modulePlural);
+    var modCount = course.modules.length;
+    var modLabel = modCount + " module" + (modCount !== 1 ? "s" : "");
+    setTextById("metaModules", modLabel);
     setTextById("metaTime", course.estimatedTime || "—");
     setTextById("metaXP", course.totalExperiencePoints + " XP");
-    setTextById("moduleCountLabel", moduleCount + " module" + modulePlural);
+    setTextById("moduleCountLabel", modLabel);
 
     var progress = calculateCourseProgress();
     renderProgressIndicators(progress);
     renderUpNextSection(progress);
   }
 
-  // fill in the progress ring, bar, and locked/active/completed pills
+  // Fill in the progress ring, bar, and status pills.
   function renderProgressIndicators(progress) {
-    var progressPercent = progress.percent;
+    var pct = progress.percent;
 
-    var progressRing = document.getElementById("progressRing");
-    if (progressRing) {
-      progressRing.style.strokeDashoffset = String(314.16 - (progressPercent / 100) * 314.16);
-    }
+    var ring = document.getElementById("progressRing");
+    if (ring) { ring.style.strokeDashoffset = String(314.16 - (pct / 100) * 314.16); }
 
-    setTextById("progressPct", progressPercent + "%");
-    setTextById("progressText", progressPercent + "%");
+    setTextById("progressPct", pct + "%");
+    setTextById("progressText", pct + "%");
     setTextById("progressCount", progress.completed + "/" + progress.total);
 
-    var progressBar = document.getElementById("progressBar");
-    if (progressBar) progressBar.style.width = progressPercent + "%";
+    var bar = document.getElementById("progressBar");
+    if (bar) { bar.style.width = pct + "%"; }
 
     var userLevel = pageState.stats.accessLevel || (pageState.user && pageState.user.numeric_level) || 1;
-    var requiredLevel = pageState.course.requiredLevel || 1;
-    var isCourseLocked = Number(userLevel) < Number(requiredLevel);
+    var reqLevel = pageState.course.requiredLevel || 1;
+    var isLocked = Number(userLevel) < Number(reqLevel);
 
-    toggleVisibility("courseLockedPill", !isCourseLocked);
-    toggleVisibility("courseActivePill", isCourseLocked || progressPercent === 0 || progressPercent === 100);
-    toggleVisibility("courseCompletedPill", progressPercent < 100);
-    toggleVisibility("lockedExplainer", !isCourseLocked);
+    toggleVisibility("courseLockedPill", !isLocked);
+    toggleVisibility("courseActivePill", isLocked || pct === 0 || pct === 100);
+    toggleVisibility("courseCompletedPill", pct < 100);
+    toggleVisibility("lockedExplainer", !isLocked);
 
-    if (isCourseLocked) {
-      setTextById("lockedText", "Requires Level " + requiredLevel + " to unlock.");
-    }
+    if (isLocked) { setTextById("lockedText", "Requires Level " + reqLevel + " to unlock."); }
   }
 
-  // show what lesson is up next and wire continue/review buttons
+  // Show the next incomplete item and wire up the continue and review buttons.
   function renderUpNextSection(progress) {
-    var allItems = getAllItemsAsFlatList();
-
+    var all = getAllItemsAsFlatList();
     var nextItem = null;
-    for (var itemIndex = 0; itemIndex < allItems.length; itemIndex++) {
-      if (!isItemCompleted(allItems[itemIndex])) {
-        nextItem = allItems[itemIndex];
-        break;
-      }
+    for (var i = 0; i < all.length; i++) {
+      if (!isItemCompleted(all[i])) { nextItem = all[i]; break; }
     }
 
-    var isCourseComplete = progress.percent === 100;
+    var isDone = progress.percent === 100;
 
     setTextById("nextStepText", nextItem ? nextItem.title : "All done!");
     setTextById("sidePct", progress.percent + "%");
     setTextById("sideModules", pageState.course.modules.length + "/" + pageState.course.modules.length);
     setTextById("sideXPEarned", String(progress.earnedExperiencePoints));
 
-    var continueButton = document.getElementById("continueBtn");
-    if (continueButton) {
-      continueButton.onclick = function () {
-        var targetItem = nextItem || allItems[0];
-        if (targetItem) navigateToItem(targetItem);
+    var continueBtn = document.getElementById("continueBtn");
+    if (continueBtn) {
+      continueBtn.onclick = function () {
+        var target = nextItem || all[0];
+        if (target) { navigateToItem(target); }
       };
     }
 
-    var reviewButton = document.getElementById("reviewBtn");
-    if (reviewButton) {
-      toggleVisibility("reviewBtn", !isCourseComplete);
-      if (isCourseComplete) {
-        reviewButton.onclick = function () {
-          if (allItems[0]) navigateToItem(allItems[0]);
-        };
+    var reviewBtn = document.getElementById("reviewBtn");
+    if (reviewBtn) {
+      toggleVisibility("reviewBtn", !isDone);
+      if (isDone) {
+        reviewBtn.onclick = function () { if (all[0]) { navigateToItem(all[0]); } };
       }
     }
   }
 
-  // render the module tabs and the first incomplete module's panel
+  // Render the module tabs and open the first incomplete module.
   function renderModuleTabs() {
-    var tabsContainer = document.getElementById("moduleTabs");
-    var panelContainer = document.getElementById("modulePanel");
-    if (!tabsContainer || !panelContainer) return;
+    var tabsEl = document.getElementById("moduleTabs");
+    var panelEl = document.getElementById("modulePanel");
+    if (!tabsEl || !panelEl) { return; }
 
-    tabsContainer.innerHTML = "";
-    panelContainer.innerHTML = "";
+    tabsEl.innerHTML = "";
+    panelEl.innerHTML = "";
 
     var modules = pageState.course.modules;
-    if (!modules.length) {
-      toggleVisibility("modulesEmpty", false);
-      return;
-    }
+    if (!modules.length) { toggleVisibility("modulesEmpty", false); return; }
 
-    var activeModuleIndex = 0;
-    for (var findIndex = 0; findIndex < modules.length; findIndex++) {
-      if (countCompletedItemsInModule(modules[findIndex]) < modules[findIndex].items.length) {
-        activeModuleIndex = findIndex;
+    // Find the first module that still has incomplete items.
+    var activeIndex = 0;
+    for (var i = 0; i < modules.length; i++) {
+      if (countCompletedItemsInModule(modules[i]) < modules[i].items.length) {
+        activeIndex = i;
         break;
       }
     }
 
-    for (var tabIndex = 0; tabIndex < modules.length; tabIndex++) {
-      var module = modules[tabIndex];
-      var completedInModule = countCompletedItemsInModule(module);
-      var totalInModule = module.items.length;
-      var allItemsDone = completedInModule === totalInModule;
+    modules.forEach(function (module, tabIndex) {
+      var done = countCompletedItemsInModule(module);
+      var total = module.items.length;
 
-      var tabButton = createElement("button", "crs-mod-tab");
-      tabButton.setAttribute("role", "tab");
-      tabButton.setAttribute("aria-selected", tabIndex === activeModuleIndex ? "true" : "false");
-      tabButton.dataset.index = String(tabIndex);
+      var tab = createElement("button", "crs-mod-tab");
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", tabIndex === activeIndex ? "true" : "false");
+      tab.dataset.index = String(tabIndex);
+      if (tabIndex === activeIndex) { tab.classList.add("is-active"); }
 
-      if (tabIndex === activeModuleIndex) {
-        tabButton.classList.add("is-active");
-      }
+      tab.appendChild(createElement("span", "crs-mod-tab-label", "Module " + (tabIndex + 1)));
+      tab.appendChild(createElement("span", "crs-mod-tab-count" + (done === total ? " is-done" : ""), done + "/" + total));
 
-      var tabLabel = createElement("span", "crs-mod-tab-label", "Module " + (tabIndex + 1));
-      var countClass = "crs-mod-tab-count" + (allItemsDone ? " is-done" : "");
-      var tabCount = createElement("span", countClass, completedInModule + "/" + totalInModule);
+      tab.addEventListener("click", (function (idx) {
+        return function () { selectModuleTab(idx); };
+      })(tabIndex));
 
-      tabButton.appendChild(tabLabel);
-      tabButton.appendChild(tabCount);
+      tabsEl.appendChild(tab);
+    });
 
-      (function (moduleIndex) {
-        tabButton.addEventListener("click", function () {
-          selectModuleTab(moduleIndex);
-        });
-      })(tabIndex);
-
-      tabsContainer.appendChild(tabButton);
-    }
-
-    showModulePanel(activeModuleIndex);
+    showModulePanel(activeIndex);
   }
 
-  // highlight the clicked tab and show its panel
+  // Highlight the selected tab and show its panel.
   function selectModuleTab(selectedIndex) {
-    var tabsContainer = document.getElementById("moduleTabs");
-    if (tabsContainer) {
-      var allTabs = tabsContainer.querySelectorAll(".crs-mod-tab");
-      for (var tabIndex = 0; tabIndex < allTabs.length; tabIndex++) {
-        var isActive = tabIndex === selectedIndex;
-        if (isActive) {
-          allTabs[tabIndex].classList.add("is-active");
-        } else {
-          allTabs[tabIndex].classList.remove("is-active");
-        }
-        allTabs[tabIndex].setAttribute("aria-selected", String(isActive));
+    var tabsEl = document.getElementById("moduleTabs");
+    if (tabsEl) {
+      var tabs = tabsEl.querySelectorAll(".crs-mod-tab");
+      for (var i = 0; i < tabs.length; i++) {
+        var isActive = i === selectedIndex;
+        tabs[i].classList.toggle("is-active", isActive);
+        tabs[i].setAttribute("aria-selected", String(isActive));
       }
     }
-
     showModulePanel(selectedIndex);
   }
 
-  // render one module's header and lesson list into the panel
+  // Render one module's header and item list into the panel.
   function showModulePanel(moduleIndex) {
-    var panelContainer = document.getElementById("modulePanel");
-    if (!panelContainer) return;
+    var panelEl = document.getElementById("modulePanel");
+    if (!panelEl) { return; }
 
     var module = pageState.course.modules[moduleIndex];
-    if (!module) return;
+    if (!module) { return; }
 
-    panelContainer.innerHTML = "";
+    panelEl.innerHTML = "";
 
-    var completedInModule = countCompletedItemsInModule(module);
-    var totalInModule = module.items.length;
-    var allDone = completedInModule === totalInModule;
+    var done = countCompletedItemsInModule(module);
+    var total = module.items.length;
 
-    var headerElement = createElement("div", "crs-module-header");
-    var titleRowElement = createElement("div", "crs-module-title-row");
-
-    var titleElement = createElement("h3", "crs-module-title", module.title);
-    var progressClass = "crs-module-prog" + (allDone ? " is-done" : "");
-    var progressLabel = createElement("span", progressClass, completedInModule + "/" + totalInModule + " done");
-
-    titleRowElement.appendChild(titleElement);
-    titleRowElement.appendChild(progressLabel);
-    headerElement.appendChild(titleRowElement);
-
+    var header = createElement("div", "crs-module-header");
+    var titleRow = createElement("div", "crs-module-title-row");
+    titleRow.appendChild(createElement("h3", "crs-module-title", module.title));
+    titleRow.appendChild(createElement("span", "crs-module-prog" + (done === total ? " is-done" : ""), done + "/" + total + " done"));
+    header.appendChild(titleRow);
     if (module.description) {
-      var descriptionElement = createElement("p", "crs-module-desc", module.description);
-      headerElement.appendChild(descriptionElement);
+      header.appendChild(createElement("p", "crs-module-desc", module.description));
     }
+    panelEl.appendChild(header);
 
-    panelContainer.appendChild(headerElement);
-
-    var itemListElement = createElement("div", "crs-module-items");
-    var items = module.items;
-
-    for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
-      var lessonRow = buildLessonRow(items[itemIndex]);
-      itemListElement.appendChild(lessonRow);
-    }
-
-    panelContainer.appendChild(itemListElement);
+    var list = createElement("div", "crs-module-items");
+    module.items.forEach(function (item) { list.appendChild(buildLessonRow(item)); });
+    panelEl.appendChild(list);
   }
 
-  // build one lesson/quiz/sandbox/challenge row
+  // Build a single lesson, quiz, sandbox, or challenge row element.
   function buildLessonRow(item) {
     var isCompleted = isItemCompleted(item);
     var itemUrl = buildLessonUrl(item);
     var itemType = item.type || "learn";
 
-    var rowElement = createElement("div", "crs-lesson" + (isCompleted ? " is-completed" : ""));
+    var row = createElement("div", "crs-lesson" + (isCompleted ? " is-completed" : ""));
+    row.appendChild(buildItemIcon(item, isCompleted));
 
-    var iconWrap = buildItemIcon(item, isCompleted);
-    rowElement.appendChild(iconWrap);
+    var body = createElement("div", "crs-lesson-body");
+    body.appendChild(createElement("div", "crs-lesson-title", item.title));
+    body.appendChild(createElement("div", "crs-lesson-meta", item.xpReward ? (item.xpReward + " XP") : ""));
+    row.appendChild(body);
 
-    var bodyElement = createElement("div", "crs-lesson-body");
-    var titleElement = createElement("div", "crs-lesson-title", item.title);
-    var metaText = item.xpReward ? (item.xpReward + " XP") : "";
-    var metaElement = createElement("div", "crs-lesson-meta", metaText);
-    bodyElement.appendChild(titleElement);
-    bodyElement.appendChild(metaElement);
-    rowElement.appendChild(bodyElement);
+    var badge = createElement("span", "crs-lesson-type crs-type--" + itemType, TYPE_LABELS[itemType] || "Lesson");
+    badge.title = TYPE_TOOLTIPS[itemType] || "";
+    row.appendChild(badge);
 
-    var badgeElement = createElement("span", "crs-lesson-type crs-type--" + itemType, TYPE_LABELS[itemType] || "Lesson");
-    badgeElement.title = TYPE_TOOLTIPS[itemType] || "Read through this lesson";
-    rowElement.appendChild(badgeElement);
+    if (isCompleted) { row.appendChild(createIconElement("bi bi-check2-circle crs-done-tick")); }
 
-    if (isCompleted) {
-      rowElement.appendChild(createIconElement("bi bi-check2-circle crs-done-tick"));
-    }
+    // Arrow button links directly to the item URL.
+    var openBtn = createElement("a", "crs-open-btn");
+    openBtn.href = itemUrl;
+    openBtn.title = "Open lesson";
+    openBtn.setAttribute("aria-label", "Open " + item.title);
+    openBtn.appendChild(createIconElement("bi bi-arrow-right"));
+    openBtn.addEventListener("click", function (e) { e.stopPropagation(); });
+    row.appendChild(openBtn);
 
-    var openButtonElement = createElement("a", "crs-open-btn");
-    openButtonElement.href = itemUrl;
-    openButtonElement.title = "Open lesson";
-    openButtonElement.setAttribute("aria-label", "Open " + item.title);
-    openButtonElement.appendChild(createIconElement("bi bi-arrow-right"));
-    openButtonElement.addEventListener("click", function (event) {
-      event.stopPropagation();
-    });
-    rowElement.appendChild(openButtonElement);
-
-    (function (url) {
-      rowElement.addEventListener("click", function () {
-        window.location.href = url;
-      });
-    })(itemUrl);
-
-    return rowElement;
+    row.addEventListener("click", function () { window.location.href = itemUrl; });
+    return row;
   }
 
-  // return the right icon element for a lesson row
+  // Return the correct icon element for a lesson row.
+  // Completed items get a tick, others get the icon for their type.
   function buildItemIcon(item, isCompleted) {
     var itemType = item.type || "learn";
-
     if (isCompleted) {
-      var doneWrap = createElement("div", "crs-ico crs-ico--done");
-      doneWrap.appendChild(createIconElement("bi bi-check2-circle"));
-      return doneWrap;
+      var done = createElement("div", "crs-ico crs-ico--done");
+      done.appendChild(createIconElement("bi bi-check2-circle"));
+      return done;
     }
-
-    var iconClass = TYPE_ICONS[itemType] || TYPE_ICONS.learn;
     var wrap = createElement("div", "crs-ico crs-ico--" + itemType);
-    wrap.appendChild(createIconElement("bi " + iconClass));
+    wrap.appendChild(createIconElement("bi " + (TYPE_ICONS[itemType] || TYPE_ICONS.learn)));
     return wrap;
   }
 
-  // main entry point, runs when the page loads
+  // Main entry point — reads the course ID from the URL, loads data, then renders.
   async function initialiseCoursePage() {
-    var urlParams = new URLSearchParams(window.location.search);
-    pageState.courseId = urlParams.get("id") || urlParams.get("course") || urlParams.get("course_id") || "1";
+    var params = new URLSearchParams(window.location.search);
+    pageState.courseId = params.get("id") || params.get("course") || params.get("course_id") || "1";
 
     var savedUser = readSavedUserFromLocalStorage();
     pageState.user = savedUser;
@@ -839,12 +718,12 @@
       console.warn("Could not load course data for id:", pageState.courseId);
     }
 
-    var freshUserData = await fetchFreshUserDataFromServer();
-    pageState.user = freshUserData;
+    var freshUser = await fetchFreshUserDataFromServer();
+    pageState.user = freshUser;
 
-    if (freshUserData) {
-      window.NetologyNav.displayNavUser(freshUserData);
-      calculateUserStats(freshUserData);
+    if (freshUser) {
+      window.NetologyNav.displayNavUser(freshUser);
+      calculateUserStats(freshUser);
     }
 
     await loadCompletionStatusFromServer();
@@ -854,17 +733,16 @@
 
     document.body.classList.remove("net-loading");
 
-    var tourUser = freshUserData || pageState.user;
+    var tourUser = freshUser || pageState.user;
     if (tourUser && tourUser.email && typeof window.maybeStartOnboardingTour === "function") {
       window.maybeStartOnboardingTour("course", tourUser.email);
     }
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () {
-      initialiseCoursePage();
-    }, { once: true });
+    document.addEventListener("DOMContentLoaded", function () { initialiseCoursePage(); }, { once: true });
   } else {
     initialiseCoursePage();
   }
-})();
+
+}());

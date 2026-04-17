@@ -1,5 +1,21 @@
-// sandbox-ui.js — All the rendering, event binding, and UI logic for the Netology network sandbox.
-// Student: C22320301 - Jamie O'Neill
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+sandbox-ui.js - Sandbox Rendering and Interaction
+---
+This file draws the sandbox on the page and handles the user-facing
+part of the app. It builds the device layer, connections, labels,
+property panels, console output, toolbars, tabs, minimap, drag and drop,
+keyboard shortcuts, and the other page interactions the user sees.
+
+It stays separate from sandbox-core.js because the core file holds the
+shared state, network rules, and utility helpers. It also stays separate
+from sandbox-app.js because that file handles lesson flow, objectives,
+templates, auto-save, and the page-level setup.
+ */
 
 "use strict";
 
@@ -1095,8 +1111,8 @@ function finishTopologyChange(options) {
   if (options && options.refreshTutorial && typeof notifyTutorialProgress === "function") {
     notifyTutorialProgress();
   }
-  if (typeof markDirtyAndSaveSoon === "function") {
-    markDirtyAndSaveSoon();
+  if (typeof requestAutoSave === "function") {
+    requestAutoSave();
   }
 }
 

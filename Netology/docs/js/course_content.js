@@ -1,22 +1,35 @@
-// ============================================================
-// course_content.js — Netology Course Data
-// One source of truth for all course curriculum.
-//
-// Structure per course:
-//   COURSE_CONTENT["1"] = {
-//     id, title, description, difficulty, required_level,
-//     estimatedTime, xpReward, category,
-//     units: [
-//       {
-//         title, about,
-//         lessons:   [ { title, blocks, objectives } ],
-//         quiz:      { title, xp, questions }  | undefined,
-//         sandbox:   { title, xp, steps, tips } | undefined,
-//         challenge: { title, xp, rules, steps, tips } | undefined
-//       }
-//     ]
-//   }
-// ============================================================
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+course_content.js - All Course Curriculum Data
+---
+This file is the single source of truth for every course in Netology.
+All 9 courses are defined here as a plain JavaScript object (COURSE_CONTENT)
+keyed by course ID. No data is fetched from the database for this, it all
+lives here and is loaded by course.js, lesson.js, and quiz.js.
+
+Structure per course:
+COURSE_CONTENT["1"] = {
+id, title, description, difficulty, required_level,
+estimatedTime, xpReward, category,
+    units: [
+       {
+         title, about,
+         lessons:   [ { title, blocks, objectives } ],
+         quiz:      { title, xp, questions }  | undefined,
+         sandbox:   { title, xp, steps, tips } | undefined,
+         challenge: { title, xp, rules, steps, tips } | undefined
+       }
+     ]
+   }
+
+Each course contains: id, title, description, difficulty, required_level,
+estimatedTime, xpReward, category, and a list of units. Each unit has
+lessons, and optionally a quiz, sandbox activity, and challenge.
+*/
 
 const COURSE_CONTENT = {
   "1": {
@@ -53,7 +66,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why protocols matter"
+                title: "Explain: Why protocols matter",
+                content: [
+                  "Protocols are shared rules that let different devices communicate reliably. Without them, a Windows laptop and a Linux server would have no common language for formatting or understanding messages.",
+                  "Protocols like TCP/IP, Ethernet, and DNS define exactly how data is packaged, addressed, and delivered — ensuring every device on the network follows the same steps.",
+                  "When a protocol is missing or misconfigured, communication fails silently. Identifying which protocol is involved is always the first step in diagnosing a networking problem."
+                ]
               },
               {
                 type: "check",
@@ -94,7 +112,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why WANs feel slower"
+                title: "Explain: Why WANs feel slower",
+                content: [
+                  "WANs carry traffic across long distances through multiple provider devices, adding latency at every hop. Unlike a LAN where you control every link, WAN bandwidth is shared with other customers.",
+                  "Congestion, physical distance, and the overhead of encryption all contribute to higher round-trip times. A packet crossing continents might pass through 15 or more routers before arriving.",
+                  "This is why latency-sensitive applications like VoIP and video conferencing need quality-of-service policies that prioritise their traffic on WAN links."
+                ]
               },
               {
                 type: "check",
@@ -134,7 +157,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: What happens when DNS fails"
+                title: "Explain: What happens when DNS fails",
+                content: [
+                  "DNS translates names like example.com into IP addresses. When DNS fails, devices can still reach IPs directly — but any service referred to by name becomes unreachable.",
+                  "Users see browser errors like 'server not found' even though the network and the server itself are working normally. This is one of the most confusing failures to diagnose.",
+                  "Quick test: if you can ping 8.8.8.8 but not google.com, DNS is the problem. Check that your DNS server address is correct and the DNS server is reachable."
+                ]
               },
               {
                 type: "check",
@@ -187,7 +215,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why broadcasts are limited"
+                title: "Explain: Why broadcasts are limited",
+                content: [
+                  "Broadcasts reach every device in a domain and must be processed by each one, consuming CPU on devices that have nothing to do with the message.",
+                  "In large networks, ARP, DHCP, and discovery broadcasts can create enough traffic to visibly slow devices. This is called a broadcast storm when it spirals out of control.",
+                  "Routers block broadcasts at each interface, which is why they are used to separate large networks into smaller, manageable broadcast domains."
+                ]
               },
               {
                 type: "check",
@@ -460,7 +493,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why routers are boundaries"
+                title: "Explain: Why routers are boundaries",
+                content: [
+                  "Routers forward packets based on IP addresses and only pass traffic that has a known route. They do not forward broadcasts, so each router interface creates a separate broadcast domain.",
+                  "This boundary keeps local network noise contained and forces all inter-network traffic to be explicitly routed — giving you control over what flows between segments.",
+                  "If local traffic works but Internet access fails, the gateway router is the first place to check. The router is the boundary between your network and everything beyond it."
+                ]
               },
               {
                 type: "check",
@@ -513,7 +551,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why MAC addresses stay local"
+                title: "Explain: Why MAC addresses stay local",
+                content: [
+                  "MAC addresses are only used within a single network segment. When a frame crosses a router, the router strips the old MAC header and creates a new one using its own MAC as the source.",
+                  "The original MAC address never travels beyond the local LAN. This is why MAC-based filtering and switching only work within one broadcast domain.",
+                  "IP addresses carry traffic end-to-end across networks; MACs carry frames hop-by-hop within each segment. Understanding this separation is key to troubleshooting Layer 2 vs Layer 3 problems."
+                ]
               },
               {
                 type: "check",
@@ -553,7 +596,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why routers block broadcasts"
+                title: "Explain: Why routers block broadcasts",
+                content: [
+                  "ARP and DHCP use broadcasts because they do not yet know the destination address — they need to shout to every device on the LAN to find it.",
+                  "If routers forwarded broadcasts, a single host could flood every device on every network in the world. Routers intentionally drop broadcast frames at each interface.",
+                  "This is what makes subnetting and VLAN segmentation effective — by placing a router boundary between segments, you prevent broadcast traffic from spreading and limit the scope of discovery protocols."
+                ]
               },
               {
                 type: "check",
@@ -606,7 +654,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: What happens during reconvergence"
+                title: "Explain: What happens during reconvergence",
+                content: [
+                  "When STP detects a topology change such as a link failure, it recalculates the shortest path to the root bridge for every switch in the network.",
+                  "Ports that were previously blocked may transition to forwarding state while others become blocked to maintain the loop-free topology.",
+                  "During reconvergence, traffic may be briefly disrupted until all switches agree on the new topology. Rapid STP (RSTP) reduces this disruption from 30+ seconds to under a second in most cases."
+                ]
               },
               {
                 type: "check",
@@ -780,15 +833,8 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Run 'show mac Switch-1' in the console — the switch has learned a MAC for each connected PC.",
-              hint: "Switches record the source MAC of every frame they receive, along with which port it came from.",
-              checks: [
-                { type: "min_connections", count: 2 }
-              ]
-            },
-            {
-              text: "Add the third PC and connect it to the switch — unknown destinations are flooded to all ports until learned.",
-              hint: "If the switch doesn't know which port a MAC lives on, it sends the frame out every port.",
+              text: "Connect the third PC to the switch.",
+              hint: "If the switch doesn't know which port a MAC lives on, it sends the frame out every port until it learns the MAC.",
               checks: [
                 { type: "connection", from: "pc", to: "switch", count: 3 }
               ]
@@ -837,7 +883,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why private IPs exist"
+                title: "Explain: Why private IPs exist",
+                content: [
+                  "IPv4 only has about 4.3 billion addresses — not enough for every device in the world to have a unique public address. Private IP ranges allow organisations to reuse the same address space internally without conflicting on the Internet.",
+                  "The three private ranges (10.x, 172.16–31.x, 192.168.x) are reserved by RFC 1918 and are never routed on the public Internet.",
+                  "NAT on the edge router translates these private addresses to a single shared public IP when sending traffic out, and maps replies back to the correct internal device."
+                ]
               },
               {
                 type: "check",
@@ -877,7 +928,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Symptoms of a wrong mask"
+                title: "Explain: Symptoms of a wrong mask",
+                content: [
+                  "A wrong subnet mask causes the device to misidentify which addresses are local and which require routing.",
+                  "A mask that is too small makes the device think remote hosts are local, so it sends ARP requests instead of routing — and gets no reply. A mask that is too large makes local hosts look remote, so all traffic goes to the gateway unnecessarily.",
+                  "Symptom: a host can reach some devices on the LAN but not others, or can reach local devices but not the Internet, despite a correct gateway setting."
+                ]
               },
               {
                 type: "check",
@@ -930,7 +986,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Overlapping subnets"
+                title: "Explain: Overlapping subnets",
+                content: [
+                  "Overlapping subnets occur when two different network segments use IP ranges that include the same addresses. Routers cannot decide which interface to use when the same destination appears in two routing entries.",
+                  "The result is unpredictable routing — packets may reach the wrong segment, loop, or be dropped entirely. Connectivity works for some hosts and fails for others with no obvious reason.",
+                  "Always document your address plan and check for overlaps before adding new sites or VLANs. Tools like an IP address management (IPAM) spreadsheet make this easy."
+                ]
               },
               {
                 type: "check",
@@ -970,7 +1031,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Symptoms when DHCP fails"
+                title: "Explain: Symptoms when DHCP fails",
+                content: [
+                  "When DHCP fails, Windows and macOS devices fall back to APIPA (Automatic Private IP Addressing) and self-assign a 169.254.x.x address.",
+                  "Devices with APIPA addresses can communicate with other APIPA hosts on the same LAN but cannot reach gateways, DNS, or the Internet.",
+                  "The symptom is complete network-level failure despite the physical link being up and healthy. Check if the DHCP server is running and reachable, and verify the DHCP pool has available addresses."
+                ]
               },
               {
                 type: "check",
@@ -1256,7 +1322,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: MAC address learning in detail"
+                title: "Explain: MAC address learning in detail",
+                content: [
+                  "Every time a switch receives a frame, it reads the source MAC address and records which port it arrived on. This source-MAC-to-port mapping is stored in the MAC address table.",
+                  "If a destination MAC is not yet in the table, the switch floods the frame to all ports except the one it arrived on — until a reply reveals the correct port.",
+                  "MAC table entries age out after a timeout (typically 300 seconds). When a device moves to a different port, the switch learns the new location and updates its table automatically."
+                ]
               },
               {
                 type: "check",
@@ -1295,7 +1366,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why loops are dangerous"
+                title: "Explain: Why loops are dangerous",
+                content: [
+                  "In a switched network with no loop prevention, a broadcast frame is duplicated on every cycle of the loop. Each switch forwards it again, creating exponentially more copies within milliseconds.",
+                  "This broadcast storm consumes all available bandwidth and causes MAC table instability — the same MAC address appears on multiple ports simultaneously, causing the switch to constantly update and flush entries.",
+                  "The entire LAN typically becomes unresponsive within seconds. STP prevents this by blocking redundant paths before they can form a loop."
+                ]
               },
               {
                 type: "check",
@@ -1399,21 +1475,24 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Open the switch config panel — the MAC table shows which MAC address was learned on each port.",
-              hint: "Select the switch and click the gear icon to open its config. Look at the MAC table tab.",
+              text: "Set an IP address on each PC.",
+              hint: "Each PC that communicates writes its source MAC into the switch's MAC table as it sends frames.",
               checks: [
                 {
-                  type: "min_connections",
+                  type: "ip",
+                  deviceType: "pc",
                   count: 2
                 }
               ]
             },
             {
-              text: "When a PC sends a frame the switch records its MAC address and the port it arrived on. This is how switches learn the network.",
-              hint: "Try running 'show mac Switch-1' in the console to see the MAC table entries.",
+              text: "Rename one PC to 'PC-A' and the other to 'PC-B' to label each host.",
+              hint: "Run 'show mac Switch-1' in the console to see the MAC table — each entry maps a MAC address to a port.",
               checks: [
                 {
-                  type: "min_connections",
+                  type: "name_contains",
+                  deviceType: "pc",
+                  contains: "PC-",
                   count: 2
                 }
               ]
@@ -1472,7 +1551,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why classful addressing is obsolete"
+                title: "Explain: Why classful addressing is obsolete",
+                content: [
+                  "Class-based addressing forced networks into fixed sizes: Class A gave millions of host addresses, Class B gave 65,534, and Class C gave 254. There was no in-between.",
+                  "A company needing 500 hosts had to take a full Class B block with 65,534 addresses — wasting over 65,000 of them. This rapidly exhausted the global IPv4 pool.",
+                  "CIDR replaced classes with flexible prefix lengths, allowing any organisation to take precisely the number of addresses they need, such as a /23 for 510 hosts."
+                ]
               },
               {
                 type: "check",
@@ -1510,7 +1594,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: How NAT works step by step"
+                title: "Explain: How NAT works step by step",
+                content: [
+                  "When a private host sends a packet to the Internet, the router intercepts it and replaces the private source IP with its own public IP, recording the mapping in a translation table.",
+                  "The remote server replies to the public IP, and the router looks up the translation table to find the correct private host to forward the reply to.",
+                  "The private host never needs to know its public IP — the router handles all translation transparently. This allows many internal devices to share a single public address."
+                ]
               },
               {
                 type: "check",
@@ -1704,7 +1793,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Broadcast domains and subnets"
+                title: "Explain: Broadcast domains and subnets",
+                content: [
+                  "A broadcast domain is the set of all devices that receive a broadcast frame. Routers separate broadcast domains — every router interface starts a new one.",
+                  "Subnetting aligns these logical boundaries with IP address ranges. Each subnet has its own broadcast domain, its own address space, and its own gateway for off-subnet traffic.",
+                  "Smaller broadcast domains mean fewer devices processing each broadcast, which reduces noise and makes it easier to isolate problems to one segment."
+                ]
               },
               {
                 type: "check",
@@ -1744,7 +1838,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Block size formula"
+                title: "Explain: Block size formula",
+                content: [
+                  "The block size of a subnet tells you how many addresses it contains and where the next subnet starts. Calculate it as 2 raised to the power of (32 minus the prefix length).",
+                  "For a /26: 2^(32-26) = 2^6 = 64 addresses per subnet. Subnets start at boundaries that are multiples of 64: .0, .64, .128, .192.",
+                  "Knowing the block size lets you quickly find the network address, the valid host range, and the broadcast address for any subnet without memorising tables."
+                ]
               },
               {
                 type: "check",
@@ -1784,7 +1883,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Why ordering matters"
+                title: "Key Concept: Why ordering matters",
+                content: [
+                  "When planning VLSM, always allocate the largest subnet first. If you start with small subnets, you may run out of contiguous space for the larger ones.",
+                  "Starting large-to-small keeps address space clean, avoids fragmentation, and leaves room to grow without renumbering.",
+                  "Example: allocate a /23 for 400 staff hosts first, then carve out /25s for labs, and finally /28s for printers and IoT devices — never the other way around."
+                ]
               },
               {
                 type: "check",
@@ -1823,7 +1927,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Usable addresses"
+                title: "Key Concept: Usable addresses",
+                content: [
+                  "Every subnet loses two addresses that cannot be assigned to hosts. The first is the network address (identifies the subnet itself) and the last is the broadcast address (reaches all hosts in the subnet).",
+                  "For a /26 with 64 total addresses, you have 62 usable host addresses: .1 through .62 when the network starts at .0.",
+                  "Always subtract 2 from the block size to get the usable host count. Trying to assign the network or broadcast address to a host is one of the most common configuration mistakes."
+                ]
               },
               {
                 type: "check",
@@ -2039,7 +2148,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: VLANs as virtual switches"
+                title: "Key Concept: VLANs as virtual switches",
+                content: [
+                  "A VLAN makes one physical switch behave like multiple separate switches. Devices in the same VLAN communicate as if they share a dedicated switch, completely isolated from other VLANs.",
+                  "The hardware is shared, but each VLAN has its own broadcast domain and its own security boundary. Devices in different VLANs cannot talk to each other without going through a router.",
+                  "This lets you segment staff, guests, and IoT devices on the same physical infrastructure while keeping their traffic completely separate."
+                ]
               },
               {
                 type: "check",
@@ -2077,7 +2191,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Management VLANs"
+                title: "Key Concept: Management VLANs",
+                content: [
+                  "A management VLAN carries traffic used to administer network devices — SSH sessions, SNMP polling, and web-based configuration interfaces.",
+                  "Separating management traffic from user traffic means a compromised workstation on the user network cannot directly reach device login pages.",
+                  "Access to the management VLAN should be tightly restricted to named admin hosts or a dedicated jump server, with all other access blocked by firewall or ACL rules."
+                ]
               },
               {
                 type: "check",
@@ -2116,7 +2235,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Allowed VLAN lists"
+                title: "Key Concept: Allowed VLAN lists",
+                content: [
+                  "On a trunk, you can specify exactly which VLANs are permitted to cross the link. If VLAN 30 is not in the allowed list, frames tagged with VLAN 30 are dropped at the trunk.",
+                  "By default, some platforms allow all VLANs on a trunk. Explicitly limiting the allowed list means a misconfigured device in a new VLAN cannot accidentally reach a sensitive segment.",
+                  "Allowed VLAN lists are a simple but effective control — document which VLANs each trunk carries and why, so future changes can be made safely."
+                ]
               },
               {
                 type: "check",
@@ -2154,7 +2278,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Common mistakes"
+                title: "Key Concept: Common mistakes",
+                content: [
+                  "The most common trunk mistake is connecting an end device to a trunk port instead of an access port. The device receives 802.1Q-tagged frames it cannot understand and usually fails DHCP.",
+                  "Native VLAN mismatch is another frequent issue — if Switch A uses VLAN 1 as native and Switch B uses VLAN 99, untagged traffic lands in the wrong VLAN on one side.",
+                  "Always confirm port mode (access vs trunk) and native VLAN settings match on both ends of every trunk link before troubleshooting connectivity."
+                ]
               },
               {
                 type: "check",
@@ -2320,7 +2449,8 @@ const COURSE_CONTENT = {
               text: "Rename two PCs to include 'VLAN10' and two PCs to include 'VLAN20' to model segmentation.",
               hint: "Click a PC, open its config panel, and update the Device Name field.",
               checks: [
-                { type: "name_contains", deviceType: "pc", contains: "VLAN", count: 2 }
+                { type: "name_contains", deviceType: "pc", contains: "VLAN10", count: 2 },
+                { type: "name_contains", deviceType: "pc", contains: "VLAN20", count: 2 }
               ]
             }
           ],
@@ -2367,7 +2497,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Bottleneck risk"
+                title: "Key Concept: Bottleneck risk",
+                content: [
+                  "In a router-on-a-stick design, all inter-VLAN traffic must pass through the single physical link between the switch and the router, no matter how many VLANs are in use.",
+                  "If many users in different VLANs are communicating simultaneously — for example, VLAN 10 staff accessing VLAN 20 servers — this single link becomes a throughput bottleneck.",
+                  "Monitor utilisation on this interface. If it regularly runs above 60–70%, consider upgrading to a Layer 3 switch with SVIs that routes inter-VLAN traffic internally at hardware speed."
+                ]
               },
               {
                 type: "check",
@@ -2405,7 +2540,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Enabling IP routing"
+                title: "Key Concept: Enabling IP routing",
+                content: [
+                  "A Layer 3 switch can route between VLANs using Switch Virtual Interfaces, but only if IP routing is enabled on the device.",
+                  "Without the 'ip routing' command, SVIs can have IP addresses but the switch treats them as local addresses only — it will not forward packets from one VLAN to another.",
+                  "Enable IP routing in global configuration to activate inter-VLAN routing through SVIs. This single command is the most commonly missed step when setting up a multilayer switch."
+                ]
               },
               {
                 type: "check",
@@ -2443,7 +2583,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Choosing the right pattern"
+                title: "Key Concept: Choosing the right pattern",
+                content: [
+                  "Router-on-a-stick suits small networks: it is cheap and easy to configure, but that single physical link is a bottleneck and single point of failure.",
+                  "A Layer 3 switch with SVIs routes inter-VLAN traffic internally at hardware speed and is the right choice when throughput or redundancy matter more than cost.",
+                  "The decision usually comes down to budget and scale — choose router-on-a-stick for branch offices with light traffic, and Layer 3 switching for campus cores or anywhere more than two or three VLANs compete for bandwidth."
+                ]
               },
               {
                 type: "check",
@@ -2482,7 +2627,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: First test"
+                title: "Key Concept: First test",
+                content: [
+                  "When inter-VLAN routing breaks, always ping the default gateway from a host first — this tests whether the host can reach its own SVI or subinterface.",
+                  "If the gateway ping fails, the problem is local: wrong VLAN assignment, missing SVI IP, or the port is not a trunk. Fix the near side before looking further.",
+                  "Only move on to testing cross-VLAN reachability once you have confirmed each host can reach its own gateway. Jumping straight to end-to-end tests wastes time and masks the real fault."
+                ]
               },
               {
                 type: "check",
@@ -2708,7 +2858,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: When to use static routes"
+                title: "Explain: When to use static routes",
+                content: [
+                  "Static routes are the right choice when the destination never changes and there is only one path to it — for example, a default route pointing to your single ISP router.",
+                  "They are also useful for small stub networks (one or two routers) where the operational overhead of running a dynamic protocol outweighs the benefit of automatic failover.",
+                  "Avoid static routes in any network with redundant paths or where links fail regularly. A static route pointing to a dead link will silently blackhole traffic until an administrator intervenes."
+                ]
               },
               {
                 type: "check",
@@ -2746,7 +2901,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: OSPF areas"
+                title: "Explain: OSPF areas",
+                content: [
+                  "OSPF uses areas to limit the size of the link-state database. All routers inside an area share identical topology information, but routers in different areas only exchange summary routes.",
+                  "Area 0 is the backbone. Every other area must connect to Area 0, either directly or through a virtual link. Routers that sit on the border between areas are called Area Border Routers (ABRs).",
+                  "Splitting a large network into areas reduces memory use, speeds up SPF calculations, and contains the impact of a topology change — a link failure in Area 1 triggers a recalculation only inside Area 1, not everywhere."
+                ]
               },
               {
                 type: "check",
@@ -2838,7 +2998,9 @@ const COURSE_CONTENT = {
               text: "Add two routers (name them R1 and R2) and one PC to the canvas.",
               checks: [
                 { type: "device", deviceType: "router", count: 2 },
-                { type: "device", deviceType: "pc", count: 1 }
+                { type: "device", deviceType: "pc", count: 1 },
+                { type: "name_contains", deviceType: "router", contains: "R1", count: 1 },
+                { type: "name_contains", deviceType: "router", contains: "R2", count: 1 }
               ]
             },
             {
@@ -2918,7 +3080,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: 2.4 GHz vs 5 GHz"
+                title: "Explain: 2.4 GHz vs 5 GHz",
+                content: [
+                  "The 2.4 GHz band propagates further and penetrates walls better, making it useful for large areas or devices far from the access point. The trade-off is congestion — microwaves, baby monitors, and most older devices all compete on the same band.",
+                  "The 5 GHz band offers much higher speeds and far less interference because it has more non-overlapping channels. However, its shorter range and weaker wall penetration mean it works best when the client is close to the access point.",
+                  "In practice, dual-band deployments push bandwidth-hungry devices like laptops and streaming boxes to 5 GHz, while IoT sensors and distant devices stay on 2.4 GHz. Wi-Fi 6E adds a third 6 GHz band for even more clean spectrum in dense environments."
+                ]
               },
               {
                 type: "check",
@@ -2956,7 +3123,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: The DORA process"
+                title: "Explain: The DORA process",
+                content: [
+                  "DORA is the four-step handshake between a DHCP client and server. The client broadcasts a Discover message asking if any DHCP server is available. Any reachable server replies with an Offer, proposing an IP address and lease parameters.",
+                  "The client broadcasts a Request to accept one of the offers (there could be multiple servers). The chosen server sends an Acknowledge confirming the lease. The client can now use the IP address for the duration of the lease.",
+                  "When the lease reaches 50% of its lifetime, the client tries to renew directly with the same server. If that fails at 87.5%, it broadcasts a new Request to any server. If no renewal arrives before expiry, the client stops using the IP and restarts the full DORA process."
+                ]
               },
               {
                 type: "check",
@@ -3131,7 +3303,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Staying small"
+                title: "Key Concept: Staying small",
+                content: [
+                  "Every running service, open port, and active user account is a potential entry point. The attack surface is the total set of all these exposure points — the smaller it is, the harder the network is to compromise.",
+                  "Practical steps to stay small: disable any service not actively needed, close ports at the firewall and on the host, remove default accounts and credentials, and revoke access the moment someone no longer needs it.",
+                  "Attack surface creep is common — services get enabled for a test and never removed, accounts accumulate, and ports get opened for one incident and never closed. Regular audits and configuration reviews are the only reliable way to keep exposure from growing back over time."
+                ]
               },
               {
                 type: "check",
@@ -3170,7 +3347,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Risk prioritization"
+                title: "Key Concept: Risk prioritization",
+                content: [
+                  "Not every threat deserves equal attention. Risk = likelihood × impact. A vulnerability that is easy to exploit and targets your most critical system is a higher priority than a theoretical attack against a low-value asset.",
+                  "Start by identifying your crown jewels — the assets whose compromise would hurt the business most. Map the realistic paths an attacker could use to reach them and concentrate controls on those paths.",
+                  "Threat modeling outputs a prioritized list: fix the high-likelihood, high-impact items first, schedule medium-risk items into normal change cycles, and document low-risk items so they are not forgotten. Re-evaluate after significant changes or incidents."
+                ]
               },
               {
                 type: "check",
@@ -3209,7 +3391,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Management plane"
+                title: "Key Concept: Management plane",
+                content: [
+                  "Every network device has three functional planes: the data plane (forwarding user traffic), the control plane (running routing and switching protocols), and the management plane (SSH, HTTPS, SNMP, and console access for configuration).",
+                  "The management plane is high-value: compromising it gives an attacker full control over the device. Harden it by placing management interfaces in a dedicated VLAN or out-of-band network, and restrict access to known administrator subnets only.",
+                  "Replace Telnet with SSH, enforce key-based authentication where possible, use SNMPv3 instead of community strings, and log every management session. These steps turn the management plane from the easiest way into the network into one of the hardest."
+                ]
               },
               {
                 type: "check",
@@ -3247,7 +3434,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Least privilege"
+                title: "Key Concept: Least privilege",
+                content: [
+                  "Least privilege means every user, service, and process gets only the permissions required to do its job — nothing more. An administrator configuring VLANs does not need access to the billing database; a monitoring tool does not need write access to device configs.",
+                  "The value is in blast radius reduction: if an account is compromised, the attacker can only do what that account was permitted to do. An account with minimal rights severely limits lateral movement and the damage that can be done before the breach is detected.",
+                  "Implement least privilege through role-based access control (RBAC), review permissions after role changes or staff departures, and audit privilege assignments regularly. It is one of the most effective and lowest-cost security controls available."
+                ]
               },
               {
                 type: "check",
@@ -3466,7 +3658,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Why stateful is simpler"
+                title: "Key Concept: Why stateful is simpler",
+                content: [
+                  "A stateful firewall remembers every connection it has allowed. When a web server sends a response back to a client, the firewall recognises the packet as part of an established session and lets it through automatically — no explicit inbound rule needed.",
+                  "A stateless firewall has no memory. To allow return traffic for outbound web browsing, you need an extra inbound rule permitting high-port TCP traffic from the Internet. That rule is broad and creates risk; stateful inspection removes the need for it.",
+                  "The result is that stateful rulesets are smaller, easier to audit, and less likely to accidentally permit unwanted traffic. The cost is memory for the state table and some overhead on the CPU, but for most networks this trade-off is well worth it."
+                ]
               },
               {
                 type: "check",
@@ -3504,7 +3701,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Documentation"
+                title: "Key Concept: Documentation",
+                content: [
+                  "Every ACL rule should have a comment or ticket reference explaining why it exists and who requested it. Without documentation, no one knows whether a rule is still needed — and removing it without understanding its purpose can cause an outage.",
+                  "Good documentation also makes audits faster: instead of reverse-engineering intent from IP ranges and port numbers, reviewers can see at a glance that 'Rule 42 permits HTTPS from the finance VLAN to the payment gateway — requested by finance team, annual review due March'.",
+                  "Document rule owners and expiry dates at creation time, not later. Rules added in an emergency rarely get documented retroactively. Treat undocumented rules as suspect: review and document them in the next change window, or remove them if no one can justify them."
+                ]
               },
               {
                 type: "check",
@@ -3542,7 +3744,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Clean-up"
+                title: "Key Concept: Clean-up",
+                content: [
+                  "Firewall rule sets grow over time and rarely shrink. Every change adds rules; almost no one removes them. The result is a policy with hundreds of rules, many of which no longer match any real traffic.",
+                  "Unused rules are a liability: they increase policy complexity, slow down audits, and occasionally permit traffic that would be blocked by a cleaner policy. Check rule hit counters regularly — any rule with zero hits over six months is a candidate for removal.",
+                  "Before removing any rule, confirm with the owner that the service it covered is decommissioned. If no owner can be found, add a logging-only rule in its place for 30 days to check whether traffic appears, then remove it. Regular clean-up keeps the policy small, trustworthy, and fast to review."
+                ]
               },
               {
                 type: "check",
@@ -3581,7 +3788,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Testing safely"
+                title: "Key Concept: Testing safely",
+                content: [
+                  "ACL changes can silently break connectivity if rules shadow each other or an early broad deny overrides a later specific permit. Always test in a non-production environment or during a maintenance window with a rollback plan ready.",
+                  "Enable logging on new rules before deploying them to production. Watch the counters for the first few hours to confirm traffic is matching as intended and no unexpected traffic is being blocked.",
+                  "Use the platform's packet-tracer or ACL simulation tools if available — these let you inject a hypothetical packet and trace exactly which rule would match it, without sending real traffic. Catching a mistake before deployment costs minutes; fixing it after an outage costs hours."
+                ]
               },
               {
                 type: "check",
@@ -3785,7 +3997,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Time sync"
+                title: "Key Concept: Time sync",
+                content: [
+                  "Security investigations depend on correlating events across multiple systems — firewall logs, server logs, DNS queries, and authentication records. If each device keeps its own slightly different clock, events that happened simultaneously appear minutes apart, making the timeline impossible to reconstruct.",
+                  "NTP (Network Time Protocol) synchronises all devices to a common time source, typically a public stratum-2 server or an internal NTP hierarchy. Without it, a brute-force attack that takes 90 seconds can look like a two-hour event spread across two log files.",
+                  "Set NTP on every device you care about — routers, switches, firewalls, servers, and SIEMs — and verify it is working as part of your standard build checklist. Use authenticated NTP where possible to prevent an attacker from manipulating timestamps to obscure their activity."
+                ]
               },
               {
                 type: "check",
@@ -3823,7 +4040,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Post-incident review"
+                title: "Key Concept: Post-incident review",
+                content: [
+                  "A post-incident review (PIR), sometimes called a post-mortem, is a structured meeting held within a few days of an incident closing. Its goal is to understand what happened, why controls failed or were bypassed, and what to change so the same incident does not happen again.",
+                  "A good PIR is blameless: it focuses on system and process failures, not individual mistakes. People make better decisions when the environment is designed well. Blame-focused reviews make engineers reluctant to report incidents honestly, which removes the data needed to improve.",
+                  "The output is a short list of concrete action items: patch a vulnerability, add an alert, update a playbook, or implement a new control. Assign each item an owner and deadline. A PIR with no action items is just a meeting. Track completion and report it to management so security improvements are visible."
+                ]
               },
               {
                 type: "check",
@@ -3861,7 +4083,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Why practice matters"
+                title: "Key Concept: Why practice matters",
+                content: [
+                  "Reading a playbook once does not prepare a team to execute it under pressure. During a real incident, stress is high, stakeholders are demanding updates, and people skip steps they have never practiced. Tabletop exercises and drills close this gap.",
+                  "Regular practice reveals hidden gaps: a playbook might call for accessing a jump host, but the on-call engineer never got the access credentials. A drill finds this in 10 minutes; an actual incident finds it at 2 a.m. on a Friday.",
+                  "Well-practiced teams also communicate better. They know who makes decisions, who handles external communications, and when to escalate. This coordination reduces mean time to respond and prevents conflicting actions — two engineers pushing contradictory changes during a live incident is a common cause of prolonged outages."
+                ]
               },
               {
                 type: "check",
@@ -3900,7 +4127,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Key Concept: Revisiting baselines"
+                title: "Key Concept: Revisiting baselines",
+                content: [
+                  "A baseline is only useful if it reflects actual normal behavior. After a major network change — adding a new application, migrating to the cloud, or onboarding a large number of new users — the old baseline will generate constant false-positive alerts and mask real anomalies.",
+                  "Planned changes are easy: update the baseline before or immediately after the change window. Unplanned shifts are harder to catch — seasonal traffic peaks, new software versions, or background services that start unexpectedly can all move normal behavior without anyone noticing.",
+                  "Build baseline review into your regular change process: any significant change should trigger a 2-week observation period and a baseline update. Also run a periodic review (monthly or quarterly) to catch gradual drift. Alert quality degrades silently when baselines go stale — re-validating them is one of the easiest ways to reduce alert fatigue."
+                ]
               },
               {
                 type: "check",
@@ -4118,7 +4350,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Why SD-WAN is growing"
+                title: "Explain: Why SD-WAN is growing",
+                content: [
+                  "Traditional WAN relied on expensive MPLS circuits that took weeks to provision and were sized for peak demand. As enterprises moved workloads to the cloud, traffic no longer travelled neatly between offices — it went directly to AWS, Azure, or SaaS applications, making the hub-and-spoke MPLS model inefficient.",
+                  "SD-WAN solves this by applying software-defined policies across multiple link types simultaneously: MPLS for latency-sensitive voice, broadband for bulk transfers, and LTE as a failover. The business controls routing by application priority, not just by destination IP.",
+                  "Cost reduction is the other driver. A 1 Gbps broadband circuit can cost a fraction of an equivalent MPLS link. SD-WAN lets organisations keep MPLS for critical traffic while offloading everything else to cheaper links, often cutting WAN costs by 30–60% while improving agility."
+                ]
               },
               {
                 type: "check",
@@ -4156,7 +4393,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: AS-PATH attribute"
+                title: "Explain: AS-PATH attribute",
+                content: [
+                  "Every time a BGP route crosses an Autonomous System boundary, that AS's number is prepended to the AS-PATH attribute. The result is a sequence of AS numbers showing the exact path a route has taken from its origin to the current router.",
+                  "BGP uses AS-PATH as both a loop-prevention mechanism and a route-selection criterion. If a router sees its own AS number in an incoming route's AS-PATH, it knows the route has already passed through and discards it, preventing routing loops.",
+                  "For route selection, a shorter AS-PATH is preferred — fewer hops generally means a more direct path. Network engineers can also use AS-PATH prepending to artificially lengthen a path and make it less preferred, which is a common technique for influencing inbound traffic from an upstream ISP."
+                ]
               },
               {
                 type: "check",
@@ -4261,7 +4503,8 @@ const COURSE_CONTENT = {
               text: "Rename the routers to include 'HQ' and 'Branch' to label the two sites.",
               hint: "SD-WAN policies route VoIP over the lower-latency link and bulk transfers over the cheaper link.",
               checks: [
-                { type: "name_contains", deviceType: "router", contains: "Router", count: 2 }
+                { type: "name_contains", deviceType: "router", contains: "HQ", count: 1 },
+                { type: "name_contains", deviceType: "router", contains: "Branch", count: 1 }
               ]
             },
             {
@@ -4304,7 +4547,8 @@ const COURSE_CONTENT = {
               text: "Rename the routers to include 'Edge' and 'ISP' to label each side of the BGP session.",
               hint: "The BGP state machine progresses: Idle → Connect → Active → OpenSent → OpenConfirm → Established.",
               checks: [
-                { type: "name_contains", deviceType: "router", contains: "Router", count: 2 }
+                { type: "name_contains", deviceType: "router", contains: "Edge", count: 1 },
+                { type: "name_contains", deviceType: "router", contains: "ISP", count: 1 }
               ]
             },
             {
@@ -4351,7 +4595,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: Infrastructure as Code"
+                title: "Explain: Infrastructure as Code",
+                content: [
+                  "Infrastructure as Code (IaC) means describing the desired state of your network in machine-readable files — YAML, JSON, or a domain-specific language — and using automation tools to apply those files to real devices. The network becomes a definition, not a set of manual steps.",
+                  "The key benefit is consistency: when a new switch is added, it is configured by running the same template that configures every other switch, not by an engineer typing commands from memory. This eliminates configuration drift, where devices accumulate small differences over time that are nearly impossible to audit manually.",
+                  "Version control is the other major gain. Config files live in Git, so every change has a commit message, a reviewer, and a rollback path. If a change breaks something, reverting is a single command. IaC transforms network changes from risky one-off events into reviewed, tested, repeatable deployments."
+                ]
               },
               {
                 type: "check",
@@ -4389,7 +4638,12 @@ const COURSE_CONTENT = {
               },
               {
                 type: "explain",
-                title: "Explain: SNMP versions"
+                title: "Explain: SNMP versions",
+                content: [
+                  "SNMPv1 and SNMPv2c use community strings — essentially plaintext passwords embedded in every packet. Anyone who can intercept traffic on the management network can read the community string and poll or even write to your devices.",
+                  "SNMPv3 fixes this by adding authentication (HMAC-MD5 or HMAC-SHA) and optional encryption (DES or AES). Instead of a community string, each user has credentials and a security level: noAuthNoPriv (no protection), authNoPriv (authentication only), or authPriv (authentication + encryption).",
+                  "Always use SNMPv3 with authPriv for any device that accepts write commands, and prefer it even for read-only monitoring. If you must use SNMPv2c (for compatibility with older NMS tools), restrict which hosts can query the device with an ACL, use a non-default community string, and never allow write access."
+                ]
               },
               {
                 type: "check",

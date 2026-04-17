@@ -1,5 +1,17 @@
-// progress.js — Progress page
-// Student: C22320301 Jamie O'Neill TU857/4
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+progress.js - Progress Page Script
+---
+This file handles the progress page for Netology.
+It loads the user's course progress, activity heatmap, achievements,
+and tab content so the page can show the learner's full history.
+
+It is used by Progress.html and keeps the progress view in one place.
+*/
 
 (function () {
   "use strict";
@@ -13,33 +25,39 @@
   var compCache = {};
   var dataReady = false;
 
-  // ── helpers ──────────────────────────────────────────────────────────────
-
+  // Read the signed-in user from localStorage.
   function readUser() {
-    try {
-      return JSON.parse(localStorage.getItem("netology_user") || localStorage.getItem("user") || "null");
-    } catch (e) {
-      return null;
-    }
+    return readJsonFromStorage("netology_user") || readJsonFromStorage("user");
   }
 
+  // Read a JSON value from localStorage safely.
   function readJsonFromStorage(key) {
     try {
-      return JSON.parse(localStorage.getItem(key) || "null");
+      return JSON.parse(localStorage.getItem(key));
     } catch (e) {
       return null;
     }
   }
 
-  function el(id) { return document.getElementById(id); }
+  // Get one page element by id.
+  function el(id) {
+    return document.getElementById(id);
+  }
 
+  // Set text content on one page element if it exists.
   function setText(id, val) {
     var node = el(id);
     if (node) node.textContent = String(val);
   }
 
+  // Build a backend URL from a route path.
+  function buildApiUrl(path) {
+    return API_BASE + path;
+  }
+
+  // Fetch JSON from the backend and return null on failure.
   function apiFetch(path, params) {
-    var url = API_BASE + path;
+    var url = buildApiUrl(path);
     if (params) {
       var query = Object.keys(params).map(function (key) {
         return encodeURIComponent(key) + "=" + encodeURIComponent(params[key]);
@@ -49,6 +67,7 @@
     return fetch(url).then(function (res) { return res.json(); }).catch(function () { return null; });
   }
 
+  // Animate a number up from zero to its final value.
   function animateCount(id, target) {
     var node = el(id);
     if (!node) return;
@@ -62,6 +81,7 @@
     })(performance.now());
   }
 
+  // Build the small difficulty badge shown on course cards.
   function diffBadge(diff) {
     var value = String(diff || "novice").toLowerCase();
     var classMap = {
@@ -73,6 +93,7 @@
     return '<span class="net-diffbadge ' + (classMap[value] || "net-badge-nov") + '">' + label + "</span>";
   }
 
+  // Split a list into in-progress and completed columns.
   function splitColumns(inProgressItems, completedItems, cardRenderer) {
     if (!inProgressItems.length && !completedItems.length) return "";
     return '<div class="net-progress-split">' +
@@ -81,6 +102,7 @@
       "</div>";
   }
 
+  // Render one column wrapper and fill it with cards.
   function columnHtml(title, items, iconClass, cardRenderer) {
     var html = '<div class="net-progress-col">' +
       '<div class="net-card p-3 mb-3 d-flex align-items-center justify-content-between">' +
@@ -100,6 +122,7 @@
     return html + "</div>";
   }
 
+  // Build the local course list from COURSE_CONTENT.
   function courseListFromContent() {
     var content = window.COURSE_CONTENT || {};
     return Object.keys(content).map(function (id) {
@@ -119,6 +142,7 @@
     });
   }
 
+  // Find one course in the cached course list.
   function findCourseById(courseId) {
     var cid = String(courseId);
     for (var index = 0; index < courseData.length; index++) {
@@ -129,6 +153,7 @@
     return null;
   }
 
+  // Add a list of numbers into a lookup object.
   function addNumbersToLookup(lookup, values) {
     var list = Array.isArray(values) ? values : [];
     for (var index = 0; index < list.length; index++) {
@@ -139,15 +164,13 @@
     }
   }
 
-  function lessonCompletionKey(unitIndex, lessonIndex) {
-    return ((Number(unitIndex) + 1) * 1000) + (Number(lessonIndex) + 1);
-  }
-
+  // Check whether one lesson has been completed.
   function isLessonDone(comp, unitIndex, lessonIndex) {
-    var key = String(lessonCompletionKey(unitIndex, lessonIndex));
+    var key = String(((Number(unitIndex) + 1) * 1000) + (Number(lessonIndex) + 1));
     return comp.lessons[key] === true;
   }
 
+  // Read saved sandbox progress for one course.
   function tutorialProgressMap(email, courseId) {
     var prefix = "netology_tutorial_progress:" + email + ":" + courseId + ":";
     var output = {};
@@ -166,6 +189,7 @@
     return output;
   }
 
+  // Count how many sandbox steps a unit has.
   function tutorialStepCount(course, unitIndex) {
     if (!course) return 0;
     var units = course.units || [];
@@ -175,6 +199,7 @@
     return steps.length;
   }
 
+  // Check whether a sandbox activity is finished.
   function isTutorialDone(record, totalSteps) {
     if (!record) return false;
     if (record.completed === true) return true;
@@ -182,8 +207,7 @@
     return totalSteps > 0 && checkedCount >= totalSteps;
   }
 
-  // ── hero stat cards ───────────────────────────────────────────────────────
-
+  // Load the summary stat cards at the top of the page.
   function loadHeroCards(email) {
     Promise.all([
       apiFetch((ENDPOINTS.courses && ENDPOINTS.courses.userProgressSummary) || "/user-progress-summary", { email: email }),
@@ -201,8 +225,7 @@
     });
   }
 
-  // ── activity heatmap ──────────────────────────────────────────────────────
-
+  // Load the activity heatmap for the last 12 weeks.
   function loadHeatmap(email) {
     apiFetch("/api/user/activity", { user_email: email, range: 84 }).then(function (data) {
       var activity = (data && data.activity) ? data.activity : [];
@@ -223,6 +246,7 @@
     });
   }
 
+  // Draw the calendar heatmap blocks.
   function renderHeatmap(byDate) {
     var wrap = el("activityHeatmap");
     if (!wrap) return;
@@ -261,8 +285,7 @@
     wrap.innerHTML = '<div class="prg-heatmap-inner">' + dayColumn + grid + "</div>";
   }
 
-  // ── achievements ──────────────────────────────────────────────────────────
-
+  // Load the unlocked and locked achievements.
   function loadAchievements(email) {
     apiFetch("/api/user/achievements", { user_email: email }).then(function (data) {
       var unlocked = (data && Array.isArray(data.unlocked)) ? data.unlocked : [];
@@ -271,6 +294,7 @@
     });
   }
 
+  // Render the achievements section.
   function renderAchievements(unlocked, locked) {
     var grid = el("achievementGrid");
     var count = el("achievementCount");
@@ -291,6 +315,7 @@
     grid.innerHTML = html;
   }
 
+  // Build one achievement card.
   function achievementBadgeHtml(achievement, isUnlocked) {
     var icon = (achievement.icon || "bi-trophy").replace(/^bi:/, "bi-");
     var xp = Number(achievement.xp_reward || achievement.xp_added || 0);
@@ -304,8 +329,7 @@
       "</div>";
   }
 
-  // ── course/completion data ────────────────────────────────────────────────
-
+  // Merge local course content with server progress data.
   function ensureData(email) {
     if (dataReady) return Promise.resolve();
 
@@ -314,6 +338,7 @@
 
     return apiFetch(userCoursesEndpoint, { email: email })
       .then(function (data) {
+        // Match the stored progress back onto the local course list.
         var serverCourses = (data && Array.isArray(data.courses)) ? data.courses : [];
         var serverLookup = {};
 
@@ -343,6 +368,7 @@
       });
   }
 
+  // Create an empty completion cache object.
   function emptyComp() {
     return {
       lessons: {},
@@ -351,6 +377,7 @@
     };
   }
 
+  // Load completion state for one course.
   function getComp(email, courseId) {
     var cid = String(courseId);
     if (compCache[cid]) {
@@ -379,8 +406,7 @@
       });
   }
 
-  // ── tab badges ────────────────────────────────────────────────────────────
-
+  // Update the small count badges on the tab bar.
   function setBadge(tab, count) {
     var button = document.querySelector('.net-progress-nav-btn[data-type="' + tab + '"]');
     if (!button) return;
@@ -388,6 +414,7 @@
     if (badge) badge.textContent = String(count);
   }
 
+  // Recalculate the tab counts after the data is ready.
   function updateBadges(email) {
     var startedCourses = courseData.filter(function (course) {
       return course.status !== "not-started";
@@ -410,6 +437,7 @@
       var moduleCount = 0;
 
       for (var courseIndex = 0; courseIndex < startedCourses.length; courseIndex++) {
+        // Count every unit that belongs to the started course list.
         var course = startedCourses[courseIndex];
         var comp = allComp[courseIndex] || emptyComp();
         var units = course.units || [];
@@ -442,18 +470,15 @@
     });
   }
 
-  // ── tabs ──────────────────────────────────────────────────────────────────
-
+  // Wire the tab buttons and choose the first visible tab.
   function setupTabs(email) {
     var buttons = document.querySelectorAll(".net-progress-nav-btn");
     for (var index = 0; index < buttons.length; index++) {
-      buttons[index].addEventListener("click", (function (button) {
-        return function () {
-          var tab = button.dataset.type;
-          localStorage.setItem(STORAGE_KEY, tab);
-          activateTab(tab, email);
-        };
-      })(buttons[index]));
+      buttons[index].addEventListener("click", function (event) {
+        var tab = event.currentTarget.dataset.type;
+        localStorage.setItem(STORAGE_KEY, tab);
+        activateTab(tab, email);
+      });
     }
 
     var urlTab = new URLSearchParams(location.search).get("type") || "";
@@ -461,6 +486,7 @@
     activateTab(savedTab, email);
   }
 
+  // Make one tab active and render its content.
   function activateTab(tab, email) {
     var validTabs = ["courses", "modules", "lessons", "quizzes", "tutorials", "challenges"];
     if (validTabs.indexOf(tab) === -1) tab = "courses";
@@ -474,8 +500,7 @@
     loadTab(tab, email);
   }
 
-  // ── tab content ───────────────────────────────────────────────────────────
-
+  // Show a simple loading skeleton while tab data is loading.
   function showSkeleton() {
     var list = el("progressList");
     if (!list) return;
@@ -494,12 +519,14 @@
     if (empty) empty.classList.add("d-none");
   }
 
+  // Load the content for the selected tab.
   function loadTab(tab, email) {
     showSkeleton();
 
     ensureData(email).then(function () {
       var promise;
 
+      // Pick the right renderer for the active tab.
       if (tab === "courses") {
         promise = buildCourses(email);
       } else if (tab === "modules") {
@@ -532,8 +559,7 @@
     });
   }
 
-  // ── courses tab ───────────────────────────────────────────────────────────
-
+  // Build the courses tab cards.
   function buildCourses(email) {
     var startedCourses = courseData.filter(function (course) {
       return course.status !== "not-started";
@@ -550,9 +576,10 @@
       return splitColumns(inProgressItems, completedItems, function (entry) {
         return courseCard(entry.course, entry.done);
       });
-    });
+      });
   }
 
+  // Render one course card.
   function courseCard(course, isCompleted) {
     var progress = Number(course.progress || 0);
     var iconClass = isCompleted ? "bi-check-circle-fill text-success" : "bi-journal-album text-teal";
@@ -573,8 +600,7 @@
       "</div></div>";
   }
 
-  // ── modules tab ───────────────────────────────────────────────────────────
-
+  // Build the modules tab cards.
   function buildModules(email) {
     var startedCourses = courseData.filter(function (course) {
       return course.status !== "not-started";
@@ -596,6 +622,7 @@
         var units = entry.course.units || [];
 
         for (var unitIndex = 0; unitIndex < units.length; unitIndex++) {
+          // Work out how much of one unit is finished.
           var unit = units[unitIndex] || {};
           var doneCount = 0;
           var totalCount = 0;
@@ -662,11 +689,10 @@
           '</div><div class="flex-shrink-0">' + button + "</div>" +
           "</div></div>";
       });
-    });
+      });
   }
 
-  // ── lessons / quizzes / challenges tabs ──────────────────────────────────
-
+  // Build the lessons, quizzes, or challenges tab cards.
   function buildItems(email, type) {
     var startedCourses = courseData.filter(function (course) {
       return course.status !== "not-started";
@@ -688,6 +714,7 @@
         for (var unitIndex = 0; unitIndex < units.length; unitIndex++) {
           var unit = units[unitIndex] || {};
 
+          // Add lesson cards for the lessons tab.
           if (type === "lessons") {
             var lessons = unit.lessons || [];
             for (var lessonIndex = 0; lessonIndex < lessons.length; lessonIndex++) {
@@ -705,6 +732,7 @@
             }
           }
 
+          // Add quiz cards for the quizzes tab.
           if (type === "quizzes" && unit.quiz) {
             var quizDone = comp.quizzes[String(unitIndex + 1)] === true;
             var quizEntry = {
@@ -718,6 +746,7 @@
             else inProgressItems.push(quizEntry);
           }
 
+          // Add challenge cards for the challenges tab.
           if (type === "challenges" && unit.challenge) {
             var challengeDone = comp.challenges[String(unitIndex + 1)] === true;
             var challengeEntry = {
@@ -752,11 +781,10 @@
           '</div><div class="flex-shrink-0">' + button + "</div>" +
           "</div></div>";
       });
-    });
+      });
   }
 
-  // ── tutorials tab ────────────────────────────────────────────────────────
-
+  // Build the tutorials tab cards from saved sandbox progress.
   function buildTutorials(email) {
     var prefix = "netology_tutorial_progress:" + email + ":";
     var inProgressItems = [];
@@ -777,6 +805,7 @@
       var unit = course && course.units ? (course.units[unitIndex] || null) : null;
       var tutorial = unit && unit.sandbox ? unit.sandbox : null;
 
+      // Count how many tutorial steps the user has checked off.
       var saved = readJsonFromStorage(storageKey) || {};
       var checkedCount = Array.isArray(saved.checked) ? saved.checked.filter(Boolean).length : 0;
       var total = tutorial ? (tutorial.steps || []).length : 0;
@@ -810,8 +839,7 @@
     });
   }
 
-  // ── init ─────────────────────────────────────────────────────────────────
-
+  // Start the progress page once the user is known.
   function init() {
     pageUser = readUser();
     if (!pageUser || !pageUser.email) {
@@ -830,6 +858,7 @@
     var rank = pageUser.rank || pageUser.level || "Novice";
 
     if (name) {
+      // Keep the greeting friendly and personal.
       setText("bannerSub", "Welcome back, " + name + ". Here's your learning journey.");
     }
     setText("bannerLevel", rank + " · Level " + level);

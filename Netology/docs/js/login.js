@@ -1,4 +1,18 @@
-// login.js — Handles the login form and session setup.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+login.js - Login Page Script
+---
+This file handles the login form on Netology.
+It checks the email and password fields, sends the login request
+to the backend, saves the session locally, and shows the welcome
+overlay for successful sign-ins.
+
+It is used by Login.html and keeps the sign-in flow in one place.
+*/
 
 (function () {
   "use strict";
@@ -6,7 +20,7 @@
   var API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   var ENDPOINTS = window.ENDPOINTS || {};
 
-  // toggle the is-invalid class on a form input
+  // Toggle the is-invalid class on a form input.
   function setInputInvalid(inputElement, isInvalid) {
     if (inputElement) {
       if (isInvalid) {
@@ -17,7 +31,7 @@
     }
   }
 
-  // show a popup toast message, falls back to alert
+  // Show a popup toast message, with alert as a fallback.
   function showToastMessage(message, toastType) {
     if (!message) {
       return;
@@ -30,7 +44,7 @@
     alert(String(message));
   }
 
-  // show the inline banner at the top of the login form
+  // Show the inline banner at the top of the login form.
   function showLoginBanner(message, bannerType) {
     var type = bannerType || "error";
     if (window.NetologyToast && window.NetologyToast.showInlineBanner) {
@@ -51,7 +65,17 @@
     showToastMessage(message, type === "success" ? "success" : "error");
   }
 
-  // set up show/hide toggle buttons on password fields
+  // Build a full API URL from a path.
+  function buildApiUrl(path) {
+    return API_BASE ? (API_BASE + path) : path;
+  }
+
+  // Clean an email address so it is safe to reuse.
+  function normaliseEmail(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  // Set up the show and hide toggle buttons on password fields.
   function setupPasswordToggleButtons() {
     var toggleButtons = document.querySelectorAll('[data-toggle="password"]');
     for (var i = 0; i < toggleButtons.length; i++) {
@@ -64,7 +88,7 @@
     }
   }
 
-  // handle a click on a password toggle button
+  // Handle a click on a password toggle button.
   function handlePasswordToggleClick() {
     var targetSelector = this.getAttribute("data-target");
     var passwordInput = targetSelector ? document.querySelector(targetSelector) : null;
@@ -79,7 +103,7 @@
     }
   }
 
-  // show the success overlay with the users first name
+  // Show the success overlay with the user's first name.
   function showLoginSuccessOverlay(firstName) {
     var overlay = document.getElementById("loginSuccessOverlay");
     if (!overlay) {
@@ -97,7 +121,7 @@
     return true;
   }
 
-  // save user data to localStorage
+  // Save user data to localStorage.
   function saveSessionToLocalStorage(userData) {
     if (!userData) {
       return;
@@ -109,7 +133,7 @@
     }
   }
 
-  // convert a value to a number, return undefined if not valid
+  // Convert a value to a number and return undefined if it is invalid.
   function safeNumber(value) {
     var parsed = Number(value);
     if (Number.isFinite(parsed)) {
@@ -118,7 +142,7 @@
     return undefined;
   }
 
-  // build a clean user object from the server response
+  // Build a clean user object from the server response.
   function buildUserObjectFromResponse(responseData, email) {
     return {
       email: email,
@@ -136,7 +160,7 @@
     };
   }
 
-  // set up the login form submit handler
+  // Set up the login form submit handler.
   function setupLoginFormSubmitHandler(formElement) {
     if (!formElement) {
       return;
@@ -148,7 +172,7 @@
     });
   }
 
-  // handle the login form submission
+  // Handle the login form submission.
   async function handleLoginFormSubmit(formElement) {
     var emailInput = document.getElementById("email");
     var passwordInput = document.getElementById("password");
@@ -158,7 +182,6 @@
     setInputInvalid(emailInput, false);
     setInputInvalid(passwordInput, false);
 
-    // validate the email field
     if (!email) {
       setInputInvalid(emailInput, true);
       showLoginBanner("Please enter your email address.", "warning");
@@ -176,7 +199,6 @@
       return;
     }
 
-    // validate the password field
     if (!password) {
       setInputInvalid(passwordInput, true);
       showLoginBanner("Please enter your password.", "warning");
@@ -194,11 +216,9 @@
       return;
     }
 
-    // submit to the server
     try {
       var loginPath = (ENDPOINTS.auth && ENDPOINTS.auth.login) || "/login";
-      var loginUrl = API_BASE ? (API_BASE + loginPath) : loginPath;
-      var response = await fetch(loginUrl, { method: "POST", body: new FormData(formElement) });
+      var response = await fetch(buildApiUrl(loginPath), { method: "POST", body: new FormData(formElement) });
 
       var responseData = null;
       try {
@@ -225,12 +245,10 @@
         return;
       }
 
-      // save the session to localStorage
-      var cleanEmail = String(email).trim().toLowerCase();
+      var cleanEmail = normaliseEmail(email);
       var userObject = buildUserObjectFromResponse(responseData, cleanEmail);
       saveSessionToLocalStorage(userObject);
 
-      // start onboarding for first time users
       var onboarding = window.NetologyOnboarding;
       var onboardingDone = Boolean(responseData.onboarding_completed);
       if (!onboardingDone && onboarding && onboarding.isUserDone) {
@@ -245,7 +263,6 @@
         }
       }
 
-      // show success overlay or banner then redirect to dashboard
       var overlayShown = showLoginSuccessOverlay(responseData.first_name || userObject.first_name);
       if (!overlayShown) {
         var displayName = responseData.first_name || userObject.first_name || "there";
@@ -262,7 +279,7 @@
     }
   }
 
-  // main entry point for the login page
+  // Main entry point for the login page.
   function initialiseLoginPage() {
     var loginForm = document.getElementById("loginForm");
     if (!loginForm) {
@@ -272,7 +289,7 @@
     setupPasswordToggleButtons();
   }
 
-  // wait for the DOM to be ready, then start
+  // Wait for the DOM to be ready, then start.
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       initialiseLoginPage();

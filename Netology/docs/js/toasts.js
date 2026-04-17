@@ -1,4 +1,17 @@
-// toasts.js — Toast and banner notification system.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+toasts.js - Toast and Banner Notifications
+---
+This file handles the shared toast and banner messages used across
+Netology. It shows regular toasts, achievement toasts, sandbox toasts,
+and inline banners for form feedback.
+
+It is loaded by the pages that need user messages.
+*/
 
 (() => {
   "use strict";
@@ -7,7 +20,7 @@
 
   const bannerTimers = new Map();
 
-  // Makes a DOM element with optional class and text.
+  // Make one DOM element with an optional class and text.
   function make(tag, cls, text) {
     const el = document.createElement(tag);
     if (cls) el.className = cls;
@@ -15,7 +28,7 @@
     return el;
   }
 
-  // Normalises type string to success/error/info.
+  // Normalise a toast type to success, error, or info.
   function cleanType(raw) {
     const t = String(raw || "info").toLowerCase();
     if (t === "success") return "success";
@@ -23,7 +36,7 @@
     return "info";
   }
 
-  // Gets or creates the toast stack container.
+  // Get or create the toast stack container.
   function getStack(id, cls) {
     let stack = document.getElementById(id || "netToastStack");
     if (stack) return stack;
@@ -34,14 +47,14 @@
     return stack;
   }
 
-  // Removes a toast element by id (prevents duplicates).
+  // Remove one toast element by id so we do not show duplicates.
   function removeById(id) {
     if (!id) return;
     const el = document.getElementById(id);
     if (el) el.remove();
   }
 
-  // Returns the icon class for regular toasts.
+  // Return the icon class for regular toasts.
   function netIcon(type, custom) {
     if (custom) return custom;
     if (type === "success") return "bi-check2-circle";
@@ -49,7 +62,7 @@
     return "bi-info-circle";
   }
 
-  // Returns the icon class for sandbox toasts.
+  // Return the icon class for sandbox toasts.
   function sandboxIcon(type, custom, wellDone) {
     if (custom) return custom;
     if (wellDone) return "bi-trophy-fill";
@@ -58,7 +71,7 @@
     return "bi-info-lg";
   }
 
-  // Adds confetti pieces to a celebrate toast.
+  // Add confetti pieces to a celebrate toast.
   function addConfetti(toast) {
     const wrap = make("div", "net-toast-confetti");
     const colors = ["teal", "cyan", "amber", "violet"];
@@ -71,21 +84,21 @@
     toast.appendChild(wrap);
   }
 
-  // Animates out and removes a regular toast.
+  // Animate out and remove a regular toast.
   function dismissNet(toast) {
     toast.classList.remove("net-toast-enter");
     toast.classList.add("net-toast-exit");
     setTimeout(() => toast.remove(), 220);
   }
 
-  // Animates out and removes a sandbox toast.
+  // Animate out and remove a sandbox toast.
   function dismissSandbox(toast) {
     toast.classList.remove("is-show");
     toast.classList.add("is-leaving");
     setTimeout(() => toast.remove(), 300);
   }
 
-  // Returns the icon class for inline banners.
+  // Return the icon class for inline banners.
   function bannerIcon(type) {
     const t = String(type || "error").toLowerCase();
     if (t === "success") return "bi-check-circle-fill";
@@ -93,7 +106,7 @@
     return "bi-x-circle-fill";
   }
 
-  // Fills a banner element with icon and message text.
+  // Fill a banner element with icon and message text.
   function fillBanner(el, type, msg) {
     if (!el) return;
     const icon = make("span", "net-banner-icon");
@@ -103,7 +116,7 @@
     el.append(icon, document.createTextNode(String(msg || "")));
   }
 
-  // Shows an inline alert banner (signup, login, etc).
+  // Show an inline alert banner for signup, login, and similar forms.
   function showInlineBanner(opts) {
     opts = opts || {};
     const id = String(opts.bannerId || "").trim();
@@ -135,7 +148,7 @@
     }, timeout));
   }
 
-  // Hides an inline banner and clears its timer.
+  // Hide an inline banner and clear its timer.
   function hideInlineBanner(bannerId, timerKey) {
     const id = String(bannerId || "").trim();
     if (!id) return;
@@ -148,7 +161,7 @@
     bannerTimers.delete(key);
   }
 
-  // Builds and shows a regular Netology toast.
+  // Build and show a regular Netology toast.
   function showNetToast(opts) {
     opts = opts || {};
     const type = cleanType(opts.type);
@@ -168,7 +181,7 @@
 
     const inner = make("div", "net-toast-inner");
 
-    // Icon.
+    // Icon area.
     const iconWrap = make("div", "net-toast-icon");
     const icon = document.createElement("i");
     icon.className = `bi ${netIcon(type, opts.icon)}`;
@@ -181,7 +194,7 @@
     if (opts.message) body.appendChild(make("div", "net-toast-sub", opts.message));
     if (opts.sub) body.appendChild(make("div", "net-toast-sub", opts.sub));
 
-    // XP row (optional).
+    // XP row, only shown when points were awarded.
     if (opts.xp != null && !Number.isNaN(Number(opts.xp))) {
       const row = make("div", "net-toast-sub net-toast-xp-row");
       const bolt = document.createElement("i");
@@ -217,7 +230,7 @@
     return toast;
   }
 
-  // Builds and shows a sandbox-style toast.
+  // Build and show a sandbox-style toast.
   function showSandboxInternal(opts) {
     opts = opts || {};
     const type = cleanType(opts.type);
@@ -259,7 +272,7 @@
     return toast;
   }
 
-  // Main entry point — picks regular or sandbox skin.
+  // Main entry point. Picks the regular or sandbox skin.
   function show(opts) {
     if (!document.body) return null;
     opts = opts || {};
@@ -267,7 +280,7 @@
     return skin === "sandbox" ? showSandboxInternal(opts) : showNetToast(opts);
   }
 
-  // Shows a celebrate toast with confetti.
+  // Show a celebrate toast with confetti.
   function showCelebrateToast(opts) {
     opts = opts || {};
     return show({
@@ -280,7 +293,7 @@
     });
   }
 
-  // Shows a simple message toast (success, error, info).
+  // Show a simple message toast for success, error, or info.
   function showMessageToast(msg, type, duration) {
     type = type || "info";
     duration = duration || 3200;
@@ -292,7 +305,7 @@
     });
   }
 
-  // Shows a sandbox-style toast.
+  // Show a sandbox-style toast.
   function showSandboxToast(opts) {
     opts = opts || {};
     return show({
@@ -307,7 +320,7 @@
     });
   }
 
-  // Escapes HTML for safe use in achievement toast markup.
+  // Escape HTML for safe use in achievement toast markup.
   function esc(val) {
     return String(val ?? "")
       .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -315,14 +328,14 @@
       .replace(/'/g, "&#039;");
   }
 
-  // Returns the icon HTML for an achievement toast.
+  // Return the icon HTML for an achievement toast.
   function achIcon(unlock) {
     const raw = String((unlock && unlock.icon) || "").trim();
     if (raw.startsWith("bi-")) return `<i class="bi ${esc(raw)}"></i>`;
     return esc(raw || "⭐");
   }
 
-  // Gets or creates the achievement toast container.
+  // Get or create the achievement toast container.
   function achHost() {
     if (!document.body) return null;
     let host = document.getElementById("globalAchievementToastHost");
@@ -334,7 +347,7 @@
     return host;
   }
 
-  // Shows an achievement unlock toast.
+  // Show an achievement unlock toast.
   function showAchievementToast(unlock) {
     unlock = unlock || {};
     const host = achHost();
@@ -361,7 +374,7 @@
     return toast;
   }
 
-  // Public API used by signup, login, dashboard, sandbox, etc.
+  // Public API used by signup, login, dashboard, sandbox, and more.
   window.NetologyToast = {
     show,
     showCelebrateToast,

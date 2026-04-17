@@ -1,4 +1,18 @@
-// background.js — Draws decorative SVG topology backgrounds and floating particles.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+background.js - Decorative Background Animations
+---
+Draws a random network topology diagram into the SVG panels on the
+signup and login pages, and scatters floating particle dots behind them.
+
+Seven topologies are defined (star, ring, mesh, bus, tree, ireland,
+enterprise). One is picked at random each time the page loads.
+CSS handles the fade-in animation, this file just builds the SVG elements.
+*/
 
 (() => {
   "use strict";

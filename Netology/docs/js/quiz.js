@@ -1,4 +1,17 @@
-// quiz.js — Quiz page: loads questions, checks answers, awards XP, shows results.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+quiz.js - Quiz Page Script
+---
+This file handles the quiz page for Netology.
+It loads the quiz questions, checks each answer, saves the result,
+and shows the final score screen when the quiz is finished.
+
+It is used by Quiz.html and keeps the quiz flow in one place.
+*/
 
 (function () {
   "use strict";
@@ -10,7 +23,6 @@
   // shared quiz state
   var quizState = {
     courseId: "",
-    unitIndex: 0,
     lessonNumber: 0,
     userEmail: "",
     courseTitle: "",
@@ -24,7 +36,7 @@
     answerResults: []
   };
 
-  // read a JSON value from localStorage
+  // Read a JSON value from localStorage.
   function readJsonFromStorage(storageKey) {
     try {
       return JSON.parse(localStorage.getItem(storageKey));
@@ -33,13 +45,13 @@
     }
   }
 
-  // read the saved user from localStorage
+  // Read the saved user from localStorage.
   function readSavedUserFromLocalStorage() {
     var savedUser = readJsonFromStorage("netology_user") || readJsonFromStorage("user");
     return savedUser;
   }
 
-  // set text content of an element by id
+  // Set text content of an element by id.
   function setTextById(elementId, textValue) {
     var element = document.getElementById(elementId);
     if (element) {
@@ -47,17 +59,17 @@
     }
   }
 
-  // build the localStorage key for a quiz attempt
+  // Build the localStorage key for a quiz attempt.
   function buildAttemptStorageKey() {
     return "netology_quiz_attempt:" + quizState.userEmail + ":" + quizState.courseId + ":" + quizState.lessonNumber;
   }
 
-  // build the localStorage key for tracking xp awards
+  // Build the localStorage key for tracking XP awards.
   function buildAwardStorageKey() {
     return "netology_quiz_awarded:" + quizState.userEmail + ":" + quizState.courseId + ":" + quizState.lessonNumber;
   }
 
-  // normalise a raw quiz object into a clean shape
+  // Normalise a raw quiz object into a clean shape.
   function normaliseRawQuizData(rawQuiz) {
     var normalisedQuestions = [];
     for (var i = 0; i < rawQuiz.questions.length; i++) {
@@ -77,7 +89,7 @@
     };
   }
 
-  // fill the header card with quiz title, xp label, and breadcrumb
+  // Fill the header card with the quiz title, XP label, and breadcrumb.
   function displayQuizHeader() {
     setTextById("quizTitle", quizState.quizTitle);
     setTextById("quizMeta", quizState.quizTitle + " - " + quizState.questions.length + " questions");
@@ -89,7 +101,7 @@
     document.body.classList.add("net-loaded");
   }
 
-  // set the href on both back-to-course links
+  // Set the href on both back-to-course links.
   function setBackToCourseLinks(backUrl) {
     var topLink = document.getElementById("backToCourseTop");
     var bottomLink = document.getElementById("backToCourseBtn");
@@ -101,21 +113,17 @@
     }
   }
 
-  // attach click listeners to the submit, next, and retry buttons
+  // Attach click listeners to the submit, next, and retry buttons.
   function attachButtonListeners() {
     var submitButton = document.getElementById("submitBtn");
     var nextButton = document.getElementById("nextBtn");
     var retryButton = document.getElementById("retryBtn");
 
     if (submitButton) {
-      submitButton.addEventListener("click", function () {
-        handleSubmitAnswer();
-      });
+      submitButton.addEventListener("click", handleSubmitAnswer);
     }
     if (nextButton) {
-      nextButton.addEventListener("click", function () {
-        handleNextQuestion();
-      });
+      nextButton.addEventListener("click", handleNextQuestion);
     }
     if (retryButton) {
       retryButton.addEventListener("click", function () {
@@ -125,7 +133,7 @@
     }
   }
 
-  // render the current question on screen
+  // Render the current question on screen.
   function renderCurrentQuestion() {
     var currentQuestion = quizState.questions[quizState.currentQuestionIndex];
     if (!currentQuestion) {
@@ -149,7 +157,7 @@
       progressBar.style.width = progressPercent + "%";
     }
 
-    // build the answer option buttons
+    // Build the answer option buttons.
     var optionsContainer = document.getElementById("optionsBox");
     if (optionsContainer) {
       optionsContainer.innerHTML = "";
@@ -160,14 +168,14 @@
       }
     }
 
-    // reset the feedback box
+    // Reset the feedback box.
     var feedbackBox = document.getElementById("feedbackBox");
     if (feedbackBox) {
       feedbackBox.classList.add("d-none");
       feedbackBox.classList.remove("is-show", "is-correct", "is-wrong");
     }
 
-    // show submit, hide next
+    // Show submit, hide next.
     var submitButton = document.getElementById("submitBtn");
     var nextButton = document.getElementById("nextBtn");
     if (submitButton) {
@@ -187,7 +195,7 @@
     }
   }
 
-  // build a single answer option button
+  // Build a single answer option button.
   function buildOptionButton(optionText, optionIndex, optionsContainer) {
     var button = document.createElement("button");
     button.type = "button";
@@ -230,7 +238,7 @@
     return button;
   }
 
-  // lock the options, show correct/wrong feedback, reveal the next button
+  // Lock the options, show correct or wrong feedback, and reveal the next button.
   function handleSubmitAnswer() {
     if (quizState.selectedOptionIndex === null) {
       return;
@@ -242,7 +250,7 @@
     quizState.hasAnswered = true;
     quizState.answerResults[quizState.currentQuestionIndex] = isCorrect;
 
-    // colour the option buttons green or red
+    // Colour the option buttons green or red.
     var optionsContainer = document.getElementById("optionsBox");
     if (optionsContainer) {
       var allButtons = optionsContainer.querySelectorAll("button");
@@ -260,7 +268,7 @@
           allButtons[i].classList.add("is-wrong");
         }
 
-        // add a tick or cross icon
+        // Add a tick or cross icon.
         var statusSpan = allButtons[i].querySelector(".net-quiz-option-status");
         if (statusSpan) {
           statusSpan.innerHTML = "";
@@ -274,13 +282,13 @@
       }
     }
 
-    // xp is split equally across questions, only awarded for correct answers
+    // XP is split equally across questions and only awarded for correct answers.
     var experiencePointsEarned = 0;
     if (isCorrect) {
       experiencePointsEarned = Math.max(1, Math.round(quizState.maximumExperiencePoints / Math.max(quizState.questions.length, 1)));
     }
 
-    // show the feedback box
+    // Show the feedback box.
     var feedbackBox = document.getElementById("feedbackBox");
     var feedbackIcon = document.getElementById("feedbackIcon");
     if (feedbackBox && feedbackIcon) {
@@ -318,7 +326,7 @@
 
     updateMiniProgressBar();
 
-    // swap the submit button for the next button
+    // Swap the submit button for the next button.
     var submitButton = document.getElementById("submitBtn");
     var nextButton = document.getElementById("nextBtn");
     if (submitButton) {
@@ -331,18 +339,18 @@
     }
   }
 
-  // move to the next question, or finish if this was the last one
+  // Move to the next question, or finish if this was the last one.
   function handleNextQuestion() {
     var isLastQuestion = quizState.currentQuestionIndex === quizState.questions.length - 1;
     if (isLastQuestion) {
       finishQuiz();
       return;
     }
-    quizState.currentQuestionIndex = quizState.currentQuestionIndex + 1;
+    quizState.currentQuestionIndex += 1;
     renderCurrentQuestion();
   }
 
-  // tally the score, post to the server, save locally, and show results
+  // Tally the score, post to the server, save locally, and show results.
   async function finishQuiz() {
     var totalQuestions = quizState.questions.length;
 
@@ -378,7 +386,7 @@
     showCompletionToastMessage(result);
   }
 
-  // post the quiz completion to the backend and return the xp award
+  // Post the quiz completion to the backend and return the XP award.
   async function sendQuizCompletionToServer(earnedExperiencePoints) {
     var alreadyAwarded = localStorage.getItem(buildAwardStorageKey()) === "1";
     if (alreadyAwarded) {
@@ -433,9 +441,9 @@
     return { xpAwarded: earnedExperiencePoints, achievementXp: 0, alreadyCompleted: false };
   }
 
-  // save the quiz completion and xp to localStorage
+  // Save the quiz completion and XP to localStorage.
   function saveQuizCompletionToLocalStorage(result) {
-    // mark the quiz as completed in the completions record
+    // Mark the quiz as completed in the completions record.
     var completionsKey = "netology_completions:" + quizState.userEmail + ":" + quizState.courseId;
     var completionsData = readJsonFromStorage(completionsKey) || { lesson: [], quiz: [], challenge: [] };
     var quizNumber = Number(quizState.lessonNumber);
@@ -452,7 +460,7 @@
       localStorage.setItem(completionsKey, JSON.stringify(completionsData));
     }
 
-    // bump the user's xp in localStorage
+    // Bump the user's XP in localStorage.
     var userStorageKeys = ["netology_user", "user"];
     var latestUser = null;
     for (var k = 0; k < userStorageKeys.length; k++) {
@@ -479,7 +487,7 @@
       window.NetologyNav.displayNavUser(latestUser);
     }
 
-    // update the started courses record
+    // Update the started courses record.
     var startedCoursesKey = "netology_started_courses:" + quizState.userEmail;
     var startedCourses = readJsonFromStorage(startedCoursesKey) || [];
     var existingCourseEntry = null;
@@ -503,7 +511,7 @@
     }
     localStorage.setItem(startedCoursesKey, JSON.stringify(startedCourses));
 
-    // add an entry to the progress log
+    // Add an entry to the progress log.
     var progressLogKey = "netology_progress_log:" + quizState.userEmail;
     var progressLog = readJsonFromStorage(progressLogKey) || [];
     progressLog.push({
@@ -517,7 +525,7 @@
     localStorage.setItem(progressLogKey, JSON.stringify(progressLog));
   }
 
-  // hide the question card and show the results screen
+  // Hide the question card and show the results screen.
   function displayResultsScreen(result) {
     var quizCard = document.getElementById("quizCard");
     var resultsCard = document.getElementById("resultsCard");
@@ -548,7 +556,7 @@
     var isPerfectScore = result.percentage === 100;
     var hasPassed = result.percentage >= 40;
 
-    // set the results badge icon
+    // Set the results badge icon.
     var resultsBadge = document.getElementById("resultsBadge");
     if (resultsBadge) {
       resultsBadge.innerHTML = "";
@@ -564,7 +572,7 @@
       resultsBadge.appendChild(badgeIcon);
     }
 
-    // set the results title and subtitle
+    // Set the results title and subtitle.
     if (isPerfectScore) {
       setTextById("resultsTitle", "Perfect Score!");
       setTextById("resultsSubtitle", "Outstanding work - you got everything correct.");
@@ -579,7 +587,7 @@
     triggerSlideInAnimation("resultsCard");
   }
 
-  // redraw the mini progress bar segments
+  // Redraw the mini progress bar segments.
   function updateMiniProgressBar() {
     var miniProgressContainer = document.getElementById("miniProgress");
     if (!miniProgressContainer) {
@@ -620,7 +628,7 @@
     }
   }
 
-  // show a celebration toast when the quiz finishes
+  // Show a celebration toast when the quiz finishes.
   function showCompletionToastMessage(result) {
     if (result.alreadyCompleted) {
       return;
@@ -657,7 +665,7 @@
     });
   }
 
-  // trigger the slide-in animation on a card
+  // Trigger the slide-in animation on a card.
   function triggerSlideInAnimation(elementId) {
     var card = document.getElementById(elementId);
     if (!card) {
@@ -668,7 +676,7 @@
     card.classList.add("net-quiz-enter");
   }
 
-  // main entry point for the quiz page
+  // Main entry point for the quiz page.
   async function initialiseQuizPage() {
     var urlParams = new URLSearchParams(window.location.search);
     var courseId = urlParams.get("course") || urlParams.get("course_id");
@@ -689,7 +697,7 @@
       return;
     }
 
-    // the quiz lives directly on the unit
+    // The quiz lives directly on the unit.
     var units = courseData.units || [];
     var targetUnit = units[unitIndex] || null;
     var rawQuiz = (targetUnit && targetUnit.quiz) ? targetUnit.quiz : null;
@@ -704,9 +712,8 @@
     var unitTitle = (targetUnit && targetUnit.title) ? targetUnit.title : "Module";
     var lessonNumber = unitIndex + 1;
 
-    // populate the quiz state
+    // Populate the quiz state.
     quizState.courseId = courseId;
-    quizState.unitIndex = unitIndex;
     quizState.lessonNumber = lessonNumber;
     quizState.userEmail = savedUser.email;
     quizState.courseTitle = courseData.title || "";
@@ -719,7 +726,7 @@
     quizState.hasAnswered = false;
     quizState.answerResults = [];
 
-    // if the quiz was already completed, skip straight to results
+    // If the quiz was already completed, skip straight to results.
     var savedAttempt = readJsonFromStorage(buildAttemptStorageKey());
     if (savedAttempt && savedAttempt.completed) {
       displayQuizHeader();
@@ -734,7 +741,7 @@
     renderCurrentQuestion();
   }
 
-  // wait for the DOM to be ready, then start
+  // Wait for the DOM to be ready, then start.
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       initialiseQuizPage().catch(function (error) {

@@ -1,4 +1,17 @@
-// signup.js — Handles the signup wizard and account creation.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+signup.js - Signup Page Script
+---
+This file handles the signup wizard on Netology.
+It checks the form step by step, sends the registration request
+to the backend, and logs the user in after a successful signup.
+
+It is used by Signup.html and keeps the account creation flow in one place.
+*/
 
 (function () {
   "use strict";
@@ -6,7 +19,7 @@
   var API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
   var ENDPOINTS = window.ENDPOINTS || {};
 
-  // each signup field and its empty-field error message
+  // Each signup field and its empty-field error message.
   var SIGNUP_FIELDS = [
     { id: "first_name", message: "Please enter your first name." },
     { id: "last_name", message: "Please enter your last name." },
@@ -22,7 +35,7 @@
   var TOTAL_STEPS = 4;
   var currentStep = 1;
 
-  // convert a value to a number, return 0 if not valid
+  // Convert a value to a number and return 0 if it is not valid.
   function safeNumber(value) {
     var parsed = Number(value);
     if (Number.isFinite(parsed)) {
@@ -31,7 +44,17 @@
     return 0;
   }
 
-  // show a popup toast message, falls back to alert
+  // Build a backend URL from a route path.
+  function buildApiUrl(path) {
+    return API_BASE ? (API_BASE + path) : path;
+  }
+
+  // Trim and lowercase an email address.
+  function normaliseEmail(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  // Show a popup toast message and fall back to alert.
   function showToastMessage(message, toastType) {
     if (!message) {
       return;
@@ -44,7 +67,7 @@
     alert(String(message));
   }
 
-  // show the inline banner at the top of the signup form
+  // Show the inline banner at the top of the signup form.
   function showSignupBanner(message, bannerType) {
     var type = bannerType || "error";
     if (window.NetologyToast && window.NetologyToast.showInlineBanner) {
@@ -65,7 +88,7 @@
     showToastMessage(message, type === "success" ? "success" : "error");
   }
 
-  // hide the signup banner
+  // Hide the signup banner.
   function hideSignupBanner() {
     if (window.NetologyToast && window.NetologyToast.hideInlineBanner) {
       window.NetologyToast.hideInlineBanner("signupBanner", "signup");
@@ -77,7 +100,7 @@
     }
   }
 
-  // set up show/hide toggle buttons on password fields
+  // Set up show/hide toggle buttons on password fields.
   function setupPasswordToggleButtons() {
     var toggleButtons = document.querySelectorAll('[data-toggle="password"]');
     for (var i = 0; i < toggleButtons.length; i++) {
@@ -90,7 +113,7 @@
     }
   }
 
-  // handle a click on a password toggle button
+  // Handle a click on a password toggle button.
   function handlePasswordToggleClick() {
     var targetSelector = this.getAttribute("data-target");
     var passwordInput = targetSelector ? document.querySelector(targetSelector) : null;
@@ -105,7 +128,7 @@
     }
   }
 
-  // grab all form field elements by their ids
+  // Grab all form field elements by their ids.
   function getAllFieldElements() {
     var fieldElements = {};
     for (var i = 0; i < SIGNUP_FIELDS.length; i++) {
@@ -115,7 +138,7 @@
     return fieldElements;
   }
 
-  // read and trim all form field values
+  // Read and trim all form field values.
   function getAllFieldValues(fieldElements) {
     var fieldValues = {};
     for (var i = 0; i < SIGNUP_FIELDS.length; i++) {
@@ -126,7 +149,7 @@
     return fieldValues;
   }
 
-  // find the first empty required field
+  // Find the first empty required field.
   function findFirstMissingField(fieldValues) {
     for (var i = 0; i < SIGNUP_FIELDS.length; i++) {
       if (!fieldValues[SIGNUP_FIELDS[i].id]) {
@@ -136,14 +159,14 @@
     return null;
   }
 
-  // check all fields and return the first error or null
+  // Check all fields and return the first error or null.
   function validateAllFields(fieldValues, checkRequired) {
     if (checkRequired !== false) {
       var missingField = findFirstMissingField(fieldValues);
       if (missingField) {
-        return missingField;
-      }
+      return missingField;
     }
+  }
     if (fieldValues.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(fieldValues.email.trim())) {
       return { id: "email", message: "That email format does not look right. Please check and try again." };
     }
@@ -156,12 +179,12 @@
     return null;
   }
 
-  // get the selected level radio button
+  // Get the selected level radio button.
   function getSelectedLevelRadio() {
     return document.querySelector('input[name="level"]:checked');
   }
 
-  // get all checked reason checkboxes as an array of values
+  // Get all checked reason checkboxes as an array of values.
   function getSelectedReasonValues() {
     var checkedBoxes = document.querySelectorAll('input[name="reasons"]:checked');
     var values = [];
@@ -171,7 +194,7 @@
     return values;
   }
 
-  // show a full screen overlay by its element id
+  // Show a full screen overlay by its element id.
   function showFullScreenOverlay(overlayId) {
     var overlayElement = document.getElementById(overlayId);
     if (!overlayElement) {
@@ -183,7 +206,7 @@
     return overlayElement;
   }
 
-  // fill the success overlay with confetti pieces
+  // Fill the success overlay with confetti pieces.
   function createConfettiPieces(overlayElement) {
     if (!overlayElement) {
       return;
@@ -207,14 +230,14 @@
     }
   }
 
-  // log the user in right after signup so they skip the login page
+  // Log the user in right after signup so they skip the login page.
   async function autoLoginAfterSignup(email, password) {
     var formData = new FormData();
     formData.append("email", email);
     formData.append("password", password);
 
     var loginPath = (ENDPOINTS.auth && ENDPOINTS.auth.login) || "/login";
-    var loginUrl = API_BASE ? (API_BASE + loginPath) : loginPath;
+    var loginUrl = buildApiUrl(loginPath);
     var response = await fetch(loginUrl, { method: "POST", body: formData });
     var responseData = await response.json();
 
@@ -223,7 +246,7 @@
     }
 
     var sessionData = {
-      email: String(email || "").trim().toLowerCase(),
+      email: normaliseEmail(email),
       first_name: responseData.first_name,
       last_name: responseData.last_name,
       username: responseData.username,
@@ -251,10 +274,11 @@
     return true;
   }
 
-  // switch to a specific wizard step and update the ui
-  function goToWizardStep(stepNumber, stepPages, stepLabel, stepTitle, progressBar, backButton, nextButton, submitButton) {
+  // Switch to a specific wizard step and update the UI.
+  function goToWizardStep(stepNumber, stepLabel, stepTitle, progressBar, backButton, nextButton, submitButton) {
     currentStep = stepNumber;
 
+    var stepPages = document.querySelectorAll(".net-step-page");
     for (var i = 0; i < stepPages.length; i++) {
       stepPages[i].classList.add("d-none");
     }
@@ -267,7 +291,7 @@
     stepTitle.textContent = STEP_TITLES[currentStep - 1] || "";
     progressBar.style.width = ((currentStep / TOTAL_STEPS) * 100) + "%";
 
-    // mark step pills as active or done
+    // Mark step pills as active or done.
     var allPills = document.querySelectorAll(".net-step-pill");
     for (var p = 0; p < allPills.length; p++) {
       var pillStep = Number(allPills[p].getAttribute("data-pill") || 0);
@@ -299,13 +323,13 @@
     hideSignupBanner();
   }
 
-  // check all personal detail fields on step 1
+  // Check all personal detail fields on step 1.
   function validatePersonalDetailsStep() {
     var fieldElements = getAllFieldElements();
     var fieldValues = getAllFieldValues(fieldElements);
     var validationError = validateAllFields(fieldValues, true);
 
-    // clear all red borders first
+    // Clear all red borders first.
     for (var key in fieldElements) {
       if (fieldElements[key]) {
         fieldElements[key].classList.remove("is-invalid");
@@ -324,7 +348,7 @@
     return true;
   }
 
-  // make sure a level is picked on step 2
+  // Make sure a level is picked on step 2.
   function validateLevelSelectionStep() {
     if (getSelectedLevelRadio()) {
       return true;
@@ -333,7 +357,7 @@
     return false;
   }
 
-  // make sure at least one reason is checked on step 3
+  // Make sure at least one reason is checked on step 3.
   function validateReasonSelectionStep() {
     if (getSelectedReasonValues().length > 0) {
       return true;
@@ -342,7 +366,7 @@
     return false;
   }
 
-  // run the right validation for the current step
+  // Run the right validation for the current step.
   function validateCurrentWizardStep(stepNumber) {
     if (stepNumber === 1) {
       return validatePersonalDetailsStep();
@@ -356,7 +380,7 @@
     return true;
   }
 
-  // fill the review page with the users entered values
+  // Fill the review page with the user's entered values.
   function fillReviewPage() {
     var reviewMappings = [
       ["reviewFirst", "first_name"],
@@ -389,7 +413,7 @@
     }
   }
 
-  // set up the multi-step signup wizard
+  // Set up the multi-step signup wizard.
   function setupSignupWizard(formElement) {
     var stepPages = document.querySelectorAll(".net-step-page");
     var stepLabel = document.getElementById("stepLabel");
@@ -403,7 +427,7 @@
       return;
     }
 
-    // clear the red border when user starts typing
+    // Clear the red border when the user starts typing.
     for (var i = 0; i < SIGNUP_FIELDS.length; i++) {
       var fieldElement = document.getElementById(SIGNUP_FIELDS[i].id);
       if (fieldElement) {
@@ -413,40 +437,22 @@
       }
     }
 
-    // convert to array for passing around
-    var stepPagesArray = [];
-    for (var s = 0; s < stepPages.length; s++) {
-      stepPagesArray.push(stepPages[s]);
-    }
-
     backButton.addEventListener("click", function () {
       if (currentStep > 1) {
-        goToWizardStep(currentStep - 1, stepPagesArray, stepLabel, stepTitle, progressBar, backButton, nextButton, submitButton);
+        goToWizardStep(currentStep - 1, stepLabel, stepTitle, progressBar, backButton, nextButton, submitButton);
       }
     });
 
     nextButton.addEventListener("click", function () {
       if (validateCurrentWizardStep(currentStep) && currentStep < TOTAL_STEPS) {
-        goToWizardStep(currentStep + 1, stepPagesArray, stepLabel, stepTitle, progressBar, backButton, nextButton, submitButton);
+        goToWizardStep(currentStep + 1, stepLabel, stepTitle, progressBar, backButton, nextButton, submitButton);
       }
     });
 
-    goToWizardStep(1, stepPagesArray, stepLabel, stepTitle, progressBar, backButton, nextButton, submitButton);
+    goToWizardStep(1, stepLabel, stepTitle, progressBar, backButton, nextButton, submitButton);
   }
 
-  // handle the final form submit to register, auto-login, and show success
-  function setupFormSubmitHandler(formElement) {
-    if (!formElement) {
-      return;
-    }
-
-    formElement.addEventListener("submit", function (event) {
-      event.preventDefault();
-      handleSignupFormSubmit(formElement);
-    });
-  }
-
-  // handle the signup form submission
+  // Handle the signup form submission.
   async function handleSignupFormSubmit(formElement) {
     var fieldElements = getAllFieldElements();
     var fieldValues = getAllFieldValues(fieldElements);
@@ -485,7 +491,7 @@
 
     try {
       var registerPath = (ENDPOINTS.auth && ENDPOINTS.auth.register) || "/register";
-      var registerUrl = API_BASE ? (API_BASE + registerPath) : registerPath;
+      var registerUrl = buildApiUrl(registerPath);
       var response = await fetch(registerUrl, { method: "POST", body: new FormData(formElement) });
       var responseData = await response.json();
 
@@ -521,18 +527,21 @@
     }
   }
 
-  // main entry point for the signup page
+  // Main entry point for the signup page.
   function initialiseSignupPage() {
     var signupForm = document.getElementById("signupForm");
     if (!signupForm) {
       return;
     }
     setupSignupWizard(signupForm);
-    setupFormSubmitHandler(signupForm);
+    signupForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      handleSignupFormSubmit(signupForm);
+    });
     setupPasswordToggleButtons();
   }
 
-  // wait for the DOM to be ready, then start
+  // Wait for the DOM to be ready, then start.
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       initialiseSignupPage();

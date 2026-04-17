@@ -1,5 +1,19 @@
-// sandbox-core.js — Core data, constants, state, and utility functions for the Netology network sandbox.
-// Student: C22320301 - Jamie O'Neill
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+sandbox-core.js - Shared Sandbox State and Helpers
+---
+This file holds the shared sandbox data, constants, and helper functions.
+It creates the main canvas state, builds devices and connections, checks
+IP addressing and routing rules, and provides the utility code that the
+other sandbox scripts use.
+
+It is kept separate because sandbox-ui.js handles rendering and events,
+while sandbox-app.js handles lesson setup, objectives, and auto-save.
+ */
 
 "use strict";
 
@@ -25,7 +39,7 @@ function querySelectorAll(selector, parent) {
 }
 
 
-// DOM references - all the important elements we use throughout
+// Shared DOM references
 var stage = getById("sandboxStage");
 var stageElement = document.querySelector(".sbx-stage-wrap");
 var deviceLayer = getById("sbxDevices");
@@ -54,7 +68,6 @@ var topCarouselPrevButton = getById("sbxTopCarouselPrev");
 var topCarouselNextButton = getById("sbxTopCarouselNext");
 var tutorialsToggleButton = getById("sbxTutorialsToggle");
 var tutorialsToggleLabel = getById("sbxTutorialsToggleLabel");
-var guideUI = null;
 var suggestionsHideTimer = null;
 
 // Tutorial carousel state
@@ -65,14 +78,14 @@ var TUTORIAL_CAROUSEL_HIDDEN_KEY = "sbx_carousel_hidden";
 var terminalLayout = { collapsed: true };
 
 
-// Grid and canvas size constants
+// Canvas size constants
 var GRID_SIZE = 20;
 var DEVICE_SIZE = 72;
 var DEVICE_RADIUS = 36;
 var CANVAS_WIDTH = 3200;
 var CANVAS_HEIGHT = 2200;
 
-// Auto network default settings
+// Default IP settings for auto-assign
 var AUTO_NETWORK = {
   subnet: "192.168.1.0",
   mask: "255.255.255.0",
@@ -80,10 +93,10 @@ var AUTO_NETWORK = {
   startHost: 10
 };
 
-// The two tools the user can switch between
+// Sandbox tools
 var TOOL = { SELECT: "select", CONNECT: "connect" };
 
-// All the device types available in the sandbox
+// Device types available in the sandbox
 var DEVICE_TYPES = {
   pc: { label: "PC", icon: "bi-pc-display", color: "#3b82f6", category: "End Devices" },
   laptop: { label: "Laptop", icon: "bi-laptop", color: "#6366f1", category: "End Devices" },
@@ -97,7 +110,7 @@ var DEVICE_TYPES = {
   cloud: { label: "Internet", icon: "bi-cloud", color: "#94a3b8", category: "Servers" }
 };
 
-// Connection types with labels, colors and dash patterns
+// Connection type styles
 var CONNECTION_TYPES = {
   ethernet: { label: "Ethernet", color: "#3b82f6", dash: "" },
   fiber: { label: "Fiber", color: "#f59e0b", dash: "8 4" },
@@ -106,7 +119,7 @@ var CONNECTION_TYPES = {
   console: { label: "Console", color: "#94a3b8", dash: "6 3" }
 };
 
-// Bandwidth for each connection type (used in latency calculations)
+// Bandwidth map used for ping latency
 var BANDWIDTH_MAP = {
   ethernet: 1000,
   fiber: 10000,
@@ -115,7 +128,7 @@ var BANDWIDTH_MAP = {
   console: 0
 };
 
-// Which devices can connect to which other devices, and with what cable
+// Which devices can connect to each other
 var DEVICE_COMPATIBILITY = {
   pc: [{ targets: ["switch", "router", "wireless-ap", "firewall"], conn: "ethernet" }],
   laptop: [{ targets: ["switch", "router", "wireless-ap"], conn: "ethernet" }, { targets: ["wireless-ap"], conn: "wireless" }],
@@ -129,7 +142,7 @@ var DEVICE_COMPATIBILITY = {
   cloud: [{ targets: ["router", "firewall"], conn: "ethernet" }]
 };
 
-// VLAN color list for color-coding VLANs on the canvas
+// VLAN colour palette
 var VLAN_COLORS = [
   "transparent",
   "#3b82f6",
@@ -143,7 +156,7 @@ var VLAN_COLORS = [
 ];
 
 
-// The main state object that holds everything about the current sandbox
+// Main sandbox state
 var state = {
   devices: [],
   connections: [],
@@ -176,7 +189,7 @@ var state = {
 };
 
 
-// Try to parse a JSON string safely - returns null if it fails
+// Parse JSON safely
 function parseJsonSafe(text) {
   if (!text) {
     return null;
@@ -188,13 +201,13 @@ function parseJsonSafe(text) {
   }
 }
 
-// Get the stored user from localStorage
+// Read the stored user from localStorage
 function getStoredUser() {
   var userJson = localStorage.getItem("netology_user") || localStorage.getItem("user");
   return parseJsonSafe(userJson);
 }
 
-// Escape special HTML characters to prevent injection
+// Escape text for HTML
 function escapeHtml(text) {
   var div = document.createElement("div");
   div.textContent = text;
@@ -211,7 +224,7 @@ function clearChildren(element) {
   }
 }
 
-// Keep a number between a minimum and maximum value
+// Keep a number within a range
 function clamp(value, minimum, maximum) {
   if (value < minimum) {
     return minimum;
@@ -222,7 +235,7 @@ function clamp(value, minimum, maximum) {
   return value;
 }
 
-// Darken or lighten a hex color by a percentage amount (negative = darker)
+// Lighten or darken a hex color
 function shadeColor(hex, percent) {
   var num = parseInt(hex.replace("#", ""), 16);
   var redChannel = clamp(((num >> 16) & 0xff) + Math.round(255 * percent / 100), 0, 255);
@@ -231,7 +244,7 @@ function shadeColor(hex, percent) {
   return "#" + ((1 << 24) | (redChannel << 16) | (greenChannel << 8) | blueChannel).toString(16).slice(1);
 }
 
-// Create a debounced version of a function that waits before calling it
+// Debounce a function call
 function debounce(callback, delay) {
   var timer = null;
   return function () {
@@ -240,7 +253,7 @@ function debounce(callback, delay) {
   };
 }
 
-// Create a regular HTML element with optional class name and text
+// Create a normal HTML element
 function makeElement(tag, className, textContent) {
   var element = document.createElement(tag);
   if (className) {
@@ -259,19 +272,19 @@ function makeIcon(iconClass) {
   return icon;
 }
 
-// Create an SVG element (needs the SVG namespace)
+// Create an SVG element
 function makeSvgElement(tag) {
   return document.createElementNS("http://www.w3.org/2000/svg", tag);
 }
 
-// Set text on the status box / tip shown at the top of the canvas
+// Update the tip text
 function setTip(text) {
   if (tipsElement) {
     tipsElement.textContent = text || "";
   }
 }
 
-// Set the text content of an element found by id
+// Update text content by id
 function setText(id, text) {
   var element = getById(id);
   if (element) {
@@ -279,7 +292,7 @@ function setText(id, text) {
   }
 }
 
-// Show a toast notification using the global showToast from toasts.js
+// Show a toast through toasts.js
 function showSandboxToast(options) {
   if (typeof showToast === "function") {
     showToast(options);
@@ -287,12 +300,12 @@ function showSandboxToast(options) {
 }
 
 
-// Save terminal collapsed state to localStorage
+// Save the terminal collapsed state
 function persistTerminalCollapsed() {
   localStorage.setItem("sbx_terminal_collapsed", terminalLayout.collapsed ? "1" : "0");
 }
 
-// Load terminal layout from localStorage
+// Restore the terminal layout
 function loadTerminalLayout() {
   var saved = localStorage.getItem("sbx_terminal_collapsed");
   if (saved !== null) {
@@ -301,52 +314,40 @@ function loadTerminalLayout() {
 }
 
 
-// Panning is done via native scroll on the .sbx-stage element.
-// The stage has overflow:auto and the inner content is the full CANVAS_WIDTH x CANVAS_HEIGHT.
-// No CSS transforms are used for panning — the stage element never moves.
+// Panning is handled by native scroll on the stage container.
 
-// Dummy pan bounds for compatibility
-function getPanBounds() {
-  return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
-}
-
-// This is now a no-op — panning is handled by native scroll
-function clampPanToBounds() {
-  // No CSS transform needed — the stage is a scroll container
-}
-
-// Convert a screen position (mouse coordinates) to world position (canvas coordinates)
+// Convert screen coordinates to canvas coordinates
 function toWorldPoint(screenX, screenY) {
   if (!stage) {
     return { x: screenX, y: screenY };
   }
   var rect = stage.getBoundingClientRect();
-  // Account for scroll offset inside the stage viewport
+  // Account for the stage scroll offset
   var worldX = (screenX - rect.left + stage.scrollLeft) / state.zoom;
   var worldY = (screenY - rect.top + stage.scrollTop) / state.zoom;
   return { x: worldX, y: worldY };
 }
 
-// Convert a world position to screen position
+// Convert canvas coordinates to screen coordinates
 function toScreenPoint(worldX, worldY) {
   if (!stage) {
     return { x: worldX, y: worldY };
   }
   var rect = stage.getBoundingClientRect();
-  // Account for scroll offset inside the stage viewport
+  // Account for the stage scroll offset
   var screenX = worldX * state.zoom - stage.scrollLeft + rect.left;
   var screenY = worldY * state.zoom - stage.scrollTop + rect.top;
   return { x: screenX, y: screenY };
 }
 
-// Apply the canvas world size to the spacer element (creates scroll area)
+// Apply the canvas world size to the spacer element
 function applyCanvasWorldSize() {
   var spacer = getById("sbxCanvasSpacer");
   if (spacer) {
     spacer.style.width = CANVAS_WIDTH + "px";
     spacer.style.height = CANVAS_HEIGHT + "px";
   }
-  // Also set the SVG and device layer to match
+  // Keep the SVG and device layer in sync
   if (connectionLayer) {
     connectionLayer.setAttribute("width", String(CANVAS_WIDTH));
     connectionLayer.setAttribute("height", String(CANVAS_HEIGHT));
@@ -359,20 +360,25 @@ function applyCanvasWorldSize() {
   }
 }
 
-// Reset the viewport to default scroll position
+// Reset the viewport to its default position
 function resetViewport() {
   state.zoom = 1;
   state.panX = 0;
   state.panY = 0;
   if (stage) {
+    stage.style.zoom = "1";
     stage.scrollLeft = 0;
     stage.scrollTop = 0;
   }
 }
 
-// Set the zoom level (zoom is disabled — canvas uses native scroll at 1:1 scale)
-function setZoom() {
-  state.zoom = 1;
+// Apply a zoom value to the sandbox stage.
+function setZoom(nextZoom) {
+  var clampedZoom = clamp(Number(nextZoom) || 1, 0.5, 2);
+  state.zoom = clampedZoom;
+  if (stage) {
+    stage.style.zoom = String(clampedZoom);
+  }
   if (typeof updateZoomLabel === "function") {
     updateZoomLabel();
   }
@@ -382,7 +388,7 @@ function setZoom() {
 }
 
 
-// Check if a string is a valid IP address (like 192.168.1.1)
+// Check whether a string is a valid IP address
 function isValidIpAddress(ip) {
   if (!ip || typeof ip !== "string") {
     return false;
@@ -407,12 +413,12 @@ var VALID_MASKS = [
   "255.255.255.240", "255.255.255.248", "255.255.255.252"
 ];
 
-// Check if a subnet mask is valid
+// Check whether a subnet mask is valid
 function isValidSubnet(mask) {
   return VALID_MASKS.indexOf(mask) !== -1;
 }
 
-// Convert an IP address string to a 32-bit integer
+// Convert an IP address to a 32-bit integer
 function ipToInt(ip) {
   var parts = ip.split(".");
   var result = 0;
@@ -422,7 +428,7 @@ function ipToInt(ip) {
   return result;
 }
 
-// Check if two IP addresses are in the same subnet
+// Check whether two IP addresses are in the same subnet
 function isSameSubnet(ipA, ipB, mask) {
   var maskInt = ipToInt(mask);
   var networkA = ipToInt(ipA) & maskInt;
@@ -430,14 +436,14 @@ function isSameSubnet(ipA, ipB, mask) {
   return networkA === networkB;
 }
 
-// Build a LAN IP address like 192.168.1.X using the auto network settings
+// Build an auto-assigned LAN IP
 function buildAutoLanIp(hostNumber) {
   var parts = AUTO_NETWORK.subnet.split(".");
   parts[3] = String(hostNumber);
   return parts.join(".");
 }
 
-// Find a free IP address that no device is already using
+// Find a free LAN IP
 function pickAvailableAutoLanIp() {
   var usedAddresses = [];
   for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
@@ -455,7 +461,7 @@ function pickAvailableAutoLanIp() {
   return null;
 }
 
-// Check for IP conflicts - two devices with the same IP address
+// Check for IP conflicts
 function findSubnetConflicts() {
   var conflicts = [];
   for (var deviceOuterIndex = 0; deviceOuterIndex < state.devices.length; deviceOuterIndex++) {
@@ -468,7 +474,7 @@ function findSubnetConflicts() {
       if (!deviceB.config || !deviceB.config.ipAddress) {
         continue;
       }
-      // Check for duplicate IPs
+  // Check for duplicate IPs
       if (deviceA.config.ipAddress === deviceB.config.ipAddress) {
         conflicts.push({
           type: "duplicate_ip",
@@ -479,7 +485,7 @@ function findSubnetConflicts() {
     }
   }
 
-  // Check for devices connected directly but on different subnets
+  // Check for directly connected devices on different subnets
   for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
     var connection = state.connections[connectionIndex];
     var fromDevice = findDevice(connection.from);
@@ -508,7 +514,7 @@ function findSubnetConflicts() {
 }
 
 
-// Generate a random MAC address (like AA:BB:CC:DD:EE:FF)
+// Generate a random MAC address
 function generateMacAddress() {
   var hexParts = [];
   for (var byteIndex = 0; byteIndex < 6; byteIndex++) {
@@ -519,7 +525,7 @@ function generateMacAddress() {
   return hexParts.join(":");
 }
 
-// Generate network interfaces for a device based on its type
+// Build device interfaces from the device type
 function generateInterfaces(deviceType) {
   var interfaces = [];
   if (deviceType === "router") {
@@ -545,7 +551,7 @@ function generateInterfaces(deviceType) {
   return interfaces;
 }
 
-// Generate a clean device name like "Laptop-1", "Router-2" based on how many of that type exist
+// Build a simple device name
 function generateDeviceName(deviceType) {
   var typeInfo = DEVICE_TYPES[deviceType] || DEVICE_TYPES.pc;
   var label = typeInfo.label;
@@ -559,7 +565,7 @@ function generateDeviceName(deviceType) {
   return label + "-" + (count + 1);
 }
 
-// Create a full device object with all default values
+// Fill in any missing device fields
 function normalizeDevice(partial) {
   var deviceId = partial.id || ("dev-" + Date.now() + "-" + Math.random().toString(36).substring(2, 8));
   var deviceType = partial.type || "pc";
@@ -588,7 +594,7 @@ function normalizeDevice(partial) {
   return device;
 }
 
-// Create a full connection object with default values
+// Fill in any missing connection fields
 function normalizeConnection(partial) {
   var connection = {
     id: partial.id || ("conn-" + Date.now() + "-" + Math.random().toString(36).substring(2, 8)),
@@ -603,7 +609,7 @@ function normalizeConnection(partial) {
 }
 
 
-// Find a device in the devices list by its id
+// Find a device by id
 function findDevice(deviceId) {
   for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
     if (state.devices[deviceIndex].id === deviceId) {
@@ -613,7 +619,7 @@ function findDevice(deviceId) {
   return null;
 }
 
-// Get the currently selected device (only if exactly one is selected)
+// Get the currently selected device
 function getSelectedDevice() {
   if (state.selectedIds.length !== 1) {
     return null;
@@ -621,7 +627,7 @@ function getSelectedDevice() {
   return findDevice(state.selectedIds[0]);
 }
 
-// Find a device by its name (case insensitive)
+// Find a device by name
 function findDeviceByName(name) {
   if (!name) {
     return null;
@@ -635,7 +641,7 @@ function findDeviceByName(name) {
   return null;
 }
 
-// Find a device by its IP address
+// Find a device by IP
 function findDeviceByIp(ip) {
   if (!ip) {
     return null;
@@ -648,7 +654,7 @@ function findDeviceByIp(ip) {
   return null;
 }
 
-// Find a device by name or IP address (useful for console commands)
+// Find a device by name or IP
 function findDeviceByIdentifier(identifier) {
   if (!identifier) {
     return null;
@@ -661,7 +667,7 @@ function findDeviceByIdentifier(identifier) {
 }
 
 
-// Resolve a device from an identifier (name/IP) or fall back to the selected device
+// Resolve a device or fall back to the selected one
 function resolveDevice(identifier) {
   var found = findDeviceByIdentifier(identifier);
   if (!found && state.selectedIds.length === 1) {
@@ -670,7 +676,7 @@ function resolveDevice(identifier) {
   return found;
 }
 
-// Count devices that pass a test function — avoids repeated loops
+// Count devices that match a test
 function countDevicesMatching(test) {
   var count = 0;
   for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
@@ -679,7 +685,7 @@ function countDevicesMatching(test) {
   return count;
 }
 
-// Find a connection by its id
+// Find a connection by id
 function findConnection(connectionId) {
   for (var connectionIndex = 0; connectionIndex < state.connections.length; connectionIndex++) {
     if (state.connections[connectionIndex].id === connectionId) {
@@ -689,13 +695,13 @@ function findConnection(connectionId) {
   return null;
 }
 
-// Wire a click listener to an element by id — does nothing if element doesn't exist
+// Add a click listener if the element exists
 function bindClick(id, handler) {
   var element = getById(id);
   if (element) { element.addEventListener("click", handler); }
 }
 
-// Build a labelled form field (label + input) and append both to a container
+// Build a labelled form field
 function makeField(container, labelText, inputType, value, opts) {
   var label = document.createElement("label");
   label.className = "form-label" + (opts && opts.mt ? " mt-" + opts.mt : "");
@@ -713,7 +719,7 @@ function makeField(container, labelText, inputType, value, opts) {
   return input;
 }
 
-// Build a device action button (config / copy / delete overlay buttons)
+// Build a device action button
 function makeActionButton(action, deviceId, tooltip, iconClass) {
   var btn = document.createElement("button");
   btn.className = "sbx-device-action";
@@ -724,7 +730,7 @@ function makeActionButton(action, deviceId, tooltip, iconClass) {
   return btn;
 }
 
-// Update a device's status based on whether it has an IP
+// Update device status from its IP
 function updateDeviceStatus(device) {
   if (!device || !device.config) {
     return;
@@ -732,7 +738,7 @@ function updateDeviceStatus(device) {
   device.status = device.config.ipAddress ? "configured" : "unconfigured";
 }
 
-// Automatically assign IP addresses and gateways to all devices
+// Auto-assign IPs and gateways
 function applyAutoNetworkDefaults() {
   // First pass: give IP addresses to devices that dont have one
   for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
@@ -764,7 +770,7 @@ function applyAutoNetworkDefaults() {
 }
 
 
-// Find a path between two devices using breadth-first search
+// Find a path between two devices
 function findPath(startId, endId) {
   if (startId === endId) {
     return [startId];
@@ -810,7 +816,7 @@ function findPath(startId, endId) {
 }
 
 
-// Rebuild MAC address tables for all switches
+// Rebuild switch MAC tables
 function rebuildMacTables() {
   for (var deviceIndex = 0; deviceIndex < state.devices.length; deviceIndex++) {
     var device = state.devices[deviceIndex];
@@ -850,7 +856,7 @@ function rebuildMacTables() {
 }
 
 
-// Execute a ping between two devices and return the result
+// Simulate a ping
 function executePing(sourceDevice, destinationDevice) {
   var result = {
     success: false,
@@ -942,7 +948,7 @@ function executePing(sourceDevice, destinationDevice) {
 }
 
 
-// Handle a DHCP request for a device
+// Handle a DHCP request
 function requestDhcp(device) {
   if (!device || !device.config) {
     return { success: false, message: "Invalid device." };
@@ -1015,7 +1021,7 @@ function requestDhcp(device) {
 }
 
 
-// Get the center of the currently visible viewport
+// Get the center of the visible viewport
 function getVisibleCenter() {
   if (!stage) {
     return { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
@@ -1028,7 +1034,7 @@ function getVisibleCenter() {
   return { x: centerX, y: centerY };
 }
 
-// Scroll the stage so a given world position is visible
+// Scroll the stage to a device
 function scrollToDevice(device) {
   if (!stage) { return; }
   var deviceCenterX = device.x + DEVICE_RADIUS;
@@ -1038,7 +1044,7 @@ function scrollToDevice(device) {
   stage.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: "smooth" });
 }
 
-// Find a good position for a new device on the canvas (spiral outward from visible center)
+// Find a good position for a new device
 function getNextDevicePosition() {
   var visibleCenter = getVisibleCenter();
   if (state.devices.length === 0) {
@@ -1088,7 +1094,7 @@ function getNextDevicePosition() {
 }
 
 
-// Create a drag ghost element for when dragging devices from the library
+// Create a drag ghost element
 function createDragGhost(deviceType) {
   var typeInfo = DEVICE_TYPES[deviceType] || DEVICE_TYPES.pc;
   var ghost = document.createElement("div");
@@ -1102,7 +1108,7 @@ function createDragGhost(deviceType) {
   return ghost;
 }
 
-// Update the position of the drag ghost to follow the mouse
+// Move the drag ghost
 function positionDragGhost(ghost, mouseX, mouseY) {
   if (!ghost) {
     return;
@@ -1112,7 +1118,7 @@ function positionDragGhost(ghost, mouseX, mouseY) {
 }
 
 
-// Topology templates - preset networks the user can load quickly
+// Prebuilt topology templates
 var TOPOLOGY_TEMPLATES = {
   star: {
     label: "Star",
@@ -1223,7 +1229,7 @@ var TOPOLOGY_TEMPLATES = {
   }
 };
 
-// Generate a topology summary text for the "Explain This Topology" feature
+// Build a topology summary
 function generateTopologySummary() {
   if (state.devices.length === 0) {
     return "The canvas is empty. Add some devices to get started!";
@@ -1304,7 +1310,7 @@ function generateTopologySummary() {
   return summary;
 }
 
-// Build an ARP table for a device showing MAC-to-IP mappings of reachable devices
+// Build an ARP table
 function buildArpTable(device) {
   if (!device || !device.config || !device.config.ipAddress) {
     return [];

@@ -1,28 +1,21 @@
-// index.js — Landing page smooth scroll and fade-in animations.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+index.js - Landing Page Script
+---
+This file handles the simple visual effects on the landing page.
+It fades the feature cards in as they scroll into view.
+
+It is used by Index.html
+*/
 
 (function () {
   "use strict";
 
-  // set up smooth scrolling for anchor links
-  function setupSmoothScrollLinks() {
-    var anchorLinks = document.querySelectorAll('a[href^="#"]');
-    for (var i = 0; i < anchorLinks.length; i++) {
-      anchorLinks[i].addEventListener("click", handleAnchorLinkClick);
-    }
-  }
-
-  // handle a click on an anchor link
-  function handleAnchorLinkClick(event) {
-    var href = this.getAttribute("href");
-    var targetId = href ? href.substring(1) : "";
-    var targetSection = targetId ? document.getElementById(targetId) : null;
-    if (targetSection) {
-      event.preventDefault();
-      targetSection.scrollIntoView({ behavior: "smooth" });
-    }
-  }
-
-  // fade in cards and features as they scroll into view
+  // Fade in cards and features as they scroll into view.
   function setupScrollFadeAnimations() {
     var scrollObserver = new IntersectionObserver(function (observedEntries) {
       for (var i = 0; i < observedEntries.length; i++) {
@@ -45,13 +38,12 @@
     }
   }
 
-  // main entry point for the landing page
+  // Main entry point for the landing page.
   function initialiseLandingPage() {
-    setupSmoothScrollLinks();
     setupScrollFadeAnimations();
   }
 
-  // wait for the DOM to be ready, then start
+  // Wait for the DOM to be ready, then start.
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       initialiseLandingPage();

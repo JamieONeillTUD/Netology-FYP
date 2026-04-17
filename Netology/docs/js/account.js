@@ -1,4 +1,18 @@
-// account.js — Account page: profile, preferences, security, and activity heatmap.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+account.js - Account Page Script
+---
+This file handles the main behaviour for the Account page.
+It loads the user's profile details, learning stats, recent
+badges, appearance settings, security actions, and activity heatmap.
+
+It is used by Account.html and fills the page with data from
+the backend and local storage.
+*/
 
 (function () {
   "use strict";
@@ -7,9 +21,9 @@
   var ENDPOINTS = window.ENDPOINTS || {};
   var XP = window.NetologyXP || {};
   var TAB_NAMES = ["profile", "preferences", "security", "activity"];
-  var HEATMAP_DAYS = 30;
+  var HEATMAP_DAYS = 90;
 
-  // set text content on an element by id
+  // Set text on an element by id.
   function setTextById(elementId, textValue) {
     var element = document.getElementById(elementId);
     if (element) {
@@ -17,7 +31,7 @@
     }
   }
 
-  // set the value attribute on an input by id
+  // Set the value of an input by id.
   function setInputValueById(elementId, inputValue) {
     var element = document.getElementById(elementId);
     if (element) {
@@ -25,7 +39,7 @@
     }
   }
 
-  // set the css width on an element by id
+  // Set a progress bar width and keep it between 0 and 100.
   function setProgressBarWidth(elementId, percent) {
     var element = document.getElementById(elementId);
     if (element) {
@@ -34,20 +48,34 @@
     }
   }
 
-  // read user data from localStorage
-  function readSavedUserFromLocalStorage() {
+  // Clean an email address so it is safe to reuse.
+  function normaliseEmail(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  // Read JSON from localStorage and fall back if it fails.
+  function readStoredJson(key, fallbackValue) {
     try {
-      return JSON.parse(localStorage.getItem("netology_user") || "null");
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallbackValue;
     } catch (error) {
-      return null;
+      return fallbackValue;
     }
   }
 
-  // fetch JSON from the API using the correct base URL
+  // Build a full API URL from a path.
+  function buildApiUrl(path) {
+    return API_BASE ? (API_BASE + path) : path;
+  }
+
+  // Read the saved user from localStorage.
+  function readSavedUserFromLocalStorage() {
+    return readStoredJson("netology_user", null);
+  }
+
+  // Fetch JSON from the API.
   async function fetchFromApi(path, params) {
-    var base = String(window.API_BASE || "").trim().replace(/\/$/, "");
-    var fullPath = base ? (base + path) : path;
-    var url = new URL(fullPath, window.location.origin);
+    var url = new URL(buildApiUrl(path), window.location.origin);
 
     var paramKeys = Object.keys(params || {});
     for (var i = 0; i < paramKeys.length; i++) {
@@ -58,7 +86,7 @@
     return response.json();
   }
 
-  // convert a date-like value into a YYYY-MM-DD string
+  // Convert a date-like value into YYYY-MM-DD.
   function convertToDateKey(rawValue) {
     var text = String(rawValue || "").trim();
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
@@ -71,7 +99,7 @@
     return parsed.toISOString().slice(0, 10);
   }
 
-  // build a full name string from user data
+  // Build a display name from the saved user details.
   function buildFullName(userData) {
     var parts = [];
     if (userData && userData.first_name) {
@@ -89,16 +117,9 @@
     return "Student";
   }
 
-  // switch to a specific tab and update the URL hash
+  // Show one tab and update the URL hash.
   function showTab(tabName, updateHash) {
-    var isValidTab = false;
-    for (var t = 0; t < TAB_NAMES.length; t++) {
-      if (TAB_NAMES[t] === tabName) {
-        isValidTab = true;
-        break;
-      }
-    }
-    if (!isValidTab) {
+    if (TAB_NAMES.indexOf(tabName) === -1) {
       return;
     }
 
@@ -129,7 +150,7 @@
     }
   }
 
-  // set up the tab buttons and hash navigation
+  // Set up the tab buttons and hash navigation.
   function setupAccountTabs() {
     var tabButtons = document.querySelectorAll("[role='tab']");
     for (var i = 0; i < tabButtons.length; i++) {
@@ -140,27 +161,17 @@
     }
 
     var initialHash = window.location.hash.replace("#", "");
-    var isValidHash = false;
-    for (var h = 0; h < TAB_NAMES.length; h++) {
-      if (TAB_NAMES[h] === initialHash) {
-        isValidHash = true;
-        break;
-      }
-    }
-    showTab(isValidHash ? initialHash : "profile", false);
+    showTab(TAB_NAMES.indexOf(initialHash) !== -1 ? initialHash : "profile", false);
 
     window.addEventListener("hashchange", function () {
       var hash = window.location.hash.replace("#", "");
-      for (var j = 0; j < TAB_NAMES.length; j++) {
-        if (TAB_NAMES[j] === hash) {
-          showTab(hash, false);
-          return;
-        }
+      if (TAB_NAMES.indexOf(hash) !== -1) {
+        showTab(hash, false);
       }
     });
   }
 
-  // apply the selected theme to the page
+  // Apply the selected theme.
   function applyThemeSetting(themeValue, themeInputs) {
     var raw = String(themeValue || "").trim().toLowerCase();
     var theme = "light";
@@ -184,7 +195,7 @@
     }
   }
 
-  // set up appearance settings (theme and dyslexic font toggle)
+  // Set up the appearance settings.
   function setupAppearanceSettings() {
     var themeRadios = document.querySelectorAll('input[name="themeMode"]');
     var themeInputs = [];
@@ -231,6 +242,11 @@
       largeTextToggle.addEventListener("change", function (event) {
         var enabled = Boolean(event.target.checked);
 
+        if (window.NetologyTheme && window.NetologyTheme.setLargeText) {
+          window.NetologyTheme.setLargeText(enabled);
+          return;
+        }
+
         localStorage.setItem("netology_large_text", enabled ? "true" : "false");
         if (enabled) {
           document.body.classList.add("net-large-text");
@@ -241,10 +257,10 @@
     }
   }
 
-  // set up the restart onboarding button
+  // Set up the restart onboarding button.
   function setupRestartOnboardingButton(user) {
     var button = document.getElementById("restartOnboardingBtn");
-    var email = String((user && user.email) || "").trim().toLowerCase();
+    var email = normaliseEmail(user && user.email);
     if (!button || !email) {
       return;
     }
@@ -266,10 +282,10 @@
     });
   }
 
-  // set up the delete account button
+  // Set up the delete account button.
   function setupDeleteAccountButton(user) {
     var button = document.getElementById("deleteAccountBtn");
-    var email = String((user && user.email) || "").trim().toLowerCase();
+    var email = normaliseEmail(user && user.email);
     if (!button || !email) {
       return;
     }
@@ -290,9 +306,8 @@
         return;
       }
 
-      // Call the API to delete the account
       var deleteEndpoint = (ENDPOINTS.auth && ENDPOINTS.auth.deleteAccount) || "/delete-account";
-      var apiUrl = API_BASE ? (API_BASE + deleteEndpoint) : deleteEndpoint;
+      var apiUrl = buildApiUrl(deleteEndpoint);
 
       var formData = new FormData();
       formData.append("email", email);
@@ -301,11 +316,9 @@
         .then(function (response) { return response.json(); })
         .then(function (data) {
           if (data && data.success) {
-            // Clear all local storage
             localStorage.clear();
             sessionStorage.clear();
 
-            // Redirect to home page
             alert("Your account has been permanently deleted.");
             window.location.href = "index.html";
           } else {
@@ -319,7 +332,7 @@
     });
   }
 
-  // load the user profile data from the server and fill the page
+  // Load the user's profile data and fill the page.
   async function loadUserProfileData(user) {
     try {
       var profilePath = (ENDPOINTS.auth && ENDPOINTS.auth.userInfo) || "/user-info";
@@ -377,7 +390,6 @@
         }
       }
 
-      // fill all the profile fields
       setTextById("profileName", displayName);
       setTextById("profileAvatar", displayName.charAt(0).toUpperCase());
       setTextById("profileEmail", user.email);
@@ -405,61 +417,49 @@
     }
   }
 
-  // show up to 4 earned badges or lock placeholders
-  function renderRecentAchievementBadges(unlockedAchievements) {
+  // Build the HTML for one achievement card.
+  function achievementBadgeHtml(achievement, isUnlocked) {
+    var icon = String((achievement && achievement.icon) || "bi-trophy").replace(/^bi:/, "bi-");
+    var xp = Number((achievement && (achievement.xp_reward || achievement.xp_added)) || 0);
+    var className = isUnlocked ? "prg-ach-item unlocked" : "prg-ach-item locked";
+    var lockHtml = isUnlocked ? "" : '<div class="prg-ach-lock"><i class="bi bi-lock-fill"></i></div>';
+
+    return '<div class="' + className + '" title="' + ((achievement && achievement.description) || "") + '">' +
+      '<div class="prg-ach-icon"><i class="bi ' + icon + '"></i>' + lockHtml + "</div>" +
+      '<div class="prg-ach-name">' + ((achievement && achievement.name) || "Achievement") + "</div>" +
+      (xp ? '<div class="prg-ach-xp">+' + xp + " XP</div>" : "") +
+      "</div>";
+  }
+
+  // Show the account page achievements in the same style as the Progress page.
+  function renderAccountAchievements(unlockedAchievements, lockedAchievements) {
     var container = document.getElementById("recentBadgesSmall");
     if (!container) {
       return;
     }
 
-    container.innerHTML = "";
+    var unlocked = Array.isArray(unlockedAchievements) ? unlockedAchievements : [];
+    var locked = Array.isArray(lockedAchievements) ? lockedAchievements : [];
+    container.className = "prg-ach-grid";
 
-    var recentBadges = Array.isArray(unlockedAchievements) ? unlockedAchievements.slice(0, 4) : [];
-
-    if (recentBadges.length === 0) {
-      for (var i = 0; i < 4; i++) {
-        var placeholder = document.createElement("span");
-        placeholder.className = "net-badge-placeholder";
-        placeholder.setAttribute("aria-label", "Locked badge");
-
-        var lockIcon = document.createElement("i");
-        lockIcon.className = "bi bi-lock-fill";
-        placeholder.appendChild(lockIcon);
-
-        container.appendChild(placeholder);
-      }
+    if (!unlocked.length && !locked.length) {
+      container.innerHTML = '<div class="small text-muted">Complete lessons to earn your first achievement.</div>';
       return;
     }
 
-    for (var b = 0; b < recentBadges.length; b++) {
-      var badge = recentBadges[b];
-      var badgeElement = document.createElement("span");
-      badgeElement.className = "net-earned-badge";
-      badgeElement.dataset.badgeId = String((badge && badge.id) || "");
-      badgeElement.title = String((badge && badge.name) || "Badge");
-
-      var rawIcon = String((badge && badge.icon) || "").trim();
-      var iconElement = document.createElement("i");
-
-      if (rawIcon.indexOf("bi-") === 0) {
-        iconElement.className = "bi " + rawIcon;
-      } else if (rawIcon) {
-        badgeElement.textContent = rawIcon;
-        container.appendChild(badgeElement);
-        continue;
-      } else {
-        iconElement.className = "bi bi-patch-check-fill";
-      }
-
-      iconElement.setAttribute("aria-hidden", "true");
-      badgeElement.appendChild(iconElement);
-      container.appendChild(badgeElement);
+    var html = "";
+    for (var i = 0; i < unlocked.length; i++) {
+      html += achievementBadgeHtml(unlocked[i], true);
     }
+    for (var j = 0; j < locked.length; j++) {
+      html += achievementBadgeHtml(locked[j], false);
+    }
+    container.innerHTML = html;
   }
 
-  // load stats: courses completed, achievements, and streak
+  // Load the user's course, achievement, and streak stats.
   async function loadUserStatistics(user) {
-    var email = (user && user.email) || "";
+    var email = normaliseEmail(user && user.email);
     if (!email) {
       return;
     }
@@ -468,25 +468,15 @@
     var achievementsPath = (ENDPOINTS.achievements && ENDPOINTS.achievements.list) || "/api/user/achievements";
     var streaksPath = (ENDPOINTS.progress && ENDPOINTS.progress.userStreaks) || "/api/user/streaks";
 
-    // fetch all three stat sources at once
-    var coursesData = null;
-    var achievementsData = null;
-    var streakData = null;
+    var results = await Promise.all([
+      fetchFromApi(coursesPath, { email: email }).catch(function () { return null; }),
+      fetchFromApi(achievementsPath, { user_email: email }).catch(function () { return null; }),
+      fetchFromApi(streaksPath, { user_email: email }).catch(function () { return null; })
+    ]);
+    var coursesData = results[0];
+    var achievementsData = results[1];
+    var streakData = results[2];
 
-    try {
-      var results = await Promise.all([
-        fetchFromApi(coursesPath, { email: email }).catch(function () { return null; }),
-        fetchFromApi(achievementsPath, { user_email: email }).catch(function () { return null; }),
-        fetchFromApi(streaksPath, { user_email: email }).catch(function () { return null; })
-      ]);
-      coursesData = results[0];
-      achievementsData = results[1];
-      streakData = results[2];
-    } catch (fetchError) {
-      // continue with nulls
-    }
-
-    // count completed courses
     var courses = [];
     if (coursesData && Array.isArray(coursesData.courses)) {
       courses = coursesData.courses;
@@ -503,18 +493,19 @@
       }
     }
 
-    // count unlocked achievements
     var unlockedAchievements = [];
     if (achievementsData && Array.isArray(achievementsData.unlocked)) {
       unlockedAchievements = achievementsData.unlocked;
     } else if (Array.isArray(achievementsData)) {
       unlockedAchievements = achievementsData;
     }
+    var lockedAchievements = [];
+    if (achievementsData && Array.isArray(achievementsData.locked)) {
+      lockedAchievements = achievementsData.locked;
+    }
 
-    // read streak days
     var streakDays = Number((streakData && streakData.current_streak) || 0);
 
-    // fill the stat numbers
     setTextById("coursesCompletedDisplay", completedCount);
     setTextById("coursesCompletedStat", completedCount);
     setTextById("achievementsDisplay", unlockedAchievements.length);
@@ -522,10 +513,10 @@
     setTextById("streakDisplay", streakDays + " days");
     setTextById("streakStat", streakDays);
 
-    renderRecentAchievementBadges(unlockedAchievements);
+    renderAccountAchievements(unlockedAchievements, lockedAchievements);
   }
 
-  // add an activity count to a date in the totals object
+  // Add activity to one date in the totals object.
   function addActivityToDate(totalsByDate, dateKey, count) {
     if (!dateKey) {
       return;
@@ -533,7 +524,7 @@
     totalsByDate[dateKey] = (totalsByDate[dateKey] || 0) + Math.max(0, Number(count) || 0);
   }
 
-  // calculate the heatmap intensity level from an activity count
+  // Work out the heatmap colour level from the activity count.
   function calculateHeatmapIntensity(totalCount) {
     if (totalCount <= 0) {
       return 0;
@@ -550,16 +541,15 @@
     return 4;
   }
 
-  // load the activity heatmap data and render the grid
+  // Load the activity heatmap data and draw the grid.
   async function loadActivityHeatmap(user) {
-    var email = String((user && user.email) || "").trim().toLowerCase();
+    var email = normaliseEmail(user && user.email);
     if (!email) {
       return;
     }
 
     var totalsByDate = {};
 
-    // 1. server activity data
     try {
       var activityPath = (ENDPOINTS.progress && ENDPOINTS.progress.userActivity) || "/api/user/activity";
       var data = await fetchFromApi(activityPath, { user_email: email, range: HEATMAP_DAYS });
@@ -594,39 +584,26 @@
       console.error("Error loading activity:", activityError);
     }
 
-    // 2. local progress log
-    try {
-      var progressLogRaw = localStorage.getItem("netology_progress_log:" + email) || "[]";
-      var progressLog = JSON.parse(progressLogRaw);
-      if (Array.isArray(progressLog)) {
-        for (var p = 0; p < progressLog.length; p++) {
-          var logEntry = progressLog[p];
-          var logDateKey = convertToDateKey(logEntry && logEntry.date);
-          if (!logDateKey && logEntry && Number.isFinite(Number(logEntry.ts))) {
-            logDateKey = convertToDateKey(new Date(Number(logEntry.ts)).toISOString());
-          }
-          var xpBonus = Number((logEntry && logEntry.xp) || 0) > 0 ? 1 : 0;
-          addActivityToDate(totalsByDate, logDateKey, 1 + xpBonus);
+    var progressLog = readStoredJson("netology_progress_log:" + email, []);
+    if (Array.isArray(progressLog)) {
+      for (var p = 0; p < progressLog.length; p++) {
+        var logEntry = progressLog[p];
+        var logDateKey = convertToDateKey(logEntry && logEntry.date);
+        if (!logDateKey && logEntry && Number.isFinite(Number(logEntry.ts))) {
+          logDateKey = convertToDateKey(new Date(Number(logEntry.ts)).toISOString());
         }
+        var xpBonus = Number((logEntry && logEntry.xp) || 0) > 0 ? 1 : 0;
+        addActivityToDate(totalsByDate, logDateKey, 1 + xpBonus);
       }
-    } catch (progressError) {
-      // ignore parse errors
     }
 
-    // 3. local login log
-    try {
-      var loginLogRaw = localStorage.getItem("netology_login_log:" + email) || "[]";
-      var loginLog = JSON.parse(loginLogRaw);
-      if (Array.isArray(loginLog)) {
-        for (var l = 0; l < loginLog.length; l++) {
-          addActivityToDate(totalsByDate, convertToDateKey(loginLog[l]), 1);
-        }
+    var loginLog = readStoredJson("netology_login_log:" + email, []);
+    if (Array.isArray(loginLog)) {
+      for (var l = 0; l < loginLog.length; l++) {
+        addActivityToDate(totalsByDate, convertToDateKey(loginLog[l]), 1);
       }
-    } catch (loginError) {
-      // ignore parse errors
     }
 
-    // draw the heatmap grid
     var heatmapContainer = document.getElementById("activityHeatmapContainer");
     if (heatmapContainer) {
       heatmapContainer.innerHTML = "";
@@ -646,7 +623,6 @@
       }
     }
 
-    // show last active date
     var sortedDates = Object.keys(totalsByDate).sort();
     var lastDate = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null;
     if (lastDate) {
@@ -654,15 +630,11 @@
     }
   }
 
-  // main entry point for the account page
+  // Main entry point for the account page.
   async function initialiseAccountPage() {
     var user = readSavedUserFromLocalStorage();
     if (!user) {
-      try {
-        user = JSON.parse(localStorage.getItem("user") || "null");
-      } catch (parseError) {
-        user = null;
-      }
+      user = readStoredJson("user", null);
     }
 
     if (!user || !user.email) {
@@ -690,7 +662,7 @@
     }
   }
 
-  // wait for the DOM to be ready, then start
+  // Wait for the DOM, then start the page.
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       initialiseAccountPage();

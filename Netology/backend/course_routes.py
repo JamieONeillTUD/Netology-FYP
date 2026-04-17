@@ -39,6 +39,40 @@ def course_row(row):
     }
 
 
+def recalculate_course_progress(cur, email, course_id):
+    # Update user_courses.progress based on all completed activities.
+    # Total activities = lessons + 1 quiz + 1 challenge per unit (module).
+    cur.execute(
+        "SELECT total_lessons, module_count FROM courses WHERE id = %s AND is_active = TRUE",
+        (course_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return
+    total_lessons = max(1, to_int(row[0], 1))
+    module_count = max(1, to_int(row[1], 1))
+    total_activities = total_lessons + (module_count * 2)
+
+    cur.execute(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM user_lessons    WHERE user_email = %s AND course_id = %s),
+            (SELECT COUNT(*) FROM user_quizzes    WHERE user_email = %s AND course_id = %s),
+            (SELECT COUNT(*) FROM user_challenges WHERE user_email = %s AND course_id = %s)
+        """,
+        (email, course_id, email, course_id, email, course_id),
+    )
+    counts = cur.fetchone()
+    activities_done = sum(to_int(c, 0) for c in counts)
+    progress = min(100, int(activities_done / total_activities * 100))
+    is_complete = activities_done >= total_activities
+
+    cur.execute(
+        "INSERT INTO user_courses (user_email, course_id, progress, completed) VALUES (%s, %s, %s, %s) ON CONFLICT (user_email, course_id) DO UPDATE SET progress = GREATEST(user_courses.progress, EXCLUDED.progress), completed = EXCLUDED.completed, updated_at = CURRENT_TIMESTAMP",
+        (email, course_id, progress, is_complete),
+    )
+
+
 def check_achievements(email, event):
     # Check for new achievements and return the unlocks plus their XP total.
     try:
@@ -161,19 +195,6 @@ def complete_lesson():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Load the total lesson count for this course.
-        cur.execute("SELECT total_lessons FROM courses WHERE id = %s AND is_active = TRUE", (course_id,))
-        row = cur.fetchone()
-        if not row:
-            return jsonify({"success": False, "message": "Course not found."}), 404
-        total_lessons = max(1, to_int(row[0], 1))
-
-        # Make sure the user has a progress row for this course.
-        cur.execute(
-            "INSERT INTO user_courses (user_email, course_id, progress, completed) VALUES (%s, %s, 0, FALSE) ON CONFLICT DO NOTHING",
-            (email, course_id),
-        )
-
         # Save the lesson only once.
         cur.execute(
             """
@@ -185,19 +206,9 @@ def complete_lesson():
         )
         first_time = cur.rowcount == 1
 
-        # Only update progress the first time this lesson is completed.
+        # Update progress any time a lesson is completed for the first time.
         if first_time:
-            cur.execute(
-                "SELECT COUNT(*) FROM user_lessons WHERE user_email = %s AND course_id = %s",
-                (email, course_id),
-            )
-            lessons_done = to_int(cur.fetchone()[0], 0)
-            progress = min(100, int(lessons_done / total_lessons * 100))
-            is_complete = lessons_done >= total_lessons
-            cur.execute(
-                "UPDATE user_courses SET progress = %s, completed = %s, updated_at = CURRENT_TIMESTAMP WHERE user_email = %s AND course_id = %s",
-                (progress, is_complete, email, course_id),
-            )
+            recalculate_course_progress(cur, email, course_id)
 
         conn.commit()
 
@@ -244,6 +255,10 @@ def complete_quiz():
             (email, course_id, lesson_number, xp_award),
         )
         first_time = cur.rowcount == 1
+
+        if first_time:
+            recalculate_course_progress(cur, email, course_id)
+
         conn.commit()
 
         xp_added = 0
@@ -290,6 +305,10 @@ def complete_challenge():
             (email, course_id, lesson_number, xp_award),
         )
         first_time = cur.rowcount == 1
+
+        if first_time:
+            recalculate_course_progress(cur, email, course_id)
+
         conn.commit()
 
         xp_added = 0

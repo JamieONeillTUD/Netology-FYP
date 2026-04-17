@@ -1,73 +1,104 @@
-// app.js — Shared globals loaded on every page.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+app.js - Shared Globals
+---
+This file is loaded on every page in the app. It sets up things that
+all other page scripts depend on.
+
+It does four things:
+  1. Sets the API base URL and all endpoint paths so other files can
+     reference them without hardcoding strings.
+  2. Provides the XP and levelling system (NetologyXP) — all level
+     calculations happen here and are exposed globally.
+  3. Manages the achievement notification queue — when a page unlocks
+     achievements, they are stored and shown as toast popups.
+  4. Wires up shared nav behaviour — the slide sidebar, user dropdown,
+     logout buttons, and the user info display in the nav bar.
+
+It also tracks login days and syncs them with the backend to support
+streak counting and daily challenge logic.
+*/
 
 (function () {
   "use strict";
 
-  // set the api base url, fallback to render hosted backend
+  // ── API Base URL and Endpoint Paths ──────────────────────────────────────────
+
+  // Use whatever API_BASE is set in the HTML, otherwise fall back to the
+  // hosted backend on Render.
   var rawBase = String(window.API_BASE || "").trim();
   window.API_BASE = rawBase ? rawBase.replace(/\/$/, "") : "https://netology-fyp.onrender.com";
 
-  // all api endpoint paths used across the app
+  // Every API path used across the app lives here so they are never hardcoded
+  // in individual page scripts.
   window.ENDPOINTS = {
     auth: {
-      register: "/register",
-      login: "/login",
-      userInfo: "/user-info",
-      recordLogin: "/record-login",
-      forgotPassword: "/forgot-password",
-      deleteAccount: "/delete-account"
+      register:        "/register",
+      login:           "/login",
+      userInfo:        "/user-info",
+      recordLogin:     "/record-login",
+      forgotPassword:  "/forgot-password",
+      deleteAccount:   "/delete-account"
     },
     onboarding: {
-      start: "/api/onboarding/start",
-      complete: "/api/onboarding/complete",
-      skip: "/api/onboarding/skip",
-      steps: "/api/onboarding/steps",
+      start:        "/api/onboarding/start",
+      complete:     "/api/onboarding/complete",
+      skip:         "/api/onboarding/skip",
+      steps:        "/api/onboarding/steps",
       stepComplete: "/api/onboarding/step/:id"
     },
     courses: {
-      list: "/courses",
-      courseDetails: "/course",
-      userCourses: "/user-courses",
-      userCourseStatus: "/user-course-status",
+      list:                "/courses",
+      courseDetails:       "/course",
+      userCourses:         "/user-courses",
+      userCourseStatus:    "/user-course-status",
       userProgressSummary: "/user-progress-summary",
-      completeLesson: "/complete-lesson",
-      completeQuiz: "/complete-quiz",
-      completeChallenge: "/complete-challenge"
+      completeLesson:      "/complete-lesson",
+      completeQuiz:        "/complete-quiz",
+      completeChallenge:   "/complete-challenge"
     },
     progress: {
       userActivity: "/api/user/activity",
-      userStreaks: "/api/user/streaks"
+      userStreaks:  "/api/user/streaks"
     },
-    challenges: { list: "/api/user/challenges" },
+    challenges:   { list: "/api/user/challenges" },
     achievements: { list: "/api/user/achievements" },
     sandbox: {
       lessonSessionSave: "/lesson-session/save",
       lessonSessionLoad: "/lesson-session/load",
-      saveTopology: "/save-topology",
-      loadTopologies: "/load-topologies",
-      loadTopology: "/load-topology/:topologyId",
-      deleteTopology: "/delete-topology/:topologyId"
+      saveTopology:      "/save-topology",
+      loadTopologies:    "/load-topologies",
+      loadTopology:      "/load-topology/:topologyId",
+      deleteTopology:    "/delete-topology/:topologyId"
     }
   };
 
-  // parse a value as an integer, return fallback if invalid
+  // ── XP and Levelling System ──────────────────────────────────────────────────
+
+  // Parse a value as an integer safely, returning a fallback if it is invalid.
   function parseIntSafe(value, fallback) {
     var number = parseInt(value, 10);
     return Number.isFinite(number) ? number : (fallback || 0);
   }
 
-  // ensure a level is at least 1
+  // Ensure a level value is always at least 1.
   function ensureValidLevel(level) {
     return Math.max(1, parseIntSafe(level, 1));
   }
 
-  // calculate cumulative xp needed to reach a given level
+  // Calculate the total cumulative XP needed to reach a given level.
+  // Uses a triangular number formula so each level costs 100 more XP than the last.
   function totalXpForLevel(level) {
     var validLevel = ensureValidLevel(level);
     return (100 * (validLevel - 1) * validLevel) / 2;
   }
 
-  // figure out what level a user is based on their total xp
+  // Work out what level a user is at from their total XP.
+  // Walks up level by level until the remaining XP runs out.
   function levelFromTotalXp(xp) {
     var remaining = Math.max(0, parseIntSafe(xp, 0));
     var level = 1;
@@ -80,223 +111,201 @@
     return level;
   }
 
-  // how much xp is needed to go from this level to the next
+  // How much XP is needed to go from the current level to the next.
   function xpForNextLevel(level) {
     return 100 * ensureValidLevel(level);
   }
 
-  // get the rank name based on a users level
+  // Return the rank label for a given level: Novice, Intermediate, or Advanced.
   function rankForLevel(level) {
     var validLevel = ensureValidLevel(level);
-    if (validLevel >= 5) {
-      return "Advanced";
-    }
-    if (validLevel >= 3) {
-      return "Intermediate";
-    }
+    if (validLevel >= 5) { return "Advanced"; }
+    if (validLevel >= 3) { return "Intermediate"; }
     return "Novice";
   }
 
-  // get full level progress breakdown from total xp
+  // Build a full progress breakdown object from a total XP value.
+  // This is the main function other pages call to display level info.
   function getLevelProgress(xp) {
-    var totalXp = Math.max(0, parseIntSafe(xp, 0));
-    var level = levelFromTotalXp(totalXp);
-    var xpIntoCurrentLevel = Math.max(0, totalXp - totalXpForLevel(level));
-    var xpNeededForNext = xpForNextLevel(level);
+    var totalXp   = Math.max(0, parseIntSafe(xp, 0));
+    var level     = levelFromTotalXp(totalXp);
+    var xpIntoLevel  = Math.max(0, totalXp - totalXpForLevel(level));
+    var nextLevelXp  = xpForNextLevel(level);
     return {
-      level: level,
-      totalXp: totalXp,
-      xpIntoLevel: xpIntoCurrentLevel,
-      nextLevelXp: xpNeededForNext,
-      toNextXp: Math.max(0, xpNeededForNext - xpIntoCurrentLevel),
-      progressPercent: Math.max(0, Math.min(100, Math.round((xpIntoCurrentLevel / Math.max(xpNeededForNext, 1)) * 100)))
+      level:           level,
+      totalXp:         totalXp,
+      xpIntoLevel:     xpIntoLevel,
+      nextLevelXp:     nextLevelXp,
+      toNextXp:        Math.max(0, nextLevelXp - xpIntoLevel),
+      progressPercent: Math.max(0, Math.min(100, Math.round((xpIntoLevel / Math.max(nextLevelXp, 1)) * 100)))
     };
   }
 
-  // add xp to a user object and return updated copy
+  // Add XP to a user object and return an updated copy with recalculated fields.
   function applyXpToUser(user, xpToAdd) {
-    var userData = (user && typeof user === "object") ? user : {};
-    var currentXp = Math.max(0, parseIntSafe(userData.xp, 0));
-    var addedXp = Math.max(0, parseIntSafe(xpToAdd, 0));
-    var progress = getLevelProgress(currentXp + addedXp);
+    var userData   = (user && typeof user === "object") ? user : {};
+    var currentXp  = Math.max(0, parseIntSafe(userData.xp, 0));
+    var addedXp    = Math.max(0, parseIntSafe(xpToAdd, 0));
+    var progress   = getLevelProgress(currentXp + addedXp);
     return Object.assign({}, userData, {
-      xp: progress.totalXp,
+      xp:            progress.totalXp,
       numeric_level: progress.level,
       xp_into_level: progress.xpIntoLevel,
       next_level_xp: progress.nextLevelXp,
-      level: rankForLevel(progress.level),
-      rank: rankForLevel(progress.level)
+      level:         rankForLevel(progress.level),
+      rank:          rankForLevel(progress.level)
     });
   }
 
-  // resolve user progress, preferring server values if they are valid
+  // Reconcile a user object's progress fields — prefer server values if they
+  // are consistent with the XP total, otherwise recompute them locally.
   function resolveUserProgress(user) {
-    var userData = (user && typeof user === "object") ? user : {};
-    var totalXp = Math.max(0, parseIntSafe(userData.xp, 0));
-    var computed = getLevelProgress(totalXp);
+    var userData  = (user && typeof user === "object") ? user : {};
+    var totalXp   = Math.max(0, parseIntSafe(userData.xp, 0));
+    var computed  = getLevelProgress(totalXp);
 
-    // check if server-provided values are consistent
-    var serverLevel = ensureValidLevel(parseIntSafe(userData.numeric_level, computed.level));
-    var serverXpInto = Math.max(0, parseIntSafe(userData.xp_into_level, computed.xpIntoLevel));
+    var serverLevel   = ensureValidLevel(parseIntSafe(userData.numeric_level, computed.level));
+    var serverXpInto  = Math.max(0, parseIntSafe(userData.xp_into_level, computed.xpIntoLevel));
     var serverXpNeeded = Math.max(0, parseIntSafe(userData.next_level_xp, computed.nextLevelXp));
+
+    // The server values are valid if they add up correctly — allow a rounding
+    // difference of 1 XP either way.
     var serverIsValid = serverXpNeeded > 0
       && Math.abs(totalXpForLevel(serverLevel) + serverXpInto - totalXp) <= 1;
 
-    // use server values if they check out, otherwise use computed
     if (serverIsValid) {
       return {
-        level: serverLevel,
-        totalXp: totalXp,
-        xpIntoLevel: serverXpInto,
-        nextLevelXp: serverXpNeeded,
-        toNextXp: Math.max(0, serverXpNeeded - serverXpInto),
+        level:           serverLevel,
+        totalXp:         totalXp,
+        xpIntoLevel:     serverXpInto,
+        nextLevelXp:     serverXpNeeded,
+        toNextXp:        Math.max(0, serverXpNeeded - serverXpInto),
         progressPercent: Math.max(0, Math.min(100, Math.round((serverXpInto / serverXpNeeded) * 100))),
-        rank: rankForLevel(serverLevel)
+        rank:            rankForLevel(serverLevel)
       };
     }
     return Object.assign({}, computed, { rank: rankForLevel(computed.level) });
   }
 
-  // expose xp functions globally
+  // Expose XP functions globally so any page script can use them.
   window.NetologyXP = {
-    totalXpForLevel: totalXpForLevel,
-    levelFromTotalXp: levelFromTotalXp,
-    xpForNextLevel: xpForNextLevel,
-    rankForLevel: rankForLevel,
-    getLevelProgress: getLevelProgress,
-    applyXpToUser: applyXpToUser,
+    totalXpForLevel:    totalXpForLevel,
+    levelFromTotalXp:   levelFromTotalXp,
+    xpForNextLevel:     xpForNextLevel,
+    rankForLevel:       rankForLevel,
+    getLevelProgress:   getLevelProgress,
+    applyXpToUser:      applyXpToUser,
     resolveUserProgress: resolveUserProgress
   };
 
-  // normalise an email to lowercase trimmed string
+  // ── Achievement Notification Queue ──────────────────────────────────────────
+
+  // Normalise an email to a lowercase trimmed string for consistent storage keys.
   function normaliseEmail(email) {
     return String(email || "").trim().toLowerCase();
   }
 
-  // build the localStorage key for pending achievements
+  // localStorage key for achievements waiting to be shown.
   function pendingStorageKey(email) {
     return "netology_achievement_pending:" + normaliseEmail(email);
   }
 
-  // build the localStorage key for seen achievements
+  // localStorage key for achievements that have already been shown.
   function seenStorageKey(email) {
     return "netology_achievement_seen:" + normaliseEmail(email);
   }
 
-  // read a json array from local storage safely
+  // Read a JSON array from localStorage, returning an empty array on failure.
   function readListFromStorage(storageKey) {
     try {
       var value = JSON.parse(localStorage.getItem(storageKey) || "[]");
       return Array.isArray(value) ? value : [];
-    } catch (error) {
+    } catch (e) {
       return [];
     }
   }
 
-  // check if a string exists in an array
+  // Check whether a value exists in an array.
   function arrayContains(list, value) {
     for (var i = 0; i < list.length; i++) {
-      if (list[i] === value) {
-        return true;
-      }
+      if (list[i] === value) { return true; }
     }
     return false;
   }
 
-  // check if a key exists in a plain object used as a set
+  // Check whether a key exists in a plain object used as a lookup set.
   function objectHasKey(obj, key) {
     return obj.hasOwnProperty(key);
   }
 
-  // get all values from a plain object used as a map
+  // Return all values from a plain object as an array.
   function objectValues(obj) {
-    var result = [];
-    var keys = Object.keys(obj);
-    for (var i = 0; i < keys.length; i++) {
-      result.push(obj[keys[i]]);
-    }
-    return result;
+    return Object.keys(obj).map(function (key) { return obj[key]; });
   }
 
-  // clean and validate a raw achievement object
-  function cleanAchievement(rawAchievement) {
-    if (!rawAchievement || typeof rawAchievement !== "object") {
-      return null;
-    }
-    var achievementId = String(rawAchievement.id || "").trim();
-    if (!achievementId) {
-      return null;
-    }
+  // Validate and normalise a raw achievement from the API into a clean shape.
+  // Returns null if the object is missing a required id field.
+  function cleanAchievement(raw) {
+    if (!raw || typeof raw !== "object") { return null; }
+    var id = String(raw.id || "").trim();
+    if (!id) { return null; }
     return {
-      id: achievementId,
-      name: String(rawAchievement.name || "Achievement"),
-      description: String(rawAchievement.description || ""),
-      icon: String(rawAchievement.icon || "bi-award-fill"),
-      rarity: String(rawAchievement.rarity || "common"),
-      xp_added: Number(rawAchievement.xp_added || rawAchievement.xp_awarded || 0),
-      earned_at: rawAchievement.earned_at || new Date().toISOString()
+      id:          id,
+      name:        String(raw.name || "Achievement"),
+      description: String(raw.description || ""),
+      icon:        String(raw.icon || "bi-award-fill"),
+      rarity:      String(raw.rarity || "common"),
+      xp_added:    Number(raw.xp_added || raw.xp_awarded || 0),
+      earned_at:   raw.earned_at || new Date().toISOString()
     };
   }
 
-  // get list of achievement ids the user has already seen
+  // Return the list of achievement IDs the user has already seen toasts for.
   function getSeenAchievementIds(email) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail) {
-      return [];
-    }
-    var rawList = readListFromStorage(seenStorageKey(cleanEmail));
-    var result = [];
-    for (var i = 0; i < rawList.length; i++) {
-      result.push(String(rawList[i]));
-    }
-    return result;
+    if (!cleanEmail) { return []; }
+    return readListFromStorage(seenStorageKey(cleanEmail)).map(function (id) {
+      return String(id);
+    });
   }
 
-  // mark achievement ids as seen so they wont show again
+  // Mark a list of achievement IDs as seen so their toasts do not appear again.
   function markAchievementsSeen(email, achievementIds) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail) {
-      return;
-    }
-    var existingSeen = getSeenAchievementIds(cleanEmail);
+    if (!cleanEmail) { return; }
+
+    // Build a lookup of already-seen IDs then add the new ones.
     var seenLookup = {};
-    for (var i = 0; i < existingSeen.length; i++) {
-      seenLookup[existingSeen[i]] = true;
-    }
-    for (var j = 0; j < achievementIds.length; j++) {
-      var trimmedId = String(achievementIds[j] || "").trim();
-      if (trimmedId) {
-        seenLookup[trimmedId] = true;
-      }
-    }
+    getSeenAchievementIds(cleanEmail).forEach(function (id) {
+      seenLookup[id] = true;
+    });
+    achievementIds.forEach(function (id) {
+      var trimmed = String(id || "").trim();
+      if (trimmed) { seenLookup[trimmed] = true; }
+    });
+
     localStorage.setItem(seenStorageKey(cleanEmail), JSON.stringify(Object.keys(seenLookup)));
   }
 
-  // remove specific achievements from the pending queue
+  // Remove specific achievement IDs from the pending notification queue.
   function removePendingAchievements(email, achievementIds) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail || !achievementIds || !achievementIds.length) {
-      return;
-    }
-    var idsToRemove = {};
-    for (var i = 0; i < achievementIds.length; i++) {
-      var trimmedId = String(achievementIds[i] || "").trim();
-      if (trimmedId) {
-        idsToRemove[trimmedId] = true;
-      }
-    }
-    if (Object.keys(idsToRemove).length === 0) {
-      return;
-    }
+    if (!cleanEmail || !achievementIds || !achievementIds.length) { return; }
+
+    // Build a set of IDs to remove.
+    var toRemove = {};
+    achievementIds.forEach(function (id) {
+      var trimmed = String(id || "").trim();
+      if (trimmed) { toRemove[trimmed] = true; }
+    });
+
+    if (!Object.keys(toRemove).length) { return; }
+
     var key = pendingStorageKey(cleanEmail);
-    var currentPending = readListFromStorage(key);
-    var remaining = [];
-    for (var r = 0; r < currentPending.length; r++) {
-      var achievement = currentPending[r];
-      if (achievement && achievement.id && !objectHasKey(idsToRemove, String(achievement.id).trim())) {
-        remaining.push(achievement);
-      }
-    }
+    var remaining = readListFromStorage(key).filter(function (a) {
+      return a && a.id && !objectHasKey(toRemove, String(a.id).trim());
+    });
+
     if (remaining.length) {
       localStorage.setItem(key, JSON.stringify(remaining));
     } else {
@@ -304,215 +313,245 @@
     }
   }
 
-  // show toast popups for newly earned achievements
+  // Show toast popups for a list of achievements the user has not yet seen.
+  // Staggers each toast by 220ms so they do not all appear at once.
   function showAchievementPopups(email, achievements) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail || !achievements || !achievements.length || !document.body) {
-      return [];
-    }
-    var seenIds = getSeenAchievementIds(cleanEmail);
+    if (!cleanEmail || !achievements || !achievements.length || !document.body) { return []; }
+
+    // Build a lookup of already-seen IDs to skip duplicates.
     var alreadySeen = {};
-    for (var s = 0; s < seenIds.length; s++) {
-      alreadySeen[seenIds[s]] = true;
-    }
+    getSeenAchievementIds(cleanEmail).forEach(function (id) {
+      alreadySeen[id] = true;
+    });
+
+    // Collect the achievements we actually need to show.
     var queued = {};
     var toShow = [];
     for (var i = 0; i < achievements.length; i++) {
-      var achievement = cleanAchievement(achievements[i]);
-      if (!achievement || objectHasKey(alreadySeen, achievement.id) || objectHasKey(queued, achievement.id)) {
-        continue;
-      }
-      queued[achievement.id] = true;
-      toShow.push(achievement);
+      var a = cleanAchievement(achievements[i]);
+      if (!a || objectHasKey(alreadySeen, a.id) || objectHasKey(queued, a.id)) { continue; }
+      queued[a.id] = true;
+      toShow.push(a);
     }
-    if (!toShow.length) {
-      return [];
-    }
+    if (!toShow.length) { return []; }
 
-    // show each achievement with a slight delay between them
+    // Show each toast with a staggered delay.
     for (var t = 0; t < toShow.length; t++) {
-      (function (achievementToShow, delayIndex) {
+      (function (achievement, delay) {
         setTimeout(function () {
           if (window.NetologyToast && window.NetologyToast.showAchievementToast) {
-            window.NetologyToast.showAchievementToast(achievementToShow);
+            window.NetologyToast.showAchievementToast(achievement);
           } else if (window.NetologyToast && window.NetologyToast.showMessageToast) {
-            window.NetologyToast.showMessageToast(achievementToShow.name + " unlocked", "success", 3200);
+            window.NetologyToast.showMessageToast(achievement.name + " unlocked", "success", 3200);
           } else {
-            alert(achievementToShow.name + " unlocked");
+            alert(achievement.name + " unlocked");
           }
-        }, delayIndex * 220);
+        }, delay * 220);
       })(toShow[t], t);
     }
 
-    // mark these as seen and remove from pending
-    var shownIds = [];
-    for (var m = 0; m < toShow.length; m++) {
-      shownIds.push(toShow[m].id);
-    }
+    // Mark as seen so they do not show again on the next page load.
+    var shownIds = toShow.map(function (a) { return a.id; });
     markAchievementsSeen(cleanEmail, shownIds);
     removePendingAchievements(cleanEmail, shownIds);
     return toShow;
   }
 
-  // queue new achievement unlocks and show popups for them
+  // Queue newly unlocked achievements and immediately show their toasts.
+  // Merges with any that are already waiting in localStorage.
   function queueAchievementUnlocks(email, newUnlocks) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail || !newUnlocks || !newUnlocks.length) {
-      return [];
-    }
+    if (!cleanEmail || !newUnlocks || !newUnlocks.length) { return []; }
+
     var key = pendingStorageKey(cleanEmail);
-    var achievementsById = {};
-    var newAchievements = [];
+    var byId = {};
 
-    // load existing pending achievements
-    var existingPending = readListFromStorage(key);
-    for (var e = 0; e < existingPending.length; e++) {
-      var existing = cleanAchievement(existingPending[e]);
-      if (existing) {
-        achievementsById[existing.id] = existing;
-      }
-    }
+    // Load existing pending achievements.
+    readListFromStorage(key).forEach(function (raw) {
+      var a = cleanAchievement(raw);
+      if (a) { byId[a.id] = a; }
+    });
 
-    // merge in new unlocks
-    for (var n = 0; n < newUnlocks.length; n++) {
-      var newAchievement = cleanAchievement(newUnlocks[n]);
-      if (!newAchievement) {
-        continue;
-      }
-      achievementsById[newAchievement.id] = newAchievement;
-      newAchievements.push(newAchievement);
-    }
+    // Merge in the new unlocks.
+    var fresh = [];
+    newUnlocks.forEach(function (raw) {
+      var a = cleanAchievement(raw);
+      if (!a) { return; }
+      byId[a.id] = a;
+      fresh.push(a);
+    });
 
-    // save merged list and show popups for new ones
-    localStorage.setItem(key, JSON.stringify(objectValues(achievementsById)));
-    if (newAchievements.length) {
-      showAchievementPopups(cleanEmail, newAchievements);
-    }
-    return objectValues(achievementsById);
+    localStorage.setItem(key, JSON.stringify(objectValues(byId)));
+    if (fresh.length) { showAchievementPopups(cleanEmail, fresh); }
+    return objectValues(byId);
   }
 
-  // show any pending achievement popups on page load
+  // On page load, show any achievements that are still waiting in the queue.
+  // This handles the case where a toast was queued on a different page.
   function showPendingAchievements() {
     try {
-      var rawUser = localStorage.getItem("netology_user") || localStorage.getItem("user") || "null";
-      var user = JSON.parse(rawUser);
+      var raw  = localStorage.getItem("netology_user") || localStorage.getItem("user") || "null";
+      var user = JSON.parse(raw);
       var email = normaliseEmail((user && user.email) || "");
-      if (!email) {
-        return;
-      }
+      if (!email) { return; }
       var pending = readListFromStorage(pendingStorageKey(email));
-      if (pending.length) {
-        showAchievementPopups(email, pending);
-      }
-    } catch (error) {
-      // ignore errors reading from storage
+      if (pending.length) { showAchievementPopups(email, pending); }
+    } catch (e) {
+      // Ignore storage errors — achievements are non-critical.
     }
   }
 
-  // expose achievement functions globally
+  // Expose the achievement queue so page scripts can push new unlocks into it.
   window.NetologyAchievements = { queueUnlocks: queueAchievementUnlocks };
 
-  // ── shared nav: sidebar, dropdown, logout, user display ──────────────────
+  // ── Shared Nav: Sidebar, Dropdown, Logout, User Display ─────────────────────
 
+  // Wire up the slide-in sidebar that appears on smaller screens.
+  // The backdrop click and Escape key both close it.
   function setupSlideSidebar() {
     var openBtn  = document.getElementById("openSidebarBtn");
     var closeBtn = document.getElementById("closeSidebarBtn");
     var sidebar  = document.getElementById("slideSidebar");
     var backdrop = document.getElementById("sideBackdrop");
-    if (!sidebar) return;
-    function open()  { sidebar.classList.add("is-open"); sidebar.setAttribute("aria-hidden","false"); sidebar.removeAttribute("inert"); if (backdrop) { backdrop.classList.add("is-open"); backdrop.setAttribute("aria-hidden","false"); } document.body.classList.add("net-noscroll"); }
-    function close() { sidebar.classList.remove("is-open"); sidebar.setAttribute("aria-hidden","true"); sidebar.setAttribute("inert",""); if (backdrop) { backdrop.classList.remove("is-open"); backdrop.setAttribute("aria-hidden","true"); } document.body.classList.remove("net-noscroll"); }
-    if (openBtn)  openBtn.addEventListener("click",  open);
-    if (closeBtn) closeBtn.addEventListener("click", close);
-    if (backdrop) backdrop.addEventListener("click", close);
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && sidebar.classList.contains("is-open")) close(); });
+    if (!sidebar) { return; }
+
+    function openSidebar() {
+      sidebar.classList.add("is-open");
+      sidebar.setAttribute("aria-hidden", "false");
+      sidebar.removeAttribute("inert");
+      if (backdrop) {
+        backdrop.classList.add("is-open");
+        backdrop.setAttribute("aria-hidden", "false");
+      }
+      document.body.classList.add("net-noscroll");
+    }
+
+    function closeSidebar() {
+      sidebar.classList.remove("is-open");
+      sidebar.setAttribute("aria-hidden", "true");
+      sidebar.setAttribute("inert", "");
+      if (backdrop) {
+        backdrop.classList.remove("is-open");
+        backdrop.setAttribute("aria-hidden", "true");
+      }
+      document.body.classList.remove("net-noscroll");
+    }
+
+    if (openBtn)  { openBtn.addEventListener("click", openSidebar); }
+    if (closeBtn) { closeBtn.addEventListener("click", closeSidebar); }
+    if (backdrop) { backdrop.addEventListener("click", closeSidebar); }
+
+    // Close with the Escape key as well for accessibility.
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && sidebar.classList.contains("is-open")) {
+        closeSidebar();
+      }
+    });
   }
 
+  // Wire up the user dropdown menu in the top nav bar.
+  // Clicking outside it or pressing Escape will close it.
   function setupUserDropdownMenu() {
     var btn  = document.getElementById("userBtn");
     var menu = document.getElementById("userDropdown");
-    if (!btn || !menu) return;
+    if (!btn || !menu) { return; }
 
-    function setOpenState(isOpen) {
-      if (isOpen) {
-        menu.classList.add("is-open");
-      } else {
-        menu.classList.remove("is-open");
-      }
+    function setOpen(isOpen) {
+      menu.classList.toggle("is-open", isOpen);
       btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
       menu.setAttribute("aria-hidden", isOpen ? "false" : "true");
     }
 
-    function close() {
-      setOpenState(false);
-    }
-
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
-      var isOpen = menu.classList.contains("is-open");
-      setOpenState(!isOpen);
+      setOpen(!menu.classList.contains("is-open"));
     });
 
     document.addEventListener("click", function (e) {
       if (!menu.contains(e.target) && !btn.contains(e.target)) {
-        close();
+        setOpen(false);
       }
     });
 
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") {
-        close();
-      }
+      if (e.key === "Escape") { setOpen(false); }
     });
 
-    setOpenState(false);
+    setOpen(false);
   }
 
+  // Wire up logout buttons. Clears local storage and sends the user to the
+  // landing page. Both the top nav button and the sidebar button call this.
   function setupLogoutButtons() {
-    function doLogout() { localStorage.removeItem("netology_user"); localStorage.removeItem("user"); localStorage.removeItem("netology_token"); window.location.href = "index.html"; }
+    function doLogout() {
+      localStorage.removeItem("netology_user");
+      localStorage.removeItem("user");
+      localStorage.removeItem("netology_token");
+      window.location.href = "index.html";
+    }
+
     var top  = document.getElementById("topLogoutBtn");
     var side = document.getElementById("sideLogoutBtn");
-    if (top)  top.addEventListener("click",  doLogout);
-    if (side) side.addEventListener("click", doLogout);
+    if (top)  { top.addEventListener("click",  doLogout); }
+    if (side) { side.addEventListener("click", doLogout); }
   }
 
+  // Populate every nav element that shows the current user's name, avatar
+  // initial, level, rank, and XP progress. Called once on load and again
+  // after a fresh user fetch from the server.
   function displayNavUser(userData) {
     if (!userData) {
-      try { var raw = localStorage.getItem("netology_user") || localStorage.getItem("user"); userData = raw ? JSON.parse(raw) : null; } catch (e) { return; }
+      try {
+        var raw = localStorage.getItem("netology_user") || localStorage.getItem("user");
+        userData = raw ? JSON.parse(raw) : null;
+      } catch (e) { return; }
     }
-    if (!userData) return;
-    var name = userData.first_name ? (userData.first_name + " " + (userData.last_name || "")).trim() : (userData.username || userData.name || "Student");
-    var initial = (name.charAt(0) || "S").toUpperCase();
-    var XP = window.NetologyXP || null;
-    var resolved = null;
-    if (XP && typeof XP.resolveUserProgress === "function") {
-      resolved = XP.resolveUserProgress(userData);
-    }
+    if (!userData) { return; }
 
-    var level = resolved ? Number(resolved.level || 1) : Number(userData.numeric_level || 1);
-    var rank = resolved
-      ? String(resolved.rank || userData.rank || userData.level || "Novice")
-      : String(userData.rank || userData.level || "Novice");
-    var xpIn = resolved ? Number(resolved.xpIntoLevel || 0) : Number(userData.xp_into_level || 0);
-    var xpMax = resolved ? Number(resolved.nextLevelXp || 100) : Number(userData.next_level_xp || 100);
-    var pct   = xpMax > 0 ? Math.min(100, Math.round(xpIn / xpMax * 100)) : 0;
-    function set(id, val)  { var el = document.getElementById(id); if (el) el.textContent = val; }
-    function setW(id, val) { var el = document.getElementById(id); if (el) el.style.width  = val; }
-    set("topAvatar", initial); set("ddAvatar", initial); set("ddName", name); set("ddEmail", userData.email || "");
-    set("ddLevel", "Level " + level); set("ddRank", rank);
-    set("sideAvatar", initial); set("sideUserName", name); set("sideUserEmail", userData.email || "");
-    set("sideLevelBadge", "Lv " + level); setW("sideXpBar", pct + "%");
-    set("sideXpText", xpIn + "/" + xpMax + " XP"); set("sideXpHint", Math.max(0, xpMax - xpIn) + " XP to next level");
-    set("profileAvatar", initial);
+    var name    = userData.first_name
+      ? (userData.first_name + " " + (userData.last_name || "")).trim()
+      : (userData.username || userData.name || "Student");
+    var initial = (name.charAt(0) || "S").toUpperCase();
+
+    // Use the shared XP module to resolve progress fields.
+    var XP       = window.NetologyXP || null;
+    var resolved = (XP && XP.resolveUserProgress) ? XP.resolveUserProgress(userData) : null;
+
+    var level  = resolved ? Number(resolved.level || 1)              : Number(userData.numeric_level || 1);
+    var rank   = resolved ? String(resolved.rank || "Novice")        : String(userData.rank || userData.level || "Novice");
+    var xpIn   = resolved ? Number(resolved.xpIntoLevel || 0)        : Number(userData.xp_into_level || 0);
+    var xpMax  = resolved ? Number(resolved.nextLevelXp || 100)      : Number(userData.next_level_xp || 100);
+    var pct    = xpMax > 0 ? Math.min(100, Math.round(xpIn / xpMax * 100)) : 0;
+
+    // Helper to set text or width on an element by ID without null checks everywhere.
+    function setText(id, val)  { var el = document.getElementById(id); if (el) { el.textContent = val; } }
+    function setWidth(id, val) { var el = document.getElementById(id); if (el) { el.style.width  = val; } }
+
+    setText("topAvatar",     initial);
+    setText("ddAvatar",      initial);
+    setText("ddName",        name);
+    setText("ddEmail",       userData.email || "");
+    setText("ddLevel",       "Level " + level);
+    setText("ddRank",        rank);
+    setText("sideAvatar",    initial);
+    setText("sideUserName",  name);
+    setText("sideUserEmail", userData.email || "");
+    setText("sideLevelBadge", "Lv " + level);
+    setWidth("sideXpBar",    pct + "%");
+    setText("sideXpText",    xpIn + "/" + xpMax + " XP");
+    setText("sideXpHint",    Math.max(0, xpMax - xpIn) + " XP to next level");
+    setText("profileAvatar", initial);
   }
 
-  // expose nav helpers globally so page scripts can refresh after server fetch
-  window.NetologyNav = { displayNavUser: displayNavUser };
-  window.setupSlideSidebar     = setupSlideSidebar;
+  // Expose nav helpers so page scripts can re-run displayNavUser after
+  // fetching fresh user data from the server.
+  window.NetologyNav         = { displayNavUser: displayNavUser };
+  window.setupSlideSidebar   = setupSlideSidebar;
   window.setupUserDropdownMenu = setupUserDropdownMenu;
-  window.setupLogoutButtons    = setupLogoutButtons;
+  window.setupLogoutButtons  = setupLogoutButtons;
 
-  // show pending achievements and wire up nav once dom is ready
+  // Run all shared setup once the DOM is ready.
   function onDomReady() {
     showPendingAchievements();
     setupSlideSidebar();
@@ -527,155 +566,147 @@
     onDomReady();
   }
 
-  // local references for login tracking section
-  var API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
-  var ENDPOINTS = window.ENDPOINTS || {};
-  var XP = window.NetologyXP || null;
+  // ── Login Day Tracking ───────────────────────────────────────────────────────
 
-  // storage key for the users login history
+  // These local references are intentionally separate from the top of the
+  // IIFE — they alias the globals so the login tracking functions below do
+  // not need to reach up to window every time.
+  var API_BASE  = String(window.API_BASE || "").replace(/\/$/, "");
+  var ENDPOINTS = window.ENDPOINTS || {};
+  var XP        = window.NetologyXP || null;
+
+  // localStorage key that stores the list of login dates for a user.
   function loginLogStorageKey(email) {
     return "netology_login_log:" + email;
   }
 
-  // build a full api url from a path
+  // Build a full API URL from a relative path.
   function buildFullUrl(path) {
     return API_BASE ? API_BASE + path : path;
   }
 
-  // read the login history from local storage
+  // Read the login date log for a user from localStorage.
   function readLoginLog(email) {
     try {
       return JSON.parse(localStorage.getItem(loginLogStorageKey(email)) || "[]");
-    } catch (error) {
+    } catch (e) {
       return [];
     }
   }
 
-  // save login history to local storage
+  // Save the login date log back to localStorage.
   function saveLoginLog(email, log) {
     localStorage.setItem(loginLogStorageKey(email), JSON.stringify(log));
   }
 
-  // safely parse json with a fallback value
+  // Safely parse a JSON string, returning a fallback value on failure.
   function parseJsonSafe(jsonString, fallback) {
     try {
       var value = JSON.parse(jsonString);
       return value === null ? fallback : value;
-    } catch (error) {
+    } catch (e) {
       return fallback;
     }
   }
 
-  // get todays date as a yyyy-mm-dd string
+  // Return today's date as a YYYY-MM-DD string.
   function getTodayString() {
-    var today = new Date();
-    var month = String(today.getMonth() + 1);
-    var day = String(today.getDate());
-    if (month.length < 2) {
-      month = "0" + month;
-    }
-    if (day.length < 2) {
-      day = "0" + day;
-    }
-    return today.getFullYear() + "-" + month + "-" + day;
+    return new Date().toISOString().slice(0, 10);
   }
 
-  // update the users xp in local storage
+  // Update the user's XP in localStorage after earning achievement bonus XP.
   function updateLocalXp(email, amount) {
-    if (!amount) {
-      return;
-    }
-    var storageKeys = ["user", "netology_user"];
-    for (var i = 0; i < storageKeys.length; i++) {
-      var user = parseJsonSafe(localStorage.getItem(storageKeys[i]), null);
-      if (!user || normaliseEmail(user.email) !== normaliseEmail(email)) {
-        continue;
-      }
+    if (!amount) { return; }
+    ["user", "netology_user"].forEach(function (key) {
+      var user = parseJsonSafe(localStorage.getItem(key), null);
+      if (!user || normaliseEmail(user.email) !== normaliseEmail(email)) { return; }
       var updated = (XP && XP.applyXpToUser)
         ? XP.applyXpToUser(user, amount)
         : Object.assign({}, user, { xp: Math.max(0, Number(user.xp || 0) + amount) });
-      localStorage.setItem(storageKeys[i], JSON.stringify(updated));
-    }
+      localStorage.setItem(key, JSON.stringify(updated));
+    });
   }
 
-  // send login record to the server and handle response
+  // POST today's login to the backend. If the server responds with newly
+  // unlocked achievements or bonus XP, process them locally.
   function syncLoginWithServer(email) {
-    if (!API_BASE) {
-      return;
-    }
+    if (!API_BASE) { return; }
     var path = (ENDPOINTS.auth && ENDPOINTS.auth.recordLogin) || "/record-login";
     fetch(buildFullUrl(path), {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email })
+      body:    JSON.stringify({ email: email })
     })
-    .then(function (response) { return response.json(); })
+    .then(function (res) { return res.json(); })
     .then(function (data) {
-      if (!data || !data.success) {
-        return;
-      }
+      if (!data || !data.success) { return; }
 
-      // update local login log if server has data
+      // Replace the local login log with the server's version if provided.
       if (Array.isArray(data.log) && data.log.length) {
         saveLoginLog(email, data.log);
       }
 
-      // queue any newly unlocked achievements
+      // Queue any achievements the server unlocked as a result of this login.
       var unlocks = Array.isArray(data.newly_unlocked) ? data.newly_unlocked : [];
       if (unlocks.length && window.NetologyAchievements) {
         window.NetologyAchievements.queueUnlocks(email, unlocks);
       }
 
-      // add any bonus xp from achievements
+      // Apply any XP awarded alongside the achievements.
       var bonusXp = Number(data.achievement_xp_added || 0);
-      if (bonusXp > 0) {
-        updateLocalXp(email, bonusXp);
-      }
+      if (bonusXp > 0) { updateLocalXp(email, bonusXp); }
     })
     .catch(function () {});
   }
 
-  // record todays login and sync with server
+  // Record today's login date locally and sync with the server.
+  // Called by login.js when a user signs in successfully.
   function recordLoginDay(email) {
     var cleanEmail = normaliseEmail(email);
-    if (!cleanEmail) {
-      return [];
-    }
-    var log = readLoginLog(cleanEmail);
+    if (!cleanEmail) { return []; }
+
+    var log   = readLoginLog(cleanEmail);
     var today = getTodayString();
+
+    // Only add today if it is not already in the log.
     if (!arrayContains(log, today)) {
       log.push(today);
       log.sort();
       saveLoginLog(cleanEmail, log);
     }
+
     syncLoginWithServer(cleanEmail);
     return log;
   }
 
-  // expose login tracking globally
+  // Expose login tracking globally.
   window.recordLoginDay = recordLoginDay;
 
-  // get login history for a user
+  // Return the full login date history for a user.
   window.getLoginLog = function (email) {
     var cleanEmail = normaliseEmail(email);
     return cleanEmail ? readLoginLog(cleanEmail) : [];
   };
 
-  // generic get request helper with query params
+  // ── Generic API Helper ───────────────────────────────────────────────────────
+
+  // Make a GET request to the API and return the parsed JSON response.
+  // Accepts an optional params object that is appended as query string values.
   window.apiGet = async function apiGet(path, params) {
     var base = String(window.API_BASE || "").replace(/\/$/, "");
-    var url = base
+    var url  = base
       ? new URL(base + path)
       : new URL(path, window.location.origin);
+
     if (params && typeof params === "object") {
-      var paramKeys = Object.keys(params);
-      for (var i = 0; i < paramKeys.length; i++) {
-        var paramValue = params[paramKeys[i]];
-        if (paramValue !== undefined && paramValue !== null && paramValue !== "") {
-          url.searchParams.set(paramKeys[i], String(paramValue));
+      Object.keys(params).forEach(function (k) {
+        var v = params[k];
+        if (v !== undefined && v !== null && v !== "") {
+          url.searchParams.set(k, String(v));
         }
-      }
+      });
     }
+
     var response = await fetch(url.toString());
     return response.json();
   };

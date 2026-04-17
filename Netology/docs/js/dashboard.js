@@ -1,4 +1,18 @@
-// dashboard.js — Main user dashboard with progress, achievements, and challenges.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+dashboard.js - Dashboard Page Script
+---
+This file handles the main dashboard page for Netology.
+It loads the user's profile, progress, achievements, courses,
+and challenges, then updates the dashboard cards and panels.
+
+It also controls the stats carousel, the daily networking tips,
+the login streak calendar, and the first-login welcome flow.
+*/
 
 (function () {
   "use strict";
@@ -29,7 +43,7 @@
     "A firewall filters traffic based on security rules."
   ];
 
-  // Read the saved user object from local storage
+  // Read the saved user object from local storage.
   function readSavedUserFromLocalStorage() {
     try {
       var rawData = localStorage.getItem("netology_user") || localStorage.getItem("user");
@@ -39,14 +53,14 @@
     }
   }
 
-  // Save the user object to local storage
+  // Save the user object to local storage.
   function saveUserToLocalStorage(userData) {
     if (!userData) return;
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("netology_user", JSON.stringify(userData));
   }
 
-  // Get the user profile from the server and merge with saved data
+  // Get the user profile from the server and merge it with saved data.
   async function fetchUserProfileFromServer() {
     var savedUser = readSavedUserFromLocalStorage();
     var userEmail = "";
@@ -100,7 +114,7 @@
     }
   }
 
-  // Get the user's progress summary from the server
+  // Get the user's progress summary from the server.
   async function fetchUserProgressFromServer(userEmail) {
     if (!userEmail) {
       dashboardState.progress = null;
@@ -136,7 +150,7 @@
     }
   }
 
-  // Get unlocked and locked achievements from the server
+  // Get unlocked and locked achievements from the server.
   async function fetchUserAchievementsFromServer(userEmail) {
     var emptyAchievements = { all: [], unlocked: [], locked: [] };
 
@@ -173,7 +187,7 @@
     }
   }
 
-  // Get challenges of a specific type (daily or weekly)
+  // Get challenges of a specific type.
   async function fetchChallengesOfType(userEmail, challengeType) {
     var endpoint = (ENDPOINTS.challenges && ENDPOINTS.challenges.list) || "/api/user/challenges";
     try {
@@ -185,7 +199,7 @@
     }
   }
 
-  // Get both daily and weekly challenges and display them
+  // Load both daily and weekly challenges and display them.
   async function fetchAllChallengesFromServer(userEmail) {
     var dailyTasksContainer = document.getElementById("dailyTasks");
     var weeklyTasksContainer = document.getElementById("weeklyTasks");
@@ -213,7 +227,7 @@
     }
   }
 
-  // Build course list from COURSE_CONTENT and overlay progress from the server
+  // Build the course list from COURSE_CONTENT and overlay progress from the server.
   async function fetchCourseProgressFromServer(userEmail) {
     if (!userEmail) {
       dashboardState.courses = [];
@@ -286,14 +300,7 @@
     return startedCourses;
   }
 
-  // Record today's login for streak tracking
-  function recordTodaysLogin(userEmail) {
-    if (typeof window.recordLoginDay === "function") {
-      window.recordLoginDay(userEmail);
-    }
-  }
-
-  // Point logo links to dashboard or home page
+  // Point logo links to the dashboard or home page.
   function setupLogoLinks() {
     var savedUser = readSavedUserFromLocalStorage();
     var targetPage = (savedUser && savedUser.email) ? "dashboard.html" : "index.html";
@@ -305,7 +312,7 @@
     if (sideBrandLink) sideBrandLink.setAttribute("href", targetPage);
   }
 
-  // Update dashboard greeting names from user profile.
+  // Update the dashboard greeting name from the user profile.
   function displayDashboardGreetingName(userData) {
     var firstName = String((userData && userData.first_name) || "").trim();
     var username = String((userData && userData.username) || "").trim();
@@ -322,7 +329,7 @@
     }
   }
 
-  // Wire up the daily/weekly challenge toggle buttons
+  // Wire up the daily and weekly challenge toggle buttons.
   function setupChallengeToggleButtons() {
     var toggleButtons = Array.from(document.querySelectorAll(".dash-toggle-btn[data-panel]"));
     if (!toggleButtons.length) return;
@@ -375,7 +382,7 @@
     }
   }
 
-  // Set up the stats carousel that auto-advances every 8 seconds
+  // Set up the stats carousel that auto-advances every 8 seconds.
   function setupStatsCarousel() {
     var carouselTrack = document.getElementById("statsTrack");
     var carouselIndicators = document.getElementById("statsIndicators");
@@ -451,7 +458,7 @@
     restartAutoAdvance();
   }
 
-  // Rotate networking tips in the tip box every 10 seconds
+  // Rotate networking tips in the tip box every 10 seconds.
   function startNetworkingTipsRotation() {
     var tipBox = document.getElementById("dailyTip");
     if (!tipBox) return;
@@ -472,7 +479,7 @@
     }, 10000);
   }
 
-  // Activate Bootstrap tooltips on the page
+  // Activate Bootstrap tooltips on the page.
   function activateBootstrapTooltips(scopeElement) {
     if (!window.bootstrap || !window.bootstrap.Tooltip) return;
 
@@ -487,7 +494,7 @@
     }
   }
 
-  // Set up onboarding for first-time users
+  // Set up onboarding for first-time users.
   function setupFirstTimeOnboarding(userData) {
     if (!userData || !userData.email || !userData.is_first_login) return;
 
@@ -511,7 +518,7 @@
 
   }
 
-  // Start the onboarding tour if available
+  // Start the onboarding tour if available.
   function startOnboardingTourIfAvailable(userData) {
     if (!userData || !userData.email) return;
     if (typeof window.maybeStartOnboardingTour === "function") {
@@ -522,7 +529,7 @@
     }
   }
 
-  // Refresh the dashboard when the tab gets focus or storage changes
+  // Refresh the dashboard when the tab gets focus or storage changes.
   function setupAutoRefreshListeners() {
     if (dashboardState.listenersAttached) return;
     dashboardState.listenersAttached = true;
@@ -548,7 +555,7 @@
     });
   }
 
-  // Update the stat numbers in the carousel slides
+  // Update the stat numbers in the carousel slides.
   function displayProgressStatistics() {
     var progress = dashboardState.progress;
     if (!progress) return;
@@ -566,7 +573,7 @@
     if (challengesElement) challengesElement.textContent = progress.challengesCompleted || 0;
   }
 
-  // Update the rank card and draw the semicircle XP gauge
+  // Update the rank card and draw the semicircle XP gauge.
   function displayRankAndExperienceGauge() {
     var userData = readSavedUserFromLocalStorage();
     if (!userData) return;
@@ -672,7 +679,7 @@
     gaugeContainer.appendChild(svgElement);
   }
 
-  // Count how many days in a row the user has logged in
+  // Count how many days in a row the user has logged in.
   function countConsecutiveLoginDays(userEmail) {
     if (!userEmail || typeof window.getLoginLog !== "function") return 0;
 
@@ -703,7 +710,7 @@
     }
   }
 
-  // Draw the 7-day login streak calendar
+  // Draw the 7-day login streak calendar.
   function displayLoginStreakCalendar() {
     var userData = readSavedUserFromLocalStorage();
     if (!userData) return;
@@ -711,16 +718,29 @@
     var calendarContainer = document.getElementById("streakCalendar");
     if (!calendarContainer) return;
 
+    var loginHistory = typeof window.getLoginLog === "function" ? window.getLoginLog(userData.email) : [];
+    var loginLookup = {};
     var dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
     var today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (var loginIndex = 0; loginIndex < loginHistory.length; loginIndex++) {
+      loginLookup[String(loginHistory[loginIndex])] = true;
+    }
+
     calendarContainer.innerHTML = "";
 
     for (var daysAgo = 6; daysAgo >= 0; daysAgo--) {
       var calendarDate = new Date(today);
       calendarDate.setDate(calendarDate.getDate() - daysAgo);
+      var year = calendarDate.getFullYear();
+      var month = String(calendarDate.getMonth() + 1).padStart(2, "0");
+      var day = String(calendarDate.getDate()).padStart(2, "0");
+      var dateKey = year + "-" + month + "-" + day;
+      var hasLogin = loginLookup[dateKey] === true;
 
       var dayElement = document.createElement("div");
-      dayElement.className = "streak-day";
+      dayElement.className = "streak-day" + (hasLogin ? " is-active" : "") + (daysAgo === 0 ? " is-today" : "");
       dayElement.title = calendarDate.toLocaleDateString();
       dayElement.textContent = dayLabels[calendarDate.getDay()];
       calendarContainer.appendChild(dayElement);
@@ -732,7 +752,7 @@
     }
   }
 
-  // Render the continue learning course cards
+  // Render the continue learning course cards.
   function displayContinueLearningCourses() {
     var coursesContainer = document.getElementById("continueBox");
     if (!coursesContainer) return;
@@ -853,7 +873,7 @@
     }
   }
 
-  // Render the achievement badges
+  // Render the achievement badges.
   function displayAchievementBadges() {
     var achievementContainer = document.getElementById("achieveScroller");
     if (!achievementContainer) return;
@@ -903,7 +923,7 @@
     }
   }
 
-  // Render a list of challenges into a container
+  // Render a list of challenges into a container.
   function displayChallengeList(container, challengeList) {
     if (!container) return;
 
@@ -957,7 +977,7 @@
     }
   }
 
-  // Fetch everything and redraw the whole dashboard
+  // Fetch everything and redraw the whole dashboard.
   async function refreshEntireDashboard() {
     var userData = await fetchUserProfileFromServer();
 
@@ -983,7 +1003,7 @@
     displayContinueLearningCourses();
   }
 
-  // Main entry point, sets up the page then fetches data
+  // Main entry point. Sets up the page and then fetches data.
   async function initialiseDashboard() {
     setupLogoLinks();
     setupChallengeToggleButtons();
@@ -1004,7 +1024,9 @@
     var userData = await fetchUserProfileFromServer();
 
     if (userData && userData.email) {
-      recordTodaysLogin(userData.email);
+      if (typeof window.recordLoginDay === "function") {
+        window.recordLoginDay(userData.email);
+      }
       try {
         await Promise.all([
           fetchUserProgressFromServer(userData.email),

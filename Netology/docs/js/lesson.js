@@ -1,4 +1,17 @@
-// lesson.js — runs the step-by-step lesson page
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+lesson.js - Lesson Page Script
+---
+This file handles the step-by-step lesson page on Netology.
+It builds the lesson steps, checks answers, tracks XP, saves
+completion data, and shows the final results screen.
+
+It is used by Lesson.html and keeps the lesson flow in one file.
+*/
 
 (function () {
   "use strict";
@@ -7,7 +20,7 @@
   var API_BASE = (window.API_BASE || "").replace(/\/$/, "");
   var ENDPOINTS = window.ENDPOINTS || {};
 
-  // read a json value from local storage safely
+  // Read a JSON value from local storage safely.
   function readJsonFromStorage(storageKey) {
     try {
       return JSON.parse(localStorage.getItem(storageKey));
@@ -16,18 +29,18 @@
     }
   }
 
-  // get the saved user object from local storage
+  // Read the saved user object from local storage.
   function readSavedUserFromLocalStorage() {
     return readJsonFromStorage("netology_user") || readJsonFromStorage("user");
   }
 
-  // set text content on an element found by id
+  // Set text content on an element by id.
   function setTextById(elementId, text) {
     var element = document.getElementById(elementId);
     if (element) element.textContent = String(text !== null && text !== undefined ? text : "");
   }
 
-  // look up how much xp a lesson is worth from the course data
+  // Look up how much XP a lesson is worth from the course data.
   function getExperiencePointsForLesson(courseData, unitIndex, lessonIndex) {
     var units = courseData.units || [];
     var unit = units[unitIndex];
@@ -38,12 +51,12 @@
     return Number(lesson.xp || 0);
   }
 
-  // stable lesson completion key (separate from legacy unit-level keys)
+  // Build a stable lesson completion key.
   function buildLessonCompletionKey(unitIndex, lessonIndex) {
     return ((Number(unitIndex) + 1) * 1000) + (Number(lessonIndex) + 1);
   }
 
-  // convert lesson blocks into a flat list of steps the user walks through
+  // Convert lesson blocks into a flat list of steps.
   function buildStepsFromLessonBlocks(lesson) {
     var blocks = lesson.blocks || [];
     var steps = [];
@@ -57,7 +70,7 @@
         for (var textLineIndex = 0; textLineIndex < textLines.length; textLineIndex++) {
           if (textLines[textLineIndex]) filteredTextLines.push(textLines[textLineIndex]);
         }
-        // split text into chunks of 3 lines so each card is not too long
+        // Split text into chunks of three lines so each card stays short.
         for (var chunkStart = 0; chunkStart < filteredTextLines.length; chunkStart += 3) {
           var chunk = filteredTextLines.slice(chunkStart, chunkStart + 3);
           if (chunk.length) {
@@ -107,7 +120,7 @@
     return steps;
   }
 
-  // count how many mcq steps are in the list
+  // Count how many MCQ steps are in the list.
   function countQuestionSteps(steps) {
     var count = 0;
     for (var stepIndex = 0; stepIndex < steps.length; stepIndex++) {
@@ -116,7 +129,7 @@
     return count;
   }
 
-  // count how many results have been recorded so far
+  // Count how many results have been recorded so far.
   function countCompletedResults(results) {
     var count = 0;
     for (var resultIndex = 0; resultIndex < results.length; resultIndex++) {
@@ -125,16 +138,16 @@
     return count;
   }
 
-  // draw the current step on screen
+  // Draw the current step on screen.
   function renderCurrentStep(lessonState) {
     var currentStep = lessonState.steps[lessonState.currentStepIndex];
     if (!currentStep) return;
 
-    // reset pick state for this step
+    // Reset the answer state for this step.
     lessonState.pickedOptionIndex = null;
     lessonState.hasAnswered = false;
 
-    // update the progress text and bar
+    // Update the progress text and bar.
     var totalSteps = lessonState.steps.length;
     var progressPercent = Math.round((lessonState.currentStepIndex / totalSteps) * 100);
     setTextById("lessonStepText", "Step " + (lessonState.currentStepIndex + 1) + " of " + totalSteps);
@@ -153,18 +166,35 @@
       renderQuestionStep(currentStep, lessonState, stepContentContainer, optionsContainer);
     }
 
-    // clear the feedback box from the previous step
+    // Clear the feedback box from the previous step.
     var feedbackBox = document.getElementById("feedbackBox");
     if (feedbackBox) {
       feedbackBox.classList.add("d-none");
       feedbackBox.classList.remove("is-show", "is-correct", "is-wrong");
     }
 
+    // Show back button on all steps except the first.
+    var backButton = document.getElementById("backBtn");
+    if (backButton) {
+      if (lessonState.currentStepIndex === 0) {
+        backButton.classList.add("d-none");
+      } else {
+        backButton.classList.remove("d-none");
+      }
+    }
+
     updateMiniProgressBar(lessonState);
     triggerSlideInAnimation("stepCard");
   }
 
-  // render a reading or explain step
+  // Go back to the previous step.
+  function handleGoToPreviousStep(lessonState) {
+    if (lessonState.currentStepIndex === 0) return;
+    lessonState.currentStepIndex--;
+    renderCurrentStep(lessonState);
+  }
+
+  // Render a reading or explain step.
   function renderReadingStep(step, stepContentContainer, optionsContainer) {
     if (stepContentContainer) {
       stepContentContainer.innerHTML = "";
@@ -197,7 +227,7 @@
     setTextById("stepTag", (step.type === "explain") ? "Key Concept" : "Learn");
     setTextById("stepTitle", step.title);
 
-    // hide the answer options, show the continue button
+    // Hide the answer options and show the continue button.
     if (optionsContainer) {
       optionsContainer.innerHTML = "";
       optionsContainer.classList.add("d-none");
@@ -212,7 +242,7 @@
     }
   }
 
-  // render a multiple choice question step
+  // Render a multiple choice question step.
   function renderQuestionStep(step, lessonState, stepContentContainer, optionsContainer) {
     if (stepContentContainer) stepContentContainer.innerHTML = "";
 
@@ -230,7 +260,7 @@
       }
     }
 
-    // show the check answer button, hide continue until they answer
+    // Show the check answer button and hide continue until they answer.
     var continueButton = document.getElementById("continueBtn");
     var submitButton = document.getElementById("submitBtn");
     if (continueButton) continueButton.classList.add("d-none");
@@ -240,7 +270,7 @@
     }
   }
 
-  // build a single answer option button
+  // Build a single answer option button.
   function buildOptionButton(optionText, optionIndex, lessonState, optionsContainer) {
     var button = document.createElement("button");
     button.type = "button";
@@ -281,7 +311,7 @@
     return button;
   }
 
-  // the user clicked check answer — lock the options and show feedback
+  // Lock the options and show feedback after checking an answer.
   function handleSubmitAnswer(lessonState) {
     if (lessonState.pickedOptionIndex === null) return;
 
@@ -291,7 +321,7 @@
     lessonState.hasAnswered = true;
     lessonState.stepResults[lessonState.currentStepIndex] = isCorrect;
 
-    // highlight each option as correct or wrong
+    // Highlight each option as correct or wrong.
     var optionsContainer = document.getElementById("optionsBox");
     if (optionsContainer) {
       var allButtons = optionsContainer.querySelectorAll("button");
@@ -306,7 +336,7 @@
           allButtons[buttonIndex].classList.add("is-wrong");
         }
 
-        // add a tick or cross icon on the relevant buttons
+        // Add a tick or cross icon on the relevant buttons.
         var statusSpan = allButtons[buttonIndex].querySelector(".net-quiz-option-status");
         if (statusSpan) {
           statusSpan.innerHTML = "";
@@ -322,16 +352,16 @@
       }
     }
 
-    // xp is split equally across all questions, only awarded for correct answers
+    // XP is split across the questions and only awarded for correct answers.
     var totalQuestions = countQuestionSteps(lessonState.steps);
     var experiencePointsGained = isCorrect ? Math.round(lessonState.lessonExperiencePoints / Math.max(totalQuestions, 1)) : 0;
     if (experiencePointsGained) lessonState.earnedExperiencePoints += experiencePointsGained;
 
-    // show the feedback box below the options
+    // Show the feedback box below the options.
     showAnswerFeedback(isCorrect, currentStep.hint, experiencePointsGained);
     updateMiniProgressBar(lessonState);
 
-    // replace the check answer button with the continue button
+    // Replace the check answer button with the continue button.
     var submitButton = document.getElementById("submitBtn");
     var continueButton = document.getElementById("continueBtn");
     if (submitButton) submitButton.classList.add("d-none");
@@ -342,7 +372,7 @@
     }
   }
 
-  // show the correct/incorrect feedback box
+  // Show the correct or incorrect feedback box.
   function showAnswerFeedback(isCorrect, hintText, experiencePointsGained) {
     var feedbackBox = document.getElementById("feedbackBox");
     var feedbackIconContainer = document.getElementById("feedbackIcon");
@@ -365,7 +395,7 @@
     setTextById("feedbackText", hintText || "");
     feedbackBox.classList.add("is-show");
 
-    // show the xp badge only when xp was actually earned
+    // Show the XP badge only when XP was actually earned.
     var xpEarnedRow = document.getElementById("xpEarnedRow");
     var xpEarnedLabel = document.getElementById("xpEarnedText");
     if (xpEarnedRow && xpEarnedLabel) {
@@ -378,9 +408,9 @@
     }
   }
 
-  // move to the next step, or finish if this was the last one
+  // Move to the next step, or finish if this was the last one.
   function handleContinueToNextStep(lessonState) {
-    // mark reading steps as done when the user clicks continue
+    // Mark reading steps as done when the user clicks continue.
     if (lessonState.stepResults[lessonState.currentStepIndex] === undefined) {
       lessonState.stepResults[lessonState.currentStepIndex] = "read";
     }
@@ -394,9 +424,9 @@
     renderCurrentStep(lessonState);
   }
 
-  // all steps done — calculate the score and save everything
+  // All steps done, so calculate the score and save everything.
   async function finishLesson(lessonState) {
-    // only mcq steps count toward the score
+    // Only MCQ steps count toward the score.
     var totalQuestions = 0;
     var correctAnswers = 0;
 
@@ -414,24 +444,24 @@
 
     lessonState.earnedExperiencePoints = experiencePointsEarned;
 
-    // tell the backend the lesson is done
+    // Tell the backend the lesson is done.
     var serverResponse = await sendLessonCompletionToServer(lessonState, experiencePointsEarned);
     var totalExperiencePointsAwarded = Number(serverResponse.experiencePointsAdded || 0)
       + Number(serverResponse.achievementExperiencePoints || 0);
 
-    // update the user's xp in local storage
+    // Update the user's XP in local storage.
     if (totalExperiencePointsAwarded > 0) {
       updateLocalStorageExperiencePoints(lessonState.userEmail, totalExperiencePointsAwarded);
     }
 
-    // save completion data to local storage
+    // Save completion data to local storage.
     saveLessonCompletionToLocalStorage(lessonState, experiencePointsEarned);
 
     displayResultsScreen(lessonState, correctAnswers, totalQuestions, accuracyPercent, experiencePointsEarned);
     showCompletionToastMessage(accuracyPercent, experiencePointsEarned);
   }
 
-  // update user xp in both local storage keys
+  // Update user XP in both local storage keys.
   function updateLocalStorageExperiencePoints(userEmail, experiencePointsToAdd) {
     var storageKeys = ["netology_user", "user"];
     var latestUser = null;
@@ -465,11 +495,11 @@
     }
   }
 
-  // save lesson completion, started courses, and progress log to local storage
+  // Save lesson completion, started courses, and the progress log.
   function saveLessonCompletionToLocalStorage(lessonState, experiencePointsEarned) {
     var completionDatabaseKey = buildLessonCompletionKey(lessonState.unitIndex, lessonState.lessonIndex);
 
-    // add this lesson to the completed lessons list
+    // Add this lesson to the completed lessons list.
     var completionsStorageKey = "netology_completions:" + lessonState.userEmail + ":" + lessonState.courseId;
     var completionData = readJsonFromStorage(completionsStorageKey) || { lesson: [], quiz: [], challenge: [] };
     var alreadyRecorded = false;
@@ -484,7 +514,7 @@
       localStorage.setItem(completionsStorageKey, JSON.stringify(completionData));
     }
 
-    // update the started courses record
+    // Update the started courses record.
     var startedCoursesKey = "netology_started_courses:" + lessonState.userEmail;
     var startedCourses = readJsonFromStorage(startedCoursesKey) || [];
     var existingCourseEntry = null;
@@ -508,7 +538,7 @@
     }
     localStorage.setItem(startedCoursesKey, JSON.stringify(startedCourses));
 
-    // append to the progress log
+    // Append to the progress log.
     var progressLogKey = "netology_progress_log:" + lessonState.userEmail;
     var progressLog = readJsonFromStorage(progressLogKey) || [];
     progressLog.push({
@@ -522,9 +552,9 @@
     localStorage.setItem(progressLogKey, JSON.stringify(progressLog));
   }
 
-  // show the results screen with score, accuracy, and per-question review
+  // Show the results screen with score, accuracy, and review notes.
   function displayResultsScreen(lessonState, correctAnswers, totalQuestions, accuracyPercent, experiencePointsEarned) {
-    // hide the step card and progress bar, show the results card
+    // Hide the step card and progress bar, then show the results card.
     var stepCard = document.getElementById("stepCard");
     var resultsCard = document.getElementById("resultsCard");
     var progressCard = document.getElementById("progressCard");
@@ -532,18 +562,18 @@
     if (resultsCard) resultsCard.classList.remove("d-none");
     if (progressCard) progressCard.classList.add("d-none");
 
-    // fill the top progress bar to 100%
+    // Fill the top progress bar to 100%.
     setTextById("lessonStepText", "Completed");
     setTextById("lessonPctText", "100%");
     var topProgressBar = document.getElementById("lessonProgressBar");
     if (topProgressBar) topProgressBar.style.width = "100%";
 
-    // fill the stat boxes
+    // Fill the stat boxes.
     setTextById("statCorrect", correctAnswers + "/" + totalQuestions);
     setTextById("statAccuracy", accuracyPercent + "%");
     setTextById("statXp", String(experiencePointsEarned));
 
-    // pick a heading and message based on how well they did
+    // Pick a heading and message based on how well they did.
     var isPerfect = accuracyPercent === 100;
     var hasPassed = accuracyPercent >= 70;
 
@@ -558,7 +588,7 @@
       setTextById("resultsSubtitle", "Review the content and try again.");
     }
 
-    // swap the badge icon to match
+    // Swap the badge icon to match the result.
     var badgeContainer = document.getElementById("resultsBadge");
     if (badgeContainer) {
       badgeContainer.innerHTML = "";
@@ -573,10 +603,10 @@
       badgeContainer.appendChild(badgeIcon);
     }
 
-    // build the per-question review section
+    // Build the per-question review section.
     renderQuestionReviewList(lessonState);
 
-    // hide the next lesson button if this was the last lesson in the unit
+    // Hide the next lesson button if this was the last lesson in the unit.
     var nextLessonButton = document.getElementById("nextLessonBtn");
     if (nextLessonButton) {
       nextLessonButton.style.display = lessonState.hasNextLessonInUnit ? "" : "none";
@@ -585,12 +615,12 @@
     triggerSlideInAnimation("resultsCard");
   }
 
-  // list each question with a tick or cross next to it
+  // List each question with a tick or cross next to it.
   function renderQuestionReviewList(lessonState) {
     var reviewContainer = document.getElementById("stepReview");
     if (!reviewContainer) return;
 
-    // collect all mcq steps and their results
+    // Collect all MCQ steps and their results.
     var questionEntries = [];
     for (var stepIndex = 0; stepIndex < lessonState.steps.length; stepIndex++) {
       if (lessonState.steps[stepIndex].type === "mcq") {
@@ -630,7 +660,7 @@
     }
   }
 
-  // redraw the mini progress bar segments below the step card
+  // Redraw the mini progress bar segments below the step card.
   function updateMiniProgressBar(lessonState) {
     var miniProgressContainer = document.getElementById("miniProgress");
     if (!miniProgressContainer) return;
@@ -643,7 +673,7 @@
     if (completedLabel) completedLabel.textContent = String(completedCount);
     if (remainingLabel) remainingLabel.textContent = String(Math.max(0, totalSteps - completedCount));
 
-    // one coloured segment per step
+    // One coloured segment per step.
     miniProgressContainer.innerHTML = "";
     for (var segmentIndex = 0; segmentIndex < totalSteps; segmentIndex++) {
       var segment = document.createElement("span");
@@ -662,7 +692,7 @@
     }
   }
 
-  // send lesson completion to the server
+  // Send lesson completion to the server.
   async function sendLessonCompletionToServer(lessonState, experiencePointsEarned) {
     var emptyResult = { experiencePointsAdded: 0, achievementExperiencePoints: 0 };
     if (!API_BASE || !lessonState.userEmail) return emptyResult;
@@ -691,7 +721,7 @@
 
       if (!serverData || !serverData.success) return emptyResult;
 
-      // notify the achievement system if any badges were just unlocked
+      // Notify the achievement system if any badges were just unlocked.
       var newlyUnlocked = Array.isArray(serverData.newly_unlocked) ? serverData.newly_unlocked : [];
       if (newlyUnlocked.length && window.NetologyAchievements && window.NetologyAchievements.queueUnlocks) {
         window.NetologyAchievements.queueUnlocks(lessonState.userEmail, newlyUnlocked);
@@ -707,7 +737,7 @@
     }
   }
 
-  // show a celebration toast popup when the lesson ends
+  // Show a celebration toast popup when the lesson ends.
   function showCompletionToastMessage(accuracyPercent, experiencePointsEarned) {
     if (typeof window.showCelebrateToast !== "function") return;
 
@@ -738,7 +768,7 @@
     });
   }
 
-  // trigger the slide-in animation on a card
+  // Trigger the slide-in animation on a card.
   function triggerSlideInAnimation(elementId) {
     var card = document.getElementById(elementId);
     if (!card) return;
@@ -747,15 +777,12 @@
     card.classList.add("net-quiz-enter");
   }
 
-  // replace the whole page content with a friendly error message
+  // Replace the whole page content with a friendly error message.
   function showErrorMessage(errorText) {
     document.body.classList.remove("net-loading");
     document.body.classList.add("net-loaded");
     var contentWrapper = document.querySelector(".net-loading-hide");
     if (!contentWrapper) return;
-
-    var safeTextElement = document.createElement("div");
-    safeTextElement.textContent = errorText;
 
     var errorCard = document.createElement("div");
     errorCard.className = "net-card p-5 text-center";
@@ -784,7 +811,7 @@
     contentWrapper.appendChild(errorCard);
   }
 
-  // wire up a button by id to call a function on click
+  // Wire up a button by id to call a function on click.
   function attachButtonListener(buttonId, clickHandler) {
     var button = document.getElementById(buttonId);
     if (button) {
@@ -794,15 +821,15 @@
     }
   }
 
-  // main entry point, runs when the page loads
+  // Main entry point. Runs when the page loads.
   async function initialiseLessonPage() {
-    // read the url parameters
+    // Read the URL parameters.
     var urlParams = new URLSearchParams(window.location.search);
     var courseId = urlParams.get("course") || urlParams.get("course_id");
     var unitIndex = Math.max(0, Number(urlParams.get("unit") || 0));
     var lessonIndex = Math.max(0, Number(urlParams.get("lesson") || 0));
 
-    // get the logged-in user from local storage
+    // Get the logged-in user from local storage.
     var savedUser = readSavedUserFromLocalStorage();
     var userEmail = (savedUser && savedUser.email) ? savedUser.email : "";
 
@@ -811,14 +838,14 @@
       return;
     }
 
-    // look up the course directly from COURSE_CONTENT
+    // Look up the course directly from COURSE_CONTENT.
     var courseData = COURSE_DATA[String(courseId)] || null;
     if (!courseData) {
       showErrorMessage("No course content found for this lesson.");
       return;
     }
 
-    // look up the unit and lesson
+    // Look up the unit and lesson.
     var units = courseData.units || [];
     var unit = units[unitIndex] || null;
     var lesson = (unit && unit.lessons) ? (unit.lessons[lessonIndex] || null) : null;
@@ -829,25 +856,25 @@
       return;
     }
 
-    // convert the lesson blocks into a flat list of steps
+    // Convert the lesson blocks into a flat list of steps.
     var steps = buildStepsFromLessonBlocks(lesson);
     if (!steps.length) {
       showErrorMessage("This lesson has no content yet.");
       return;
     }
 
-    // count total lessons in this unit for next-lesson navigation
+    // Count total lessons in this unit for next-lesson navigation.
     var totalLessonsInUnit = (unit && unit.lessons) ? unit.lessons.length : 0;
     var hasNextLessonInUnit = (lessonIndex + 1) < totalLessonsInUnit;
 
-    // set both back-to-course links
+    // Set both back-to-course links.
     var backToCourseUrl = "course.html?id=" + courseId;
     var backTopLink = document.getElementById("backToCourseTop");
     var backBottomLink = document.getElementById("backToCourseBtn");
     if (backTopLink) backTopLink.href = backToCourseUrl;
     if (backBottomLink) backBottomLink.href = backToCourseUrl;
 
-    // everything the lesson needs is stored in this one object
+    // Store everything the lesson needs in one object.
     var lessonState = {
       courseId: courseId,
       unitIndex: unitIndex,
@@ -866,24 +893,28 @@
       earnedExperiencePoints: 0
     };
 
-    // fill the header with lesson info
+    // Fill the header with lesson info.
     setTextById("lessonKicker", "Unit " + (unitIndex + 1) + " \u00B7 Lesson " + (lessonIndex + 1));
     setTextById("lessonTitle", lesson.title || "Lesson");
     setTextById("lessonMeta", unitTitle + " \u2022 " + steps.length + " steps");
     setTextById("lessonXpLabel", (lessonState.lessonExperiencePoints || "") + " XP");
     document.title = "Netology \u2013 " + (lesson.title || "Lesson");
 
-    // show the page (hides the loading skeleton)
+    // Show the page and hide the loading skeleton.
     document.body.classList.remove("net-loading");
     document.body.classList.add("net-loaded");
 
-    // hook up the buttons
+    // Hook up the buttons.
     attachButtonListener("submitBtn", function () {
       handleSubmitAnswer(lessonState);
     });
 
     attachButtonListener("continueBtn", function () {
       handleContinueToNextStep(lessonState);
+    });
+
+    attachButtonListener("backBtn", function () {
+      handleGoToPreviousStep(lessonState);
     });
 
     attachButtonListener("retryBtn", function () {
@@ -907,7 +938,7 @@
     renderCurrentStep(lessonState);
   }
 
-  // start when the dom is ready
+  // Start when the DOM is ready.
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       initialiseLessonPage();

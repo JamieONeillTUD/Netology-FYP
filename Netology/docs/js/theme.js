@@ -1,26 +1,49 @@
-// theme.js — Applies light/dark mode and dyslexic font settings.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+theme.js - Shared Theme and Accessibility Settings
+---
+This file applies the saved visual theme and accessibility options.
+It keeps light, dark, dyslexic font, and large text settings
+consistent across every page on the site.
+
+It is loaded on all pages that need shared theme settings.
+*/
 
 (() => {
   "use strict";
 
   const DARK_QUERY = "(prefers-color-scheme: dark)";
 
-  // Reads the saved theme from localStorage.
+  // Read the saved theme from localStorage.
   function savedTheme() {
     return localStorage.getItem("netology_theme") || "light";
   }
 
-  // Checks if dyslexic mode is turned on.
+  // Check whether dyslexic mode is turned on.
   function dyslexicOn() {
     return localStorage.getItem("netology_dyslexic") === "true";
   }
 
-  // Checks if large text is turned on.
+  // Check whether large text is turned on.
   function largeTextOn() {
     return localStorage.getItem("netology_large_text") === "true";
   }
 
-  // Applies saved theme and dyslexic settings to the page.
+  // Toggle one class on both the body and the root element.
+  function syncClass(className, enabled) {
+    if (document.documentElement) {
+      document.documentElement.classList.toggle(className, enabled);
+    }
+    if (document.body) {
+      document.body.classList.toggle(className, enabled);
+    }
+  }
+
+  // Apply the saved theme and accessibility settings to the page.
   function apply() {
     const target = document.body || document.documentElement;
     if (!target) return;
@@ -31,46 +54,46 @@
       : raw;
 
     target.setAttribute("data-theme", theme);
-    target.classList.toggle("net-dyslexic", dyslexicOn());
-    target.classList.toggle("net-large-text", largeTextOn());
+    syncClass("net-dyslexic", dyslexicOn());
+    syncClass("net-large-text", largeTextOn());
   }
 
-  // Saves a theme name and applies it.
+  // Save a theme name and apply it.
   function setTheme(name) {
     localStorage.setItem("netology_theme", String(name || "light"));
     apply();
   }
 
-  // Saves dyslexic mode and applies it.
+  // Save dyslexic mode and apply it.
   function setDyslexic(on) {
     localStorage.setItem("netology_dyslexic", on ? "true" : "false");
     apply();
   }
 
-  // Toggles dyslexic mode on/off.
+  // Toggle dyslexic mode on or off.
   function toggleDyslexic() {
     setDyslexic(!dyslexicOn());
   }
 
-  // Saves large text mode and applies it.
+  // Save large text mode and apply it.
   function setLargeText(on) {
     localStorage.setItem("netology_large_text", on ? "true" : "false");
     apply();
   }
 
-  // Toggles large text mode on/off.
+  // Toggle large text mode on or off.
   function toggleLargeText() {
     setLargeText(!largeTextOn());
   }
 
-  // Apply theme as soon as possible.
+  // Apply the saved settings as soon as possible.
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", apply);
   } else {
     apply();
   }
 
-  // Re-apply when system theme changes (only matters if user picked "system").
+  // Re-apply when the system theme changes, but only if the user picked system.
   try {
     const mq = window.matchMedia(DARK_QUERY);
     const onChange = () => {
@@ -80,6 +103,6 @@
     else if (typeof mq.addListener === "function") mq.addListener(onChange);
   } catch (_) {}
 
-  // Public API used by account.js.
+  // Public API used by page scripts.
   window.NetologyTheme = { apply, setTheme, setDyslexic, toggleDyslexic, setLargeText, toggleLargeText };
 })();

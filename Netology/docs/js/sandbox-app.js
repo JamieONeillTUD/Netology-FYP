@@ -1,13 +1,26 @@
-// sandbox-app.js — Main entry point for the Netology network sandbox.
-// Handles initialisation, tutorials, objectives, templates, connection suggestions, idle hints, and auto-save.
-// Student: C22320301 - Jamie O'Neill
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+sandbox-app.js - Sandbox Page Script
+---
+This file handles the sandbox page setup and lesson flow for Netology.
+It loads tutorials or challenges, fills in the lesson header and
+objectives, manages completion states, shows the finish overlay, and
+keeps the auto-save and idle hint behaviour in sync.
+
+It is kept separate because sandbox-core.js holds the shared logic and
+sandbox-ui.js handles the drawing and page interactions.
+*/
 
 "use strict";
 
-// Wait for the DOM to be ready before setting everything up
+// Wait for the DOM to be ready before setting everything up.
 document.addEventListener("DOMContentLoaded", function () {
 
-  // Setup everything
+  // Set up the shared sandbox state and UI.
   applyCanvasWorldSize();
   updateGrid();
   updateZoomLabel();
@@ -17,7 +30,7 @@ document.addEventListener("DOMContentLoaded", function () {
   registerConsoleApi();
   renderAll();
 
-  // Bind all the different UI pieces
+  // Bind the main sandbox UI pieces.
   bindTooltips();
   bindLibraryDrag();
   bindToolbar();
@@ -34,27 +47,24 @@ document.addEventListener("DOMContentLoaded", function () {
   bindTutorialCarousel();
   bindTutorialsToggle();
 
-  // Remove loading skeleton and reveal the sandbox
+  // Remove the loading skeleton and reveal the sandbox.
   document.body.classList.remove("net-loading");
 
-  // Show the console welcome message
+  // Show the console welcome message.
   if (window.sandboxConsole && window.sandboxConsole.showWelcome) {
     window.sandboxConsole.showWelcome();
   }
 
-  // Load the sandbox data from the lesson if we came from a course page
+  // Load lesson or challenge content from the URL.
   loadSandboxFromUrl();
 
-  // Start the idle timer
+  // Start the idle timer.
   setupIdleHints();
 
-  // Start auto-save
+  // Start auto-save.
   setupAutoSave();
 
-  // Start the connection suggestions system
-  setupConnectionSuggestions();
-
-  // Start onboarding tour if active for this stage
+  // Start the onboarding tour if it is active for this stage.
   if (typeof window.maybeStartOnboardingTour === "function") {
     var sbxUser = null;
     try { sbxUser = JSON.parse(localStorage.getItem("user") || localStorage.getItem("netology_user")); } catch (parseError) {}
@@ -65,7 +75,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 
-// Load sandbox lesson/tutorial/challenge data from the URL params
+// Load sandbox lesson, tutorial, or challenge data from the URL params.
 function loadSandboxFromUrl() {
   var params = new URLSearchParams(window.location.search);
   var courseId = params.get("course");
@@ -80,7 +90,7 @@ function loadSandboxFromUrl() {
 
   if (!courseId || unitIndex < 0 || mode === "free") return;
 
-  // Try to load from localStorage first (set by course.js)
+  // Try to load from localStorage first.
   var savedTutorial = null;
   var savedChallenge = null;
 
@@ -98,7 +108,7 @@ function loadSandboxFromUrl() {
     // ignore parse errors
   }
 
-  // Load from localStorage if available, otherwise from COURSE_CONTENT
+  // Load from localStorage if available, otherwise from COURSE_CONTENT.
   var content = window.COURSE_CONTENT && window.COURSE_CONTENT[String(courseId)];
   if (!content) return;
   var units = content.units || content.modules || [];
@@ -216,14 +226,14 @@ function normaliseLessonSteps(rawData, mode) {
   return data;
 }
 
-// Load sandbox content (tutorial and/or challenge) into the sandbox
+// Load sandbox content into the sandbox.
 function loadSandboxContent(sandboxData) {
   if (!sandboxData) {
     return;
   }
 
   try {
-    // Load tutorial if present
+    // Load tutorial if present.
     if (sandboxData.tutorial) {
       var tutorialData = normaliseLessonSteps(sandboxData.tutorial, "tutorial");
       state.tutorialMeta = tutorialData;
@@ -231,7 +241,7 @@ function loadSandboxContent(sandboxData) {
       renderLessonUI(tutorialData, "tutorial");
     }
 
-    // Load challenge if present
+    // Load challenge if present.
     if (sandboxData.challenge) {
       var challengeData = normaliseLessonSteps(sandboxData.challenge, "challenge");
       state.challengeMeta = challengeData;
@@ -239,7 +249,7 @@ function loadSandboxContent(sandboxData) {
       renderLessonUI(challengeData, "challenge");
     }
 
-    // Load preset devices if the sandbox content provides them
+    // Load preset devices if the sandbox content provides them.
     if (sandboxData.presetDevices && sandboxData.presetDevices.length > 0) {
       for (var deviceIndex = 0; deviceIndex < sandboxData.presetDevices.length; deviceIndex++) {
         state.devices.push(normalizeDevice(sandboxData.presetDevices[deviceIndex]));
@@ -260,19 +270,19 @@ function loadSandboxContent(sandboxData) {
 }
 
 
-// Build the premium lesson UI for a tutorial or challenge
+// Build the lesson UI for a tutorial or challenge.
 function renderLessonUI(data, type) {
   if (!data) {
     return;
   }
 
-  // Hide the free mode banner
+  // Hide the free mode banner.
   var modeBanner = getById("sbxModeBanner");
   if (modeBanner) {
     modeBanner.style.display = "none";
   }
 
-  // Show the lesson header
+  // Show the lesson header.
   var header = getById("sbxLessonHeader");
   var lessonIcon = getById("sbxLessonIcon");
   var lessonType = getById("sbxLessonType");
@@ -304,19 +314,19 @@ function renderLessonUI(data, type) {
     lessonXpAmount.textContent = data.xp;
   }
 
-  // Build the steps list
+  // Build the steps list.
   if (data.steps && data.steps.length > 0) {
-    // Show the progress bar
+    // Show the progress bar.
     var progressWrap = getById("sbxProgressWrap");
     if (progressWrap) {
       progressWrap.style.display = "";
     }
     updateProgressBar(0, data.steps.length);
 
-    // Show the current step spotlight
+    // Show the current step spotlight.
     showCurrentStep(data.steps, 0);
 
-    // Build all steps
+    // Build all steps.
     var stepsWrap = getById("sbxStepsWrap");
     var stepsList = getById("sbxStepsList");
     if (stepsWrap && stepsList) {
@@ -329,7 +339,7 @@ function renderLessonUI(data, type) {
         stepItem.className = "sbx-step";
         stepItem.setAttribute("data-step-index", stepIndex);
 
-        // Step number is handled by CSS counter
+        // Step number is handled by the CSS counter.
 
         var stepText = document.createElement("span");
         stepText.className = "sbx-step-text";
@@ -341,7 +351,7 @@ function renderLessonUI(data, type) {
         statusIcon.setAttribute("data-step-index", stepIndex);
         stepItem.appendChild(statusIcon);
 
-        // Hint button for each step
+        // Add a hint button for steps that have one.
         if (step.hint) {
           var hintBtn = document.createElement("button");
           hintBtn.className = "sbx-step-hint-btn";
@@ -360,7 +370,7 @@ function renderLessonUI(data, type) {
       }
     }
 
-    // Wire the steps toggle (expand/collapse)
+    // Wire the steps toggle.
     var stepsToggle = getById("sbxStepsToggle");
     if (stepsToggle && stepsList) {
       stepsToggle.addEventListener("click", function () {
@@ -373,7 +383,7 @@ function renderLessonUI(data, type) {
     }
   }
 
-  // Show tips if available
+  // Show tips if available.
   if (data.tips) {
     var tipsBox = getById("sbxTipsBox");
     var tipsText = getById("sbxTipsText");
@@ -385,7 +395,7 @@ function renderLessonUI(data, type) {
 }
 
 
-// Update the progress bar
+// Update the progress bar.
 function updateProgressBar(completed, total) {
   var fill = getById("sbxProgressFill");
   var text = getById("sbxProgressText");
@@ -404,7 +414,7 @@ function updateProgressBar(completed, total) {
 }
 
 
-// Show the current active step in the spotlight area
+// Show the current active step in the spotlight area.
 function showCurrentStep(steps, currentIndex) {
   var currentStepBox = getById("sbxCurrentStep");
   var currentStepText = getById("sbxCurrentStepText");
@@ -415,7 +425,7 @@ function showCurrentStep(steps, currentIndex) {
   }
 
   if (currentIndex >= steps.length) {
-    // All done — hide the current step
+    // All done, so hide the current step.
     currentStepBox.style.display = "none";
     return;
   }
@@ -424,10 +434,10 @@ function showCurrentStep(steps, currentIndex) {
   currentStepBox.style.display = "";
   currentStepText.textContent = "Step " + (currentIndex + 1) + ": " + (step.text || "");
 
-  // Show hint button if available
+  // Show the hint button if available.
   if (step.hint && currentStepHint) {
     currentStepHint.style.display = "";
-    // Remove old listeners by replacing
+    // Remove old listeners by replacing the button node.
     var newHintBtn = currentStepHint.cloneNode(true);
     currentStepHint.parentNode.replaceChild(newHintBtn, currentStepHint);
     newHintBtn.addEventListener("click", function () {
@@ -439,7 +449,7 @@ function showCurrentStep(steps, currentIndex) {
 }
 
 
-// Render the objectives (called from renderAll)
+// Render the objectives, called from renderAll.
 function renderObjectives() {
   var data = state.tutorialMeta || state.challengeMeta;
   if (!data || !data.steps) {
@@ -461,7 +471,7 @@ function renderObjectives() {
       firstIncomplete = stepIndex;
     }
 
-    // Update the step in the list
+    // Update the step in the list.
     var stepsList = getById("sbxStepsList");
     if (stepsList) {
       var statusIcon = stepsList.querySelector('.sbx-step-status[data-step-index="' + stepIndex + '"]');
@@ -478,7 +488,7 @@ function renderObjectives() {
       if (stepElement) {
         if (passed) {
           stepElement.classList.add("is-done");
-          // Highlight the step that just completed
+          // Highlight the step that just completed.
           if (!wasAlreadyDone) {
             stepElement.classList.add("is-just-done");
             setTimeout(function (el) {
@@ -489,7 +499,7 @@ function renderObjectives() {
           stepElement.classList.remove("is-done");
         }
 
-        // Mark current active step
+        // Mark the current active step.
         if (stepIndex === firstIncomplete) {
           stepElement.classList.add("is-current");
         } else {
@@ -499,23 +509,23 @@ function renderObjectives() {
     }
   }
 
-  // Update progress bar
+  // Update the progress bar.
   updateProgressBar(completedCount, data.steps.length);
 
-  // Update current step spotlight
+  // Update the current step spotlight.
   if (firstIncomplete >= 0) {
     showCurrentStep(data.steps, firstIncomplete);
   } else {
     showCurrentStep(data.steps, data.steps.length);
   }
 
-  // Check if all steps are complete
+  // Check whether all steps are complete.
   if (completedCount === data.steps.length && data.steps.length > 0) {
     handleAllObjectivesComplete();
   }
 }
 
-// Notify tutorial progress (called after topology changes)
+// Notify tutorial progress after topology changes.
 function notifyTutorialProgress() {
   renderObjectives();
 }
@@ -530,7 +540,7 @@ function arePreviousStepsCompleted(stepIndex) {
   return true;
 }
 
-// Evaluate whether a step's requirements are met
+// Evaluate whether a step's requirements are met.
 function evaluateStepRequirements(step, stepIndex) {
   if (!step) {
     return false;
@@ -540,7 +550,7 @@ function evaluateStepRequirements(step, stepIndex) {
     return arePreviousStepsCompleted(Number(stepIndex || 0));
   }
 
-  // Every check in the step must pass
+  // Every check in the step must pass.
   for (var checkIndex = 0; checkIndex < step.checks.length; checkIndex++) {
     var check = step.checks[checkIndex];
     var passed = evaluateSingleRequirement(check);
@@ -551,7 +561,7 @@ function evaluateStepRequirements(step, stepIndex) {
   return true;
 }
 
-// Evaluate one individual requirement check
+// Evaluate one individual requirement check.
 function evaluateSingleRequirement(check) {
   if (!check || !check.type) {
     return false;
@@ -605,19 +615,19 @@ function evaluateSingleRequirement(check) {
     return !!(state.pingInspector && state.pingInspector.success);
   }
 
-  // Unknown check type
+  // Unknown check type.
   return false;
 }
 
 
-// Handle all objectives being complete
+// Handle all objectives being complete.
 function handleAllObjectivesComplete() {
   var data = state.tutorialMeta || state.challengeMeta;
   if (!data) {
     return;
   }
 
-  // Only fire once
+  // Only fire once.
   if (data.completed) {
     return;
   }
@@ -633,19 +643,19 @@ function handleAllObjectivesComplete() {
     markTutorialCompletionInLocalStorage(data);
   }
 
-  // Show the inline done panel in objectives
+  // Show the inline done panel in objectives.
   var donePanel = getById("sbxLessonDone");
   if (donePanel) {
     donePanel.style.display = "";
   }
 
-  // Hide the current step spotlight since everything is done
+  // Hide the current step spotlight since everything is done.
   var currentStepBox = getById("sbxCurrentStep");
   if (currentStepBox) {
     currentStepBox.style.display = "none";
   }
 
-  // Show toast notification
+  // Show a toast notification.
   showSandboxToast({
     title: message,
     message: (xpAmount > 0 ? "You earned " + xpAmount + " XP!" : "Well done!"),
@@ -653,19 +663,19 @@ function handleAllObjectivesComplete() {
     timeout: 5000
   });
 
-  // Award XP to the user
+  // Award XP to the user.
   if (xpAmount > 0) {
     awardSandboxXp(xpAmount);
   }
 
-  // Also show the full-screen celebration overlay for challenges
+  // Also show the full-screen celebration overlay for challenges.
   if (isChallengeMode) {
     showCompletionOverlay(data, xpAmount);
   }
 
   addActionLog(message + (xpAmount > 0 ? " +" + xpAmount + " XP" : ""));
 
-  // Wire up the done panel buttons
+  // Wire up the done panel buttons.
   var continueBtn = getById("sbxLessonDoneContinue");
   if (continueBtn) {
     continueBtn.addEventListener("click", function () {
@@ -753,7 +763,7 @@ function recordChallengeCompletionToServer(xpAmount) {
   });
 }
 
-// Show the full-screen challenge completion overlay
+// Show the full-screen challenge completion overlay.
 function showCompletionOverlay(data, xpAmount) {
   var overlay = getById("sbxCompleteOverlay");
   var titleEl = getById("sbxCompleteTitle");
@@ -775,10 +785,18 @@ function showCompletionOverlay(data, xpAmount) {
     xpAmountEl.textContent = "+" + xpAmount;
   }
 
-  // Spawn confetti
+  // Set the Return to Module button href.
+  var returnBtn = getById("sbxCompleteReturn");
+  if (returnBtn) {
+    var params = new URLSearchParams(window.location.search);
+    var courseId = params.get("course");
+    returnBtn.href = courseId ? "course.html?id=" + courseId : "courses.html";
+  }
+
+  // Spawn confetti.
   spawnConfetti();
 
-  // Close button
+  // Close button.
   if (closeBtn) {
     closeBtn.addEventListener("click", function () {
       overlay.classList.add("d-none");
@@ -786,7 +804,7 @@ function showCompletionOverlay(data, xpAmount) {
   }
 }
 
-// Spawn confetti particles into the overlay
+// Spawn confetti particles into the overlay.
 function spawnConfetti() {
   var container = getById("sbxCompleteConfetti");
   if (!container) {
@@ -809,7 +827,7 @@ function spawnConfetti() {
   }
 }
 
-// Award XP to the logged-in user
+// Award XP to the logged-in user.
 function awardSandboxXp(amount) {
   if (!amount || amount <= 0) {
     return;
@@ -820,7 +838,7 @@ function awardSandboxXp(amount) {
     return;
   }
 
-  // Use the NetologyXP system exposed by app.js
+  // Use the NetologyXP system exposed by app.js.
   var xpSystem = window.NetologyXP || null;
   var updatedUser = user;
   if (xpSystem && typeof xpSystem.applyXpToUser === "function") {
@@ -838,7 +856,7 @@ function awardSandboxXp(amount) {
 }
 
 
-// Template buttons in the toolbar
+// Template buttons in the toolbar.
 function bindTemplateButtons() {
   var templateDropdown = getById("templateMenu");
   if (!templateDropdown) {
@@ -858,7 +876,7 @@ function bindTemplateButtons() {
         return;
       }
 
-      // Close the dropdown (remove is-open from the parent .sbx-conn-dropdown)
+      // Close the dropdown before loading the template.
       var parentDropdown = templateDropdown.closest(".sbx-conn-dropdown");
       if (parentDropdown) { parentDropdown.classList.remove("is-open"); }
       templateDropdown.classList.remove("is-open");
@@ -879,7 +897,7 @@ function bindTemplateButtons() {
 }
 
 
-// Tutorial carousel (the cards at the top of the canvas)
+// Tutorial carousel cards at the top of the canvas.
 function buildTutorialCards() {
   if (!topCarouselScroll) {
     return;
@@ -908,7 +926,7 @@ function buildTutorialCards() {
     topCarouselScroll.appendChild(cardElement);
   }
 
-  // Build dots
+  // Build dots.
   if (topCarouselDots) {
     topCarouselDots.innerHTML = "";
     for (var dotIndex = 0; dotIndex < cards.length; dotIndex++) {
@@ -923,7 +941,7 @@ function buildTutorialCards() {
 function bindTutorialCarousel() {
   buildTutorialCards();
 
-  // Check if user previously hid the carousel
+  // Check whether the user previously hid the carousel.
   var savedHidden = localStorage.getItem(TUTORIAL_CAROUSEL_HIDDEN_KEY);
   if (savedHidden === "1") {
     tutorialCarouselState.hidden = true;
@@ -944,7 +962,7 @@ function bindTutorialCarousel() {
     });
   }
 
-  // Dot click
+  // Handle dot clicks.
   if (topCarouselDots) {
     topCarouselDots.addEventListener("click", function (event) {
       var dot = event.target.closest("[data-dot-index]");
@@ -1028,12 +1046,6 @@ function updateTutorialsToggleLabel() {
   }
 }
 
-
-// Connection suggestions - suggest what to connect next after adding a device
-function setupConnectionSuggestions() {
-  // The connection suggestion box is already in the HTML
-}
-
 function showConnectionSuggestions(device) {
   if (!device || state.mode !== "free") {
     return;
@@ -1050,7 +1062,7 @@ function showConnectionSuggestions(device) {
     return;
   }
 
-  // Find devices on the canvas that this device can connect to
+  // Find devices on the canvas that this device can connect to.
   var suggestions = [];
   for (var compatibilityIndex = 0; compatibilityIndex < compatibility.length; compatibilityIndex++) {
     var rule = compatibility[compatibilityIndex];
@@ -1061,7 +1073,7 @@ function showConnectionSuggestions(device) {
         if (candidate.id === device.id || candidate.type !== targetType) {
           continue;
         }
-        // Check if already connected
+        // Check whether the devices are already connected.
         var alreadyConnected = false;
         for (var connectionCheckIndex = 0; connectionCheckIndex < state.connections.length; connectionCheckIndex++) {
           var conn = state.connections[connectionCheckIndex];
@@ -1086,7 +1098,7 @@ function showConnectionSuggestions(device) {
   }
 
   suggestBody.innerHTML = "";
-  // Show up to 3 suggestions
+  // Show up to three suggestions.
   var maxSuggestions = Math.min(suggestions.length, 3);
   for (var suggestionIndex = 0; suggestionIndex < maxSuggestions; suggestionIndex++) {
     var suggestion = suggestions[suggestionIndex];
@@ -1104,7 +1116,7 @@ function showConnectionSuggestions(device) {
 
   suggestBox.classList.add("is-show");
 
-  // Close button - replace node to avoid duplicate listeners
+  // Replace the close button so we do not add duplicate listeners.
   var closeButton = getById("sbxConnSuggestClose");
   if (closeButton) {
     var freshClose = closeButton.cloneNode(true);
@@ -1114,7 +1126,7 @@ function showConnectionSuggestions(device) {
     });
   }
 
-  // Auto-hide after 8 seconds
+  // Auto-hide after 8 seconds.
   clearTimeout(suggestionsHideTimer);
   suggestionsHideTimer = setTimeout(function () {
     if (suggestBox) {
@@ -1124,7 +1136,7 @@ function showConnectionSuggestions(device) {
 }
 
 
-// Idle hints - show tips when the user hasn't done anything for a while
+// Idle hints show tips when the user has been inactive for a while.
 var idleTimer = null;
 var IDLE_TIMEOUT = 30000;
 
@@ -1156,7 +1168,7 @@ function resetIdleTimer() {
 }
 
 function showIdleHint() {
-  // Don't show random hints if the user is doing a tutorial or challenge
+  // Do not show random hints if the user is doing a tutorial or challenge.
   if (state.mode === "tutorial" || state.mode === "challenge") {
     return;
   }
@@ -1166,14 +1178,14 @@ function showIdleHint() {
 }
 
 
-// Auto-save to localStorage every 30 seconds if there are changes
+// Auto-save to localStorage every 30 seconds if there are changes.
 var autoSaveTimer = null;
 var lastSavedSnapshot = "";
 var AUTO_SAVE_KEY = "sbx_autosave";
 var AUTO_SAVE_INTERVAL = 30000;
 
 function setupAutoSave() {
-  // Try to restore from auto-save (only in free mode, not during tutorials/challenges)
+  // Try to restore from auto-save, but only in free mode.
   var urlParams = new URLSearchParams(window.location.search);
   var isFromCourse = urlParams.get("course") || urlParams.get("lesson");
   var savedData = parseJsonSafe(localStorage.getItem(AUTO_SAVE_KEY));
@@ -1190,7 +1202,7 @@ function setupAutoSave() {
 
   lastSavedSnapshot = snapshotState();
 
-  // Start the auto-save timer
+  // Start the auto-save timer.
   autoSaveTimer = setInterval(function () {
     var currentSnapshot = snapshotState();
     if (currentSnapshot !== lastSavedSnapshot && state.devices.length > 0) {
@@ -1200,7 +1212,7 @@ function setupAutoSave() {
   }, AUTO_SAVE_INTERVAL);
 }
 
-// Mark the state as dirty and schedule an auto-save
-function markDirtyAndSaveSoon() {
-  // The interval timer will pick it up
+// Ask the next auto-save pass to save the current state.
+function requestAutoSave() {
+  lastSavedSnapshot = "";
 }

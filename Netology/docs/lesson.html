@@ -154,14 +154,19 @@ and saving completion back to the server.
           </div>
         </div>
 
-        <!-- Action buttons: Check Answer (MCQ steps) and Continue (all steps) -->
-        <div class="d-flex flex-wrap justify-content-end gap-2 mt-4" role="group" aria-label="Step actions">
-          <button id="submitBtn" class="btn btn-teal net-quiz-primary" type="button" aria-label="Check answer" disabled>
-            Check Answer
+        <!-- Action buttons: Back (all steps except first), Check Answer (MCQ steps) and Continue (all steps) -->
+        <div class="d-flex flex-wrap justify-content-between gap-2 mt-4" role="group" aria-label="Step actions">
+          <button id="backBtn" class="btn btn-outline-secondary net-quiz-secondary d-none" type="button" aria-label="Go back to previous step">
+            ← Back
           </button>
-          <button id="continueBtn" class="btn btn-teal net-quiz-primary d-none" type="button" aria-label="Continue">
-            Continue →
-          </button>
+          <div class="d-flex flex-wrap gap-2 ms-auto">
+            <button id="submitBtn" class="btn btn-teal net-quiz-primary" type="button" aria-label="Check answer" disabled>
+              Check Answer
+            </button>
+            <button id="continueBtn" class="btn btn-teal net-quiz-primary d-none" type="button" aria-label="Continue">
+              Continue →
+            </button>
+          </div>
         </div>
       </section>
 

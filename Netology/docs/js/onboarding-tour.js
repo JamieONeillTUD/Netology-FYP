@@ -1,23 +1,35 @@
-// onboarding-tour.js — Onboarding tour overlay, stage progression, and completion tracking.
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 17/04/2026
+
+onboarding-tour.js - Onboarding Tour Script
+---
+This file handles the interactive onboarding tour for Netology.
+It shows the guided overlay, moves through each page stage, and
+saves completion or skip status for the user.
+
+It is used by the main page scripts and keeps the tour logic in one place.
+*/
 
 (function () {
   "use strict";
 
-  // app.js is always loaded first so these globals are guaranteed
-  var API_BASE = window.API_BASE;
-  var ENDPOINTS = window.ENDPOINTS;
+  var API_BASE = String(window.API_BASE || "").replace(/\/$/, "");
+  var ENDPOINTS = window.ENDPOINTS || {};
 
-  // storage keys
+  // Storage keys used by the onboarding flow.
   var STAGE_KEY = "netology_onboarding_stage";
   var USER_KEY = "netology_onboarding_user";
   var SESSION_KEY = "netology_onboarding_session";
   var COMPLETED_PREFIX = "netology_onboarding_completed_";
   var SKIPPED_PREFIX = "netology_onboarding_skipped_";
 
-  // tour stage order
+  // The tour moves through these stages in order.
   var FLOW = ["dashboard", "courses", "course", "sandbox", "account", "wrapup"];
 
-  // page url for each stage
+  // Page URL for each tour stage.
   var STAGE_URLS = {
     dashboard: "dashboard.html",
     courses: "courses.html",
@@ -27,10 +39,10 @@
     wrapup: "dashboard.html"
   };
 
-  // keys that should block scrolling during the tour
+  // Keys that should block scrolling during the tour.
   var BLOCKED_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "];
 
-  // tooltip steps shown on each page
+  // Tooltip steps shown on each page.
   var STEPS = {
     dashboard: [
       { target: "dashboard-header", title: "Welcome to Netology", description: "An interactive, gamified way to learn computer networking by doing." },
@@ -78,24 +90,19 @@
     ]
   };
 
-  // check if a value exists in an array
-  function arrayContains(list, value) {
-    for (var i = 0; i < list.length; i++) {
-      if (list[i] === value) {
-        return true;
-      }
-    }
-    return false;
+  // Build a backend URL from a route path.
+  function buildApiUrl(path) {
+    return API_BASE ? (API_BASE + path) : path;
   }
 
-  // normalise an email to lowercase trimmed string
+  // Normalise an email to a lowercase trimmed string.
   function normalizeEmail(value) {
     return String(value || "").trim().toLowerCase();
   }
 
-  // post json to the api
+  // Post JSON to the API.
   async function apiPost(path, payload) {
-    var response = await fetch(API_BASE + path, {
+    var response = await fetch(buildApiUrl(path), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload || {})
@@ -103,7 +110,7 @@
     return response.json();
   }
 
-  // update stored user xp after onboarding awards bonus xp
+  // Update stored user XP after onboarding awards bonus XP.
   function bumpStoredUserXp(email, deltaXp) {
     if (!deltaXp) {
       return;
@@ -133,7 +140,7 @@
     }
   }
 
-  // stage user for onboarding
+  // Stage the user for onboarding.
   function stageUserForOnboarding(email, stage) {
     var normalizedEmail = normalizeEmail(email);
     if (!normalizedEmail) {
@@ -143,7 +150,7 @@
     localStorage.setItem(USER_KEY, normalizedEmail);
   }
 
-  // toggle session flag that keeps the tour alive across page navigations
+  // Toggle the session flag that keeps the tour alive across page navigations.
   function setOnboardingSessionActive(isActive) {
     try {
       if (isActive) {
@@ -156,7 +163,7 @@
     }
   }
 
-  // mark onboarding as fully completed and clean up storage
+  // Mark onboarding as fully completed and clean up storage.
   function markOnboardingComplete() {
     localStorage.removeItem(STAGE_KEY);
 
@@ -184,7 +191,7 @@
     }
   }
 
-  // mark onboarding as skipped and clean up storage
+  // Mark onboarding as skipped and clean up storage.
   function markOnboardingSkipped() {
     localStorage.removeItem(STAGE_KEY);
 
@@ -197,14 +204,14 @@
     setOnboardingSessionActive(false);
   }
 
-  // check if a user already completed or skipped onboarding
+  // Check whether a user already completed or skipped onboarding.
   function isOnboardingDone(email) {
     var normalizedEmail = normalizeEmail(email);
     return localStorage.getItem(COMPLETED_PREFIX + normalizedEmail) === "true"
       || localStorage.getItem(SKIPPED_PREFIX + normalizedEmail) === "true";
   }
 
-  // tour overlay constructor
+  // Tour overlay constructor.
   function OnboardingTour(userEmail, options) {
     var tourOptions = options || {};
     this.userEmail = userEmail;
@@ -229,7 +236,7 @@
     this.escapeHandler = null;
   }
 
-  // start the tour
+  // Start the tour.
   OnboardingTour.prototype.init = async function init() {
     try {
       if (!this.steps.length) {
@@ -254,7 +261,7 @@
     }
   };
 
-  // create and append a div with the given class name
+  // Create and append a div with the given class name.
   OnboardingTour.prototype.createOverlayElement = function createOverlayElement(className) {
     var element = document.createElement("div");
     element.className = className;
@@ -262,7 +269,7 @@
     return element;
   };
 
-  // prevent scrolling and attach keyboard/resize handlers
+  // Prevent scrolling and attach keyboard and resize handlers.
   OnboardingTour.prototype.lockScreen = function lockScreen() {
     if (this.isScreenLocked) {
       return;
@@ -289,7 +296,7 @@
       if (!self.isActive) {
         return;
       }
-      if (arrayContains(BLOCKED_KEYS, event.key)) {
+      if (BLOCKED_KEYS.indexOf(event.key) !== -1) {
         event.preventDefault();
       }
     };
@@ -311,7 +318,7 @@
     window.addEventListener("resize", this.resizeHandler);
   };
 
-  // restore normal scrolling and remove all handlers
+  // Restore normal scrolling and remove all handlers.
   OnboardingTour.prototype.unlockScreen = function unlockScreen() {
     if (!this.isScreenLocked) {
       return;
@@ -342,7 +349,7 @@
     this.resizeHandler = null;
   };
 
-  // recalculate spotlight and tooltip positions
+  // Recalculate spotlight and tooltip positions.
   OnboardingTour.prototype.refreshPositions = function refreshPositions() {
     var step = this.steps[this.currentStepIndex];
     if (!step || !this.currentTarget) {
@@ -352,7 +359,7 @@
     this.updateTooltip(step, this.currentTarget);
   };
 
-  // wait for a number of animation frames
+  // Wait for a number of animation frames.
   OnboardingTour.prototype.waitForFrames = function waitForFrames(count) {
     var frameCount = count || 2;
     return new Promise(function (resolve) {
@@ -369,7 +376,7 @@
     });
   };
 
-  // wait until smooth scroll finishes
+  // Wait until smooth scroll finishes.
   OnboardingTour.prototype.waitForScrollToSettle = function waitForScrollToSettle(timeoutMs) {
     var timeout = timeoutMs || 900;
     return new Promise(function (resolve) {
@@ -395,13 +402,13 @@
     });
   };
 
-  // scroll the target element into view
+  // Scroll the target element into view.
   OnboardingTour.prototype.focusTarget = async function focusTarget(targetElement) {
     if (!targetElement) {
       return;
     }
 
-    // temporarily allow scrolling so we can scroll to the target
+    // Temporarily allow scrolling so we can scroll to the target.
     if (this.scrollBlocker) {
       window.removeEventListener("wheel", this.scrollBlocker);
       window.removeEventListener("touchmove", this.scrollBlocker);
@@ -415,14 +422,14 @@
       await this.waitForScrollToSettle();
     }
 
-    // re-attach scroll blockers
+    // Re-attach scroll blockers.
     if (this.scrollBlocker) {
       window.addEventListener("wheel", this.scrollBlocker, { passive: false });
       window.addEventListener("touchmove", this.scrollBlocker, { passive: false });
     }
   };
 
-  // show a step, skipping any targets missing from the page
+  // Show a step, skipping any targets missing from the page.
   OnboardingTour.prototype.showStep = async function showStep(stepIndex, direction) {
     var stepDirection = direction || 1;
     var stepCursor = stepIndex;
@@ -436,7 +443,7 @@
 
       var step = this.steps[stepCursor];
 
-      // switch tab if this step requires it
+      // Switch tab if this step requires it.
       if (step && step.tab) {
         var tabButton = document.querySelector('[role="tab"][data-tab="' + step.tab + '"]');
         if (tabButton) {
@@ -454,7 +461,7 @@
       this.currentStepIndex = stepCursor;
       this.currentTarget = targetElement;
 
-      this.stepToken = this.stepToken + 1;
+      this.stepToken += 1;
       var scrollToken = this.stepToken;
       await this.focusTarget(targetElement);
       if (scrollToken !== this.stepToken) {
@@ -466,7 +473,7 @@
       return;
     }
 
-    // no valid targets left on this page
+    // No valid targets left on this page.
     if (typeof this.onComplete === "function") {
       await this.onComplete();
       this.closeTour();
@@ -475,7 +482,7 @@
     await this.completeTour();
   };
 
-  // position the spotlight around the target
+  // Position the spotlight around the target.
   OnboardingTour.prototype.updateSpotlight = function updateSpotlight(targetElement) {
     if (this.lastHighlightedElement && this.lastHighlightedElement !== targetElement) {
       this.lastHighlightedElement.classList.remove("onboarding-target-active");
@@ -498,7 +505,7 @@
     this.spotlightElement.style.height = height + "px";
   };
 
-  // render and position the tooltip
+  // Render and position the tooltip.
   OnboardingTour.prototype.updateTooltip = function updateTooltip(step, targetElement) {
     var targetRect = targetElement.getBoundingClientRect();
     var totalSteps = this.steps.length;
@@ -507,7 +514,7 @@
 
     this.tooltipElement.classList.remove("is-intro");
 
-    // build the action button
+    // Build the action button.
     var actionButton = "";
     if (isLastStep) {
       actionButton = '<button class="btn-tour" onclick="window.onboardingTour.completeTour()">Finish &#8250;</button>';
@@ -515,7 +522,7 @@
       actionButton = '<button class="btn-tour" onclick="window.onboardingTour.nextStep()">Continue &#8250;</button>';
     }
 
-    // build the back button
+    // Build the back button.
     var backButton = '<button class="btn-tour-secondary" onclick="window.onboardingTour.prevStep()"';
     if (this.currentStepIndex === 0) {
       backButton = backButton + ' disabled style="opacity:.4;cursor:not-allowed"';
@@ -536,7 +543,7 @@
       + backButton
       + "</div>";
 
-    // measure off-screen then position
+    // Measure off-screen then position.
     this.tooltipElement.style.cssText = "top:0;left:0;visibility:hidden";
     var edgeMargin = 16;
     var tooltipGap = 18;
@@ -568,21 +575,21 @@
     }
   };
 
-  // go to the next step
+  // Go to the next step.
   OnboardingTour.prototype.nextStep = function nextStep() {
     if (this.currentStepIndex < this.steps.length - 1) {
       this.showStep(this.currentStepIndex + 1, 1);
     }
   };
 
-  // go to the previous step
+  // Go to the previous step.
   OnboardingTour.prototype.prevStep = function prevStep() {
     if (this.currentStepIndex > 0) {
       this.showStep(this.currentStepIndex - 1, -1);
     }
   };
 
-  // complete the tour
+  // Complete the tour.
   OnboardingTour.prototype.completeTour = async function completeTour() {
     if (typeof this.onComplete === "function") {
       await this.onComplete();
@@ -594,7 +601,7 @@
     window.location.href = "/dashboard.html";
   };
 
-  // skip the tour
+  // Skip the tour.
   OnboardingTour.prototype.skipTour = async function skipTour() {
     if (typeof this.onSkip === "function") {
       await this.onSkip();
@@ -610,7 +617,7 @@
     window.location.href = "/dashboard.html";
   };
 
-  // close the tour and clean up all overlay elements
+  // Close the tour and clean up all overlay elements.
   OnboardingTour.prototype.closeTour = function closeTour() {
     this.isActive = false;
     this.currentTarget = null;
@@ -633,7 +640,7 @@
     this.unlockScreen();
   };
 
-  // check if the tour should start on this page
+  // Check whether the tour should start on this page.
   function maybeStartOnboardingTour(stageKey, userEmail) {
     if (!stageKey || !userEmail) {
       return false;
@@ -648,7 +655,7 @@
       return false;
     }
 
-    // check session flag
+    // Check the session flag.
     var sessionActive = false;
     try {
       sessionActive = sessionStorage.getItem(SESSION_KEY) === "true";
@@ -660,15 +667,15 @@
       return false;
     }
 
-    // already done?
+    // Stop if onboarding is already done.
     if (isOnboardingDone(normalizedEmail)) {
       return false;
     }
 
-    // check stage matches
+    // Make sure the saved stage matches this page.
     var currentStage = (localStorage.getItem(STAGE_KEY) || "").trim();
-    if (currentStage && !arrayContains(FLOW, currentStage)) {
-      currentStage = arrayContains(FLOW, "sandbox") ? "sandbox" : (FLOW[0] || "");
+    if (currentStage && FLOW.indexOf(currentStage) === -1) {
+      currentStage = FLOW.indexOf("sandbox") !== -1 ? "sandbox" : (FLOW[0] || "");
       if (currentStage) {
         localStorage.setItem(STAGE_KEY, currentStage);
       } else {
@@ -694,7 +701,7 @@
     }
     var nextStage = stageIndex >= 0 ? (FLOW[stageIndex + 1] || null) : null;
 
-    // called when the user finishes all steps on this page
+    // Called when the user finishes all steps on this page.
     var handleComplete = async function () {
       if (nextStage) {
         localStorage.setItem(STAGE_KEY, nextStage);
@@ -709,7 +716,7 @@
         return;
       }
 
-      // final stage — complete onboarding and award achievements
+      // Final stage: complete onboarding and award achievements.
       try {
         var result = await apiPost(ENDPOINTS.onboarding.complete, { user_email: normalizedEmail });
         var unlocks = (result && Array.isArray(result.newly_unlocked)) ? result.newly_unlocked : [];
@@ -730,7 +737,7 @@
       }
     };
 
-    // called when the user clicks skip
+    // Called when the user clicks skip.
     var handleSkip = async function () {
       try {
         await apiPost(ENDPOINTS.onboarding.skip, { user_email: normalizedEmail });
@@ -743,7 +750,7 @@
       }
     };
 
-    // create and start the tour
+    // Create and start the tour.
     window.onboardingTour = new OnboardingTour(normalizedEmail, {
       steps: stageSteps,
       onComplete: handleComplete,
@@ -753,7 +760,7 @@
     return true;
   }
 
-  // expose public api
+  // Expose the public API.
   window.markOnboardingComplete = markOnboardingComplete;
   window.markOnboardingSkipped = markOnboardingSkipped;
   window.maybeStartOnboardingTour = maybeStartOnboardingTour;

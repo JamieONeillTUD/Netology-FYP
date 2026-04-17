@@ -1,4 +1,24 @@
-// courses.js — shows the course catalog page
+/*
+Student Number: C22320301
+Student Name: Jamie O'Neill
+Course Code: TU857/4
+Date: 16/04/2026
+
+courses.js - Course Catalog Page
+---
+This file runs the courses.html page. It reads all course data from
+COURSE_CONTENT (course_content.js), fetches the logged-in user's progress
+from the backend, and renders the full course catalog.
+
+Courses are grouped into three difficulty sections: Novice, Intermediate,
+and Advanced. Each course card shows the title, stats, progress bar, and
+a button that changes depending on whether the course is locked, in progress,
+or complete. The filter buttons at the top let the user show one difficulty
+at a time or view all courses together.
+
+A "Your Learning Progress" section at the top of the page shows only the courses
+the user has already started.
+*/
 
 (function () {
   "use strict";
