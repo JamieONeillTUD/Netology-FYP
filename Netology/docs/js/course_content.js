@@ -465,8 +465,7 @@ const COURSE_CONTENT = {
           },
           steps: [
             "Add 1 router, 1 switch, and at least 3 PCs.",
-            "Connect all PCs to the switch, then connect the switch to the router.",
-            "Explain which devices are in the LAN and which device is the gateway."
+            "Connect all PCs to the switch, then connect the switch to the router."
           ],
           tips: "Think of the router as the path to the Internet and the switch as the local meeting point."
         }
@@ -855,8 +854,7 @@ const COURSE_CONTENT = {
           },
           steps: [
             "Add two switches and connect them with an uplink.",
-            "Connect at least two PCs to each switch.",
-            "Explain how a switch learns MAC addresses as frames move."
+            "Connect at least two PCs to each switch."
           ],
           tips: "Switches learn by reading source MACs; unknown destinations are flooded."
         }
@@ -1287,8 +1285,7 @@ const COURSE_CONTENT = {
                 { type: "ip_in_range", deviceType: "pc", min: "192.168.10.1", max: "192.168.10.254", count: 3 },
                 { type: "gateway_in_range", deviceType: "pc", min: "192.168.10.1", max: "192.168.10.254", count: 3 }
               ]
-            },
-            "Explain how DHCP and DNS would be added to improve usability."
+            }
           ],
           tips: "Keep hosts in the same subnet and use the router as the gateway."
         }
@@ -1509,8 +1506,7 @@ const COURSE_CONTENT = {
           },
           steps: [
             "Build a LAN with two switches and at least four PCs.",
-            "Connect at least two PCs to each switch and create one inter-switch uplink.",
-            "Document how the switches will learn MAC addresses and why STP is important if you add redundancy."
+            "Connect at least two PCs to each switch and create one inter-switch uplink."
           ],
           tips: "Keep the design simple first, then explain how STP protects the network when redundant links are present."
         }
@@ -1752,8 +1748,7 @@ const COURSE_CONTENT = {
                 { type: "ip_not_auto", deviceType: "pc", count: 3 },
                 { type: "gateway_not_auto", deviceType: "pc", count: 3 }
               ]
-            },
-            "Explain how NAT would let these private hosts access public Internet services."
+            }
           ],
           tips: "Focus on clean address planning first, then describe where NAT is applied (on the router edge)."
         }
@@ -2474,8 +2469,7 @@ const COURSE_CONTENT = {
           },
           steps: [
             "Add 2 switches and at least 4 PCs.",
-            "Connect PCs to the switches and link the switches together.",
-            "Treat two PCs as VLAN 10 and two PCs as VLAN 20 in your notes."
+            "Connect PCs to the switches and link the switches together."
           ],
           tips: "Imagine the trunk between switches carrying VLAN 10 and VLAN 20."
         }
@@ -3056,9 +3050,7 @@ const COURSE_CONTENT = {
           },
           steps: [
             "Add three PCs (one per branch) and two routers to the canvas.",
-            "Connect Branch A PC to R1, Branch C PC to R2, Branch B PC to both R1 and R2.",
-            "Decide whether to use static routes or OSPF — note your reasoning.",
-            "Trace the path a packet takes from Branch A to Branch C."
+            "Connect Branch A PC to R1, Branch C PC to R2, Branch B PC to both R1 and R2."
           ],
           tips: "Think about what happens if one router link goes down — which routing method handles it better?"
         }
@@ -3278,9 +3270,7 @@ const COURSE_CONTENT = {
           },
           steps: [
             "Add a PC, a router, and a DNS server to the canvas.",
-            "Connect the PC to the router and the router to the DNS server.",
-            "Confirm: if ping to 8.8.8.8 works, what layer is functioning correctly?",
-            "Explain what single change would restore website access."
+            "Connect the PC to the router and the router to the DNS server."
           ],
           tips: "When IP works but names do not, always check DNS first."
         }
@@ -3646,8 +3636,7 @@ const COURSE_CONTENT = {
           },
           steps: [
             "Build a small branch network with a router, switch, and four PCs.",
-            "Designate one PC as admin and the rest as users in your notes.",
-            "Describe which services should be disabled and which logs should be enabled."
+            "Connect all PCs to the switch and connect the switch to the router."
           ],
           tips: "Focus on least privilege and reducing exposed services."
         }
@@ -4326,11 +4315,8 @@ const COURSE_CONTENT = {
             }
           },
           steps: [
-            "Add a firewall, a jump host, and a SIEM server to the canvas.",
-            "Connect the Internet cloud through the firewall to the jump host.",
-            "Write down the attack type this pattern describes.",
-            "List your first three response actions in order of priority.",
-            "Propose one firewall rule change that would prevent this in future."
+            "Add a firewall, a jump host (PC), and a SIEM server to the canvas.",
+            "Connect the jump host to the firewall and the SIEM server to the firewall."
           ],
           tips: "Brute-force followed by a successful login means credentials may be compromised — containment before investigation."
         }
