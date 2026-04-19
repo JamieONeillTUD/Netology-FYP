@@ -1263,32 +1263,45 @@ var lastSavedSnapshot = "";
 var AUTO_SAVE_KEY = "sbx_autosave";
 var AUTO_SAVE_INTERVAL = 30000;
 
+function showRestoreDialog(callback) {
+  var overlay = getById("sbxRestoreOverlay");
+  // Fall back to native confirm if the overlay element is missing.
+  if (!overlay) { callback(confirm("Found an auto-saved topology. Would you like to restore it?")); return; }
+  overlay.style.display = "flex";
+  getById("sbxRestoreYes").onclick = function () { overlay.style.display = "none"; callback(true); };
+  getById("sbxRestoreNo").onclick  = function () { overlay.style.display = "none"; callback(false); };
+}
+
 function setupAutoSave() {
-  // Try to restore from auto-save, but only in free mode.
   var urlParams = new URLSearchParams(window.location.search);
   var isFromCourse = urlParams.get("course") || urlParams.get("lesson");
   var savedData = parseJsonSafe(localStorage.getItem(AUTO_SAVE_KEY));
-  if (savedData && savedData.devices && savedData.devices.length > 0 && state.devices.length === 0 && !isFromCourse) {
-    var shouldRestore = confirm("Found an auto-saved topology. Would you like to restore it?");
-    if (shouldRestore) {
-      replaceTopology(savedData.devices, savedData.connections || []);
-      applyAutoNetworkDefaults();
-      pushHistory();
-      renderAll();
-      showSandboxToast({ title: "Restored", message: "Auto-saved topology restored.", variant: "info", timeout: 3000 });
-    }
+
+  function startTimer() {
+    lastSavedSnapshot = snapshotState();
+    autoSaveTimer = setInterval(function () {
+      var currentSnapshot = snapshotState();
+      if (currentSnapshot !== lastSavedSnapshot && state.devices.length > 0) {
+        localStorage.setItem(AUTO_SAVE_KEY, currentSnapshot);
+        lastSavedSnapshot = currentSnapshot;
+      }
+    }, AUTO_SAVE_INTERVAL);
   }
 
-  lastSavedSnapshot = snapshotState();
-
-  // Start the auto-save timer.
-  autoSaveTimer = setInterval(function () {
-    var currentSnapshot = snapshotState();
-    if (currentSnapshot !== lastSavedSnapshot && state.devices.length > 0) {
-      localStorage.setItem(AUTO_SAVE_KEY, currentSnapshot);
-      lastSavedSnapshot = currentSnapshot;
-    }
-  }, AUTO_SAVE_INTERVAL);
+  if (savedData && savedData.devices && savedData.devices.length > 0 && state.devices.length === 0 && !isFromCourse) {
+    showRestoreDialog(function (restore) {
+      if (restore) {
+        replaceTopology(savedData.devices, savedData.connections || []);
+        applyAutoNetworkDefaults();
+        pushHistory();
+        renderAll();
+        showSandboxToast({ title: "Restored", message: "Auto-saved topology restored.", variant: "info", timeout: 3000 });
+      }
+      startTimer();
+    });
+  } else {
+    startTimer();
+  }
 }
 
 // Ask the next auto-save pass to save the current state.

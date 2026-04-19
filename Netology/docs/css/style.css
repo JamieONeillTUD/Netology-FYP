@@ -14,7 +14,29 @@ It is loaded by the HTML pages
 */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-@import url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic.css');
+
+/* OpenDyslexic — loaded via jsDelivr so the family name matches our CSS exactly */
+@font-face {
+  font-family: "OpenDyslexic";
+  src: url("https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "OpenDyslexic";
+  src: url("https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "OpenDyslexic";
+  src: url("https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Italic.otf") format("opentype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
 
 :root {
 
@@ -3648,12 +3670,17 @@ body {
   font-family: var(--net-font-main) !important;
 }
 
-body.net-dyslexic {
-  font-family: var(--net-font-dyslexic) !important;
+/* Apply OpenDyslexic to every element — syncClass puts the class on both html and body */
+html.net-dyslexic,
+html.net-dyslexic *,
+body.net-dyslexic,
+body.net-dyslexic * {
+  font-family: "OpenDyslexic", "OpenDyslexic3", sans-serif !important;
 }
 
-body.net-dyslexic code,
-body.net-dyslexic pre {
+/* Keep code blocks monospace in dyslexic mode */
+html.net-dyslexic code, html.net-dyslexic pre,
+body.net-dyslexic code, body.net-dyslexic pre {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
 }
 
@@ -3690,6 +3717,7 @@ body.net-large-text h6 {
 }
 
 body[data-theme="dark"] {
+  /* Netology theme variables */
   --net-bg1: #0b1220;
   --net-bg2: #111827;
   --net-card: #0f172a;
@@ -3702,6 +3730,135 @@ body[data-theme="dark"] {
   --net-shadow-2: 0 18px 50px rgba(2, 6, 23, .34);
   --net-shadow-card: 0 18px 46px rgba(2, 6, 23, .36);
   color-scheme: dark;
+
+  /* Bootstrap 5 CSS variable overrides — fixes "strange coloured boxes" */
+  --bs-body-bg: #0b1220;
+  --bs-body-color: #f8fafc;
+  --bs-secondary-bg: #111827;
+  --bs-tertiary-bg: #1a2536;
+  --bs-border-color: rgba(148, 163, 184, .18);
+  --bs-card-bg: #0f172a;
+  --bs-card-cap-bg: rgba(15, 23, 42, .55);
+  --bs-card-border-color: rgba(148, 163, 184, .18);
+  --bs-card-color: #f8fafc;
+  --bs-modal-bg: #0f172a;
+  --bs-modal-color: #f8fafc;
+  --bs-modal-header-border-color: rgba(148, 163, 184, .18);
+  --bs-modal-footer-border-color: rgba(148, 163, 184, .18);
+  --bs-dropdown-bg: #0f172a;
+  --bs-dropdown-border-color: rgba(148, 163, 184, .18);
+  --bs-dropdown-link-color: #f8fafc;
+  --bs-dropdown-link-hover-bg: rgba(30, 41, 59, .8);
+  --bs-dropdown-link-hover-color: #f8fafc;
+  --bs-dropdown-link-active-bg: rgba(13, 148, 136, .25);
+  --bs-list-group-bg: #0f172a;
+  --bs-list-group-border-color: rgba(148, 163, 184, .18);
+  --bs-list-group-color: #f8fafc;
+  --bs-list-group-action-hover-bg: rgba(30, 41, 59, .8);
+  --bs-list-group-action-hover-color: #f8fafc;
+  --bs-table-bg: transparent;
+  --bs-table-color: #f8fafc;
+  --bs-table-border-color: rgba(148, 163, 184, .18);
+  --bs-table-striped-bg: rgba(30, 41, 59, .4);
+  --bs-table-hover-bg: rgba(30, 41, 59, .6);
+  --bs-accordion-bg: #0f172a;
+  --bs-accordion-border-color: rgba(148, 163, 184, .18);
+  --bs-accordion-btn-color: #f8fafc;
+  --bs-accordion-body-color: #e5e7eb;
+  --bs-accordion-active-bg: rgba(13, 148, 136, .12);
+  --bs-accordion-active-color: #5eead4;
+  --bs-nav-tabs-border-color: rgba(148, 163, 184, .18);
+  --bs-nav-link-color: #94a3b8;
+  --bs-nav-link-hover-color: #5eead4;
+  --bs-popover-bg: #0f172a;
+  --bs-popover-border-color: rgba(148, 163, 184, .18);
+  --bs-popover-body-color: #f8fafc;
+  --bs-tooltip-bg: #1e293b;
+  --bs-tooltip-color: #f8fafc;
+  --bs-heading-color: #f8fafc;
+  --bs-link-color: #5eead4;
+  --bs-link-hover-color: #99f6e4;
+  --bs-code-color: #f9a8d4;
+}
+
+/* Explicit Bootstrap element overrides for anything that ignores CSS variables */
+body[data-theme="dark"] .card {
+  background-color: rgba(15, 23, 42, .96);
+  border-color: rgba(148, 163, 184, .18);
+  color: #f8fafc;
+}
+body[data-theme="dark"] .card-header,
+body[data-theme="dark"] .card-footer {
+  background-color: rgba(15, 23, 42, .55);
+  border-color: rgba(148, 163, 184, .18);
+}
+body[data-theme="dark"] .modal-content {
+  background-color: #0f172a;
+  border-color: rgba(148, 163, 184, .18);
+  color: #f8fafc;
+}
+body[data-theme="dark"] .modal-header,
+body[data-theme="dark"] .modal-footer {
+  border-color: rgba(148, 163, 184, .18);
+}
+body[data-theme="dark"] .list-group-item {
+  background-color: rgba(15, 23, 42, .96);
+  border-color: rgba(148, 163, 184, .18);
+  color: #f8fafc;
+}
+body[data-theme="dark"] .dropdown-menu {
+  background-color: #0f172a;
+  border-color: rgba(148, 163, 184, .18);
+}
+body[data-theme="dark"] .dropdown-item {
+  color: #f8fafc;
+}
+body[data-theme="dark"] .dropdown-item:hover,
+body[data-theme="dark"] .dropdown-item:focus {
+  background-color: rgba(30, 41, 59, .8);
+  color: #f8fafc;
+}
+body[data-theme="dark"] .accordion-item {
+  background-color: rgba(15, 23, 42, .96);
+  border-color: rgba(148, 163, 184, .18);
+}
+body[data-theme="dark"] .accordion-button {
+  background-color: rgba(15, 23, 42, .96);
+  color: #f8fafc;
+}
+body[data-theme="dark"] .accordion-button:not(.collapsed) {
+  background-color: rgba(13, 148, 136, .12);
+  color: #5eead4;
+}
+body[data-theme="dark"] .accordion-button::after {
+  filter: invert(1) brightness(1.5);
+}
+body[data-theme="dark"] .table {
+  color: #f8fafc;
+  border-color: rgba(148, 163, 184, .18);
+}
+body[data-theme="dark"] .table > :not(caption) > * > * {
+  background-color: transparent;
+  color: #f8fafc;
+  border-color: rgba(148, 163, 184, .18);
+}
+body[data-theme="dark"] .nav-tabs {
+  border-color: rgba(148, 163, 184, .18);
+}
+body[data-theme="dark"] .nav-tabs .nav-link {
+  color: #94a3b8;
+}
+body[data-theme="dark"] .nav-tabs .nav-link.active {
+  background-color: rgba(15, 23, 42, .96);
+  border-color: rgba(148, 163, 184, .18) rgba(148, 163, 184, .18) transparent;
+  color: #5eead4;
+}
+body[data-theme="dark"] .popover {
+  background-color: #0f172a;
+  border-color: rgba(148, 163, 184, .18);
+}
+body[data-theme="dark"] .popover-body {
+  color: #f8fafc;
 }
 
 body[data-theme="dark"] .net-card,
@@ -5304,6 +5461,101 @@ body[data-theme="dark"] .sbx-inline-config-tab.is-active { color: #5eead4; backg
 .sbx-float-right { right: 4px; border-radius: 8px 0 0 8px; }
 
 .sbx-footer { background: transparent; border: 0; }
+
+/* Auto-save restore dialog */
+.sbx-restore-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: sbxFadeIn 0.2s ease;
+}
+
+@keyframes sbxFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.sbx-restore-card {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  border-radius: 20px;
+  padding: 40px 36px 32px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+  color: #fff;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+  animation: sbxSlideUp 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sbxSlideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+.sbx-restore-icon {
+  font-size: 2.8rem;
+  margin-bottom: 12px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
+}
+
+.sbx-restore-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+  letter-spacing: -0.01em;
+}
+
+.sbx-restore-msg {
+  font-size: 0.95rem;
+  opacity: 0.9;
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+.sbx-restore-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.sbx-restore-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 24px;
+  border-radius: 50px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.sbx-restore-btn:hover  { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+.sbx-restore-btn:active { transform: translateY(0);    box-shadow: none; }
+
+.sbx-restore-btn-yes {
+  background: #fff;
+  color: #0f766e;
+}
+
+.sbx-restore-btn-yes:hover { background: #f0fdfa; }
+
+.sbx-restore-btn-no {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.sbx-restore-btn-no:hover { background: rgba(255, 255, 255, 0.25); }
 
 .sbx-shortcut-bar {
   position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);

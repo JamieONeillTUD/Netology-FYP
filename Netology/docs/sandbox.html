@@ -714,6 +714,23 @@ tour integration.
     <p class="small text-muted mb-0">© 2026 Netology – Jamie O'Neill – TU857/4</p>
   </footer>
 
+  <!-- Auto-save Restore Dialog -->
+  <div id="sbxRestoreOverlay" class="sbx-restore-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="sbxRestoreTitle">
+    <div class="sbx-restore-card">
+      <div class="sbx-restore-icon"><i class="bi bi-floppy2-fill"></i></div>
+      <h2 class="sbx-restore-title" id="sbxRestoreTitle">Auto-save Found</h2>
+      <p class="sbx-restore-msg">We found a saved topology from your last session. Would you like to restore it?</p>
+      <div class="sbx-restore-actions">
+        <button id="sbxRestoreYes" class="sbx-restore-btn sbx-restore-btn-yes">
+          <i class="bi bi-arrow-counterclockwise"></i> Restore
+        </button>
+        <button id="sbxRestoreNo" class="sbx-restore-btn sbx-restore-btn-no">
+          <i class="bi bi-plus-lg"></i> Start Fresh
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Saved Topologies Modal: lists all of the user's saved builds and lets them load or delete one -->
   <div class="modal fade" id="topologyModal" tabindex="-1">
     <div class="modal-dialog modal-lg">

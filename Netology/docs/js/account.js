@@ -173,21 +173,13 @@ the backend and local storage.
 
   // Apply the selected theme.
   function applyThemeSetting(themeValue, themeInputs) {
-    var raw = String(themeValue || "").trim().toLowerCase();
-    var theme = "light";
-    if (raw === "dark" || raw === "system") {
-      theme = raw;
-    }
+    var theme = (String(themeValue || "").trim().toLowerCase() === "dark") ? "dark" : "light";
 
     if (window.NetologyTheme && window.NetologyTheme.setTheme) {
       window.NetologyTheme.setTheme(theme);
     } else {
       localStorage.setItem("netology_theme", theme);
-      var resolved = theme;
-      if (theme === "system") {
-        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      }
-      document.body.setAttribute("data-theme", resolved);
+      document.body.setAttribute("data-theme", theme);
     }
 
     for (var i = 0; i < themeInputs.length; i++) {
