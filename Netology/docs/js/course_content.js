@@ -1247,22 +1247,14 @@ const COURSE_CONTENT = {
             {
               text: "Set IP addresses on both PCs in the same /24 (example: 192.168.10.10 and 192.168.10.11).",
               checks: [
-                {
-                  type: "ip",
-                  deviceType: "pc",
-                  count: 2
-                }
+                { type: "ip_in_range", deviceType: "pc", min: "192.168.10.1", max: "192.168.10.254", count: 2 }
               ],
               hint: "Select a PC, open Properties, and enter the IP address."
             },
             {
               text: "Set the default gateway on both PCs (example: 192.168.10.1).",
               checks: [
-                {
-                  type: "gateway",
-                  deviceType: "pc",
-                  count: 2
-                }
+                { type: "gateway_in_range", deviceType: "pc", min: "192.168.10.1", max: "192.168.10.254", count: 2 }
               ],
               hint: "The gateway should match the router's LAN interface."
             }
@@ -1272,18 +1264,30 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Subnet a small office",
           xp: 80,
-          rules: {
-            minDevices: 5,
-            minConnections: 4,
-            requiredTypes: {
-              router: 1,
-              switch: 1,
-              pc: 3
-            }
-          },
           steps: [
-            "Create a LAN with a router, a switch, and three PCs.",
-            "Assign IP addresses in the same /24 and pick a default gateway.",
+            {
+              text: "Create a LAN with a router, a switch, and three PCs.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "pc", count: 3 },
+                { type: "min_devices", count: 5 }
+              ]
+            },
+            {
+              text: "Connect all PCs to the switch and connect the switch to the router.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 3 },
+                { type: "connection", from: "switch", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Assign IP addresses in the 192.168.10.x range and set a default gateway (example: 192.168.10.1) on all PCs.",
+              checks: [
+                { type: "ip_in_range", deviceType: "pc", min: "192.168.10.1", max: "192.168.10.254", count: 3 },
+                { type: "gateway_in_range", deviceType: "pc", min: "192.168.10.1", max: "192.168.10.254", count: 3 }
+              ]
+            },
             "Explain how DHCP and DNS would be added to improve usability."
           ],
           tips: "Keep hosts in the same subnet and use the router as the gateway."
@@ -1475,26 +1479,18 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Set an IP address on each PC.",
+              text: "Set an IP address on each PC (for example 10.0.0.1 and 10.0.0.2).",
               hint: "Each PC that communicates writes its source MAC into the switch's MAC table as it sends frames.",
               checks: [
-                {
-                  type: "ip",
-                  deviceType: "pc",
-                  count: 2
-                }
+                { type: "ip_in_range", deviceType: "pc", min: "10.0.0.1", max: "10.255.255.254", count: 2 }
               ]
             },
             {
               text: "Rename one PC to 'PC-A' and the other to 'PC-B' to label each host.",
               hint: "Run 'show mac Switch-1' in the console to see the MAC table — each entry maps a MAC address to a port.",
               checks: [
-                {
-                  type: "name_contains",
-                  deviceType: "pc",
-                  contains: "PC-",
-                  count: 2
-                }
+                { type: "name_contains", deviceType: "pc", contains: "PC-A", count: 1 },
+                { type: "name_contains", deviceType: "pc", contains: "PC-B", count: 1 }
               ]
             }
           ],
@@ -1716,22 +1712,14 @@ const COURSE_CONTENT = {
             {
               text: "Assign a private IPv4 address to each PC (for example 192.168.50.10 and 192.168.50.11).",
               checks: [
-                {
-                  type: "ip",
-                  deviceType: "pc",
-                  count: 2
-                }
+                { type: "ip_in_range", deviceType: "pc", min: "192.168.50.1", max: "192.168.50.254", count: 2 }
               ],
               hint: "Use the device properties panel to set each PC IP address."
             },
             {
               text: "Set the default gateway on both PCs (for example 192.168.50.1).",
               checks: [
-                {
-                  type: "gateway",
-                  deviceType: "pc",
-                  count: 2
-                }
+                { type: "gateway_in_range", deviceType: "pc", min: "192.168.50.1", max: "192.168.50.254", count: 2 }
               ],
               hint: "Use the router LAN IP as the gateway for both hosts."
             }
@@ -1741,19 +1729,30 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Plan an office IP layout",
           xp: 80,
-          rules: {
-            minDevices: 5,
-            minConnections: 4,
-            requiredTypes: {
-              router: 1,
-              switch: 1,
-              pc: 3
-            }
-          },
           steps: [
-            "Create a network with one router, one switch, and at least three PCs.",
-            "Connect all PCs to the switch and connect the switch to the router.",
-            "Use a private IPv4 range and document which address should be the default gateway.",
+            {
+              text: "Create a network with one router, one switch, and at least three PCs.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "pc", count: 3 },
+                { type: "min_devices", count: 5 }
+              ]
+            },
+            {
+              text: "Connect all PCs to the switch and connect the switch to the router.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 3 },
+                { type: "connection", from: "switch", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Manually assign private IPv4 addresses to all PCs and set a default gateway on each (must not be in the 192.168.1.x range).",
+              checks: [
+                { type: "ip_not_auto", deviceType: "pc", count: 3 },
+                { type: "gateway_not_auto", deviceType: "pc", count: 3 }
+              ]
+            },
             "Explain how NAT would let these private hosts access public Internet services."
           ],
           tips: "Focus on clean address planning first, then describe where NAT is applied (on the router edge)."
@@ -2093,14 +2092,15 @@ const COURSE_CONTENT = {
               text: "Assign IP addresses to two PCs in the 192.168.10.0/26 range (example: 192.168.10.10 and 192.168.10.20).",
               hint: "A /26 subnet has 64 addresses. Valid host range: 192.168.10.1 to 192.168.10.62.",
               checks: [
-                { type: "ip", deviceType: "pc", count: 2 }
+                { type: "ip_in_range", deviceType: "pc", min: "192.168.10.1", max: "192.168.10.62", count: 2 }
               ]
             },
             {
               text: "Assign IP addresses to the other two PCs in the 192.168.10.64/26 range (example: 192.168.10.70 and 192.168.10.80).",
               hint: "The second /26 starts at .64. Valid host range: 192.168.10.65 to 192.168.10.126.",
               checks: [
-                { type: "ip", deviceType: "pc", count: 4 }
+                { type: "ip_in_range", deviceType: "pc", min: "192.168.10.1", max: "192.168.10.62", count: 2 },
+                { type: "ip_in_range", deviceType: "pc", min: "192.168.10.65", max: "192.168.10.126", count: 2 }
               ]
             }
           ],
@@ -2121,7 +2121,12 @@ const COURSE_CONTENT = {
           steps: [
             "Add 1 router, 1 switch, and at least 4 PCs.",
             "Connect all PCs to the switch and connect the switch to the router.",
-            "Plan two subnets (e.g., Staff and Guest) and document the gateway for each."
+            {
+              text: "Plan two subnets (e.g., Staff and Guest) and document the gateway for each. Manually assign IPs so that at least 2 PCs are in one subnet and at least 2 PCs are in a different subnet.",
+              checks: [
+                { type: "subnet_groups", deviceType: "pc", minGroups: 2, minPerGroup: 2 }
+              ]
+            }
           ],
           tips: "Use two groups of PCs to represent two different subnets."
         }
@@ -2796,11 +2801,11 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Set an IP address on each PC and set a default gateway pointing to the router.",
+              text: "Set an IP address on each PC and set a default gateway pointing to the router. Use two different subnets — for example 192.168.10.x for VLAN10 and 192.168.20.x for VLAN20.",
               hint: "Each VLAN group needs a different subnet — for example 192.168.10.x for VLAN10 and 192.168.20.x for VLAN20.",
               checks: [
-                { type: "ip", deviceType: "pc", count: 3 },
-                { type: "gateway", deviceType: "pc", count: 3 }
+                { type: "subnet_groups", deviceType: "pc", minGroups: 2, minPerGroup: 1 },
+                { type: "gateway_not_auto", deviceType: "pc", count: 3 }
               ]
             }
           ],
@@ -2809,21 +2814,31 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Route between two VLANs",
           xp: 100,
-          rules: {
-            minDevices: 5,
-            minConnections: 4,
-            requiredTypes: {
-              router: 1,
-              switch: 1,
-              pc: 3
-            }
-          },
           steps: [
-            "Add a switch, a router, and at least three PCs.",
-            "Connect PCs to the switch and the switch to the router.",
-            "Treat one PC as VLAN 10 and two PCs as VLAN 20 in your design."
+            {
+              text: "Add a switch, a router, and at least three PCs.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "pc", count: 3 },
+                { type: "min_devices", count: 5 }
+              ]
+            },
+            {
+              text: "Connect PCs to the switch and the switch to the router.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 3 },
+                { type: "connection", from: "switch", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Assign IPs so that at least one PC is in a different subnet from the others — this models VLAN 10 and VLAN 20 having separate address ranges.",
+              checks: [
+                { type: "subnet_groups", deviceType: "pc", minGroups: 2, minPerGroup: 1 }
+              ]
+            }
           ],
-          tips: "You are modeling the topology; VLAN configurations are conceptual."
+          tips: "You are modeling the topology; use different IP ranges to represent the two VLANs."
         }
       }
     ]
@@ -3011,11 +3026,11 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Set an IP address on the PC and on both routers.",
+              text: "Set IP addresses on the PC and both routers. Put R1 and R2 on different subnets so a static route is needed (example: R1 on 192.168.1.x, R2 on 192.168.2.x).",
               hint: "A static route on R1 would look like: ip route 192.168.2.0 255.255.255.0 [R2 IP]",
               checks: [
-                { type: "ip", deviceType: "router", count: 2 },
-                { type: "ip", deviceType: "pc", count: 1 }
+                { type: "subnet_groups", deviceType: "router", minGroups: 2, minPerGroup: 1 },
+                { type: "ip_not_auto", deviceType: "pc", count: 1 }
               ]
             },
             {
@@ -3232,10 +3247,11 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Set an IP on the server, then open its config panel and enable the DHCP server with a pool.",
-              hint: "Give the server an IP like 192.168.1.1, then set Pool Start to 192.168.1.10 and Pool End to 192.168.1.50.",
+              text: "Set a static IP on the server (for example 192.168.1.2), then open its config panel and enable the DHCP server with a pool.",
+              hint: "Give the server IP 192.168.1.2, then set Pool Start to 192.168.1.10 and Pool End to 192.168.1.50. Enable the DHCP server toggle.",
               checks: [
-                { type: "ip", deviceType: "server", count: 1 }
+                { type: "ip_in_range", deviceType: "server", min: "192.168.1.2", max: "192.168.1.9", count: 1 },
+                { type: "dhcp_server_enabled", deviceType: "server", count: 1 }
               ]
             },
             {
@@ -3602,15 +3618,15 @@ const COURSE_CONTENT = {
               text: "Name the server to include 'WebServer' — in a real network you would disable FTP, Telnet, and SNMP if unused.",
               hint: "Disabling unused services removes attack surface. Open ports are potential entry points.",
               checks: [
-                { type: "name_contains", deviceType: "server", contains: "Server", count: 1 }
+                { type: "name_contains", deviceType: "server", contains: "WebServer", count: 1 }
               ]
             },
             {
-              text: "Set an IP on all devices — in a real network you would enable firewall logging and keep it always on.",
+              text: "Set IP addresses on all devices — in a real network you would enable firewall logging and keep it always on.",
               hint: "Logging on the firewall gives you a record of blocked and allowed connections for incident response.",
               checks: [
-                { type: "ip", deviceType: "server", count: 1 },
-                { type: "ip", deviceType: "pc", count: 2 }
+                { type: "ip_not_auto", deviceType: "server", count: 1 },
+                { type: "ip_not_auto", deviceType: "pc", count: 2 }
               ]
             }
           ],
@@ -3961,14 +3977,15 @@ const COURSE_CONTENT = {
               text: "Rename one PC to 'Staff-PC' and the other to 'Guest-PC' to model the two groups.",
               hint: "In a real ACL: permit Staff HTTPS and DNS outbound, permit Guest HTTP only.",
               checks: [
-                { type: "name_contains", deviceType: "pc", contains: "PC", count: 2 }
+                { type: "name_contains", deviceType: "pc", contains: "Staff-PC", count: 1 },
+                { type: "name_contains", deviceType: "pc", contains: "Guest-PC", count: 1 }
               ]
             },
             {
-              text: "Set IP addresses on both PCs — the router would apply ACL rules per subnet in a real deployment.",
+              text: "Set IP addresses on both PCs using two different subnets — the router would apply ACL rules per subnet.",
               hint: "ACLs are read top-to-bottom and stop at the first match. Always put specific rules before general ones.",
               checks: [
-                { type: "ip", deviceType: "pc", count: 2 }
+                { type: "subnet_groups", deviceType: "pc", minGroups: 2, minPerGroup: 1 }
               ]
             }
           ],
@@ -4281,8 +4298,8 @@ const COURSE_CONTENT = {
               text: "Set an IP on the server and rename it to 'SIEM-Server' — in a real network this would receive all firewall logs.",
               hint: "Suspicious log signals: repeated failures from one IP, login at 03:00, login from a new country.",
               checks: [
-                { type: "ip", deviceType: "server", count: 1 },
-                { type: "name_contains", deviceType: "server", contains: "Server", count: 1 }
+                { type: "ip_not_auto", deviceType: "server", count: 1 },
+                { type: "name_contains", deviceType: "server", contains: "SIEM", count: 1 }
               ]
             },
             {
@@ -4756,10 +4773,10 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Set an IP address on the management server so it can reach the managed devices.",
+              text: "Set a static IP address on the management server so it can reach the managed devices (for example 10.0.0.1).",
               hint: "The biggest risk of untested automation: a bad playbook can push a broken config to every device at once.",
               checks: [
-                { type: "ip", deviceType: "server", count: 1 }
+                { type: "ip_not_auto", deviceType: "server", count: 1 }
               ]
             }
           ],
@@ -4804,10 +4821,10 @@ const COURSE_CONTENT = {
               ]
             },
             {
-              text: "Set an IP address on the NMS server and connect the second server to it — this second server represents a monitored application host.",
+              text: "Set a static IP address on the NMS server (for example 10.0.0.1) and connect the second server to it — this second server represents a monitored application host.",
               hint: "Use SNMP traps for critical thresholds (e.g. link down) so the alert reaches you immediately rather than waiting for the next poll cycle.",
               checks: [
-                { type: "ip", deviceType: "server", count: 1 },
+                { type: "ip_not_auto", deviceType: "server", count: 1 },
                 { type: "connection", from: "server", to: "server", count: 1 }
               ]
             }

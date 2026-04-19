@@ -561,6 +561,23 @@ function evaluateStepRequirements(step, stepIndex) {
   return true;
 }
 
+// Convert an IP like "192.168.1.5" to a plain number so we can compare them.
+function ipToNum(ip) {
+  var p = (ip || "").split(".");
+  return (+p[0] * 16777216) + (+p[1] * 65536) + (+p[2] * 256) + (+p[3]);
+}
+
+// Return true if `ip` is between `minIp` and `maxIp` (inclusive).
+function ipInRange(ip, minIp, maxIp) {
+  var n = ipToNum(ip);
+  return n >= ipToNum(minIp) && n <= ipToNum(maxIp);
+}
+
+// Return the /24 network prefix of an IP (first three octets, e.g. "192.168.1").
+function ipNetwork24(ip) {
+  return (ip || "").split(".").slice(0, 3).join(".");
+}
+
 // Evaluate one individual requirement check.
 function evaluateSingleRequirement(check) {
   if (!check || !check.type) {
@@ -613,6 +630,68 @@ function evaluateSingleRequirement(check) {
 
   if (check.type === "ping_success") {
     return !!(state.pingInspector && state.pingInspector.success);
+  }
+
+  // Check that `count` devices have IPs inside the given range (min/max).
+  if (check.type === "ip_in_range") {
+    return countDevicesMatching(function (device) {
+      return (!check.deviceType || device.type === check.deviceType) && device.config && device.config.ipAddress &&
+        ipInRange(device.config.ipAddress, check.min, check.max);
+    }) >= need;
+  }
+
+  // Check that `count` devices have a gateway inside the given range (min/max).
+  if (check.type === "gateway_in_range") {
+    return countDevicesMatching(function (device) {
+      return (!check.deviceType || device.type === check.deviceType) && device.config && device.config.defaultGateway &&
+        ipInRange(device.config.defaultGateway, check.min, check.max);
+    }) >= need;
+  }
+
+  // Check that `count` devices have an IP that is NOT in the auto-assigned range (192.168.1.x).
+  // This forces the user to manually set an IP rather than accepting the auto default.
+  if (check.type === "ip_not_auto") {
+    return countDevicesMatching(function (device) {
+      return (!check.deviceType || device.type === check.deviceType) && device.config && device.config.ipAddress &&
+        !ipInRange(device.config.ipAddress, "192.168.1.1", "192.168.1.254");
+    }) >= need;
+  }
+
+  // Check that `count` devices have a gateway that is NOT the auto default (192.168.1.1).
+  if (check.type === "gateway_not_auto") {
+    return countDevicesMatching(function (device) {
+      return (!check.deviceType || device.type === check.deviceType) && device.config &&
+        device.config.defaultGateway && device.config.defaultGateway !== "192.168.1.1";
+    }) >= need;
+  }
+
+  // Check that at least one device has its DHCP server service enabled.
+  if (check.type === "dhcp_server_enabled") {
+    return countDevicesMatching(function (device) {
+      return (!check.deviceType || device.type === check.deviceType) && device.config &&
+        device.config.dhcpServer && device.config.dhcpServer.enabled;
+    }) >= need;
+  }
+
+  // Check that devices are spread across at least `minGroups` different /24 networks,
+  // with at least `minPerGroup` devices in each group.
+  if (check.type === "subnet_groups") {
+    var minPerGroup = Number(check.minPerGroup) || 1;
+    var minGroups = Number(check.minGroups) || 2;
+    var groups = {};
+    for (var gi = 0; gi < state.devices.length; gi++) {
+      var gd = state.devices[gi];
+      if ((!check.deviceType || gd.type === check.deviceType) && gd.config && gd.config.ipAddress) {
+        var net = ipNetwork24(gd.config.ipAddress);
+        groups[net] = (groups[net] || 0) + 1;
+      }
+    }
+    var validGroups = 0;
+    var gKeys = Object.keys(groups);
+    for (var gki = 0; gki < gKeys.length; gki++) {
+      if (groups[gKeys[gki]] >= minPerGroup) { validGroups++; }
+    }
+    return validGroups >= minGroups;
   }
 
   // Unknown check type.
