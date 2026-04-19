@@ -13,7 +13,6 @@ It covers:
   2. Saving, loading, and deleting named topologies.
   3. The database writes behind those routes.
 
-The tests stay small so the sandbox data flow is easy to read.
 """
 
 import json

@@ -14,7 +14,6 @@ It covers:
   3. Skipping the tour.
   4. Recording one onboarding step.
 
-The tests stay small so the onboarding flow is easy to follow.
 """
 
 import json

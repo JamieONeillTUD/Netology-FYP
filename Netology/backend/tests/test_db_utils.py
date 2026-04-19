@@ -12,7 +12,6 @@ It covers:
   1. Converting values to integers safely.
   2. Cleaning email values for database use.
 
-These are simple pure-function tests, so they do not need a database.
 """
 
 from db import email_from, to_int
