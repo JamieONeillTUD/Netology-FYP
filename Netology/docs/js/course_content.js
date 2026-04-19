@@ -454,18 +454,35 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Design a small office network",
           xp: 80,
-          rules: {
-            minDevices: 5,
-            minConnections: 4,
-            requiredTypes: {
-              router: 1,
-              switch: 1,
-              pc: 3
-            }
-          },
           steps: [
-            "Add 1 router, 1 switch, and at least 3 PCs.",
-            "Connect all PCs to the switch, then connect the switch to the router."
+            {
+              text: "Add 1 router, 1 switch, and at least 3 PCs.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "pc", count: 3 }
+              ]
+            },
+            {
+              text: "Connect all PCs to the switch, then connect the switch to the router.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 3 },
+                { type: "connection", from: "switch", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Add an Internet cloud and connect the router to it.",
+              checks: [
+                { type: "device", deviceType: "cloud", count: 1 },
+                { type: "connection", from: "router", to: "cloud", count: 1 }
+              ]
+            },
+            {
+              text: "Rename the router to include 'Gateway' to label it as the network gateway.",
+              checks: [
+                { type: "name_contains", deviceType: "router", contains: "Gateway", count: 1 }
+              ]
+            }
           ],
           tips: "Think of the router as the path to the Internet and the switch as the local meeting point."
         }
@@ -844,17 +861,33 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Build a two-switch LAN",
           xp: 80,
-          rules: {
-            minDevices: 6,
-            minConnections: 5,
-            requiredTypes: {
-              switch: 2,
-              pc: 4
-            }
-          },
           steps: [
-            "Add two switches and connect them with an uplink.",
-            "Connect at least two PCs to each switch."
+            {
+              text: "Add two switches and four PCs to the canvas.",
+              checks: [
+                { type: "device", deviceType: "switch", count: 2 },
+                { type: "device", deviceType: "pc", count: 4 }
+              ]
+            },
+            {
+              text: "Connect two PCs to each switch.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 4 }
+              ]
+            },
+            {
+              text: "Link the two switches together with one uplink connection.",
+              checks: [
+                { type: "connection", from: "switch", to: "switch", count: 1 }
+              ]
+            },
+            {
+              text: "Rename the two switches to 'Switch-A' and 'Switch-B' to label each segment.",
+              checks: [
+                { type: "name_contains", deviceType: "switch", contains: "Switch-A", count: 1 },
+                { type: "name_contains", deviceType: "switch", contains: "Switch-B", count: 1 }
+              ]
+            }
           ],
           tips: "Switches learn by reading source MACs; unknown destinations are flooded."
         }
@@ -1496,17 +1529,32 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Design a resilient switched LAN",
           xp: 80,
-          rules: {
-            minDevices: 6,
-            minConnections: 5,
-            requiredTypes: {
-              switch: 2,
-              pc: 4
-            }
-          },
           steps: [
-            "Build a LAN with two switches and at least four PCs.",
-            "Connect at least two PCs to each switch and create one inter-switch uplink."
+            {
+              text: "Add two switches and at least four PCs to the canvas.",
+              checks: [
+                { type: "device", deviceType: "switch", count: 2 },
+                { type: "device", deviceType: "pc", count: 4 }
+              ]
+            },
+            {
+              text: "Connect at least two PCs to each switch.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 4 }
+              ]
+            },
+            {
+              text: "Link the two switches together with one inter-switch uplink.",
+              checks: [
+                { type: "connection", from: "switch", to: "switch", count: 1 }
+              ]
+            },
+            {
+              text: "Assign IP addresses to all four PCs (for example 10.0.0.1 to 10.0.0.4).",
+              checks: [
+                { type: "ip_in_range", deviceType: "pc", min: "10.0.0.1", max: "10.255.255.254", count: 4 }
+              ]
+            }
           ],
           tips: "Keep the design simple first, then explain how STP protects the network when redundant links are present."
         }
@@ -2459,17 +2507,34 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Build a VLAN campus",
           xp: 100,
-          rules: {
-            minDevices: 6,
-            minConnections: 5,
-            requiredTypes: {
-              switch: 2,
-              pc: 4
-            }
-          },
           steps: [
-            "Add 2 switches and at least 4 PCs.",
-            "Connect PCs to the switches and link the switches together."
+            {
+              text: "Add 2 switches and at least 4 PCs.",
+              checks: [
+                { type: "device", deviceType: "switch", count: 2 },
+                { type: "device", deviceType: "pc", count: 4 }
+              ]
+            },
+            {
+              text: "Connect two PCs to each switch and link the two switches together.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 4 },
+                { type: "connection", from: "switch", to: "switch", count: 1 }
+              ]
+            },
+            {
+              text: "Rename two PCs to include 'VLAN10' and two PCs to include 'VLAN20' to represent the two segments.",
+              checks: [
+                { type: "name_contains", deviceType: "pc", contains: "VLAN10", count: 2 },
+                { type: "name_contains", deviceType: "pc", contains: "VLAN20", count: 2 }
+              ]
+            },
+            {
+              text: "Assign IPs to all four PCs — use one subnet for VLAN10 PCs and a different subnet for VLAN20 PCs.",
+              checks: [
+                { type: "subnet_groups", deviceType: "pc", minGroups: 2, minPerGroup: 2 }
+              ]
+            }
           ],
           tips: "Imagine the trunk between switches carrying VLAN 10 and VLAN 20."
         }
@@ -3040,17 +3105,34 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Design a routed network",
           xp: 100,
-          rules: {
-            minDevices: 5,
-            minConnections: 4,
-            requiredTypes: {
-              router: 2,
-              pc: 3
-            }
-          },
           steps: [
-            "Add three PCs (one per branch) and two routers to the canvas.",
-            "Connect Branch A PC to R1, Branch C PC to R2, Branch B PC to both R1 and R2."
+            {
+              text: "Add three PCs and two routers to the canvas.",
+              checks: [
+                { type: "device", deviceType: "pc", count: 3 },
+                { type: "device", deviceType: "router", count: 2 }
+              ]
+            },
+            {
+              text: "Name the two routers 'R1' and 'R2'.",
+              checks: [
+                { type: "name_contains", deviceType: "router", contains: "R1", count: 1 },
+                { type: "name_contains", deviceType: "router", contains: "R2", count: 1 }
+              ]
+            },
+            {
+              text: "Connect Branch A PC to R1, Branch C PC to R2, and Branch B PC to both R1 and R2.",
+              checks: [
+                { type: "connection", from: "pc", to: "router", count: 4 }
+              ]
+            },
+            {
+              text: "Assign IP addresses to all PCs and both routers — put R1 and R2 on different subnets.",
+              checks: [
+                { type: "subnet_groups", deviceType: "router", minGroups: 2, minPerGroup: 1 },
+                { type: "ip_not_auto", deviceType: "pc", count: 3 }
+              ]
+            }
           ],
           tips: "Think about what happens if one router link goes down — which routing method handles it better?"
         }
@@ -3259,18 +3341,35 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Troubleshoot a broken network service",
           xp: 100,
-          rules: {
-            minDevices: 3,
-            minConnections: 2,
-            requiredTypes: {
-              router: 1,
-              server: 1,
-              pc: 1
-            }
-          },
           steps: [
-            "Add a PC, a router, and a DNS server to the canvas.",
-            "Connect the PC to the router and the router to the DNS server."
+            {
+              text: "Add a PC, a router, and a server to the canvas.",
+              checks: [
+                { type: "device", deviceType: "pc", count: 1 },
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "server", count: 1 }
+              ]
+            },
+            {
+              text: "Connect the PC to the router and the router to the server.",
+              checks: [
+                { type: "connection", from: "pc", to: "router", count: 1 },
+                { type: "connection", from: "router", to: "server", count: 1 }
+              ]
+            },
+            {
+              text: "Rename the server to 'DNS-Server' to label its role.",
+              checks: [
+                { type: "name_contains", deviceType: "server", contains: "DNS", count: 1 }
+              ]
+            },
+            {
+              text: "Assign IP addresses to the PC and the server.",
+              checks: [
+                { type: "ip_not_auto", deviceType: "pc", count: 1 },
+                { type: "ip_not_auto", deviceType: "server", count: 1 }
+              ]
+            }
           ],
           tips: "When IP works but names do not, always check DNS first."
         }
@@ -3625,18 +3724,34 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Harden a branch network",
           xp: 120,
-          rules: {
-            minDevices: 6,
-            minConnections: 5,
-            requiredTypes: {
-              router: 1,
-              switch: 1,
-              pc: 4
-            }
-          },
           steps: [
-            "Build a small branch network with a router, switch, and four PCs.",
-            "Connect all PCs to the switch and connect the switch to the router."
+            {
+              text: "Add a router, a switch, and four PCs to the canvas.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "pc", count: 4 }
+              ]
+            },
+            {
+              text: "Connect all PCs to the switch and connect the switch to the router.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 4 },
+                { type: "connection", from: "switch", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Rename one PC to 'Admin-PC' to label the admin workstation.",
+              checks: [
+                { type: "name_contains", deviceType: "pc", contains: "Admin-PC", count: 1 }
+              ]
+            },
+            {
+              text: "Assign IP addresses to all four PCs (for example 192.168.10.x range).",
+              checks: [
+                { type: "ip_in_range", deviceType: "pc", min: "192.168.10.1", max: "192.168.10.254", count: 4 }
+              ]
+            }
           ],
           tips: "Focus on least privilege and reducing exposed services."
         }
@@ -3927,21 +4042,37 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Build an ACL policy",
           xp: 120,
-          rules: {
-            minDevices: 4,
-            minConnections: 3,
-            requiredTypes: {
-              router: 1,
-              switch: 1,
-              pc: 2
-            }
-          },
           steps: [
-            "Add a router, a switch, and two PCs.",
-            "Connect PCs to the switch, then connect the switch to the router.",
-            "Imagine the router enforcing ACL rules between the PCs."
+            {
+              text: "Add a router, a switch, and two PCs.",
+              checks: [
+                { type: "device", deviceType: "router", count: 1 },
+                { type: "device", deviceType: "switch", count: 1 },
+                { type: "device", deviceType: "pc", count: 2 }
+              ]
+            },
+            {
+              text: "Connect both PCs to the switch, then connect the switch to the router.",
+              checks: [
+                { type: "connection", from: "pc", to: "switch", count: 2 },
+                { type: "connection", from: "switch", to: "router", count: 1 }
+              ]
+            },
+            {
+              text: "Rename one PC to 'Staff-PC' and the other to 'Guest-PC'.",
+              checks: [
+                { type: "name_contains", deviceType: "pc", contains: "Staff-PC", count: 1 },
+                { type: "name_contains", deviceType: "pc", contains: "Guest-PC", count: 1 }
+              ]
+            },
+            {
+              text: "Assign IPs to both PCs using two different subnets — the router would enforce ACL rules per subnet.",
+              checks: [
+                { type: "subnet_groups", deviceType: "pc", minGroups: 2, minPerGroup: 1 }
+              ]
+            }
           ],
-          tips: "You're validating topology and segmentation awareness."
+          tips: "ACLs filter traffic between subnets — keep Staff and Guest on separate address ranges."
         },
         sandbox: {
           title: "Sketch an ACL policy",
@@ -4305,18 +4436,36 @@ const COURSE_CONTENT = {
         challenge: {
           title: "Design an incident response plan",
           xp: 120,
-          rules: {
-            minDevices: 4,
-            minConnections: 3,
-            requiredTypes: {
-              firewall: 1,
-              server: 2,
-              pc: 1
-            }
-          },
           steps: [
-            "Add a firewall, a jump host (PC), and a SIEM server to the canvas.",
-            "Connect the jump host to the firewall and the SIEM server to the firewall."
+            {
+              text: "Add a firewall, a PC (jump host), and two servers to the canvas.",
+              checks: [
+                { type: "device", deviceType: "firewall", count: 1 },
+                { type: "device", deviceType: "pc", count: 1 },
+                { type: "device", deviceType: "server", count: 2 }
+              ]
+            },
+            {
+              text: "Connect the PC to the firewall and both servers to the firewall.",
+              checks: [
+                { type: "connection", from: "pc", to: "firewall", count: 1 },
+                { type: "connection", from: "server", to: "firewall", count: 2 }
+              ]
+            },
+            {
+              text: "Rename one server to 'SIEM-Server' and the other to 'App-Server'.",
+              checks: [
+                { type: "name_contains", deviceType: "server", contains: "SIEM", count: 1 },
+                { type: "name_contains", deviceType: "server", contains: "App", count: 1 }
+              ]
+            },
+            {
+              text: "Assign IP addresses to the PC and both servers.",
+              checks: [
+                { type: "ip_not_auto", deviceType: "pc", count: 1 },
+                { type: "ip_not_auto", deviceType: "server", count: 2 }
+              ]
+            }
           ],
           tips: "Brute-force followed by a successful login means credentials may be compromised — containment before investigation."
         }
